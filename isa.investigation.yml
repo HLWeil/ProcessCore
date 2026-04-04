@@ -1,0 +1,34 @@
+type: Investigation # inherits from Dataset
+identifier: ara_prot_2023
+title: Validation of Proteins in Arabidopsis thaliana
+description: Some people say that Arabidopsis thaliana does not contain any proteins, but lives on vibes. This investigation aims to validate the presence of proteins in Arabidopsis thaliana using various experimental techniques, including proteomics and chill.
+creators:
+  type: Person
+  givenName: Oliver
+  affiliation:    
+    type: Organization
+    name: RPTU University of Kaiserslautern
+  email: mailto:maus@nfdi4plants.org
+  familyName: Maus
+  jobTitles:
+    "@id": http://purl.org/spar/scoro/research-assistant
+    "@type": DefinedTerm
+    name: research assistant
+    termCode: http://purl.org/spar/scoro/research-assistant  
+additionalProperties:
+  - type: PropertyValue
+    name: latitude
+    nameTAN: http://www.eionet.europa.eu/gemet/concept/14936
+    value: 49.4431
+    unit: degree
+    unitTAN: http://purl.obolibrary.org/obo/UO_0000185
+  - type: PropertyValue
+    name: longitude
+    nameTAN: http://www.eionet.europa.eu/gemet/concept/14936
+    value: 7.7682
+    unit: degree
+    unitTAN: http://purl.obolibrary.org/obo/UO_0000185
+  - type: PropertyValue
+    name: aim
+    nameTAN: https://spec.edmcouncil.org/fibo/ontology/FND/GoalsAndObjectives/Objectives/Aim
+    value: To validate the presence of proteins in Arabidopsis thaliana using various experimental techniques, including proteomics and chill.
