@@ -1,0 +1,35 @@
+datacontexts:
+  - 
+    type: File
+    name: "proteomics_result.csv#col=1"
+    encodingFormat: text/csv
+    usageInfo: https://datatracker.ietf.org/doc/html/rfc7111
+    explication: Protein Identifier
+    explicationTAN: http://purl.obolibrary.org/obo/NCIT_C165059
+    objectType: String
+    objectTypeTAN: http://purl.obolibrary.org/obo/NCIT_C45253
+    label: Protein IDs
+    description: Uniprot IDs of the identified proteins
+    generatedBy: MaxQuant
+  - 
+    type: File
+    name: "proteomics_result.csv#col=2-11"
+    encodingFormat: text/csv
+    usageInfo: https://datatracker.ietf.org/doc/html/rfc7111
+    explication: MaxQuant:LFQ intensity
+    explicationTAN: http://purl.obolibrary.org/obo/MS_1001902
+    objectType: Float
+    objectTypeTAN: http://purl.obolibrary.org/obo/NCIT_C48150
+    generatedBy: MaxQuant
+  - 
+    type: File
+    name: "wholeCount.csv#col=1-6"
+    encodingFormat: text/csv
+    usageInfo: https://datatracker.ietf.org/doc/html/rfc7111
+    explication: protein concentration
+    explicationTAN: http://purl.obolibrary.org/obo/MSIO_0000072
+    unit: microgram per microliter
+    unitTAN: http://purl.obolibrary.org/obo/UO_0010072
+    objectType: Float
+    objectTypeTAN: http://purl.obolibrary.org/obo/NCIT_C48150
+    generatedBy: Bradford protein assay
