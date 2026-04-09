@@ -1,0 +1,22 @@
+# Workflow Invocation
+
+Workflow Run specialization of [Process](../../core/Process.md). Represents the execution of a Workflow Protocol, combining computational and laboratory workflow execution.
+
+**`additionalType`**: `Workflow Invocation`
+
+**Multi-type**: CreateAction + LabProcess
+
+Reference: [ARC WR RO-Crate Profile — Workflow Invocation](../../../references/arc_wr_ro_crate.md)
+
+## Properties
+
+Inherits all properties from [Process](../../core/Process.md). WR-specific refinements:
+
+| Property | Type | Required | Description |
+|----------|------|----------|-------------|
+| `instrument` | [WorkflowProtocol](WorkflowProtocol.md) | MUST | Executed workflow (MUST equal `executesLabProtocol`) |
+| `executesLabProtocol` | [WorkflowProtocol](WorkflowProtocol.md) | MUST | Executed workflow (MUST equal `instrument`) |
+| `object` | MediaObject, Dataset, PropertyValue | MUST | Input files consumed |
+| `result` | MediaObject, Dataset, PropertyValue | MUST | Output files created/modified |
+| `parameterValue` | [PropertyValue](PropertyValues.md) | COULD | Workflow parameter values |
+| `description` | Text | COULD | Execution details (CLI args, settings) |

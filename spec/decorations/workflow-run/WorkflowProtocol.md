@@ -1,0 +1,22 @@
+# Workflow Protocol
+
+Workflow Run specialization of [Protocol](../../core/Protocol.md). Describes the prospective metadata of a computational workflow, combining computational and laboratory workflow descriptions.
+
+**`additionalType`**: `Workflow Protocol`
+
+**Multi-type**: SoftwareSourceCode + ComputationalWorkflow + LabProtocol
+
+Reference: [ARC WR RO-Crate Profile — Workflow Protocol](../../../references/arc_wr_ro_crate.md)
+
+## Additional Properties (beyond Protocol)
+
+| Property | Type | Required | Description |
+|----------|------|----------|-------------|
+| `input` | [FormalParameter](FormalParameter.md) | SHOULD | Workflow inputs |
+| `output` | [FormalParameter](FormalParameter.md) | SHOULD | Workflow outputs |
+| `programmingLanguage` | ComputerLanguage, Text | SHOULD | Runtime environment |
+| `creator` | Person, Organization | SHOULD | Creator/author |
+| `license` | CreativeWork, URL | SHOULD | License |
+| `sdPublisher` | Person, Organization | SHOULD | Host site |
+| `hasPart` | CreativeWork | COULD | Tools/scripts used in workflow |
+| `computationalTool` | SoftwareApplication, DefinedTerm | COULD | Software used |
