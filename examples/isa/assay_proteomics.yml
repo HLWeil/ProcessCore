@@ -1,18 +1,20 @@
-type: Assay # inherits from Dataset
+type: Dataset
+additionalType: Assay
 identifier: measurement1
 creators:
-  type: Person
-  givenName: Oliver
-  affiliation:    
-    type: Organization
-    name: RPTU University of Kaiserslautern
-  email: mailto:maus@nfdi4plants.org
-  familyName: Maus
-  jobTitles:
-    "@id": http://purl.org/spar/scoro/research-assistant
-    "@type": DefinedTerm
-    name: research assistant
-    termCode: http://purl.org/spar/scoro/research-assistant  
+  - 
+    type: Person
+    givenName: Oliver
+    affiliation:    
+      type: Organization
+      name: RPTU University of Kaiserslautern
+    email: mailto:maus@nfdi4plants.org
+    familyName: Maus
+    jobTitles:
+      "@id": http://purl.org/spar/scoro/research-assistant
+      "@type": DefinedTerm
+      name: research assistant
+      termCode: http://purl.org/spar/scoro/research-assistant  
 labProtocols:
     - 
       "@id": "#Protocol_Growth"
@@ -35,14 +37,16 @@ labProtocols:
 propertyValues:
   -
     "@id": "#ParameterValue_sonicator_Fisherbrand_Model_705_Sonic_Dismembrator"
-    type: ParameterValue # inherits from PropertyValue
+    type: PropertyValue
+    additionalType: ParameterValue # inherits from PropertyValue
     name: sonicator
     nameTAN: https://bioregistry.io/OBI:0400114
     value: Fisherbrand™ Model 705 Sonic Dismembrator
     valueTAN: https://bioregistry.io/OBI:5453453
   - 
     "@id": "#ParameterValue_time_10_minute"
-    type: ParameterValue
+    type: PropertyValue
+    additionalType: ParameterValue
     name: time 
     nameTAN: https://bioregistry.io/PATO:0000165 
     value: 10
@@ -50,38 +54,44 @@ propertyValues:
     unitTAN: https://bioregistry.io/UO:0000031 
   - 
     "@id": "#ParameterValue_technical_replicate_group_1"
-    type: ParameterValue
+    type: PropertyValue
+    additionalType: ParameterValue
     name: technical replicate group
     nameTAN: https://bioregistry.io/DPBO:1000184
     value: 1
   - 
     "@id": "#ParameterValue_technical_replicate_group_2"
-    type: ParameterValue
+    type: PropertyValue
+    additionalType: ParameterValue
     name: technical replicate group
     nameTAN: https://bioregistry.io/DPBO:1000184
     value: 2
   - 
     "@id": "#ParameterValue_technical_replicate_group_3"
-    type: ParameterValue
+    type: PropertyValue
+    additionalType: ParameterValue
     name: technical replicate group
     nameTAN: https://bioregistry.io/DPBO:1000184
     value: 3  
   - 
     "@id": "#ParameterValue_software_ProteomIqon"
-    type: ParameterValue
+    type: PropertyValue
+    additionalType: ParameterValue
     name: software
     nameTAN: https://bioregistry.io/IAO_0000010
     value: ProteomIQon
   - 
     "@id": "#CharacteristicValue_organism_Arabidopsis_thaliana"
-    type: CharacteristicValue
+    type: PropertyValue
+    additionalType: CharacteristicValue
     name: organism
     nameTAN: https://bioregistry.io/SIO:010000
     value: Arabidopsis thaliana
     valueTAN: https://bioregistry.io/NCBITaxon:3702
   -  
     "@id": "#FactorValue_temperature_25_degree_Celsius"
-    type: FactorValue
+    type: PropertyValue
+    additionalType: FactorValue
     name: temperature
     nameTAN: https://bioregistry.io/NCRO:0000029
     value: 25
@@ -89,7 +99,8 @@ propertyValues:
     unitTAN: https://bioregistry.io/UO:0000027
   - 
     "@id": "#FactorValue_temperature_30_degree_Celsius"
-    type: FactorValue
+    type: PropertyValue
+    additionalType: FactorValue
     name: temperature
     nameTAN: https://bioregistry.io/NCRO:0000029
     value: 30
@@ -97,14 +108,16 @@ propertyValues:
     unitTAN: https://bioregistry.io/UO:0000027
   - 
     "@id": "#Component_growth_environment_bioreactor"
-    type: Component
+    type: PropertyValue
+    additionalType: Component
     name: growth environment
     nameTAN: https://bioregistry.io/OBI:0000997
     value: bioreactor
     valueTAN: https://bioregistry.io/OBI:0001046
   - 
     "@id": "#Component_mass_spectrometer_Q_Exactive_9000"
-    type: Component
+    type: PropertyValue
+    additionalType: Component
     name: mass spectrometer
     nameTAN: https://bioregistry.io/OBI:0000049
     value: Q Exactive 9000
@@ -113,14 +126,16 @@ processes:
     # Possible worksheet grouping
     type: LabProcess
     name: Growth
-    object: 
-      type: Source # = additionalType: [Source]
+    object:
+      type: Material # = additionalType: [Source]
+      additionalType: Source
       name: Base Culture
       additionalProperties:
         - 
          "@id": "#CharacteristicValue_organism_Arabidopsis_thaliana"
     result:
-      type: Sample      
+      type: Material
+      additionalType: Sample      
       name: Cultivation Flask RT
       additionalProperties:
         - 
@@ -137,7 +152,8 @@ processes:
         - 
          "@id": "#CharacteristicValue_organism_Arabidopsis_thaliana"
     result:
-      type: Sample      
+      type: Material
+      additionalType: Sample
       name: Cultivation Flask HT
       additionalProperties:
         - 
@@ -148,10 +164,12 @@ processes:
     type: LabProcess
     name: Cell Lysis
     object: 
-      type: Source # = additionalType: [Source]
+      type: Material
+      additionalType: Source # = additionalType: [Source]
       name: Cultivation Flask RT
     result:
-      type: Sample      
+      type: Material      
+      additionalType: Sample
       name: Eppi RT 1
     executesLabProtocol:
       "@id": "#Protocol_Cell_Lysis"
@@ -163,10 +181,12 @@ processes:
     type: LabProcess
     name: Cell Lysis
     object: 
-      type: Source # = additionalType: [Source]
+      type: Material # = additionalType: [Source]
+      additionalType: Source
       name: Cultivation Flask RT
     result:
-      type: Sample      
+      type: Material      
+      additionalType: Sample
       name: Eppi RT 2
     executesLabProtocol:
       "@id": "#Protocol_Cell_Lysis"
@@ -178,10 +198,12 @@ processes:
     type: LabProcess
     name: Cell Lysis
     object: 
-      type: Source # = additionalType: [Source]
+      type: Material # = additionalType: [Source]
+      additionalType: Source
       name: Cultivation Flask RT
     result:
-      type: Sample      
+      type: Material      
+      additionalType: Sample
       name: Eppi RT 3
     executesLabProtocol:
       "@id": "#Protocol_Cell_Lysis"
@@ -193,10 +215,12 @@ processes:
     type: LabProcess
     name: Cell Lysis
     object: 
-      type: Source # = additionalType: [Source]
+      type: Material # = additionalType: [Source]
+      additionalType: Source
       name: Cultivation Flask HT
     result:
-      type: Sample      
+      type: Material      
+      additionalType: Sample
       name: Eppi HT 1
     executesLabProtocol:
       "@id": "#Protocol_Cell_Lysis"
@@ -208,10 +232,12 @@ processes:
     type: LabProcess
     name: Cell Lysis
     object: 
-      type: Source # = additionalType: [Source]
+      type: Material # = additionalType: [Source]
+      additionalType: Source
       name: Cultivation Flask HT
     result:
-      type: Sample      
+      type: Material      
+      additionalType: Sample
       name: Eppi HT 2
     executesLabProtocol:
       "@id": "#Protocol_Cell_Lysis"
@@ -223,10 +249,12 @@ processes:
     type: LabProcess
     name: Cell Lysis
     object: 
-      type: Source # = additionalType: [Source]
+      type: Material # = additionalType: [Source]
+      additionalType: Source
       name: Cultivation Flask HT
     result:
-      type: Sample      
+      type: Material      
+      additionalType: Sample
       name: Eppi HT 3
     executesLabProtocol:
       "@id": "#Protocol_Cell_Lysis"
@@ -238,7 +266,8 @@ processes:
     type: LabProcess
     name: MS Run
     object: 
-      type: Sample      
+      type: Material
+      additionalType: Sample
       name: Eppi RT 1
     result:
       type: File
@@ -249,7 +278,8 @@ processes:
     type: LabProcess
     name: MS Run
     object: 
-      type: Sample      
+      type: Material      
+      additionalType: Sample
       name: Eppi RT 2
     result:
       type: File
@@ -260,7 +290,8 @@ processes:
     type: LabProcess
     name: MS Run
     object: 
-      type: Sample      
+      type: Material      
+      additionalType: Sample
       name: Eppi RT 3
     result:
       type: File
@@ -271,7 +302,8 @@ processes:
     type: LabProcess
     name: MS Run
     object: 
-      type: Sample      
+      type: Material      
+      additionalType: Sample
       name: Eppi HT 1
     result:
       type: File
@@ -282,7 +314,8 @@ processes:
     type: LabProcess
     name: MS Run
     object: 
-      type: Sample      
+      type: Material      
+      additionalType: Sample
       name: Eppi HT 2
     result:
       type: File
@@ -293,7 +326,8 @@ processes:
     type: LabProcess
     name: MS Run
     object: 
-      type: Sample      
+      type: Material      
+      additionalType: Sample
       name: Eppi HT 3
     result:
       type: File
