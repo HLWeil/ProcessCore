@@ -17,6 +17,7 @@ Decorations specialize Protocol:
 | `name` | Text | SHOULD | Main title |
 | `description` | Text | SHOULD | Short description or abstract |
 | `intendedUse` | [DefinedTerm](DefinedTerm.md), Text | SHOULD | Protocol type as ontology term |
+| `additionalProperty` | [PropertyValue](PropertyValue.md) | COULD | Extensible protocol metadata |
 | `version` | Text | COULD | Version identifier |
 | `url` | URL | COULD | External protocol resource |
 
@@ -26,4 +27,5 @@ Decorations specialize Protocol:
 flowchart TD
     Process --executesProtocol--> Protocol
     Protocol --intendedUse--> DefinedTerm
+    Protocol --additionalProperty--> PropertyValue
 ```

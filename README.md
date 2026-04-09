@@ -5,15 +5,16 @@ Specification repository for the ARC Data Model — a process-centric, extensibl
 ## Core Principles
 
 - **ProcessCore foundation**: The data model is built on an extensible `ProcessCore` model that abstracts scientific experiments as a graph connecting sources to created data via processes. It is the core ISA process model, abstracted away from Investigation/Study/Assay data types.
-- **Extensible via decorations**: ProcessCore is extensible via PropertyValues, allowing any RDM data model that relies on processes to be depicted via domain-specific "decorations".
+- **Extensible via decorations**: ProcessCore is extensible via PropertyValues, attached either through `additionalProperty` or dedicated relationships such as `parameterValue`, allowing any RDM data model that relies on processes to be depicted via domain-specific "decorations".
 - **Representation-agnostic**: The model can be depicted as a SQL schema, a document database, or RDF/JSON-LD.
 
 ## Repository Structure
 
 ```text
 ├── spec/                          Normative specification
-│   ├── core/                      ProcessCore model (Dataset, Process, Protocol, Material, ...)
+│   ├── core/                      ProcessCore model (Dataset, Process, Protocol, Material, DataContext, ...)
 │   ├── decorations/
+│   │   ├── datamap/               Datamap decoration (FragmentDescriptor, ...)
 │   │   ├── isa/                   ISA decoration (Investigation, Study, Assay, ...)
 │   │   └── workflow-run/          Workflow Run decoration (ARC Workflow, ARC Run, ...)
 │   └── querying/                  Query patterns on the process graph
@@ -149,13 +150,17 @@ flowchart TD
 ```mermaid
 flowchart TD
     Dataset --about--> LabProcess
+    Dataset --additionalProperty--> PropertyValue
     LabProcess --"object"--> Sample
     LabProcess --"object"--> File
     LabProcess --result--> Sample
     LabProcess --result--> File
     LabProcess --parameterValue--> PropertyValue
+    LabProcess --additionalProperty--> PropertyValue
     LabProcess --executesLabProtocol--> LabProtocol
     Sample --additionalProperty--> PropertyValue
+    File --additionalProperty--> PropertyValue
+    LabProtocol --additionalProperty--> PropertyValue
 ```
 
 ### Querymodel: Core Extensions

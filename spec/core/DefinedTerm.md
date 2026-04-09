@@ -13,6 +13,7 @@ Ontology annotation referencing a term in a controlled vocabulary or ontology.
 | `name` | Text | MUST | Term name |
 | `termCode` | Text | SHOULD | Identifier within the ontology |
 | `inDefinedTermSet` | URL, DefinedTermSet | SHOULD | Link to the ontology |
+| `additionalProperty` | [PropertyValue](PropertyValue.md) | COULD | Extensible annotations on the term |
 
 ## Relationships
 
@@ -20,4 +21,5 @@ Ontology annotation referencing a term in a controlled vocabulary or ontology.
 flowchart TD
     Protocol --intendedUse--> DefinedTerm
     PropertyValue --valueReference--> DefinedTerm
+    DefinedTerm --additionalProperty--> PropertyValue
 ```

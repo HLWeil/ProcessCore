@@ -6,7 +6,70 @@ This repo contains the core data model specifications for the ARC ecosystem. It 
 ## Architecture
 
 <!-- Where things live. The agent will grep/glob to explore, but this saves tokens and wrong turns. -->
-
+This is not an implementation repo, it is where specs live.
+```
+ARC-Data-Model/
+├── README.md                              # Project overview, principles, links
+├── AGENTS.md                              # Agent instructions
+│
+├── spec/
+│   ├── README.md                          # Spec reading guide, design principles
+│   │
+│   ├── core/                              # ProcessCore specification
+│   │   ├── README.md                      # Core model overview + process graph diagram
+│   │   ├── Dataset.md                     # Container/context for processes
+│   │   ├── Process.md                     # Core transformation node (inputs → outputs)
+│   │   ├── Protocol.md                    # Planned procedure description
+│   │   ├── Material.md                    # Input/output materials (sources, samples)
+│   │   ├── Data.md                        # Data files
+│   │   ├── PropertyValue.md               # Extensible key-value-unit triples
+│   │   ├── Person.md                      # Contributors
+│   │   └── DefinedTerm.md                 # Ontology annotations
+│   │
+│   ├── decorations/
+│   │   ├── README.md                      # What decorations are, extension mechanism
+│   │   │
+│   │   ├── isa/                           # ISA decoration
+│   │   │   ├── README.md                  # Overview + mapping table (core → ISA)
+│   │   │   ├── Investigation.md           # Dataset → Investigation
+│   │   │   ├── Study.md                   # Dataset → Study
+│   │   │   ├── Assay.md                   # Dataset → Assay
+│   │   │   ├── LabProcess.md              # Process → LabProcess
+│   │   │   ├── LabProtocol.md             # Protocol → LabProtocol
+│   │   │   ├── Sample.md                  # Material → Sample/Source
+│   │   │   └── PropertyValues.md          # Parameter, Characteristic, Factor, Component
+│   │   │
+│   │   └── workflow-run/                  # Workflow Run decoration
+│   │       ├── README.md                  # Overview + mapping table (core → WR)
+│   │       ├── ArcWorkflow.md             # Dataset → ARC Workflow
+│   │       ├── ArcRun.md                  # Dataset → ARC Run
+│   │       ├── WorkflowProtocol.md        # Protocol → Workflow Protocol
+│   │       ├── WorkflowInvocation.md      # Process → Workflow Invocation
+│   │       ├── FormalParameter.md         # WR-specific entity
+│   │       └── PropertyValues.md          # Workflow Input, Prefix, Position
+│   │
+│   └── querying/
+│       └── use-cases.md                   # Query patterns on the process graph
+│
+├── schemas/
+│   ├── README.md                          # How schemas relate to the spec
+│   ├── sql/                               # SQL schema representations (future)
+│   └── document-db/                       # Document DB representations (future)
+│
+├── examples/
+│   ├── README.md                          # Index of examples
+│   ├── isa/
+│   │   ├── investigation.yml              # ← isa.investigation.yml
+│   │   ├── assay_proteomics.yml           # ← isa.assay_proteomics-example.yml
+│   │   └── datamap_proteomics.yml         # ← isa.datamap_proteomics.yml
+│   └── workflow-run/                      # (future WR examples)
+│
+└── references/
+    ├── README.md                          # What these reference specs are
+    ├── isa_ro_crate.md                    # ← roc-profiles/isa_ro_crate.md
+    ├── arc_datamap_ro_crate.md            # ← roc-profiles/arc_datamap_ro_crate.md
+    └── arc_wr_ro_crate.md                 # ← roc-profiles/arc_wr_ro_crate.md
+```
 <!-- Add key boundaries the agent must respect: -->
 <!-- - "All database access goes through src/db/, never import the ORM directly in route handlers" -->
 <!-- - "src/legacy/ is frozen — read but never modify" -->

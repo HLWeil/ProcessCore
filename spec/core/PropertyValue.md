@@ -1,11 +1,12 @@
 # PropertyValue
 
-Extensible key-value-unit triple. PropertyValues are the primary extension mechanism of ProcessCore — decorations define subtypes via the `additionalType` discriminator to attach domain-specific metadata.
+Extensible key-value-unit triple. PropertyValues are the primary extension mechanism of ProcessCore. They can be attached through `additionalProperty` for cross-cutting metadata, or through dedicated relationships such as `parameterValue` when the host type already defines a more specific role.
 
 **Schema.org type**: `schema.org/PropertyValue`
 
 Decoration subtypes:
 - ISA: ParameterValue, CharacteristicValue, FactorValue, Component
+- Datamap: FragmentDescriptor
 - Workflow Run: Workflow Input, Prefix, Position
 
 ## Properties
@@ -27,6 +28,11 @@ Decoration subtypes:
 ```mermaid
 flowchart TD
     Process --parameterValue--> PropertyValue
+    Process --additionalProperty--> PropertyValue
     Material --additionalProperty--> PropertyValue
+    Data --additionalProperty--> PropertyValue
     Dataset --additionalProperty--> PropertyValue
+    Protocol --additionalProperty--> PropertyValue
+    Person --additionalProperty--> PropertyValue
+    DefinedTerm --additionalProperty--> PropertyValue
 ```
