@@ -27,6 +27,8 @@ The first version of the yml schema should contain schema files for the followin
 
 ### Design Approach
 
+#### Technical Considerations
+
 - **Use YAML Schema**: Or JSON Schema? Need to discuss
 
 - **Follow core specification**: The schema will be designed to directly reflect the core entities and relationships defined in the ARC Data Model specification, ensuring that all required fields and constraints are represented.
@@ -39,3 +41,8 @@ The first version of the yml schema should contain schema files for the followin
   - Need to decide on whether we allow `id` only in specific types or for all. Also 
   - Need to decide whether we define a generic mechanism to place collections of cross-referenced entities (e.g. a `registry` section) or allow them to be defined inline in the main document.
 
+#### Model details
+
+- Allow multiple objects and results per Process, i.e. process grouping? This would reduce file sizes tremendously? We need to see about impact on diffing
+
+- Nest Data into datacontext objects?

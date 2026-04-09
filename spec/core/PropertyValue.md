@@ -13,8 +13,8 @@ Decoration subtypes:
 
 | Property | Type | Required | Description |
 |----------|------|----------|-------------|
-| `@id` | Text | MUST | Unique identifier |
-| `@type` | Text | MUST | `schema.org/PropertyValue` |
+| `id` | Text | MUST | Unique identifier |
+| `type` | Text | MUST | `schema.org/PropertyValue` |
 | `name` | Text | MUST | Key name |
 | `additionalType` | Text | SHOULD | Subtype discriminator |
 | `value` | Text, Number | SHOULD | The value |

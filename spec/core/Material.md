@@ -11,8 +11,8 @@ Decorations specialize Material:
 
 | Property | Type | Required | Description |
 |----------|------|----------|-------------|
-| `@id` | Text | MUST | Unique material name |
-| `@type` | Text | MUST | Material type |
+| `id` | Text | MUST | Unique material name |
+| `type` | Text | MUST | Material type |
 | `name` | Text | MUST | Name identifying the material |
 | `additionalProperty` | [PropertyValue](PropertyValue.md) | SHOULD | Characteristics, factors, or other extensible metadata |
 | `derivesFrom` | Material | SHOULD | Source material(s) this derives from |

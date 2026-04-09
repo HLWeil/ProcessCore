@@ -8,8 +8,8 @@ Individual contributor or performer in the experimental workflow.
 
 | Property | Type | Required | Description |
 |----------|------|----------|-------------|
-| `@id` | Text | MUST | Unique identifier |
-| `@type` | Text | MUST | `schema.org/Person` |
+| `id` | Text | COULD | Unique identifier |
+| `type` | Text | MUST | `schema.org/Person` |
 | `givenName` | Text | MUST | Given name |
 | `familyName` | Text | SHOULD | Family name |
 | `email` | Text | SHOULD | Email address |

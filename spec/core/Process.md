@@ -12,8 +12,9 @@ Decorations specialize Process:
 
 | Property | Type | Required | Description |
 |----------|------|----------|-------------|
-| `@id` | Text | MUST | Unique process identifier |
-| `@type` | Text | MUST | Process type |
+| `id` | Text | COULD | Unique process identifier |
+| `type` | Text | MUST | Process type |
+| `additionalType` | Text | COULD | Decoration discriminator, e.g. `LabProcess` |
 | `name` | Text | MUST | Name of the process |
 | `object` | [Material](Material.md), [Data](Data.md) | SHOULD | Input(s) of the process |
 | `result` | [Material](Material.md), [Data](Data.md) | SHOULD | Output(s) of the process |

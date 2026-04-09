@@ -12,10 +12,11 @@ The ProcessCore model is the foundation of the ARC Data Model. It abstracts the 
 
 ```mermaid
 flowchart LR
+    Dataset --hasPart--> Dataset
     Dataset --about--> Process
     Dataset --additionalProperty--> PropertyValue
-    Process --object--> Material
-    Process --object--> Data
+    Process --"object"--> Material
+    Process --"object"--> Data
     Process --result--> Material
     Process --result--> Data
     Process --parameterValue--> PropertyValue

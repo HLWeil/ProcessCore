@@ -12,8 +12,8 @@ Decorations specialize Dataset via `additionalType`:
 
 | Property | Type | Required | Description |
 |----------|------|----------|-------------|
-| `@id` | Text | MUST | Unique identifier for the dataset |
-| `@type` | Text | MUST | `schema.org/Dataset` |
+| `id` | Text | MUST | Unique identifier for the dataset |
+| `type` | Text | MUST | `schema.org/Dataset` |
 | `additionalType` | Text | MUST | Discriminator for decoration type |
 | `identifier` | Text | MUST | Identifying descriptor |
 | `name` | Text | SHOULD | Title |

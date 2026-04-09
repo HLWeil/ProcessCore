@@ -12,8 +12,9 @@ Decorations specialize Protocol:
 
 | Property | Type | Required | Description |
 |----------|------|----------|-------------|
-| `@id` | Text | MUST | URL or identifier for the protocol |
-| `@type` | Text | MUST | Protocol type |
+| `id` | Text | COULD | URL or identifier for the protocol |
+| `type` | Text | MUST | Protocol type |
+| `additionalType` | Text | COULD | Decoration discriminator, e.g. `LabProtocol` |
 | `name` | Text | SHOULD | Main title |
 | `description` | Text | SHOULD | Short description or abstract |
 | `intendedUse` | [DefinedTerm](DefinedTerm.md), Text | SHOULD | Protocol type as ontology term |
