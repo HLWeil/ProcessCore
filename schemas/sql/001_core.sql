@@ -49,11 +49,13 @@ CREATE TABLE Material (
 );
 
 CREATE TABLE Data (
-    id                          TEXT PRIMARY KEY,
-    type                        TEXT NOT NULL,
-    name                        TEXT NOT NULL,
-    encoding_format             TEXT,
-    disambiguating_description  TEXT
+    id              TEXT PRIMARY KEY,
+    type            TEXT NOT NULL,
+    additional_type TEXT,
+    path            TEXT NOT NULL,
+    selector        TEXT,
+    selector_format TEXT,
+    encoding_format TEXT
 );
 
 CREATE TABLE Dataset (
@@ -204,6 +206,7 @@ CREATE INDEX idx_dataset_additional_type       ON Dataset(additional_type);
 CREATE INDEX idx_process_additional_type       ON Process(additional_type);
 CREATE INDEX idx_material_additional_type      ON Material(additional_type);
 CREATE INDEX idx_protocol_additional_type      ON Protocol(additional_type);
+CREATE INDEX idx_data_additional_type          ON Data(additional_type);
 
 CREATE INDEX idx_process_executes_protocol     ON Process(executes_protocol_id);
 CREATE INDEX idx_protocol_intended_use         ON Protocol(intended_use_id);
@@ -217,7 +220,12 @@ CREATE INDEX idx_dataset_main_entity           ON Dataset(main_entity_id);
 CREATE VIEW NodeRef AS
 SELECT 'Material' AS node_type, id AS node_id, name AS node_name FROM Material
 UNION ALL
-SELECT 'Data',                  id,             name             FROM Data;
+SELECT 'Data',                  id,
+       CASE WHEN selector IS NOT NULL
+            THEN path || '#' || selector
+            ELSE path
+       END
+FROM Data;
 
 -- All (object -> result) edges through processes
 CREATE VIEW ProcessEdge AS

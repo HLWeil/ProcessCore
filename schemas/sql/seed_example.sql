@@ -63,19 +63,21 @@ INSERT INTO MaterialAdditionalProperty (material_id, propertyvalue_id) VALUES
 -- Data (raw files and derived results)
 -- ============================================================
 
-INSERT INTO Data (id, type, name, encoding_format) VALUES
+INSERT INTO Data (id, type, path, encoding_format) VALUES
   ('#Data_sample1_raw', 'File', 'sample1.raw', NULL),
   ('#Data_sample2_raw', 'File', 'sample2.raw', NULL),
   ('#Data_sample3_raw', 'File', 'sample3.raw', NULL),
   ('#Data_sample4_raw', 'File', 'sample4.raw', NULL),
   ('#Data_sample5_raw', 'File', 'sample5.raw', NULL),
-  ('#Data_sample6_raw', 'File', 'sample6.raw', NULL),
-  ('#Data_result_col12', 'File', 'proteomics_result.csv#col=12', 'text/csv'),
-  ('#Data_result_col13', 'File', 'proteomics_result.csv#col=13', 'text/csv'),
-  ('#Data_result_col14', 'File', 'proteomics_result.csv#col=14', 'text/csv'),
-  ('#Data_result_col15', 'File', 'proteomics_result.csv#col=15', 'text/csv'),
-  ('#Data_result_col16', 'File', 'proteomics_result.csv#col=16', 'text/csv'),
-  ('#Data_result_col17', 'File', 'proteomics_result.csv#col=17', 'text/csv');
+  ('#Data_sample6_raw', 'File', 'sample6.raw', NULL);
+
+INSERT INTO Data (id, type, path, selector, selector_format, encoding_format) VALUES
+  ('#Data_result_col12', 'File', 'proteomics_result.csv', 'col=12', 'https://datatracker.ietf.org/doc/html/rfc7111', 'text/csv'),
+  ('#Data_result_col13', 'File', 'proteomics_result.csv', 'col=13', 'https://datatracker.ietf.org/doc/html/rfc7111', 'text/csv'),
+  ('#Data_result_col14', 'File', 'proteomics_result.csv', 'col=14', 'https://datatracker.ietf.org/doc/html/rfc7111', 'text/csv'),
+  ('#Data_result_col15', 'File', 'proteomics_result.csv', 'col=15', 'https://datatracker.ietf.org/doc/html/rfc7111', 'text/csv'),
+  ('#Data_result_col16', 'File', 'proteomics_result.csv', 'col=16', 'https://datatracker.ietf.org/doc/html/rfc7111', 'text/csv'),
+  ('#Data_result_col17', 'File', 'proteomics_result.csv', 'col=17', 'https://datatracker.ietf.org/doc/html/rfc7111', 'text/csv');
 
 -- ============================================================
 -- Processes
