@@ -1,12 +1,12 @@
 # Testing the SQLite Schema
 
-This directory contains the ARC Data Model SQLite schema, a seed example based on the proteomics assay, and a prebuilt database for quick exploration.
+This directory contains the ARC Data Model SQLite schema, an edge-native `Process` design, a seed example based on the proteomics assay, and a prebuilt database for quick exploration.
 
 ## Files
 
 | File | Purpose |
 |------|---------|
-| `001_core.sql` | Schema DDL: core tables, junction tables, decoration views, `Paths` view |
+| `001_core.sql` | Schema DDL: core tables, edge-native `Process` table, decoration views, `Paths`/`PathSteps` views |
 | `seed_example.sql` | Seed data mirroring [`examples/isa/assay_proteomics.yml`](../../examples/isa/assay_proteomics.yml) |
 | `seed.db` | Prebuilt SQLite database (schema + seed already applied) |
 
@@ -62,13 +62,19 @@ Expected: Protocol 4, PropertyValue 12, Material 9, Data 12, Process 20, Dataset
 ### 2. Paths view — end-to-end process graph
 
 ```sql
-SELECT * FROM Paths ORDER BY path;
+SELECT * FROM Paths ORDER BY path_rendered;
 ```
 
-Expected: 6 paths, each of depth 4, e.g.
+Expected: 6 paths, each of length 4, e.g.
 `Base Culture -> Cultivation Flask RT -> Eppi RT 1 -> sample1.raw -> proteomics_result.csv#col=12`
 
 Note: the `#col=12` suffix is composed by the `NodeRef` view from `Data.path` + `Data.selector` — it is not stored as a single string.
+
+Optional step expansion:
+
+```sql
+SELECT * FROM PathSteps ORDER BY path_id, step;
+```
 
 ### 3. ISA decoration views
 
@@ -126,7 +132,9 @@ WHERE pv.name = 'sonicator';
 ```sql
 SELECT d.path, d.selector, d.encoding_format
 FROM Data d
-JOIN ProcessResultData prd ON prd.data_id = d.id;
+JOIN Process p
+  ON p.output_type = 'Data'
+ AND p.output_id   = d.id;
 ```
 
 ### Query from the use-cases doc: "Samples where growth temperature = 25"
@@ -134,8 +142,9 @@ JOIN ProcessResultData prd ON prd.data_id = d.id;
 ```sql
 SELECT m.name
 FROM Material m
-JOIN ProcessResultMaterial prm ON prm.material_id = m.id
-JOIN Process p ON p.id = prm.process_id
+JOIN Process p
+  ON p.output_type = 'Material'
+ AND p.output_id   = m.id
 JOIN Protocol pr ON pr.id = p.executes_protocol_id
 JOIN MaterialAdditionalProperty map ON map.material_id = m.id
 JOIN PropertyValue pv ON pv.id = map.propertyvalue_id
@@ -144,6 +153,11 @@ WHERE pr.name = 'Growth'
   AND pv.name  = 'temperature'
   AND pv.value = '25';
 ```
+
+## Design Note
+
+- `Process.input_*` and `Process.output_*` are polymorphic references to either `Material` or `Data`.
+- SQLite cannot enforce those two-column references as direct foreign keys across both target tables, so graph validity is checked through smoke tests and query behavior rather than DB-level FK constraints.
 
 ## Troubleshooting
 

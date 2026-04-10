@@ -1,6 +1,6 @@
 -- ARC Data Model – SQLite Schema
 -- ProcessCore tables, edge-native Process rows, decoration views,
--- and recursive lineage views.
+-- and materialized lineage tables.
 
 PRAGMA foreign_keys = ON;
 PRAGMA journal_mode = WAL;
@@ -202,99 +202,40 @@ SELECT 'Data' AS node_type,
 FROM Data;
 
 -- ============================================================
--- Paths (view-only approach)
+-- Paths (closure table approach)
 -- ============================================================
--- `_LeafWalks` is an internal helper view that runs the recursive
--- graph walk directly over `Process`, carrying
--- (path_id, path_rendered, steps_json, leaf_*, length)
--- for each maximal walk. Both `PathSteps` and `Paths` project
--- from it, so the recursive CTE is written once.
+-- `Paths` holds one row per maximal path through the process graph.
+-- `PathSteps` holds one row per (path, edge) — the process chain.
+-- Both tables are empty after schema creation; run `refresh_paths.sql`
+-- after seeding or after any change to `Process`, `Material.name`,
+-- or `Data.path` / `Data.selector`.
 
-CREATE VIEW _LeafWalks AS
-WITH RECURSIVE walk(
-    path_id, path_rendered, steps_json, current_type, current_id, depth
-) AS (
-    SELECT
-        p.input_type || ':' || p.input_id || '|' || p.output_type || ':' || p.output_id,
-        in_nr.node_name || ' -> ' || out_nr.node_name,
-        json_array(json_object(
-            'step',        0,
-            'process_id',  p.id,
-            'input_type',  p.input_type,  'input_id',  p.input_id,
-            'output_type', p.output_type, 'output_id', p.output_id
-        )),
-        p.output_type, p.output_id,
-        0
-    FROM Process p
-    JOIN NodeRef in_nr
-      ON in_nr.node_type = p.input_type
-     AND in_nr.node_id   = p.input_id
-    JOIN NodeRef out_nr
-      ON out_nr.node_type = p.output_type
-     AND out_nr.node_id   = p.output_id
-    WHERE NOT EXISTS (
-        SELECT 1 FROM Process prev
-        WHERE prev.output_type = p.input_type
-          AND prev.output_id   = p.input_id
-    )
-
-    UNION ALL
-
-    SELECT
-        w.path_id || '|' || p.output_type || ':' || p.output_id,
-        w.path_rendered || ' -> ' || out_nr.node_name,
-        json_insert(w.steps_json, '$[#]', json_object(
-            'step',        w.depth + 1,
-            'process_id',  p.id,
-            'input_type',  p.input_type,  'input_id',  p.input_id,
-            'output_type', p.output_type, 'output_id', p.output_id
-        )),
-        p.output_type, p.output_id,
-        w.depth + 1
-    FROM walk w
-    JOIN Process p
-      ON p.input_type = w.current_type
-     AND p.input_id   = w.current_id
-    JOIN NodeRef out_nr
-      ON out_nr.node_type = p.output_type
-     AND out_nr.node_id   = p.output_id
-    WHERE w.depth < 100
-)
-SELECT
-    w.path_id,
-    w.path_rendered,
-    w.steps_json,
-    w.current_type AS leaf_type,
-    w.current_id   AS leaf_id,
-    w.depth + 1    AS length
-FROM walk w
-WHERE NOT EXISTS (
-    SELECT 1 FROM Process p
-    WHERE p.input_type = w.current_type
-      AND p.input_id   = w.current_id
+CREATE TABLE Paths (
+    path_id       TEXT PRIMARY KEY,
+    length        INTEGER NOT NULL,
+    root_type     TEXT NOT NULL,
+    root_id       TEXT NOT NULL,
+    leaf_type     TEXT NOT NULL,
+    leaf_id       TEXT NOT NULL,
+    path_rendered TEXT
 );
 
-CREATE VIEW PathSteps AS
-SELECT
-    lw.path_id,
-    CAST(json_extract(s.value, '$.step')        AS INTEGER) AS step,
-    json_extract(s.value, '$.process_id')  AS process_id,
-    json_extract(s.value, '$.input_type')  AS input_type,
-    json_extract(s.value, '$.input_id')    AS input_id,
-    json_extract(s.value, '$.output_type') AS output_type,
-    json_extract(s.value, '$.output_id')   AS output_id
-FROM _LeafWalks lw, json_each(lw.steps_json) s;
+CREATE TABLE PathSteps (
+    path_id     TEXT NOT NULL REFERENCES Paths(path_id) ON DELETE CASCADE,
+    step        INTEGER NOT NULL,
+    process_id  TEXT NOT NULL REFERENCES Process(id),
+    input_type  TEXT NOT NULL,
+    input_id    TEXT NOT NULL,
+    output_type TEXT NOT NULL,
+    output_id   TEXT NOT NULL,
+    PRIMARY KEY (path_id, step)
+);
 
-CREATE VIEW Paths AS
-SELECT
-    path_id,
-    length,
-    json_extract(steps_json, '$[0].input_type') AS root_type,
-    json_extract(steps_json, '$[0].input_id')   AS root_id,
-    leaf_type,
-    leaf_id,
-    path_rendered
-FROM _LeafWalks;
+CREATE INDEX idx_pathsteps_process ON PathSteps(process_id);
+CREATE INDEX idx_pathsteps_input   ON PathSteps(input_type, input_id);
+CREATE INDEX idx_pathsteps_output  ON PathSteps(output_type, output_id);
+CREATE INDEX idx_paths_leaf        ON Paths(leaf_type, leaf_id);
+CREATE INDEX idx_paths_root        ON Paths(root_type, root_id);
 
 -- ============================================================
 -- ISA Decoration Views
