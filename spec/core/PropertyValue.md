@@ -15,24 +15,38 @@ Decoration subtypes:
 |----------|------|----------|-------------|
 | `id` | Text | MUST | Unique identifier |
 | `type` | Text | MUST | `schema.org/PropertyValue` |
-| `name` | Text | MUST | Key name |
 | `additionalType` | Text | SHOULD | Subtype discriminator |
+| `name` | Text | MUST | Key name |
 | `value` | Text, Number | SHOULD | The value |
-| `propertyID` | URL | SHOULD | Key ontology reference |
-| `unitCode` | URL | COULD | Unit ontology reference |
-| `unitText` | Text | COULD | Unit name |
-| `valueReference` | URL | COULD | Value ontology reference |
+| `unit` | Text | COULD | Unit ontology reference |
+| `nameTAN` | URL | SHOULD | Key ontology reference |
+| `valueTAN` | URL | COULD | Unit name |
+| `unitTAN` | URL | COULD | Value ontology reference |
 
 ## Relationships
 
 ```mermaid
 flowchart TD
+
+    na@{ shape: stadium, label: "string" }
+    va@{ shape: stadium, label: "string" }
+    un@{ shape: stadium, label: "string" }
+    nt@{ shape: stadium, label: "URL" }
+    vt@{ shape: stadium, label: "URL" }
+    ut@{ shape: stadium, label: "URL" }
+
+    Dataset --additionalProperty--> PropertyValue
     Process --parameterValue--> PropertyValue
-    Process --additionalProperty--> PropertyValue
     Material --additionalProperty--> PropertyValue
     Data --additionalProperty--> PropertyValue
-    Dataset --additionalProperty--> PropertyValue
     Protocol --additionalProperty--> PropertyValue
-    Person --additionalProperty--> PropertyValue
-    DefinedTerm --additionalProperty--> PropertyValue
+
+    PropertyValue --name--> na
+    PropertyValue --value--> va
+    PropertyValue --unit--> un
+    PropertyValue --nameTAN--> nt
+    PropertyValue --valueTAN--> vt
+    PropertyValue --unitTAN--> ut
+    
+
 ```

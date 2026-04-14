@@ -1,6 +1,6 @@
 # Dataset
 
-Container and context for processes. A Dataset groups a set of processes that belong together and provides administrative metadata (identifier, title, description, creators).
+Container and context for processes. A Dataset groups a set of processes that belong together and provides administrative metadata (identifier, title, description).
 
 **Schema.org type**: `schema.org/Dataset`
 
@@ -18,17 +18,27 @@ Decorations specialize Dataset via `additionalType`:
 | `identifier` | Text | MUST | Identifying descriptor |
 | `name` | Text | SHOULD | Title |
 | `description` | Text | SHOULD | Short description or abstract |
-| `creator` | [Person](Person.md) | SHOULD | Authors or owners |
 | `about` | [Process](Process.md) | SHOULD | Processes contained in this dataset |
-| `hasPart` | Dataset, [Data](Data.md) | SHOULD | Sub-datasets or data files |
+| `hasPart` | Dataset | SHOULD | Sub-datasets or data files |
 | `additionalProperty` | [PropertyValue](PropertyValue.md) | COULD | Extensible metadata |
 
 ## Relationships
 
 ```mermaid
 flowchart TD
+
+    id@{ shape: stadium, label: "string" }
+    na@{ shape: stadium, label: "string" }
+    de@{ shape: stadium, label: "string" }
+
+    d[Dataset]
     Dataset --about--> Process
-    Dataset --hasPart--> Dataset
-    Dataset --hasPart--> Data
+    d --hasPart--> Dataset
     Dataset --creator--> Person
+    Dataset --additionalProperty--> PropertyValue
+    Dataset --identifier--> id
+    Dataset --name--> na
+    Dataset --description--> de
+
+
 ```

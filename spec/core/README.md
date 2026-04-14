@@ -12,22 +12,22 @@ The ProcessCore model is the foundation of the ARC Data Model. It abstracts the 
 
 ```mermaid
 flowchart LR
-    Dataset --hasPart--> Dataset
+
+    md[Material/Data]
+    d[Dataset]
+    dp[PropertyValue]
+    pp[PropertyValue]
+    mdp[PropertyValue]
+
+    d --hasPart--> Dataset
     Dataset --about--> Process
-    Dataset --additionalProperty--> PropertyValue
-    Process --"object"--> Material
-    Process --"object"--> Data
-    Process --result--> Material
-    Process --result--> Data
-    Process --parameterValue--> PropertyValue
-    Process --additionalProperty--> PropertyValue
+    Dataset --additionalProperty--> dp
+    Process --"object"--> md
+    Process --parameterValue--> pp
+    Process --result--> md
     Process --executesProtocol--> Protocol
-    Material --additionalProperty--> PropertyValue
-    Data --additionalProperty--> PropertyValue
+    md --additionalProperty--> mdp
     Protocol --additionalProperty--> PropertyValue
-    Person --additionalProperty--> PropertyValue
-    DefinedTerm --additionalProperty--> PropertyValue
-    DataContext -.describes.-> Data
 ```
 
 ## Core Types
@@ -39,7 +39,5 @@ flowchart LR
 | [Protocol](Protocol.md) | Description of a planned procedure | Protocol.md |
 | [Material](Material.md) | Input/output biological or digital material | Material.md |
 | [Data](Data.md) | Data files | Data.md |
-| [DataContext](DataContext.md) | Authoring-oriented datamap annotation for data objects or fragments | DataContext.md |
 | [PropertyValue](PropertyValue.md) | Extensible key-value-unit triple | PropertyValue.md |
-| [Person](Person.md) | Contributor/performer | Person.md |
 | [DefinedTerm](DefinedTerm.md) | Ontology annotation | DefinedTerm.md |

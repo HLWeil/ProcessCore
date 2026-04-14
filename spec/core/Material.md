@@ -15,14 +15,16 @@ Decorations specialize Material:
 | `type` | Text | MUST | Material type |
 | `name` | Text | MUST | Name identifying the material |
 | `additionalProperty` | [PropertyValue](PropertyValue.md) | SHOULD | Characteristics, factors, or other extensible metadata |
-| `derivesFrom` | Material | SHOULD | Source material(s) this derives from |
 
 ## Relationships
 
 ```mermaid
 flowchart TD
-    Material --derivesFrom--> Material
-    Material --additionalProperty--> PropertyValue
-    Process --object--> Material
+
+    na@{ shape: stadium, label: "string" }
+
+    Process --"object"--> Material
     Process --result--> Material
+    Material --additionalProperty--> PropertyValue
+    Material --name--> na
 ```

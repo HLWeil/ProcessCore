@@ -26,7 +26,18 @@ Decorations specialize Protocol:
 
 ```mermaid
 flowchart TD
+
+    na@{ shape: stadium, label: "string" }
+    de@{ shape: stadium, label: "string" }
+    ve@{ shape: stadium, label: "string" }
+    ur@{ shape: stadium, label: "URL" }
+
     Process --executesProtocol--> Protocol
     Protocol --intendedUse--> DefinedTerm
     Protocol --additionalProperty--> PropertyValue
+    Protocol --name--> na
+    Protocol --description--> de
+    Protocol --version--> ve
+    Protocol --url--> ur
+
 ```

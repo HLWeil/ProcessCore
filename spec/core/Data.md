@@ -21,8 +21,17 @@ Data files produced or consumed by processes. A Data object may represent either
 
 ```mermaid
 flowchart TD
-    Process --object--> Data
+
+    pa@{ shape: stadium, label: "string" }
+    se@{ shape: stadium, label: "string" }
+    sf@{ shape: stadium, label: "URL" }
+    ef@{ shape: stadium, label: "string" }
+
+    Process --"object"--> Data
     Process --result--> Data
-    Dataset --hasPart--> Data
+    Data --path--> pa
+    Data --selector--> se
+    Data --selectorFormat--> sf
+    Data --encodingFormat--> ef
     Data --additionalProperty--> PropertyValue
 ```

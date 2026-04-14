@@ -20,17 +20,18 @@ Decorations specialize Process:
 | `result` | [Material](Material.md), [Data](Data.md) | SHOULD | Output(s) of the process |
 | `executesProtocol` | [Protocol](Protocol.md) | SHOULD | Protocol that was executed |
 | `parameterValue` | [PropertyValue](PropertyValue.md) | SHOULD | Parameter key-value pairs |
-| `additionalProperty` | [PropertyValue](PropertyValue.md) | COULD | Extensible process metadata that is not best modeled as a parameter |
-| `agent` | [Person](Person.md) | COULD | Performer of the process |
-| `endTime` | DateTime | COULD | Completion time |
 
 ## Relationships
 
 ```mermaid
-flowchart LR
-    Material/Data --object--> Process
+flowchart TD
+
+    na@{ shape: stadium, label: "string" }
+
+    Dataset --about--> Process
+    Process --"object"--> Material/Data
     Process --result--> Material/Data
     Process --executesProtocol--> Protocol
     Process --parameterValue--> PropertyValue
-    Process --additionalProperty--> PropertyValue
+    Process --name--> na
 ```
