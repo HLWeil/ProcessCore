@@ -13,16 +13,28 @@ Individual contributor or performer in the experimental workflow.
 | `givenName` | Text | MUST | Given name |
 | `familyName` | Text | SHOULD | Family name |
 | `email` | Text | SHOULD | Email address |
-| `affiliation` | Organization | SHOULD | Affiliated organization |
+| `affiliation` | [Organization](Organization.md) | SHOULD | Affiliated organization |
 | `identifier` | Text, PropertyValue | SHOULD | ORCID or other identifier |
-| `additionalProperty` | [PropertyValue](PropertyValue.md) | COULD | Extensible person metadata not covered by the base properties |
-| `jobTitle` | [DefinedTerm](DefinedTerm.md) | COULD | Job title |
+| `additionalProperty` | [PropertyValue](../../core/PropertyValue.md) | COULD | Extensible person metadata not covered by the base properties |
+| `jobTitle` | [DefinedTerm](../../core/DefinedTerm.md) | COULD | Job title |
 
 ## Relationships
 
 ```mermaid
 flowchart TD
+
+    gn@{ shape: stadium, label: "string" }
+    fn@{ shape: stadium, label: "string" }
+    e@{ shape: stadium, label: "E-MAIL" }
+    i@{ shape: stadium, label: "ORCID" }
+
     Dataset --creator--> Person
     Process --agent--> Person
+    Person --affiliation--> Organization
+    Person --jobTitle--> DefinedTerm
+    Person --givenName--> gn
+    Person --familyName--> fn
+    Person --email--> e
+    Person --identifier--> i
     Person --additionalProperty--> PropertyValue
 ```
