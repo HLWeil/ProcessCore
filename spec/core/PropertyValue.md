@@ -22,6 +22,7 @@ Decoration subtypes:
 | `nameTAN` | URL | SHOULD | Key ontology reference |
 | `valueTAN` | URL | COULD | Unit name |
 | `unitTAN` | URL | COULD | Value ontology reference |
+| `instanceOf` | [FormalParameter](FormalParameter.md) | COULD | Links a parameter value to its formal parameter definition |
 
 ## Relationships
 
@@ -36,10 +37,10 @@ flowchart TD
     ut@{ shape: stadium, label: "URL" }
 
     Dataset --additionalProperty--> PropertyValue
-    Process --parameterValue--> PropertyValue
+    LabProcess --parameterValue--> PropertyValue
     Material --additionalProperty--> PropertyValue
     Data --additionalProperty--> PropertyValue
-    Protocol --additionalProperty--> PropertyValue
+    LabProtocol --additionalProperty--> PropertyValue
 
     PropertyValue --name--> na
     PropertyValue --value--> va
@@ -47,6 +48,8 @@ flowchart TD
     PropertyValue --nameTAN--> nt
     PropertyValue --valueTAN--> vt
     PropertyValue --unitTAN--> ut
+
+    PropertyValue --instanceOf--> FormalParameter
     
 
 ```

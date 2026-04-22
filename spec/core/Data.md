@@ -27,8 +27,8 @@ flowchart TD
     sf@{ shape: stadium, label: "URL" }
     ef@{ shape: stadium, label: "string" }
 
-    Process --"object"--> Data
-    Process --result--> Data
+    LabProcess --"object"--> Data
+    LabProcess --result--> Data
     Data --path--> pa
     Data --selector--> se
     Data --selectorFormat--> sf

@@ -10,6 +10,6 @@ Reference: [ISA RO-Crate Profile — Study](../../../references/isa_ro_crate.md)
 
 | Property | Type | Required | Description |
 |----------|------|----------|-------------|
-| `about` | [LabProcess](LabProcess.md) | SHOULD | Experimental processes in this study |
+| `about` | [LabProcess](../../core/LabProcess.md) | SHOULD | Experimental processes in this study |
 | `hasPart` | [Assay](Assay.md), Data | SHOULD | Contained assays or data files |
 | `citation` | ScholarlyArticle | COULD | Associated publications |

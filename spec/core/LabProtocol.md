@@ -1,4 +1,4 @@
-# Protocol
+# LabProtocol
 
 Description of a planned procedure. Protocols define what a Process executes, including intended use, equipment, reagents, and software.
 
@@ -16,6 +16,7 @@ Decorations specialize Protocol:
 | `type` | Text | MUST | Protocol type |
 | `additionalType` | Text | COULD | Decoration discriminator, e.g. `LabProtocol` |
 | `name` | Text | SHOULD | Main title |
+| `parameters` | [FormalParameter](FormalParameter.md) | COULD | Prospectively specifies parameters for which values should be given in the execution of the protocol, Maps to `input` in Bioschemas type|
 | `description` | Text | SHOULD | Short description or abstract |
 | `intendedUse` | [DefinedTerm](DefinedTerm.md), Text | SHOULD | Protocol type as ontology term |
 | `additionalProperty` | [PropertyValue](PropertyValue.md) | COULD | Extensible protocol metadata |
@@ -32,12 +33,13 @@ flowchart TD
     ve@{ shape: stadium, label: "string" }
     ur@{ shape: stadium, label: "URL" }
 
-    Process --executesProtocol--> Protocol
-    Protocol --intendedUse--> DefinedTerm
-    Protocol --additionalProperty--> PropertyValue
-    Protocol --name--> na
-    Protocol --description--> de
-    Protocol --version--> ve
-    Protocol --url--> ur
+    LabProcess --executesProtocol--> LabProtocol
+    LabProtocol --intendedUse--> DefinedTerm
+    LabProtocol --additionalProperty--> PropertyValue
+    LabProtocol --parameters--> FormalParameter
+    LabProtocol --name--> na
+    LabProtocol --description--> de
+    LabProtocol --version--> ve
+    LabProtocol --url--> ur
 
 ```

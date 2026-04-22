@@ -1,4 +1,4 @@
-# Process
+# LabProcess
 
 Core transformation node in the process graph. A Process connects inputs (objects) to outputs (results) and references the Protocol that was executed.
 
@@ -18,7 +18,7 @@ Decorations specialize Process:
 | `name` | Text | MUST | Name of the process |
 | `object` | [Material](Material.md), [Data](Data.md) | SHOULD | Input(s) of the process |
 | `result` | [Material](Material.md), [Data](Data.md) | SHOULD | Output(s) of the process |
-| `executesProtocol` | [Protocol](Protocol.md) | SHOULD | Protocol that was executed |
+| `executesProtocol` | [LabProtocol](LabProtocol.md) | SHOULD | Protocol that was executed |
 | `parameterValue` | [PropertyValue](PropertyValue.md) | SHOULD | Parameter key-value pairs |
 
 ## Relationships
@@ -28,10 +28,10 @@ flowchart TD
 
     na@{ shape: stadium, label: "string" }
 
-    Dataset --about--> Process
-    Process --"object"--> Material/Data
-    Process --result--> Material/Data
-    Process --executesProtocol--> Protocol
-    Process --parameterValue--> PropertyValue
-    Process --name--> na
+    Dataset --about--> LabProcess
+    LabProcess --"object"--> Material/Data
+    LabProcess --result--> Material/Data
+    LabProcess --executesProtocol--> LabProtocol
+    LabProcess --parameterValue--> PropertyValue
+    LabProcess --name--> na
 ```

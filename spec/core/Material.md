@@ -13,6 +13,7 @@ Decorations specialize Material:
 |----------|------|----------|-------------|
 | `id` | Text | MUST | Unique material name |
 | `type` | Text | MUST | Material type |
+| `additionalType` | Text | COULD | Decoration discriminator, e.g. `Sample` |
 | `name` | Text | MUST | Name identifying the material |
 | `additionalProperty` | [PropertyValue](PropertyValue.md) | SHOULD | Characteristics, factors, or other extensible metadata |
 
@@ -23,8 +24,8 @@ flowchart TD
 
     na@{ shape: stadium, label: "string" }
 
-    Process --"object"--> Material
-    Process --result--> Material
+    LabProcess --"object"--> Material
+    LabProcess --result--> Material
     Material --additionalProperty--> PropertyValue
     Material --name--> na
 ```

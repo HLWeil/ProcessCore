@@ -19,7 +19,7 @@ Ontology annotation referencing a term in a controlled vocabulary or ontology.
 
 ```mermaid
 flowchart TD
-    Protocol --intendedUse--> DefinedTerm
+    LabProtocol --intendedUse--> DefinedTerm
     PropertyValue --valueReference--> DefinedTerm
     DefinedTerm --additionalProperty--> PropertyValue
 ```
