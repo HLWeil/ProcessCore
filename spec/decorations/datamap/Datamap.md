@@ -11,7 +11,7 @@ Reference: [Datamap RO-Crate Profile](../../../references/arc_datamap_ro_crate.m
 | Property | Type | Required | Description |
 |----------|------|----------|-------------|
 | `additionalType` | string | MUST | `Datamap` |
-| `dataContexts` | [DataContext](/DataContext.md) | SHOULD | List of DataContexts for annotation of Data Objects |
+| `dataContexts` | [DataContext](DataContext.md) | SHOULD | List of DataContexts for annotation of Data Objects |
 | `hasPart` | [Data](../../core/Data.md) | MAY | Measurement type (e.g., Proteomics) |
 
 ## Relationships

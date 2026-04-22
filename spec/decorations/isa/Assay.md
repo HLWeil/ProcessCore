@@ -12,7 +12,7 @@ Reference: [ISA RO-Crate Profile — Assay](../../../references/isa_ro_crate.md)
 |----------|------|----------|-------------|
 | `additionalType` | string | MUST | `Assay` |
 | `about` | [LabProcess](../../core/LabProcess.md) | SHOULD | Experimental processes in this assay |
-| `perfomers` | [Person](Person.md) | COULD | Assay performers and contributors |
+| `performers` | [Person](Person.md) | COULD | Assay performers and contributors |
 
 ## Relationships
 
@@ -31,9 +31,12 @@ flowchart TD
 
 ## AdditionalProperties
 
-The `identifier` property can be used to link to external identifiers for the article, such as a DOI or PubMedID. 
+The `additionalProperty` property can be used to add some isa specific properties for the assay dataset.
 
+TODO: Find ontology terms for these properties and add them as refinements of `PropertyValue`:
 
-| `measurementMethod` |  DefinedTerm | SHOULD | Measurement type (e.g., Proteomics) |
-| `measurementTechnique` | DefinedTerm | SHOULD | Technology used (e.g., mass spectrometry) |
+| Property | Type | Required | Description |
+|----------|------|----------|-------------|
+| `measurementMethod` | DefinedTerm | COULD | Measurement type (e.g., Proteomics) |
+| `measurementTechnique` | DefinedTerm | COULD | Technology used (e.g., mass spectrometry) |
 | `variableMeasured` | PropertyValue | COULD | Target variable being measured |

@@ -4,8 +4,6 @@ Describes the shape and type of protocol inputs/outputs, providing prospective p
 
 **Schema.org type**: `bioschemas.org/FormalParameter`
 
-Reference: [ARC WR RO-Crate Profile — FormalParameter](../../../references/arc_wr_ro_crate.md)
-
 ## Properties
 
 | Property | Type | Required | Description |
@@ -25,8 +23,6 @@ flowchart TD
     nt@{ shape: stadium, label: "URL" }
 
     LabProtocol --parameters--> FormalParameter
-    WorkflowProtocol --input--> FormalParameter
-    WorkflowProtocol --"output"--> FormalParameter
     FormalParameter --workExample--> Data/PropertyValue
     FormalParameter --name--> na
     FormalParameter --nameTAN--> nt

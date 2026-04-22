@@ -10,7 +10,7 @@ Reference: [ARC WR RO-Crate Profile](../../../references/arc_wr_ro_crate.md)
 |-----------|-------------------|-------------------|
 | [Dataset](../../core/Dataset.md) | [ARC Workflow](ArcWorkflow.md) | `ARC Workflow` |
 | [Dataset](../../core/Dataset.md) | [ARC Run](ArcRun.md) | `ARC Run` |
-| [Protocol](../../core/Protocol.md) | [Workflow Protocol](WorkflowProtocol.md) | `Workflow Protocol` |
-| [Process](../../core/Process.md) | [Workflow Invocation](WorkflowInvocation.md) | `Workflow Invocation` |
+| [LabProtocol](../../core/LabProtocol.md) | [Workflow Protocol](WorkflowProtocol.md) | `Workflow Protocol` |
+| [LabProcess](../../core/LabProcess.md) | [Workflow Invocation](WorkflowInvocation.md) | `Workflow Invocation` |
 | [PropertyValue](../../core/PropertyValue.md) | [PropertyValues](PropertyValues.md) | `Workflow Input` / `Prefix` / `Position` |
 | _(WR-specific)_ | [FormalParameter](FormalParameter.md) | — |

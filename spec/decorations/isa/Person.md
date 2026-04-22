@@ -29,7 +29,7 @@ flowchart TD
     i@{ shape: stadium, label: "ORCID" }
 
     Dataset --creator--> Person
-    Process --agent--> Person
+    LabProcess --agent--> Person
     Person --affiliation--> Organization
     Person --jobTitle--> DefinedTerm
     Person --givenName--> gn

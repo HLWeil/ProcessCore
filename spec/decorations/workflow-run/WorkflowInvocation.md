@@ -10,7 +10,7 @@ Reference: [ARC WR RO-Crate Profile — Workflow Invocation](../../../references
 
 ## Properties
 
-Inherits all properties from [Process](../../core/Process.md). WR-specific refinements:
+Inherits all properties from [LabProcess](../../core/LabProcess.md). WR-specific refinements:
 
 | Property | Type | Required | Description |
 |----------|------|----------|-------------|

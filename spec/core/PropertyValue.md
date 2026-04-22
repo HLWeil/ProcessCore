@@ -6,7 +6,6 @@ Extensible key-value-unit triple. PropertyValues are the primary extension mecha
 
 Decoration subtypes:
 - ISA: ParameterValue, CharacteristicValue, FactorValue, Component
-- Datamap: FragmentDescriptor
 - Workflow Run: Workflow Input, Prefix, Position
 
 ## Properties
@@ -20,8 +19,8 @@ Decoration subtypes:
 | `value` | Text, Number | SHOULD | The value |
 | `unit` | Text | COULD | Unit ontology reference |
 | `nameTAN` | URL | SHOULD | Key ontology reference |
-| `valueTAN` | URL | COULD | Unit name |
-| `unitTAN` | URL | COULD | Value ontology reference |
+| `valueTAN` | URL | COULD | Value term annotation |
+| `unitTAN` | URL | COULD | Unit term annotation |
 | `instanceOf` | [FormalParameter](FormalParameter.md) | COULD | Links a parameter value to its formal parameter definition |
 
 ## Relationships

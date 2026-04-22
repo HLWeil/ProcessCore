@@ -43,6 +43,7 @@ flowchart LR
 | [Material](Material.md) | Input/output biological or digital material | Material.md |
 | [Data](Data.md) | Data files | Data.md |
 | [PropertyValue](PropertyValue.md) | Extensible key-value-unit triple | PropertyValue.md |
+| [FormalParameter](FormalParameter.md) | Named parameter slot for prospective provenance | FormalParameter.md |
 | [DefinedTerm](DefinedTerm.md) | Ontology annotation | DefinedTerm.md |
 
 ## Usage Philosophy
