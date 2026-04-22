@@ -20,9 +20,11 @@ Reference: [Datamap RO-Crate Profile](../../../references/arc_datamap_ro_crate.m
 flowchart TD
 
     an@{ shape: stadium, label: "Annotations" }
+    at@{ shape: stadium, label: "\"Datamap\"" }
 
     Datamap --dataContexts--> DataContext
     Datamap --hasPart--> Data
+    Datamap --additionalType--> at
     DataContext --data--> Data
     DataContext -.annotations.-> an
 ```

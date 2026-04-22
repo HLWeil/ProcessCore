@@ -38,9 +38,6 @@ In ISA, the distinction between Source and Sample is contextual:
 
 Both use the same type (`bioschemas.org/Sample`); the graph position determines the role.
 
-
-
-
 ## Examples
 
 - [investigation.yml](../../../examples/isa/investigation.yml)

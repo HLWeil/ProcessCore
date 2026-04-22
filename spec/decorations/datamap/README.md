@@ -1,6 +1,6 @@
 # Datamap Decoration
 
-Maps datamap-style data context annotations onto ProcessCore. This decoration keeps file identity in [Data](../../core/Data.md) and carries fragment- or content-level semantics in specialized [PropertyValue](../../core/PropertyValue.md) objects attached through `additionalProperty`.
+Maps datamap-style data context annotations onto ProcessCore. A [Datamap](Datamap.md) specializes [Dataset](../../core/Dataset.md) and holds a collection of [DataContext](DataContext.md) objects, each annotating a [Data](../../core/Data.md) object with semantic, typing, and unit metadata.
 
 Reference: [ARC Datamap RO-Crate Profile](../../../references/arc_datamap_ro_crate.md)
 
@@ -8,11 +8,26 @@ Reference: [ARC Datamap RO-Crate Profile](../../../references/arc_datamap_ro_cra
 
 | Core Type | Datamap Specialization | `additionalType` |
 |-----------|------------------------|------------------|
-| [Data](../../core/Data.md) | Decorated Data carrying fragment metadata via `additionalProperty` | — |
-| [PropertyValue](../../core/PropertyValue.md) | [PropertyValues](PropertyValues.md) | `FragmentDescriptor` |
+| [Dataset](../../core/Dataset.md) | [Datamap](Datamap.md) | `Datamap` |
+| — | [DataContext](DataContext.md) | — |
+
+`DataContext` is a decoration-specific entity with no direct ProcessCore counterpart. It is introduced by this decoration to carry per-fragment annotations (explication, objectType, unit, label, description, generatedBy) for a target `Data` object.
+
+## Relationships
+
+```mermaid
+flowchart TD
+
+    an@{ shape: stadium, label: "Annotations" }
+
+    Datamap --dataContexts--> DataContext
+    Datamap --hasPart--> Data
+    DataContext --data--> Data
+    DataContext -.annotations.-> an
+```
 
 ## Modeling Notes
 
-- The core-side [DataContext](../../core/DataContext.md) concept can be mapped into this decoration by attaching one `FragmentDescriptor` to the referenced [Data](../../core/Data.md) object.
-- In this representation, `Data` keeps the file identity while `FragmentDescriptor` carries the fragment selector, semantic description, typing hints, and units.
-- When a representation needs explicit fragment nodes, the same decoration can be combined with fragment-level [Data](../../core/Data.md) objects. The attached `FragmentDescriptor` then describes that fragment directly instead of carrying a selector relative to the parent file.
+- A `Datamap` groups [Data](../../core/Data.md) objects via `hasPart` and annotates them via `dataContexts`.
+- Each `DataContext` references one `Data` object through its `data` property and carries ontological annotation (`explication`), expected value type (`objectType`), measurement unit (`unit`), a short column header (`label`), free-text `description`, and provenance (`generatedBy`).
+- `DataContext` annotations are authored independently of the core process graph; they describe the content and semantics of data files rather than the transformation steps that produced them.
