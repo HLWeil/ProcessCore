@@ -35,3 +35,28 @@ flowchart TD
     LabProcess --parameterValue--> PropertyValue
     LabProcess --name--> na
 ```
+
+## Objects and Results
+
+The core mechanism of processes is to connect inputs (objects) to outputs (results). To allow for grouping of multiple inputs and outputs, we allow `object` and `result` to be lists. In this case, both lists should be of the same length and the Nth object corresponds to the Nth result. This allows us to maintain a simple one-to-one mapping between objects and results while still supporting multiple inputs and outputs per process. 
+
+```mermaid
+flowchart TD
+
+    subgraph objects
+        o1[object 1]
+        o2[object 2]
+    end
+
+    subgraph results
+        r1[result 1]
+        r2[result 2]
+    end
+
+    LabProcess --"object"--> objects
+    LabProcess --"result"--> results
+
+    o1 -.correspondsTo.-> r1
+    o2 -.correspondsTo.-> r2
+
+```

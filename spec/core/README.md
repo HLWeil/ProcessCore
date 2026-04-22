@@ -51,3 +51,25 @@ flowchart LR
 At the core of the ProcessCore model is the idea that experimental procedures can be represented as graphs of processes that transform inputs into outputs. This process-centric view allows for a flexible and extensible representation of complex experimental designs, while the use of PropertyValues enables rich metadata annotation without bloating the core schema. The model is designed to be agnostic to specific representations, making it adaptable to various storage and serialization formats.
 
 The Dataset serves as a container for related processes, providing administrative metadata and grouping functionality. LabProcesses represent the actual transformations that occur, connecting materials and data through defined protocols. Materials can represent both physical samples and digital entities, while Data is reserved for files. PropertyValues offer a powerful mechanism for extending the model with additional metadata, and DefinedTerms allow for ontology-based annotations to ensure semantic clarity.
+
+### LabProcess and LabProtocol
+
+LabProcess represents retrospective provenance: it captures what was actually executed and what inputs and outputs were involved. LabProtocol represents prospective provenance: it defines the intended procedure and its FormalParameters before execution. During execution, LabProcess records concrete parameter values and links them to the corresponding FormalParameters so the planned specification and realized run remain explicitly connected.
+
+```mermaid
+flowchart TD
+
+    LabProtocol --parameters--> FormalParameter
+    LabProcess --parameterValue--> PropertyValue
+    LabProcess --executesProtocol--> LabProtocol
+    PropertyValue --instanceOf--> FormalParameter
+```
+
+### Dataset nesting
+
+Datasets can contain other Datasets, allowing for hierarchical organization of folders and processes. This supports complex experimental designs where multiple related processes are grouped together under a common context.
+
+### PropertyValue and Domain-specificity
+
+PropertyValues are the primary extension mechanism of ProcessCore. They can be attached to any core entity through `additionalProperty` metadata, or through dedicated relationships such as `parameterValue` when the host type already defines a more specific role. PropertyValues are expected to contain references to ontologies for their key and value semantics, enabling domain-specific annotations without modifying the core schema. 
+

@@ -40,9 +40,3 @@ The first version of the yml schema should contain schema files for the followin
 - **Allow cross-referencing mechanism**: Use `id`(or `@id`) fields to allow entities to reference each other without embedding full objects, supporting a more relational structure. 
   - Need to decide on whether we allow `id` only in specific types or for all. Also 
   - Need to decide whether we define a generic mechanism to place collections of cross-referenced entities (e.g. a `registry` section) or allow them to be defined inline in the main document.
-
-#### Model details
-
-- Allow multiple objects and results per Process, i.e. process grouping? This would reduce file sizes tremendously? We need to see about impact on diffing
-
-- Nest Data into datacontext objects?
