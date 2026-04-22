@@ -14,5 +14,20 @@ Reference: [ISA RO-Crate Profile — Investigation](../../../references/isa_ro_c
 | `datePublished` | Date | MUST | Publication or creation date |
 | `dateCreated` | Date | SHOULD | Creation date |
 | `hasPart` | [Study](Study.md), [Assay](Assay.md) | SHOULD | Contained studies and assays |
+| `contacts` | [Person](Person.md) | COULD | Investigation contacts and contributors |
 | `citation` | ScholarlyArticle | COULD | Associated publications |
-| `mentions` | DefinedTermSet | COULD | Referenced ontologies |
+
+## Relationships
+
+```mermaid
+flowchart TD
+
+    at@{ shape: stadium, label: "\"Investigation\"" }
+
+    Investigation --contacts--> Person
+    Investigation --citation--> ScholarlyArticle
+    Investigation --hasPart--> Assay
+    Investigation --hasPart--> Study
+    Study -.assays.-> Assay
+    Investigation --additionalType--> at
+```

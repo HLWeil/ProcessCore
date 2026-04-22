@@ -10,6 +10,22 @@ Reference: [ISA RO-Crate Profile — Study](../../../references/isa_ro_crate.md)
 
 | Property | Type | Required | Description |
 |----------|------|----------|-------------|
-| `about` | [LabProcess](../../core/LabProcess.md) | SHOULD | Experimental processes in this study |
-| `hasPart` | [Assay](Assay.md), Data | SHOULD | Contained assays or data files |
+| `additionalType` | string | MUST | `Study` |
+| `assays` | [Assay](Assay.md) | COULD | Contained assays or data files |
+| `contacts` | [Person](Person.md) | COULD | Study contacts and contributors |
 | `citation` | ScholarlyArticle | COULD | Associated publications |
+
+## Relationships
+
+```mermaid
+flowchart TD
+
+    at@{ shape: stadium, label: "\"Study\"" }
+
+    Study --contacts--> Person
+    Study --citation--> ScholarlyArticle
+    Investigation --hasPart--> Study
+    Study -.assays.-> Assay
+    Study --additionalType--> at
+    Study --about--> LabProcess
+```

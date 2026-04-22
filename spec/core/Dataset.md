@@ -1,12 +1,13 @@
 # Dataset
 
-Container and context for processes. A Dataset groups a set of processes that belong together and provides administrative metadata (identifier, title, description).
+Container and context for data and processes. A Dataset groups a set of processes that belong together and provides administrative metadata (identifier, title, description).
 
 **Schema.org type**: `schema.org/Dataset`
 
 Decorations specialize Dataset via `additionalType`:
 - ISA: Investigation, Study, Assay
 - Workflow Run: ARC Workflow, ARC Run
+- Datamap
 
 ## Properties
 
@@ -14,7 +15,7 @@ Decorations specialize Dataset via `additionalType`:
 |----------|------|----------|-------------|
 | `id` | Text | MUST | Unique identifier for the dataset |
 | `type` | Text | MUST | `schema.org/Dataset` |
-| `additionalType` | Text | MUST | Discriminator for decoration type |
+| `additionalType` | Text | COULD | Discriminator for decoration type |
 | `identifier` | Text | MUST | Identifying descriptor |
 | `name` | Text | SHOULD | Title |
 | `description` | Text | SHOULD | Short description or abstract |

@@ -11,15 +11,18 @@ Ontology annotation referencing a term in a controlled vocabulary or ontology.
 | `id` | Text | MUST | Term URI |
 | `type` | Text | MUST | `schema.org/DefinedTerm` |
 | `name` | Text | MUST | Term name |
-| `termCode` | Text | SHOULD | Identifier within the ontology |
+| `TAN` | Text | SHOULD | Identifier within the ontology |
 | `inDefinedTermSet` | URL, DefinedTermSet | SHOULD | Link to the ontology |
-| `additionalProperty` | [PropertyValue](PropertyValue.md) | COULD | Extensible annotations on the term |
 
 ## Relationships
 
 ```mermaid
 flowchart TD
-    LabProtocol --intendedUse--> DefinedTerm
-    PropertyValue --valueReference--> DefinedTerm
-    DefinedTerm --additionalProperty--> PropertyValue
+    na@{ shape: stadium, label: "string" }
+    ta@{ shape: stadium, label: "string" }
+    se@{ shape: stadium, label: "URL/DefinedTermSet" }
+
+    DefinedTerm --name--> na
+    DefinedTerm --TAN--> ta
+    DefinedTerm --inDefinedTermSet--> se
 ```
