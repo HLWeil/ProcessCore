@@ -1,8 +1,8 @@
-# ARC Workflow
+# Workflow
 
 Workflow Run specialization of [Dataset](../../core/Dataset.md). Container describing a workflow folder in an ARC with ISA-compliant metadata.
 
-**`additionalType`**: `ARC Workflow`
+**`additionalType`**: `Workflow`
 
 Reference: [ARC WR RO-Crate Profile — ARC Workflow](../../../references/arc_wr_ro_crate.md)
 
@@ -10,5 +10,6 @@ Reference: [ARC WR RO-Crate Profile — ARC Workflow](../../../references/arc_wr
 
 | Property | Type | Required | Description |
 |----------|------|----------|-------------|
+| `additionalType` | string | MUST | `Workflow` |
 | `mainEntity` | [WorkflowProtocol](WorkflowProtocol.md) | MUST | The main workflow |
-| `hasPart` | MediaObject, [WorkflowProtocol](WorkflowProtocol.md) | SHOULD | All data files and sub-workflows |
+| `contacts` | [Person](Person.md) | COULD | Workflow contacts and contributors |

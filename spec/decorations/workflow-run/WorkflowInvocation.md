@@ -1,6 +1,6 @@
 # Workflow Invocation
 
-Workflow Run specialization of [Process](../../core/Process.md). Represents the execution of a Workflow Protocol, combining computational and laboratory workflow execution.
+Workflow Run specialization of [LabProcess](../../core/LabProcess.md). Represents the execution of a Workflow Protocol, combining computational and laboratory workflow execution.
 
 **`additionalType`**: `Workflow Invocation`
 
@@ -14,7 +14,6 @@ Inherits all properties from [LabProcess](../../core/LabProcess.md). WR-specific
 
 | Property | Type | Required | Description |
 |----------|------|----------|-------------|
-| `instrument` | [WorkflowProtocol](WorkflowProtocol.md) | MUST | Executed workflow (MUST equal `executesLabProtocol`) |
 | `executesLabProtocol` | [WorkflowProtocol](WorkflowProtocol.md) | MUST | Executed workflow (MUST equal `instrument`) |
 | `inputs` | MediaObject, Dataset, PropertyValue | MUST | Input files consumed |
 | `outputs` | MediaObject, Dataset, PropertyValue | MUST | Output files created/modified |

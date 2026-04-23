@@ -8,7 +8,7 @@ Data files produced or consumed by processes. A Data object may represent either
 
 | Property | Type | Required | Description |
 |----------|------|----------|-------------|
-| `@id` | Text | COULD | Path pointing to the file |
+| `id` | Text | COULD | Path pointing to the file |
 | `type` | Text | MUST | `File` or `MediaObject` |
 | `additionalType` | Text | COULD | Decoration discriminator, e.g. `Raw Data` |
 | `path` | Text | MUST | Path to the target data object when using the flat form |

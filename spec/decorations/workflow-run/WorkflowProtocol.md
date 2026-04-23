@@ -12,8 +12,8 @@ Reference: [ARC WR RO-Crate Profile — Workflow Protocol](../../../references/a
 
 | Property | Type | Required | Description |
 |----------|------|----------|-------------|
-| `input` | [FormalParameter](FormalParameter.md) | SHOULD | Workflow inputs |
-| `output` | [FormalParameter](FormalParameter.md) | SHOULD | Workflow outputs |
+| `inputParameters` | [FormalParameter](FormalParameter.md) | SHOULD | Workflow inputs |
+| `outputParameters` | [FormalParameter](FormalParameter.md) | SHOULD | Workflow outputs |
 | `programmingLanguage` | ComputerLanguage, Text | SHOULD | Runtime environment |
 | `creator` | Person, Organization | SHOULD | Creator/author |
 | `license` | CreativeWork, URL | SHOULD | License |

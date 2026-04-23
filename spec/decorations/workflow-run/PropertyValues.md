@@ -11,7 +11,7 @@ Realized value for a workflow input in a Workflow Invocation. Links to a FormalP
 | Property | Type | Required | Description |
 |----------|------|----------|-------------|
 | `additionalType` | Text | MUST | `Workflow Input` |
-| `exampleOfWork` | IRI | MUST | References FormalParameter `input` being realized |
+| `instanceOf` | [FormalParameter](FormalParameter.md) | MUST | References FormalParameter `input` being realized |
 | `name` | Text | SHOULD | Input name |
 | `value` | Boolean, Number, Text | MUST | Realized value |
 

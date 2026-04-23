@@ -1,5 +1,7 @@
 # FormalParameter
 
+Specializations of [FormalParameter](../../core/FormalParameter.md) used in the Workflow Run decoration.
+
 Workflow Run-specific entity (no direct ProcessCore equivalent). Describes the shape and type of workflow inputs/outputs, providing prospective provenance.
 
 **Schema.org type**: `bioschemas.org/FormalParameter`
@@ -25,6 +27,6 @@ Reference: [ARC WR RO-Crate Profile — FormalParameter](../../../references/arc
 ```mermaid
 flowchart TD
     WorkflowProtocol --input--> FormalParameter
-    WorkflowProtocol --output--> FormalParameter
+    WorkflowProtocol --"output"--> FormalParameter
     FormalParameter --workExample--> Data/PropertyValue
 ```
