@@ -10,8 +10,8 @@ Reference: [ARC WR RO-Crate Profile — ARC Run](../../../references/arc_wr_ro_c
 
 | Property | Type | Required | Description |
 |----------|------|----------|-------------|
-| `about` | [WorkflowInvocation](WorkflowInvocation.md) | SHOULD | Workflow invocations (MUST equal `mentions`) |
-| `mentions` | [WorkflowInvocation](WorkflowInvocation.md) | SHOULD | Workflow invocations (MUST equal `about`) |
+| `processes` | [WorkflowInvocation](WorkflowInvocation.md) | SHOULD | Workflow invocations (MUST equal `mentions`) |
+| `mentions` | [WorkflowInvocation](WorkflowInvocation.md) | SHOULD | Workflow invocations (MUST equal `processes`) |
 | `conformsTo` | CreativeWork | SHOULD | Versioned WR profile permalink |
 | `measurementMethod` | URL, DefinedTerm | SHOULD | Technology used |
 | `measurementTechnique` | URL, DefinedTerm | SHOULD | Software/tool used |

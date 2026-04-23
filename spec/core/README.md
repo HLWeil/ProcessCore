@@ -20,11 +20,11 @@ flowchart LR
     mdp[PropertyValue]
 
     d --hasPart--> Dataset
-    Dataset --about--> LabProcess
+    Dataset --processes--> LabProcess
     Dataset --additionalProperty--> dp
-    LabProcess --"object"--> md
+    LabProcess --inputs--> md
     LabProcess --parameterValue--> pp
-    LabProcess --result--> md
+    LabProcess --"outputs"--> md
     LabProcess --executesProtocol--> LabProtocol
     md --additionalProperty--> mdp
     pp --instanceOf--> FormalParameter

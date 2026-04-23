@@ -11,7 +11,7 @@ Reference: [ISA RO-Crate Profile — Assay](../../../references/isa_ro_crate.md)
 | Property | Type | Required | Description |
 |----------|------|----------|-------------|
 | `additionalType` | string | MUST | `Assay` |
-| `about` | [LabProcess](../../core/LabProcess.md) | SHOULD | Experimental processes in this assay |
+| `processes` | [LabProcess](../../core/LabProcess.md) | SHOULD | Experimental processes in this assay |
 | `performers` | [Person](Person.md) | COULD | Assay performers and contributors |
 
 ## Relationships
@@ -23,7 +23,7 @@ flowchart TD
 
     Investigation --hasPart--> Assay
     Study -.assays.-> Assay
-    Assay --about--> LabProcess
+    Assay --processes--> LabProcess
     Assay --performers--> Person
     Assay --additionalType--> at
 

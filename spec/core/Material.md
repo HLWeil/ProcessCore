@@ -24,8 +24,8 @@ flowchart TD
 
     na@{ shape: stadium, label: "string" }
 
-    LabProcess --"object"--> Material
-    LabProcess --result--> Material
+    LabProcess --inputs"--> Material
+    LabProcess --"outputs"--> Material
     Material --additionalProperty--> PropertyValue
     Material --name--> na
 ```

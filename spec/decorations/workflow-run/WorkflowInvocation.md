@@ -16,7 +16,7 @@ Inherits all properties from [LabProcess](../../core/LabProcess.md). WR-specific
 |----------|------|----------|-------------|
 | `instrument` | [WorkflowProtocol](WorkflowProtocol.md) | MUST | Executed workflow (MUST equal `executesLabProtocol`) |
 | `executesLabProtocol` | [WorkflowProtocol](WorkflowProtocol.md) | MUST | Executed workflow (MUST equal `instrument`) |
-| `object` | MediaObject, Dataset, PropertyValue | MUST | Input files consumed |
-| `result` | MediaObject, Dataset, PropertyValue | MUST | Output files created/modified |
+| `inputs` | MediaObject, Dataset, PropertyValue | MUST | Input files consumed |
+| `outputs` | MediaObject, Dataset, PropertyValue | MUST | Output files created/modified |
 | `parameterValue` | [PropertyValue](PropertyValues.md) | COULD | Workflow parameter values |
 | `description` | Text | COULD | Execution details (CLI args, settings) |
