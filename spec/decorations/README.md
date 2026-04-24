@@ -19,6 +19,6 @@ A decoration MUST NOT modify core types. Instead, it:
 
 | Decoration | Domain | Reference Profile |
 |------------|--------|-------------------|
-| [Datamap](datamap/) | Data fragment context and content annotations | [ARC Datamap RO-Crate Profile](../../references/arc_datamap_ro_crate.md) |
-| [ISA](isa/) | Experimental metadata (Investigation/Study/Assay) | [ISA RO-Crate Profile](../../references/isa_ro_crate.md) |
-| [Workflow Run](workflow-run/) | Computational workflow provenance | [ARC WR RO-Crate Profile](../../references/arc_wr_ro_crate.md) |
+| [Datamap](datamap/README.md) | Data fragment context and content annotations | [ARC Datamap RO-Crate Profile](../../references/arc_datamap_ro_crate.md) |
+| [ISA](isa/README.md) | Experimental metadata (Investigation/Study/Assay) | [ISA RO-Crate Profile](../../references/isa_ro_crate.md) |
+| [Workflow Run](workflow-run/README.md) | Computational workflow provenance | [ARC WR RO-Crate Profile](../../references/arc_wr_ro_crate.md) |
