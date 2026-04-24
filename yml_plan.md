@@ -1,14 +1,17 @@
 # Plan for creating a yml schema
 
-The first version of the yml schema should contain schema files for the following entities:
+The first version of the yml schema should contain schema files for the following entities, defined in [the core specification](spec/core/README.md):
 
 - Data
 - Dataset
 - DefinedTerm
+- FormalParameter
+- LabProtocol
+- LabProcess
 - Material
-- Process
 - PropertyValue
-- Protocol
+
+The schema files should be then placed in [schemas/yml](schemas/yml) and referenced in the documentation. 
 
 ---
 
@@ -29,7 +32,7 @@ The first version of the yml schema should contain schema files for the followin
 
 #### Technical Considerations
 
-- **Use YAML Schema**: Or JSON Schema? Need to discuss
+- **Use YAML Schema**: According to the [YAML Schema specification](references/YAML%20Schema%20—%20ASDF%20Standard%201.6.0%20documentation.pdf), we can define a schema using YAML itself, specifying the expected structure, types, and constraints for each entity. This allows us to validate YAML documents against the schema and ensure they conform to the defined structure.
 
 - **Follow core specification**: The schema will be designed to directly reflect the core entities and relationships defined in the ARC Data Model specification, ensuring that all required fields and constraints are represented.
 
@@ -40,3 +43,5 @@ The first version of the yml schema should contain schema files for the followin
 - **Allow cross-referencing mechanism**: Use `id`(or `@id`) fields to allow entities to reference each other without embedding full objects, supporting a more relational structure. 
   - Need to decide on whether we allow `id` only in specific types or for all. Also 
   - Need to decide whether we define a generic mechanism to place collections of cross-referenced entities (e.g. a `registry` section) or allow them to be defined inline in the main document.
+
+- **Allow extension**: 

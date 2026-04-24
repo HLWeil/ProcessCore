@@ -1,0 +1,38 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$id: "FormalParameter.yml"
+title: FormalParameter
+description: >
+  Describes the shape and type of protocol inputs/outputs, providing prospective provenance.
+type: object
+
+properties:
+  id:
+    type: string
+    description: Unique identifier for the formal parameter
+
+  type:
+    type: string
+    const: "bioschemas:FormalParameter"
+    description: Fixed type discriminator
+
+  name:
+    type: string
+    description: Parameter slot name (should match the workflow parameter name)
+
+  nameTAN:
+    type: string
+    format: uri
+    description: Key ontology reference – URI of the term annotating this parameter name
+
+  defaultValue:
+    oneOf:
+      - type: string
+        description: "@id reference to a DefinedTerm"
+      - $ref: "DefinedTerm.yml"
+    description: Default value for the parameter (COULD)
+
+required:
+  - id
+  - type
+
+additionalProperties: false

@@ -1,0 +1,41 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$id: "Material.yml"
+title: Material
+description: >
+  Input or output biological, chemical, or digital material in the process graph.
+  Materials can derive from other materials, forming provenance chains.
+type: object
+
+properties:
+  id:
+    type: string
+    description: Unique material identifier (typically the material name)
+
+  type:
+    type: string
+    const: "bioschemas:Sample"
+    description: Fixed type discriminator
+
+  additionalType:
+    type: string
+    description: Decoration discriminator (e.g. Sample, Source)
+
+  name:
+    type: string
+    description: Human-readable name identifying the material
+
+  additionalProperty:
+    type: array
+    description: Characteristics, factors, or other extensible metadata (SHOULD)
+    items:
+      oneOf:
+        - type: string
+          description: "@id reference to a PropertyValue"
+        - $ref: "PropertyValue.yml"
+
+required:
+  - id
+  - type
+  - name
+
+additionalProperties: false
