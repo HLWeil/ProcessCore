@@ -44,4 +44,4 @@ The schema files should be then placed in [schemas/yml](schemas/yml) and referen
   - Need to decide on whether we allow `id` only in specific types or for all. Also 
   - Need to decide whether we define a generic mechanism to place collections of cross-referenced entities (e.g. a `registry` section) or allow them to be defined inline in the main document.
 
-- **Allow extension**: 
+- **Allow extension**: Yes, as we need this for decorations. We can allow for additional properties using `additionalProperties: true` or a similar mechanism, while still enforcing the core structure.
