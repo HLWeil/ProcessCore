@@ -22,10 +22,21 @@ Types are **mutable classes**. All collection fields (e.g. `inputs`, `outputs`, 
 
 Each `Material` and `Data` node must maintain two back-edge collections:
 
-- `objectOf` — the set of `LabProcess` instances for which this node is an **input**.
-- `resultOf` — the set of `LabProcess` instances for which this node is an **output**.
+- `inputOf` — the set of `LabProcess` instances for which this node is an **input**.
+- `outputOf` — the set of `LabProcess` instances for which this node is an **output**.
 
 These back-edges must be kept consistent eagerly: whenever a process's `inputs` or `outputs` list is mutated (add/remove), the corresponding back-edge on the affected node is updated in the same operation. This allows O(1) lookup of "which processes consume/produce this node" without scanning all processes.
+
+Each `LabProcess` instance must maintain a back-edge reference to its dataset: `processOf`
+
+Each `dataset` instance must maintain a back-edge reference to its parent dataset (if any): `partOf`
+
+## Object Identity and Distinctness
+
+For each object in the datamodel, identity is determined by it's values. Each type contains their own indicator fields of identity. For each type, this equality (or distinctness) is only given in a specific context of a container it is contained in. For example, two `Material` objects with the same name are considered identical across indefinite dataset hierarchies.
+
+This distinctness must be kept consistent eagerly: whenever an object is added to a container (e.g. a `Material` to a `LabProcess`'s `inputs`), the container must check if an identical object already exists in that container. If it does, the existing object is reused instead of adding the new one. This ensures that all references to a given entity point to the same object instance, maintaining consistency and enabling efficient graph traversal.
+In the same sense, when datasets are nested, if a child dataset is added to a parent dataset, the parent must check if an identical child already exists in its collection. If it does, the existing child is reused instead of adding the new one.
 
 ## Path Type
 
