@@ -530,7 +530,7 @@ These rules should be enforced either in DDL, import/export code, or both:
 - Enforce non-negative, unique positions per owner/list.
 - Enforce `intended_use_id` and `intended_use_text` mutual exclusion.
 - Enforce `value` and `value_type` consistency on `property_value`.
-- Validate that `process_io` input and output position sets match for processes that use paired input/output lists.
+- Preserve `process_io` positional pairing without requiring symmetry: input-only, output-only, and asymmetric processes are valid, and pair extraction should join only positions present in both directions.
 - Validate acyclic dataset nesting if the application treats `Dataset.hasPart` as a tree.
 - Normalize accepted aliases before insert, especially `schema.org/MediaObject` versus `schema:MediaObject`.
 
