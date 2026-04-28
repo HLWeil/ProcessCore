@@ -441,7 +441,7 @@ CHECK (
 )
 ```
 
-The spec's input[N] corresponds to output[N] contract is represented by matching `position` values across `direction = 'input'` and `direction = 'output'`. SQLite cannot express the full cross-row equality invariant with a simple FK or `CHECK`; import/export code or triggers must validate that paired processes have matching input and output position sets.
+The spec's "Nth input corresponds to Nth output" contract is represented by matching `position` values across `direction = 'input'` and `direction = 'output'`. The pairing is positional only: a process may be a pure source (outputs only), a pure sink (inputs only), or asymmetric, and the spec does not require the two lists to have equal length. Pair extraction is a self-join on `(process_id, position)` across directions, defined only at indices present in both.
 
 ### `process_parameter_value` - `LabProcess.parameterValue` -> `PropertyValue`
 
