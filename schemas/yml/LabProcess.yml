@@ -1,0 +1,71 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$id: "LabProcess.yml"
+title: LabProcess
+description: >
+  Core transformation node in the process graph. A LabProcess connects inputs to
+  outputs and references the Protocol that was executed.
+type: object
+
+# Cross-reference helpers (reused in inputs/outputs items)
+$defs:
+  materialOrData:
+    oneOf:
+      - type: string
+        description: "@id reference to a Material or Data object"
+      - $ref: "Material.yml"
+      - $ref: "Data.yml"
+
+properties:
+  id:
+    type: string
+    description: Unique process identifier (COULD)
+
+  type:
+    type: string
+    description: Process type (e.g. "bioschemas:LabProcess")
+
+  additionalType:
+    type: string
+    description: Decoration discriminator (e.g. LabProcess, CreateAction)
+
+  name:
+    type: string
+    description: Name of the process (MUST)
+
+  inputs:
+    type: array
+    description: >
+      Input materials or data files consumed by this process (SHOULD).
+      The Nth input corresponds to the Nth output.
+    items:
+      $ref: "#/$defs/materialOrData"
+
+  outputs:
+    type: array
+    description: >
+      Output materials or data files produced by this process (SHOULD).
+      The Nth output corresponds to the Nth input.
+    items:
+      $ref: "#/$defs/materialOrData"
+
+  executesProtocol:
+    oneOf:
+      - type: string
+        description: "@id reference to a LabProtocol"
+      - $ref: "LabProtocol.yml"
+    description: Protocol that was executed by this process (SHOULD)
+
+  parameterValue:
+    type: array
+    description: Parameter key-value pairs capturing actual execution parameters (SHOULD)
+    items:
+      oneOf:
+        - type: string
+          description: "@id reference to a PropertyValue"
+        - $ref: "PropertyValue.yml"
+
+required:
+  - type
+  - name
+
+additionalProperties: false

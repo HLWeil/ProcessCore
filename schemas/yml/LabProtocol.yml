@@ -1,0 +1,69 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$id: "LabProtocol.yml"
+title: LabProtocol
+description: >
+  Description of a planned procedure. Protocols define what a Process executes,
+  including intended use, equipment, reagents, and software.
+type: object
+
+properties:
+  id:
+    type: string
+    description: URL or identifier for the protocol (COULD)
+
+  type:
+    type: string
+    description: Protocol type (e.g. "bioschemas:LabProtocol")
+
+  additionalType:
+    type: string
+    description: Decoration discriminator (e.g. LabProtocol, ComputationalWorkflow)
+
+  name:
+    type: string
+    description: Main title of the protocol (SHOULD)
+
+  description:
+    type: string
+    description: Short description or abstract (SHOULD)
+
+  version:
+    type: string
+    description: Version identifier (COULD)
+
+  url:
+    type: string
+    format: uri
+    description: External protocol resource URL (COULD)
+
+  intendedUse:
+    oneOf:
+      - type: string
+        description: Free-text description of intended use or @id reference to a DefinedTerm
+      - $ref: "DefinedTerm.yml"
+    description: Protocol type as ontology term or free text (SHOULD)
+
+  parameters:
+    type: array
+    description: >
+      Prospectively specifies parameters for which values should be given during
+      execution of the protocol (COULD)
+    items:
+      oneOf:
+        - type: string
+          description: "@id reference to a FormalParameter"
+        - $ref: "FormalParameter.yml"
+
+  additionalProperty:
+    type: array
+    description: Extensible protocol metadata (COULD)
+    items:
+      oneOf:
+        - type: string
+          description: "@id reference to a PropertyValue"
+        - $ref: "PropertyValue.yml"
+
+required:
+  - type
+
+additionalProperties: false

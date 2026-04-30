@@ -1,0 +1,55 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$id: "Data.yml"
+title: Data
+description: >
+  Data files produced or consumed by processes. A Data object may represent either
+  a whole file or, when its identifier includes a selector, a specific fragment within a file.
+type: object
+
+properties:
+  id:
+    type: string
+    description: Path pointing to the file (doubles as the identifier)
+
+  type:
+    type: string
+    enum:
+      - "File"
+      - "schema:MediaObject"
+    description: "Must be either 'File' or 'schema:MediaObject'"
+
+  additionalType:
+    type: string
+    description: Decoration discriminator (e.g. "Raw Data")
+
+  path:
+    type: string
+    description: Path to the target data object when using the flat form (MUST)
+
+  selector:
+    type: string
+    description: Fragment selector that narrows the target to a subset of the data object (COULD)
+
+  selectorFormat:
+    type: string
+    format: uri
+    description: Formal description of the selector syntax (e.g. RFC 7111 URI) (COULD)
+
+  encodingFormat:
+    type: string
+    description: MIME type of the target data object or fragment (COULD)
+
+  additionalProperty:
+    type: array
+    description: Extensible file-, fragment-, or content-level metadata (COULD)
+    items:
+      oneOf:
+        - type: string
+          description: "@id reference to a PropertyValue"
+        - $ref: "PropertyValue.yml"
+
+required:
+  - type
+  - path
+
+additionalProperties: false

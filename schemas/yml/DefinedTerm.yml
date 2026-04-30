@@ -1,0 +1,47 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$id: "DefinedTerm.yml"
+title: DefinedTerm
+description: >
+  Ontology annotation referencing a term in a controlled vocabulary or ontology.
+type: object
+
+properties:
+  id:
+    type: string
+    description: Term URI (e.g. http://purl.obolibrary.org/obo/OBI_0000070)
+
+  type:
+    type: string
+    const: "schema:DefinedTerm"
+    description: Fixed type discriminator
+
+  name:
+    type: string
+    description: Human-readable term name
+
+  TAN:
+    type: string
+    description: Term Accession Number – identifier within the ontology (e.g. OBI:0000070)
+
+  inDefinedTermSet:
+    oneOf:
+      - type: string
+        format: uri
+        description: URL of the ontology or controlled vocabulary
+      - type: object
+        description: Inline DefinedTermSet object
+        properties:
+          id:
+            type: string
+            format: uri
+          name:
+            type: string
+        required:
+          - id
+
+required:
+  - id
+  - type
+  - name
+
+additionalProperties: false
