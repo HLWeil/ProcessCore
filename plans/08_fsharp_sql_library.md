@@ -52,9 +52,9 @@ tests/
 
 build/
   Build.fs
+  build.cmd
+  build.sh
 
-build.cmd
-build.sh
 Directory.Packages.props
 ```
 
@@ -65,6 +65,7 @@ Notes:
 - Package boundaries are intentional: publish `ProcessCore.SQL` as the shared package, then publish adapter packages per ecosystem/runtime (`ProcessCore.SQL.DotNet` on NuGet, JavaScript/TypeScript output to npm, Python output to PyPI).
 - Tests compile against the public API, not private helper functions.
 - The existing SQL fixtures stay in `schemas/sql/`; tests copy/read those files instead of duplicating schema text.
+- Current implementation keeps the BuildProjects.NET wrapper scripts under `build/`, not at repository root.
 
 ## Build System
 
@@ -201,6 +202,8 @@ module Dataset =
 
 Repeat this pattern for all 17 tables. Avoid clever generic metaprogramming until the duplication hurts in practice.
 
+Current status: not implemented. `src/ProcessCore.SQL/Repository.fs` currently contains `Table<'row>` metadata for the 17 tables only. It does not yet expose `insert`, `update`, `delete`, `get`, `list`, view readers, or transaction helpers.
+
 Views:
 
 - `ProcessEdges.list`
@@ -290,22 +293,26 @@ Expected package categories:
 - Added shared SQL primitives, one-to-one table row records, row codec modules, table metadata, and explicit runtime connector planning stubs.
 - Added a BuildProject-template-based FAKE build project under `build/` with wrapper scripts and the planned target names.
 - Added a `ProcessCore.SQL.Tests` executable using Fable.Pyxpecto.
-- Cross-target Fable transpilation/test targets exist as explicit pending targets until connector and packaging choices are made.
+- JavaScript Fable transpilation/test targets are wired. TypeScript and Python targets still exist as explicit pending targets.
 
 ### Phase 2 — Shared Table Model
 
-- Status: partially complete; shared code and first compile/runtime tests are present.
-- Add the 17 row records.
-- Add `SqlValue`, `SqlRow`, and `ISqliteDriver`.
-- Add row codecs for all tables.
-- Add compile-only tests for shared code under .NET.
+- Status: complete for table-shaped shared code.
+- Done: added the 17 row records.
+- Done: added `SqlValue`, `SqlRow`, and `ISqliteDriver`.
+- Done: added row codecs for all tables.
+- Done: added .NET tests for table metadata and representative row codec roundtrips.
+- Not part of this phase: CRUD/repository operations. Those remain in Phase 3.
 
 ### Phase 3 — .NET Driver and Repository
 
-- Status: started; .NET driver adapter implemented, repository CRUD modules still pending.
-- Implement .NET SQLite driver.
-- Implement CRUD modules for the 17 tables.
-- Add .NET tests using temp copies of the schema/seed SQL.
+- Status: partially complete.
+- Done: implemented the .NET SQLite driver adapter with `Microsoft.Data.Sqlite`.
+- Done: added .NET tests that create an in-memory database from `001_core.sql` and `seed_example.sql`, check FK health, bind parameters, and read seeded rows through shared codecs.
+- Pending: implement CRUD modules for the 17 tables.
+- Pending: add CRUD tests for insert/get/list/update/delete across representative entity and association tables.
+- Pending: add view readers for `process_edges` and `property_value_orphans`.
+- Pending: add transaction helpers or document explicit `BEGIN` / `COMMIT` / `ROLLBACK` usage.
 
 ### Phase 4 — Python Driver
 
@@ -316,11 +323,19 @@ Expected package categories:
 ### Phase 5 — JS/TS Drivers
 
 - Status: started; JavaScript adapter project, `better-sqlite3` binding, Node tooling, JS Pyxpecto test project, and `TestJs` build target are wired and passing. TypeScript remains pending.
-- Choose Node SQLite connector.
-- Introduce Node tooling: `package.json`, npm scripts, generated output folders, and dependency management for runtime packages such as `better-sqlite3`.
-- Wire Fable transpilation targets into the BuildProject pipeline for JavaScript and TypeScript.
-- Add JS and TS bindings.
-- Transpile and run Pyxpecto tests under JS and TS.
+- Done: chose `better-sqlite3` as the Node SQLite connector for the synchronous driver boundary.
+- Done: introduced Node tooling with `package.json`, `package-lock.json`, npm scripts, generated output ignores, and `better-sqlite3` dependency management.
+- Done: wired Fable JavaScript transpilation and `TestJs` into the BuildProject pipeline.
+- Done: added JavaScript binding and JS Pyxpecto tests for schema/seed execution plus parameter/row mapping.
+- Pending: decide whether TypeScript gets a distinct binding or reuses the JavaScript binding output.
+- Pending: wire TypeScript transpilation and tests.
+
+### Next Implementation Step — Repository CRUD
+
+- Implement small shared SQL command helpers for `INSERT`, `UPDATE`, `DELETE`, primary-key predicates, and ordered `SELECT`.
+- Add table-specific modules for all 17 tables, starting with the 8 entity tables before association tables.
+- Keep the public API table-shaped and synchronous through `ISqliteDriver`.
+- Add .NET CRUD tests first, then reuse the same public tests under JavaScript once the shape is stable.
 
 ### Phase 6 — Polish
 
