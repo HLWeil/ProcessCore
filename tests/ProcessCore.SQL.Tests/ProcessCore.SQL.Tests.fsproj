@@ -8,11 +8,13 @@
   <ItemGroup>
     <Compile Include="TableModelTests.fs" />
     <Compile Include="RowCodecTests.fs" />
+    <Compile Include="DotNetDriverTests.fs" />
     <Compile Include="Main.fs" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\ProcessCore.SQL\ProcessCore.SQL.fsproj" />
+    <ProjectReference Include="..\..\src\ProcessCore.SQL.DotNet\ProcessCore.SQL.DotNet.fsproj" />
     <PackageReference Include="Fable.Pyxpecto" Version="2.0.0" />
   </ItemGroup>
 </Project>

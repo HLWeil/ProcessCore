@@ -10,4 +10,6 @@ The project currently contains only shared code:
 - `Repository.fs` records table metadata for later CRUD modules.
 - `Platform/Driver.fs` documents the runtime adapter seam for .NET, JavaScript/TypeScript, and Python.
 
-Concrete SQLite connector packages are intentionally not referenced yet. Runtime-specific code will live behind the `ISqliteDriver` boundary so the table model and codecs remain transpilable with Fable.
+Concrete SQLite connector packages are intentionally kept out of this shared project. Runtime-specific code lives behind the `ISqliteDriver` boundary so the table model and codecs remain transpilable with Fable.
+
+The .NET adapter is in `src/ProcessCore.SQL.DotNet` and implements `ISqliteDriver` with `Microsoft.Data.Sqlite`.

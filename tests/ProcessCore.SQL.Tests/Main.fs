@@ -16,6 +16,7 @@ let all =
         [
             TableModelTests.tests
             RowCodecTests.tests
+            DotNetDriverTests.tests
         ]
 
 [<EntryPoint>]

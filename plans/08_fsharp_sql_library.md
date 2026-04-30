@@ -297,6 +297,7 @@ Expected package categories:
 
 ### Phase 3 — .NET Driver and Repository
 
+- Status: started; .NET driver adapter implemented, repository CRUD modules still pending.
 - Implement .NET SQLite driver.
 - Implement CRUD modules for the 17 tables.
 - Add .NET tests using temp copies of the schema/seed SQL.
