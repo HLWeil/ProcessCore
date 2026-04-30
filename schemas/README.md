@@ -36,3 +36,5 @@ This keeps the default representation flat and diff-friendly while still allowin
 ## Current Drafts
 
 - [sql/design.md](sql/design.md) — SQLite-oriented relational schema for the currently specified core types, with explicit join tables for multi-valued properties and DDL-level guidance.
+- [sql/001_core.sql](sql/001_core.sql) — executable SQLite DDL for the SQL import profile.
+- [sql/seed_example.sql](sql/seed_example.sql) and [sql/seeded_core.sqlite](sql/seeded_core.sqlite) — seeded example data and the built SQLite database.
