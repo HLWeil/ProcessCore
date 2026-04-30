@@ -590,6 +590,43 @@ The primary key on `process_io(process_id, direction, position)` already support
 - `property_value(instance_of_id)` - find realized values for a FormalParameter, if that query becomes common.
 - `property_value(name_tan, value)` - candidate for ontology-keyed value equality. Add when the canonical query workload solidifies; do not over-index speculatively.
 
+### Path Traversal Example
+
+A `Path` is derived from `process_io`, not stored. The following sketch walks forward from a material node through processes that consume it, then through the material or data nodes those processes produce:
+
+```sql
+WITH RECURSIVE path(depth, node_kind, node_id, process_id) AS (
+  VALUES (0, 'material', :start_material_id, NULL)
+
+  UNION ALL
+
+  SELECT
+    path.depth + 1,
+    CASE
+      WHEN produced.material_id IS NOT NULL THEN 'material'
+      ELSE 'data'
+    END,
+    COALESCE(produced.material_id, produced.data_id),
+    consumed.process_id
+  FROM path
+  JOIN process_io AS consumed
+    ON consumed.direction = 'input'
+   AND (
+     (path.node_kind = 'material' AND consumed.material_id = path.node_id)
+     OR
+     (path.node_kind = 'data' AND consumed.data_id = path.node_id)
+   )
+  JOIN process_io AS produced
+    ON produced.process_id = consumed.process_id
+   AND produced.direction = 'output'
+  WHERE path.depth < :max_depth
+)
+SELECT DISTINCT depth, node_kind, node_id, process_id
+FROM path;
+```
+
+Implementations should add cycle detection for production use, for example by carrying a visited node/process set in the recursive state.
+
 ---
 
 ## Counts
