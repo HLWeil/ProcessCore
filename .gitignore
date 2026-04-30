@@ -1,0 +1,7 @@
+bin/
+obj/
+.fake/
+.ionide/
+.vs/
+*.user
+*.suo

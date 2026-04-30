@@ -280,13 +280,13 @@ Expected package categories:
 
 ### Phase 1 — Scaffold
 
-- Create solution/projects/build files using BuildProjects.NET conventions.
-- Add empty `ProcessCore.SQL` and `ProcessCore.SQL.Tests`.
-- Wire FAKE targets for restore/build/test placeholders.
-- Add Fable.Pyxpecto test entrypoint with one smoke test.
+- Status: started with a compileable `src/ProcessCore.SQL` project targeting `net10.0`.
+- Added shared SQL primitives, one-to-one table row records, row codec modules, table metadata, and explicit runtime connector planning stubs.
+- BuildProjects.NET/FAKE and test project scaffolding remain pending; no production connector dependencies have been added yet.
 
 ### Phase 2 — Shared Table Model
 
+- Status: partially complete for library code; tests still pending.
 - Add the 17 row records.
 - Add `SqlValue`, `SqlRow`, and `ISqliteDriver`.
 - Add row codecs for all tables.
