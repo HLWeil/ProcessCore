@@ -20,7 +20,7 @@ Decorations specialize Dataset via `additionalType`:
 | `name` | Text | SHOULD | Title |
 | `description` | Text | SHOULD | Short description or abstract |
 | `processes` | [LabProcess](LabProcess.md) | SHOULD | Processes contained in this dataset |
-| `hasPart` | Dataset | SHOULD | Sub-datasets or data files |
+| `hasPart` | [Dataset](Dataset.md), [Data](Data.md) | SHOULD | Sub-datasets or data files |
 | `additionalProperty` | [PropertyValue](PropertyValue.md) | COULD | Extensible metadata |
 
 ## Relationships
@@ -35,7 +35,7 @@ flowchart TD
     d[Dataset]
     Dataset --processes--> LabProcess
     d --hasPart--> Dataset
-    Dataset --creator--> Person
+    d --hasPart--> Data
     Dataset --additionalProperty--> PropertyValue
     Dataset --identifier--> id
     Dataset --name--> na

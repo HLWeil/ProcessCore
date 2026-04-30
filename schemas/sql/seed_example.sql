@@ -1,199 +1,90 @@
--- Seed data based on examples/isa/assay_proteomics.yml
--- Populates core tables with the proteomics assay workflow:
---   Source -> Growth -> Sample -> Cell Lysis -> Sample -> MS Run -> File -> Computational Analysis -> File
+PRAGMA foreign_keys = ON;
 
--- ============================================================
--- Protocols
--- ============================================================
+BEGIN;
 
-INSERT INTO Protocol (id, type, name) VALUES
-  ('#Protocol_Growth',                         'LabProtocol', 'Growth'),
-  ('#Protocol_Cell_Lysis',                     'LabProtocol', 'Cell Lysis'),
-  ('#Protocol_MS_Run',                         'LabProtocol', 'MS Run'),
-  ('#Protocol_Computational_Proteome_Analysis', 'LabProtocol', 'Computational Proteome Analysis');
+INSERT INTO defined_term (id, type, name, tan, in_defined_term_set_id, in_defined_term_set_name)
+VALUES
+  ('obo:OBI_0000070', 'schema:DefinedTerm', 'assay', 'OBI:0000070', 'http://purl.obolibrary.org/obo/obi.owl', 'Ontology for Biomedical Investigations'),
+  ('obo:NCIT_C16681', 'schema:DefinedTerm', 'temperature', 'NCIT:C16681', 'https://ncithesaurus.nci.nih.gov', 'NCI Thesaurus'),
+  ('obo:UO_0000027', 'schema:DefinedTerm', 'degree Celsius', 'UO:0000027', 'http://purl.obolibrary.org/obo/uo.owl', 'Units of measurement ontology');
 
--- ============================================================
--- PropertyValues
--- ============================================================
+INSERT INTO lab_protocol (id, type, additional_type, name, description, version, url, intended_use_id, intended_use_text)
+VALUES
+  ('protocol:growth', 'bioschemas:LabProtocol', 'LabProtocol', 'Plant growth', 'Grow source material under controlled temperature.', '1.0', NULL, 'obo:OBI_0000070', NULL),
+  ('protocol:proteomics', 'bioschemas:LabProtocol', 'LabProtocol', 'Proteomics measurement', 'Measure protein abundance by mass spectrometry.', '1.0', NULL, NULL, 'proteomics assay');
 
-INSERT INTO PropertyValue (id, type, additional_type, name, value, property_id, unit_text, unit_code, value_reference) VALUES
-  ('#PV_sonicator',       'PropertyValue', 'ParameterValue',     'sonicator',                'Fisherbrand Model 705 Sonic Dismembrator', 'https://bioregistry.io/OBI:0400114', NULL, NULL, 'https://bioregistry.io/OBI:5453453'),
-  ('#PV_time_10min',      'PropertyValue', 'ParameterValue',     'time',                     '10',                                       'https://bioregistry.io/PATO:0000165', 'minute', 'https://bioregistry.io/UO:0000031', NULL),
-  ('#PV_replicate_1',     'PropertyValue', 'ParameterValue',     'technical replicate group', '1',                                        'https://bioregistry.io/DPBO:1000184', NULL, NULL, NULL),
-  ('#PV_replicate_2',     'PropertyValue', 'ParameterValue',     'technical replicate group', '2',                                        'https://bioregistry.io/DPBO:1000184', NULL, NULL, NULL),
-  ('#PV_replicate_3',     'PropertyValue', 'ParameterValue',     'technical replicate group', '3',                                        'https://bioregistry.io/DPBO:1000184', NULL, NULL, NULL),
-  ('#PV_software',        'PropertyValue', 'ParameterValue',     'software',                 'ProteomIQon',                              'https://bioregistry.io/IAO_0000010', NULL, NULL, NULL),
-  ('#PV_organism',        'PropertyValue', 'CharacteristicValue','organism',                 'Arabidopsis thaliana',                     'https://bioregistry.io/SIO:010000', NULL, NULL, 'https://bioregistry.io/NCBITaxon:3702'),
-  ('#PV_temp_25',         'PropertyValue', 'FactorValue',        'temperature',              '25',                                       'https://bioregistry.io/NCRO:0000029', 'degree Celsius', 'https://bioregistry.io/UO:0000027', NULL),
-  ('#PV_temp_30',         'PropertyValue', 'FactorValue',        'temperature',              '30',                                       'https://bioregistry.io/NCRO:0000029', 'degree Celsius', 'https://bioregistry.io/UO:0000027', NULL),
-  ('#PV_growth_env',      'PropertyValue', 'Component',          'growth environment',       'bioreactor',                               'https://bioregistry.io/OBI:0000997', NULL, NULL, 'https://bioregistry.io/OBI:0001046'),
-  ('#PV_mass_spec',       'PropertyValue', 'Component',          'mass spectrometer',        'Q Exactive 9000',                         'https://bioregistry.io/OBI:0000049', NULL, NULL, NULL),
-  ('#PV_var_measured',    'PropertyValue', NULL,                  'variableMeasured',         'proteomics',                               'https://schema.org/variableMeasured', NULL, NULL, 'https://bioregistry.io/MS:1003348');
+INSERT INTO formal_parameter (id, type, name, name_tan, default_value_id)
+VALUES
+  ('param:growth-temperature', 'bioschemas:FormalParameter', 'growth temperature', 'obo:NCIT_C16681', NULL);
 
--- ============================================================
--- Protocol Components
--- ============================================================
+INSERT INTO protocol_parameter (protocol_id, position, formal_parameter_id)
+VALUES
+  ('protocol:growth', 0, 'param:growth-temperature');
 
-INSERT INTO ProtocolComponent (protocol_id, propertyvalue_id, role) VALUES
-  ('#Protocol_Growth',   '#PV_growth_env', 'labEquipment'),
-  ('#Protocol_MS_Run',   '#PV_mass_spec',  'labEquipment');
+INSERT INTO dataset (id, type, additional_type, identifier, name, description)
+VALUES
+  ('dataset:proteomics-assay', 'schema:Dataset', 'Assay', 'assay-proteomics-001', 'Proteomics assay example', 'Seed dataset for the SQL import profile.');
 
--- ============================================================
--- Materials (Sources and Samples)
--- ============================================================
+INSERT INTO material (id, type, additional_type, name)
+VALUES
+  ('material:source-1', 'bioschemas:Sample', 'Source', 'Arabidopsis source 1'),
+  ('material:sample-1', 'bioschemas:Sample', 'Sample', 'Arabidopsis sample 1');
 
-INSERT INTO Material (id, type, name, additional_type) VALUES
-  ('#Mat_BaseCulture',          'Material', 'Base Culture',          'Source'),
-  ('#Mat_CultivationFlaskRT',   'Material', 'Cultivation Flask RT',  'Sample'),
-  ('#Mat_CultivationFlaskHT',   'Material', 'Cultivation Flask HT',  'Sample'),
-  ('#Mat_EppiRT1',              'Material', 'Eppi RT 1',             'Sample'),
-  ('#Mat_EppiRT2',              'Material', 'Eppi RT 2',             'Sample'),
-  ('#Mat_EppiRT3',              'Material', 'Eppi RT 3',             'Sample'),
-  ('#Mat_EppiHT1',              'Material', 'Eppi HT 1',             'Sample'),
-  ('#Mat_EppiHT2',              'Material', 'Eppi HT 2',             'Sample'),
-  ('#Mat_EppiHT3',              'Material', 'Eppi HT 3',             'Sample');
+INSERT INTO data (id, type, additional_type, path, selector, selector_format, encoding_format)
+VALUES
+  ('data:raw-spectrum', 'File', 'Raw Data', 'assays/proteomics/raw/sample-1.mzML', NULL, NULL, 'application/mzml+xml'),
+  ('data:protein-table', 'File', 'Processed Data', 'assays/proteomics/processed/proteins.csv', NULL, NULL, 'text/csv'),
+  ('data:protein-table#abundance', 'File', 'Data Fragment', 'assays/proteomics/processed/proteins.csv', 'col=abundance', 'https://www.rfc-editor.org/rfc/rfc7111', 'text/csv');
 
--- Material characteristics & factors
-INSERT INTO MaterialAdditionalProperty (material_id, propertyvalue_id) VALUES
-  ('#Mat_BaseCulture',        '#PV_organism'),
-  ('#Mat_CultivationFlaskRT', '#PV_temp_25'),
-  ('#Mat_CultivationFlaskHT', '#PV_temp_30');
+INSERT INTO lab_process (id, type, additional_type, name, executes_protocol_id)
+VALUES
+  ('process:growth-1', 'bioschemas:LabProcess', 'LabProcess', 'Grow source 1', 'protocol:growth'),
+  ('process:measure-1', 'bioschemas:LabProcess', 'LabProcess', 'Measure sample 1', 'protocol:proteomics');
 
--- ============================================================
--- Data (raw files and derived results)
--- ============================================================
+INSERT INTO property_value (id, type, additional_type, name, value, unit, name_tan, value_tan, unit_tan, instance_of_id)
+VALUES
+  ('pv:growth-temperature-22c', 'schema:PropertyValue', 'ParameterValue', 'growth temperature', '22', 'degree Celsius', 'obo:NCIT_C16681', NULL, 'obo:UO_0000027', 'param:growth-temperature'),
+  ('pv:dataset-organism', 'schema:PropertyValue', 'CharacteristicValue', 'organism', 'Arabidopsis thaliana', NULL, NULL, NULL, NULL, NULL),
+  ('pv:source-genotype', 'schema:PropertyValue', 'CharacteristicValue', 'genotype', 'Col-0', NULL, NULL, NULL, NULL, NULL),
+  ('pv:raw-format', 'schema:PropertyValue', 'CharacteristicValue', 'file role', 'raw spectrum', NULL, NULL, NULL, NULL, NULL),
+  ('pv:protocol-instrument', 'schema:PropertyValue', 'Component', 'instrument', 'Q Exactive', NULL, NULL, NULL, NULL, NULL);
 
-INSERT INTO Data (id, type, path, encoding_format) VALUES
-  ('#Data_sample1_raw', 'File', 'sample1.raw', NULL),
-  ('#Data_sample2_raw', 'File', 'sample2.raw', NULL),
-  ('#Data_sample3_raw', 'File', 'sample3.raw', NULL),
-  ('#Data_sample4_raw', 'File', 'sample4.raw', NULL),
-  ('#Data_sample5_raw', 'File', 'sample5.raw', NULL),
-  ('#Data_sample6_raw', 'File', 'sample6.raw', NULL);
+INSERT INTO dataset_has_part (dataset_id, position, part_dataset_id, part_data_id)
+VALUES
+  ('dataset:proteomics-assay', 0, NULL, 'data:raw-spectrum'),
+  ('dataset:proteomics-assay', 1, NULL, 'data:protein-table');
 
-INSERT INTO Data (id, type, path, selector, selector_format, encoding_format) VALUES
-  ('#Data_result_col12', 'File', 'proteomics_result.csv', 'col=12', 'https://datatracker.ietf.org/doc/html/rfc7111', 'text/csv'),
-  ('#Data_result_col13', 'File', 'proteomics_result.csv', 'col=13', 'https://datatracker.ietf.org/doc/html/rfc7111', 'text/csv'),
-  ('#Data_result_col14', 'File', 'proteomics_result.csv', 'col=14', 'https://datatracker.ietf.org/doc/html/rfc7111', 'text/csv'),
-  ('#Data_result_col15', 'File', 'proteomics_result.csv', 'col=15', 'https://datatracker.ietf.org/doc/html/rfc7111', 'text/csv'),
-  ('#Data_result_col16', 'File', 'proteomics_result.csv', 'col=16', 'https://datatracker.ietf.org/doc/html/rfc7111', 'text/csv'),
-  ('#Data_result_col17', 'File', 'proteomics_result.csv', 'col=17', 'https://datatracker.ietf.org/doc/html/rfc7111', 'text/csv');
+INSERT INTO dataset_process (dataset_id, position, process_id)
+VALUES
+  ('dataset:proteomics-assay', 0, 'process:growth-1'),
+  ('dataset:proteomics-assay', 1, 'process:measure-1');
 
--- ============================================================
--- Processes
--- ============================================================
+INSERT INTO dataset_additional_property (dataset_id, position, property_value_id)
+VALUES
+  ('dataset:proteomics-assay', 0, 'pv:dataset-organism');
 
--- Each Process row is one input -> output edge.
+INSERT INTO material_additional_property (material_id, position, property_value_id)
+VALUES
+  ('material:source-1', 0, 'pv:source-genotype');
 
--- Growth (2 processes: RT and HT)
-INSERT INTO Process (
-  id, type, name, executes_protocol_id,
-  input_type, input_id, output_type, output_id
-) VALUES
-  ('#Proc_Growth_RT', 'LabProcess', 'Growth', '#Protocol_Growth',
-   'Material', '#Mat_BaseCulture', 'Material', '#Mat_CultivationFlaskRT'),
-  ('#Proc_Growth_HT', 'LabProcess', 'Growth', '#Protocol_Growth',
-   'Material', '#Mat_BaseCulture', 'Material', '#Mat_CultivationFlaskHT');
+INSERT INTO data_additional_property (data_id, position, property_value_id)
+VALUES
+  ('data:raw-spectrum', 0, 'pv:raw-format');
 
--- Cell Lysis (6 processes: 3 RT replicates + 3 HT replicates)
-INSERT INTO Process (
-  id, type, name, executes_protocol_id,
-  input_type, input_id, output_type, output_id
-) VALUES
-  ('#Proc_Lysis_RT1', 'LabProcess', 'Cell Lysis', '#Protocol_Cell_Lysis',
-   'Material', '#Mat_CultivationFlaskRT', 'Material', '#Mat_EppiRT1'),
-  ('#Proc_Lysis_RT2', 'LabProcess', 'Cell Lysis', '#Protocol_Cell_Lysis',
-   'Material', '#Mat_CultivationFlaskRT', 'Material', '#Mat_EppiRT2'),
-  ('#Proc_Lysis_RT3', 'LabProcess', 'Cell Lysis', '#Protocol_Cell_Lysis',
-   'Material', '#Mat_CultivationFlaskRT', 'Material', '#Mat_EppiRT3'),
-  ('#Proc_Lysis_HT1', 'LabProcess', 'Cell Lysis', '#Protocol_Cell_Lysis',
-   'Material', '#Mat_CultivationFlaskHT', 'Material', '#Mat_EppiHT1'),
-  ('#Proc_Lysis_HT2', 'LabProcess', 'Cell Lysis', '#Protocol_Cell_Lysis',
-   'Material', '#Mat_CultivationFlaskHT', 'Material', '#Mat_EppiHT2'),
-  ('#Proc_Lysis_HT3', 'LabProcess', 'Cell Lysis', '#Protocol_Cell_Lysis',
-   'Material', '#Mat_CultivationFlaskHT', 'Material', '#Mat_EppiHT3');
+INSERT INTO protocol_additional_property (protocol_id, position, property_value_id)
+VALUES
+  ('protocol:proteomics', 0, 'pv:protocol-instrument');
 
-INSERT INTO ProcessParameterValue (process_id, propertyvalue_id) VALUES
-  ('#Proc_Lysis_RT1', '#PV_time_10min'), ('#Proc_Lysis_RT1', '#PV_sonicator'), ('#Proc_Lysis_RT1', '#PV_replicate_1'),
-  ('#Proc_Lysis_RT2', '#PV_time_10min'), ('#Proc_Lysis_RT2', '#PV_sonicator'), ('#Proc_Lysis_RT2', '#PV_replicate_2'),
-  ('#Proc_Lysis_RT3', '#PV_time_10min'), ('#Proc_Lysis_RT3', '#PV_sonicator'), ('#Proc_Lysis_RT3', '#PV_replicate_3'),
-  ('#Proc_Lysis_HT1', '#PV_time_10min'), ('#Proc_Lysis_HT1', '#PV_sonicator'), ('#Proc_Lysis_HT1', '#PV_replicate_1'),
-  ('#Proc_Lysis_HT2', '#PV_time_10min'), ('#Proc_Lysis_HT2', '#PV_sonicator'), ('#Proc_Lysis_HT2', '#PV_replicate_2'),
-  ('#Proc_Lysis_HT3', '#PV_time_10min'), ('#Proc_Lysis_HT3', '#PV_sonicator'), ('#Proc_Lysis_HT3', '#PV_replicate_3');
+INSERT INTO process_parameter_value (process_id, position, property_value_id)
+VALUES
+  ('process:growth-1', 0, 'pv:growth-temperature-22c');
 
--- MS Run (6 processes: one per eppi sample -> raw file)
-INSERT INTO Process (
-  id, type, name, executes_protocol_id,
-  input_type, input_id, output_type, output_id
-) VALUES
-  ('#Proc_MS_RT1', 'LabProcess', 'MS Run', '#Protocol_MS_Run',
-   'Material', '#Mat_EppiRT1', 'Data', '#Data_sample1_raw'),
-  ('#Proc_MS_RT2', 'LabProcess', 'MS Run', '#Protocol_MS_Run',
-   'Material', '#Mat_EppiRT2', 'Data', '#Data_sample2_raw'),
-  ('#Proc_MS_RT3', 'LabProcess', 'MS Run', '#Protocol_MS_Run',
-   'Material', '#Mat_EppiRT3', 'Data', '#Data_sample3_raw'),
-  ('#Proc_MS_HT1', 'LabProcess', 'MS Run', '#Protocol_MS_Run',
-   'Material', '#Mat_EppiHT1', 'Data', '#Data_sample4_raw'),
-  ('#Proc_MS_HT2', 'LabProcess', 'MS Run', '#Protocol_MS_Run',
-   'Material', '#Mat_EppiHT2', 'Data', '#Data_sample5_raw'),
-  ('#Proc_MS_HT3', 'LabProcess', 'MS Run', '#Protocol_MS_Run',
-   'Material', '#Mat_EppiHT3', 'Data', '#Data_sample6_raw');
+INSERT INTO process_io (process_id, direction, position, material_id, data_id)
+VALUES
+  ('process:growth-1', 'input', 0, 'material:source-1', NULL),
+  ('process:growth-1', 'output', 0, 'material:sample-1', NULL),
+  ('process:measure-1', 'input', 0, 'material:sample-1', NULL),
+  ('process:measure-1', 'output', 0, NULL, 'data:raw-spectrum'),
+  ('process:measure-1', 'output', 1, NULL, 'data:protein-table');
 
--- Computational Proteome Analysis (6 processes: raw file -> result column)
-INSERT INTO Process (
-  id, type, name, executes_protocol_id,
-  input_type, input_id, output_type, output_id
-) VALUES
-  ('#Proc_Comp_1', 'LabProcess', 'Computational Proteome Analysis', '#Protocol_Computational_Proteome_Analysis',
-   'Data', '#Data_sample1_raw', 'Data', '#Data_result_col12'),
-  ('#Proc_Comp_2', 'LabProcess', 'Computational Proteome Analysis', '#Protocol_Computational_Proteome_Analysis',
-   'Data', '#Data_sample2_raw', 'Data', '#Data_result_col13'),
-  ('#Proc_Comp_3', 'LabProcess', 'Computational Proteome Analysis', '#Protocol_Computational_Proteome_Analysis',
-   'Data', '#Data_sample3_raw', 'Data', '#Data_result_col14'),
-  ('#Proc_Comp_4', 'LabProcess', 'Computational Proteome Analysis', '#Protocol_Computational_Proteome_Analysis',
-   'Data', '#Data_sample4_raw', 'Data', '#Data_result_col15'),
-  ('#Proc_Comp_5', 'LabProcess', 'Computational Proteome Analysis', '#Protocol_Computational_Proteome_Analysis',
-   'Data', '#Data_sample5_raw', 'Data', '#Data_result_col16'),
-  ('#Proc_Comp_6', 'LabProcess', 'Computational Proteome Analysis', '#Protocol_Computational_Proteome_Analysis',
-   'Data', '#Data_sample6_raw', 'Data', '#Data_result_col17');
-
-INSERT INTO ProcessParameterValue (process_id, propertyvalue_id) VALUES
-  ('#Proc_Comp_1', '#PV_software'),
-  ('#Proc_Comp_2', '#PV_software'),
-  ('#Proc_Comp_3', '#PV_software'),
-  ('#Proc_Comp_4', '#PV_software'),
-  ('#Proc_Comp_5', '#PV_software'),
-  ('#Proc_Comp_6', '#PV_software');
-
--- ============================================================
--- Dataset (Assay container)
--- ============================================================
-
-INSERT INTO Dataset (id, type, additional_type, identifier, name) VALUES
-  ('#Dataset_measurement1', 'Dataset', 'Assay', 'measurement1', 'Proteomics Assay');
-
-INSERT INTO DatasetAdditionalProperty (dataset_id, propertyvalue_id) VALUES
-  ('#Dataset_measurement1', '#PV_var_measured');
-
--- Link all processes to the assay dataset
-INSERT INTO DatasetAbout (dataset_id, process_id) VALUES
-  ('#Dataset_measurement1', '#Proc_Growth_RT'),
-  ('#Dataset_measurement1', '#Proc_Growth_HT'),
-  ('#Dataset_measurement1', '#Proc_Lysis_RT1'),
-  ('#Dataset_measurement1', '#Proc_Lysis_RT2'),
-  ('#Dataset_measurement1', '#Proc_Lysis_RT3'),
-  ('#Dataset_measurement1', '#Proc_Lysis_HT1'),
-  ('#Dataset_measurement1', '#Proc_Lysis_HT2'),
-  ('#Dataset_measurement1', '#Proc_Lysis_HT3'),
-  ('#Dataset_measurement1', '#Proc_MS_RT1'),
-  ('#Dataset_measurement1', '#Proc_MS_RT2'),
-  ('#Dataset_measurement1', '#Proc_MS_RT3'),
-  ('#Dataset_measurement1', '#Proc_MS_HT1'),
-  ('#Dataset_measurement1', '#Proc_MS_HT2'),
-  ('#Dataset_measurement1', '#Proc_MS_HT3'),
-  ('#Dataset_measurement1', '#Proc_Comp_1'),
-  ('#Dataset_measurement1', '#Proc_Comp_2'),
-  ('#Dataset_measurement1', '#Proc_Comp_3'),
-  ('#Dataset_measurement1', '#Proc_Comp_4'),
-  ('#Dataset_measurement1', '#Proc_Comp_5'),
-  ('#Dataset_measurement1', '#Proc_Comp_6');
+COMMIT;

@@ -33,6 +33,10 @@ flowchart LR
 
 ```
 
+## Entity Relationship Diagram
+
+For a relational view of the core types, see [schemas/sql/design.md](../../schemas/sql/design.md).
+
 ## Core Types
 
 | Type | Description | Spec |
