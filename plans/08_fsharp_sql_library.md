@@ -30,12 +30,16 @@ src/
     RowCodecs.fs
     Commands.fs
     Repository.fs
-    Platform/
-      Driver.fs
-      DotNet.fs
-      JavaScript.fs
-      TypeScript.fs
-      Python.fs
+  ProcessCore.SQL.DotNet/
+    ProcessCore.SQL.DotNet.fsproj
+    SqliteDriver.fs
+  ProcessCore.SQL.JavaScript/
+    ProcessCore.SQL.JavaScript.fsproj
+    BetterSqliteDriver.fs
+  ProcessCore.SQL.TypeScript/
+    ProcessCore.SQL.TypeScript.fsproj
+  ProcessCore.SQL.Python/
+    ProcessCore.SQL.Python.fsproj
 
 tests/
   ProcessCore.SQL.Tests/
@@ -57,7 +61,8 @@ Directory.Packages.props
 Notes:
 
 - `ProcessCore.SQL` contains the shared Fable-compatible code.
-- `Platform/*` is the only layer allowed to bind to concrete SQLite connectors.
+- Runtime adapter projects are the only layer allowed to bind to concrete SQLite connectors.
+- Package boundaries are intentional: publish `ProcessCore.SQL` as the shared package, then publish adapter packages per ecosystem/runtime (`ProcessCore.SQL.DotNet` on NuGet, JavaScript/TypeScript output to npm, Python output to PyPI).
 - Tests compile against the public API, not private helper functions.
 - The existing SQL fixtures stay in `schemas/sql/`; tests copy/read those files instead of duplicating schema text.
 
@@ -310,7 +315,10 @@ Expected package categories:
 
 ### Phase 5 — JS/TS Drivers
 
+- Status: started; JavaScript adapter project and `better-sqlite3` binding skeleton added, transpiled tests still pending.
 - Choose Node SQLite connector.
+- Introduce Node tooling: `package.json`, npm scripts, generated output folders, and dependency management for runtime packages such as `better-sqlite3`.
+- Wire Fable transpilation targets into the BuildProject pipeline for JavaScript and TypeScript.
 - Add JS and TS bindings.
 - Transpile and run Pyxpecto tests under JS and TS.
 

@@ -12,4 +12,4 @@ The project currently contains only shared code:
 
 Concrete SQLite connector packages are intentionally kept out of this shared project. Runtime-specific code lives behind the `ISqliteDriver` boundary so the table model and codecs remain transpilable with Fable.
 
-The .NET adapter is in `src/ProcessCore.SQL.DotNet` and implements `ISqliteDriver` with `Microsoft.Data.Sqlite`.
+The .NET adapter is in `src/ProcessCore.SQL.DotNet` and implements `ISqliteDriver` with `Microsoft.Data.Sqlite`. The JavaScript adapter is in `src/ProcessCore.SQL.JavaScript` and targets `better-sqlite3` through Fable.
