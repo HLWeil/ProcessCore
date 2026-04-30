@@ -280,13 +280,16 @@ Expected package categories:
 
 ### Phase 1 — Scaffold
 
-- Status: started with a compileable `src/ProcessCore.SQL` project targeting `net10.0`.
+- Status: complete for the initial skeleton.
+- Added a compileable `src/ProcessCore.SQL` project targeting `net10.0`.
 - Added shared SQL primitives, one-to-one table row records, row codec modules, table metadata, and explicit runtime connector planning stubs.
-- BuildProjects.NET/FAKE and test project scaffolding remain pending; no production connector dependencies have been added yet.
+- Added a BuildProject-template-based FAKE build project under `build/` with wrapper scripts and the planned target names.
+- Added a `ProcessCore.SQL.Tests` executable using Fable.Pyxpecto.
+- Cross-target Fable transpilation/test targets exist as explicit pending targets until connector and packaging choices are made.
 
 ### Phase 2 — Shared Table Model
 
-- Status: partially complete for library code; tests still pending.
+- Status: partially complete; shared code and first compile/runtime tests are present.
 - Add the 17 row records.
 - Add `SqlValue`, `SqlRow`, and `ISqliteDriver`.
 - Add row codecs for all tables.
