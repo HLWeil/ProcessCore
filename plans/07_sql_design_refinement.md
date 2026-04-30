@@ -30,8 +30,8 @@ Resolve the 13 original issues identified in design.md, plus the framing issue *
 | # | Choice | Notes |
 |---|---|---|
 | D0 | **(a) Profile** | Rename design.md as "SQL Import Profile of the ProcessCore model." Round-trip is to/from the profile; SQL ↔ in-memory model mapping handles deviations. |
-| D1 | **add `type TEXT` for now** | Add `type TEXT` (no CHECK, no canonicalization) to `dataset`, `lab_process`, `lab_protocol`, `material`, `property_value`, `formal_parameter`, `defined_term`. Drop the "type omitted when constant" Design Decisions bullet. Local issue filed: rename `LabProcess` → `Process`, `LabProtocol` → `Protocol`. |
-| D2 | **keep symmetry non-mandatory** | No CHECK or import validation on `inputs.length == outputs.length`. Fix the false prose at [design.md:444](../schemas/sql/design.md#L444) to acknowledge spec SHOULD. Local issue filed: future enforcement. |
+| D1 | **add `type TEXT` for now** | Add `type TEXT` (no CHECK, no canonicalization) to `dataset`, `lab_process`, `lab_protocol`, `material`, `property_value`, `formal_parameter`, `defined_term`. Drop the "type omitted when constant" Design Decisions bullet. External issue filed: rename `LabProcess` → `Process`, `LabProtocol` → `Protocol`. |
+| D2 | **keep symmetry non-mandatory** | No CHECK or import validation on `inputs.length == outputs.length`. Fix the false prose at [design.md:444](../schemas/sql/design.md#L444) to acknowledge spec SHOULD. External issue filed: future enforcement. |
 | D3 | **(a) closed-document invariant** | At end of import transaction: every PV must be referenced by ≥1 row in the five owner association tables. `instance_of_id` does not count. |
 | D4 | **(a) CASCADE owner→assoc, RESTRICT on entity refs** | Deleting a `property_value` is *blocked* if any association row still references it. Deleting an owner (e.g. `dataset`) cascades to its association rows. Forces explicit cleanup; surfaces accidents. |
 | D5 | **values as pure strings** | Remove `property_value.value_type` column and its CHECKs. `value` stays TEXT nullable. Numeric/text validation moves to the in-memory model layer, driven by ontology context. |
@@ -48,7 +48,7 @@ design.md currently blurs two activities: (a) faithfully represent the authorita
 
 ### D1. `type` column policy
 
-Decision: add `type TEXT` columns to every entity table for now, with no `CHECK` and no canonicalization. This keeps the SQL profile close to the current spec tables while leaving the naming problem (`LabProcess`/`LabProtocol` versus `Process`/`Protocol`) to a separate local issue.
+Decision: add `type TEXT` columns to every entity table for now, with no `CHECK` and no canonicalization. This keeps the SQL profile close to the current spec tables while leaving the naming problem (`LabProcess`/`LabProtocol` versus `Process`/`Protocol`) to a separate external issue.
 
 Concretely, `data.type` already exists; add `type TEXT` to:
 
@@ -68,7 +68,7 @@ The spec ([LabProcess.md:41](../spec/core/LabProcess.md#L41)) says inputs/output
 
 Decision: physically allow asymmetry and do not add an import-time length validation yet. The "spec does not require" prose is rewritten to: *"the spec recommends equal-length lists; the profile permits asymmetric storage and does not currently enforce length equality."*
 
-Whether this SHOULD should become a MUST, or whether a profile-level warning should be emitted, is tracked as a separate local issue.
+Whether this SHOULD should become a MUST, or whether a profile-level warning should be emitted, is tracked as a separate external issue.
 
 ### D3. Orphan `PropertyValue` policy
 
@@ -200,7 +200,7 @@ Drawn in [spec/core/Dataset.md:38](../spec/core/Dataset.md) Mermaid but no `Pers
 
 1. Use the decisions recorded above as fixed inputs.
 2. Apply Phase 1 (E1–E6) in one editing pass to [schemas/sql/design.md](../schemas/sql/design.md).
-3. Keep the D1/D2 follow-ups in [issues.md](issues.md) for manual filing.
+3. Keep the already-filed D1/D2 follow-ups out of this repo.
 4. Decide Phase 2 scope — same branch, separate branch, or punt to spec authors.
 
 ## Out of scope
