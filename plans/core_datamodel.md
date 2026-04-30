@@ -44,6 +44,49 @@ A `Path` type is part of the core data model. It represents a sequence of `LabPr
 
 It is basically the more capable continuation of the [ValueCollection](../references/ProcessCore/ValueCollection.fs) concept, but maintaining the full process context, allowing more than just retrieving property values.
 
+## Querying
+
+Querying methods are embedded directly on the entity objects (not in a separate query wrapper), following the pattern established by the reference query model (`ARCtrl.QueryModel.ProcessCore`).
+
+### PropertyValue sources
+
+When retrieving property values from a process context, **all four sources** must be collected:
+
+1. `process.ParameterValue` — parameters attached directly to the process
+2. `process.Inputs[*].AdditionalProperty` — characteristics attached to input nodes
+3. `process.Outputs[*].AdditionalProperty` — factors attached to output nodes
+4. `process.ExecutesProtocol?.LabEquipment` — components (equipment, reagents, software) attached to the protocol via `labEquipment`
+
+All retrieval methods are named `*PropertyValues` (not `*ParameterValues`) to reflect this broad collection.
+
+### Traversal directions
+
+Graph traversal methods come in three flavours:
+
+- **Undirected** (`AllConnectedProcesses`, `AllConnectedNodes`, …) — BFS through both upstream and downstream edges simultaneously.
+- **Upstream** (`UpstreamProcesses`, `UpstreamNodes`, …) — BFS following `OutputOf` back-edges to predecessor processes and their inputs.
+- **Downstream** (`DownstreamProcesses`, `DownstreamNodes`, …) — BFS following `InputOf` back-edges to successor processes and their outputs.
+
+### Root and final nodes
+
+A node is a **root** if no in-scope process produces it as output (`IsRootNode`).  
+A node is a **final** if no in-scope process consumes it as input (`IsFinalNode`).
+
+### Optional scope
+
+All traversal methods accept an optional `scope: ResizeArray<LabProcess>` parameter. When supplied, the BFS is restricted to processes within that set. This allows scoping queries to a single `Dataset` without creating a separate graph object.
+
+### Placement of query methods
+
+| Entity | Methods |
+|--------|---------|
+| `IONode` | Full traversal and PropertyValue retrieval; `IsRootNode`, `IsFinalNode` |
+| `Material`, `Data` | Delegate to `IONode` wrapper (`MaterialNode this` / `DataNode this`) |
+| `LabProcess` | `InputMaterials`, `InputData`, `OutputMaterials`, `OutputData`, `ProtocolParameters`, `PropertyValuesByName` |
+| `Dataset` | `AllNodes`, `RootNodes`, `FinalNodes`, `AllPropertyValues(?protocolName)`, `PropertyValuesForNode`, `UpstreamPropertyValuesForNode`, `DownstreamPropertyValuesForNode`, `FindProcessesByProtocolType`, `FindProcessesByPropertyValue`, `FindProcessesByPropertyName`, `MaterialsResultingFromCondition` |
+| `Path` | `AllPropertyValues`, `PropertyValuesByName`, `ProtocolParameters`, `TerminalInputs`, `TerminalOutputs` |
+| `ProcessGraph` | Scoped versions of all traversal and finder methods; `PathsThrough` |
+
 ## Out of Scope
 
 The following are explicitly **not** part of this implementation:

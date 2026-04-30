@@ -20,6 +20,7 @@ Decorations specialize Protocol:
 | `description` | Text | SHOULD | Short description or abstract |
 | `intendedUse` | [DefinedTerm](DefinedTerm.md), Text | SHOULD | Protocol type as ontology term |
 | `additionalProperty` | [PropertyValue](PropertyValue.md) | COULD | Extensible protocol metadata |
+| `labEquipment` | [PropertyValue](PropertyValue.md) | COULD | Equipment used in the protocol |
 | `version` | Text | COULD | Version identifier |
 | `url` | URL | COULD | External protocol resource |
 
@@ -32,10 +33,13 @@ flowchart TD
     de@{ shape: stadium, label: "string" }
     ve@{ shape: stadium, label: "string" }
     ur@{ shape: stadium, label: "URL" }
+    av[PropertyValue]
+    le[PropertyValue]
 
     LabProcess --executesProtocol--> LabProtocol
     LabProtocol --intendedUse--> DefinedTerm
-    LabProtocol --additionalProperty--> PropertyValue
+    LabProtocol --additionalProperty--> av
+    LabProtocol --labEquipment--> le
     LabProtocol --parameters--> FormalParameter
     LabProtocol --name--> na
     LabProtocol --description--> de
