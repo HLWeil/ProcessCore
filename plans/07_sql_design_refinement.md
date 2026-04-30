@@ -10,20 +10,29 @@ Resolve the 13 original issues identified in design.md, plus the framing issue *
 
 | # | Severity | Issue | Phase |
 |---|----------|-------|-------|
-| 0 | meta | design.md blurs "faithful YAML representation" with "stricter SQL profile"; framing must come first | 0 (D0) |
-| 1 | high | "Round-trip" claim is overstated; `type` column policy understates which tables actually have a `const` type in YAML | 0 (D1) + 1 (E6) |
-| 2 | high | `oneOf [string @id, inline object]` resolution rule is implicit; mixed-target lists need multi-table lookup policy; inline objects can lack `id` | 1 (E1) |
-| 3 | high | `LabProtocol.intendedUse` string is ambiguous (free text vs `@id`) | 1 (E1) |
-| 4 | high | `process_io` symmetry policy contradicts the spec; design.md prose ("spec does not require") is factually wrong | 0 (D2) + 1 (E5) |
-| 5 | high | No index strategy for documented graph-traversal queries; composites and `process_parameter_value` lookup are missing | 1 (E2) |
-| 6 | medium | `Data.id` vs `Data.path` relationship unspecified; naive `id := path` collides on fragment-level data | 1 (E3) |
-| 7 | medium | Orphan `PropertyValue` policy undefined | 0 (D3) |
-| 8 | medium | Numeric `PropertyValue.value` has no canonical text format | 0 (D5) |
-| 9 | medium | FK `ON DELETE` semantics unspecified | 0 (D4) |
+| 0 | meta | design.md blurs "faithful YAML representation" with "stricter SQL profile"; framing must come first | done |
+| 1 | high | "Round-trip" claim is overstated; `type` column policy understates which tables actually have a `const` type in YAML | done |
+| 2 | high | `oneOf [string @id, inline object]` resolution rule is implicit; mixed-target lists need multi-table lookup policy; inline objects can lack `id` | done |
+| 3 | high | `LabProtocol.intendedUse` string is ambiguous (free text vs `@id`) | done |
+| 4 | high | `process_io` symmetry policy contradicts the spec; design.md prose ("spec does not require") is factually wrong | done |
+| 5 | high | No index strategy for documented graph-traversal queries; composites and `process_parameter_value` lookup are missing | done |
+| 6 | medium | `Data.id` vs `Data.path` relationship unspecified; naive `id := path` collides on fragment-level data | done |
+| 7 | medium | Orphan `PropertyValue` policy undefined | done |
+| 8 | medium | Numeric `PropertyValue.value` has no canonical text format | done |
+| 9 | medium | FK `ON DELETE` semantics unspecified | done |
 | 10 | low | Stale `core/ERD.md` link | done |
-| 11 | low | `Dataset.hasPart` type column gap in spec MD | 2 (S1) |
-| 12 | low | `FormalParameter.workExample` and `Dataset.creator → Person` are spec-internal discrepancies | 2 (S2, S3) |
-| 13 | low | Per-owner `additional_property` tables choice should be promoted into Design Decisions | 1 (E4) |
+| 11 | low | `Dataset.hasPart` type column gap in spec MD | done |
+| 12 | low | `FormalParameter.workExample` and `Dataset.creator → Person` are spec-internal discrepancies | done |
+| 13 | low | Per-owner `additional_property` tables choice should be promoted into Design Decisions | done |
+
+## Implementation log
+
+| Commit | Scope |
+|---|---|
+| `ffcffdc` | Recorded final D0-D5 decisions and external follow-up issue handling. |
+| `7b55e4a` | Reframed `schemas/sql/design.md` as a SQL import profile and applied E1, E3, E4, E5, and E6. |
+| `127067a` | Added the E2 `WITH RECURSIVE` path traversal example. |
+| `b38b862` | Applied Phase 2 spec-doc follow-ups S1-S3 and removed obsolete SQL out-of-scope notes. |
 
 ## Decisions taken
 
@@ -100,7 +109,7 @@ The SQL profile does not preserve the source scalar kind: YAML `42` and `"42"` b
 
 ## Phase 1 — Mechanical edits to design.md
 
-Applied in one editing pass after Phase 0.
+Status: done in `7b55e4a` and `127067a`.
 
 ### E1. Add "Reference resolution" subsection (issues #2, #3)
 
@@ -183,25 +192,25 @@ The current claim ("round-trip the current core YAML schemas without silently dr
 
 Rewrite as: *"This SQL import profile round-trips YAML documents that conform to it. The profile narrows the open YAML surface where SQL needs a concrete contract — for example no orphan PropertyValues at commit time, exact-one-target foreign keys for mixed-target lists, deterministic generated IDs for fragment-level Data, and unresolved references as import errors except for `intendedUse` free text."*
 
-## Phase 2 — Spec-doc follow-ups (separate from design.md)
+## Phase 2 — Spec-doc follow-ups
 
-Inconsistencies between spec MDs and YAML — raise as a separate cleanup, not papered over in design.md.
+Status: done in `b38b862`. Inconsistencies between spec MDs and YAML were handled as a separate cleanup instead of being papered over in design.md.
 
 ### S1. `Dataset.hasPart` type column gap (issue #11)
-[spec/core/Dataset.md:23](../spec/core/Dataset.md) lists the target as `Dataset` only; YAML and prose both allow `Dataset | Data`. Fix the property table.
+[spec/core/Dataset.md](../spec/core/Dataset.md) now lists `hasPart` as `Dataset | Data`, and its diagram shows both targets.
 
 ### S2. `FormalParameter.workExample` (issue #12a)
-Drawn in [spec/core/FormalParameter.md:26](../spec/core/FormalParameter.md) Mermaid but absent from the property table and YAML. Either remove from the diagram or add to the table + YAML.
+Removed the dangling `workExample` diagram edge from [spec/core/FormalParameter.md](../spec/core/FormalParameter.md).
 
 ### S3. `Dataset.creator → Person` (issue #12b)
-Drawn in [spec/core/Dataset.md:38](../spec/core/Dataset.md) Mermaid but no `Person` core type exists. Either remove from the diagram or add `Person` to the core spec set.
+Removed the dangling `creator -> Person` diagram edge from [spec/core/Dataset.md](../spec/core/Dataset.md).
 
-## Execution order
+## Execution status
 
-1. Use the decisions recorded above as fixed inputs.
-2. Apply Phase 1 (E1–E6) in one editing pass to [schemas/sql/design.md](../schemas/sql/design.md).
-3. Keep the already-filed D1/D2 follow-ups out of this repo.
-4. Decide Phase 2 scope — same branch, separate branch, or punt to spec authors.
+- Phase 0 decisions are recorded above.
+- Phase 1 SQL profile edits are applied to [schemas/sql/design.md](../schemas/sql/design.md).
+- D1/D2 follow-up issues were filed externally and are intentionally not tracked in this repo.
+- Phase 2 spec-doc follow-ups are applied.
 
 ## Out of scope
 
