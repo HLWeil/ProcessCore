@@ -1,0 +1,13 @@
+{
+  "name": "processcore-sql-workspace",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "transpile:js-tests": "dotnet fable tests/ProcessCore.SQL.JavaScript.Tests/ProcessCore.SQL.JavaScript.Tests.fsproj -o build/out/js-tests --lang JavaScript",
+    "test:js": "npm run transpile:js-tests && node build/out/js-tests/Main.js --fail-on-focused-tests"
+  },
+  "devDependencies": {
+    "better-sqlite3": "^12.9.0"
+  }
+}

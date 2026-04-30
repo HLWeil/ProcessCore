@@ -5,3 +5,6 @@ obj/
 .vs/
 *.user
 *.suo
+node_modules/
+npm-debug.log*
+build/out/

@@ -315,7 +315,7 @@ Expected package categories:
 
 ### Phase 5 — JS/TS Drivers
 
-- Status: started; JavaScript adapter project and `better-sqlite3` binding skeleton added, transpiled tests still pending.
+- Status: started; JavaScript adapter project, `better-sqlite3` binding, Node tooling, JS Pyxpecto test project, and `TestJs` build target are wired and passing. TypeScript remains pending.
 - Choose Node SQLite connector.
 - Introduce Node tooling: `package.json`, npm scripts, generated output folders, and dependency management for runtime packages such as `better-sqlite3`.
 - Wire Fable transpilation targets into the BuildProject pipeline for JavaScript and TypeScript.

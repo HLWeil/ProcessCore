@@ -9,6 +9,10 @@ let pyxpectoTestProjects =
         "tests/ProcessCore.SQL.Tests/ProcessCore.SQL.Tests.fsproj"
     ]
 
+let jsPyxpectoTestProject = "tests/ProcessCore.SQL.JavaScript.Tests/ProcessCore.SQL.JavaScript.Tests.fsproj"
+
+let jsTestOutputDir = "build/out/js-tests"
+
 let solutionFile = $"{project}.sln"
 
 let configuration = "Release"

@@ -7,82 +7,88 @@ open ProcessCore.SQL
 open Fable.Core
 open Fable.Core.JsInterop
 
-type private BetterSqliteStatement =
+type internal BetterSqliteStatement =
     abstract run : obj -> obj
     abstract all : obj -> obj[]
     abstract get : obj -> obj
 
-type private BetterSqliteDatabase =
+type internal BetterSqliteDatabase =
     abstract prepare : string -> BetterSqliteStatement
+    abstract exec : string -> obj
     abstract pragma : string -> obj
     abstract close : unit -> unit
 
-[<ImportDefault("better-sqlite3")>]
-let private betterSqliteDatabaseConstructor: obj = jsNative
+[<AutoOpen>]
+module private BetterSqliteInterop =
 
-let private normalizeParameterName (name: string) =
-    if String.IsNullOrWhiteSpace name then
-        invalidArg "name" "SQLite parameter names must not be empty."
+    [<ImportDefault("better-sqlite3")>]
+    let betterSqliteDatabaseConstructor: obj = jsNative
 
-    match name[0] with
-    | '$'
-    | '@'
-    | ':' -> name.Substring 1
-    | _ -> name
+    let normalizeParameterName (name: string) =
+        if String.IsNullOrWhiteSpace name then
+            invalidArg "name" "SQLite parameter names must not be empty."
 
-let private sqlValueToJs value =
-    match value with
-    | SqlValue.Null -> null
-    | SqlValue.Text text -> text :> obj
-    | SqlValue.Int number -> number :> obj
+        match name[0] with
+        | '$'
+        | '@'
+        | ':' -> name.Substring 1
+        | _ -> name
 
-let private parametersToJsObject parameters =
-    parameters
-    |> List.map (fun (name, value) -> normalizeParameterName name ==> sqlValueToJs value)
-    |> createObj
+    let sqlValueToJs value =
+        match value with
+        | SqlValue.Null -> null
+        | SqlValue.Text text -> text :> obj
+        | SqlValue.Int number -> number :> obj
 
-let inline private jsIsNullOrUndefined (value: obj) : bool =
-    emitJsExpr value "($0 == null)"
+    let parametersToJsObject parameters =
+        parameters
+        |> List.map (fun (name, value) -> normalizeParameterName name ==> sqlValueToJs value)
+        |> createObj
 
-let inline private jsTypeOf (value: obj) : string =
-    emitJsExpr value "typeof $0"
+    let inline jsIsNullOrUndefined (value: obj) : bool =
+        emitJsExpr value "($0 == null)"
 
-let inline private jsToNumber (value: obj) : float =
-    emitJsExpr value "Number($0)"
+    let inline jsTypeOf (value: obj) : string =
+        emitJsExpr value "typeof $0"
 
-let inline private objectKeys (value: obj) : string[] =
-    emitJsExpr value "Object.keys($0)"
+    let inline jsToNumber (value: obj) : float =
+        emitJsExpr value "Number($0)"
 
-let inline private propertyValue (value: obj) (key: string) : obj =
-    emitJsExpr (value, key) "$0[$1]"
+    let inline objectKeys (value: obj) : string[] =
+        emitJsExpr value "Object.keys($0)"
 
-let private jsValueToSqlValue (value: obj) =
-    if jsIsNullOrUndefined value then
-        SqlValue.Null
-    else
-        match jsTypeOf value with
-        | "string" -> SqlValue.Text(unbox<string> value)
-        | "number"
-        | "bigint" ->
-            let number = jsToNumber value
+    let inline propertyValue (value: obj) (key: string) : obj =
+        emitJsExpr (value, key) "$0[$1]"
 
-            if number > float Int32.MaxValue || number < float Int32.MinValue then
-                invalidOp $"SQLite integer value '{number}' is outside the supported Int32 range."
-            else
-                SqlValue.Int(int number)
-        | _ -> SqlValue.Text(string value)
+    let jsValueToSqlValue (value: obj) =
+        if jsIsNullOrUndefined value then
+            SqlValue.Null
+        else
+            match jsTypeOf value with
+            | "string" -> SqlValue.Text(unbox<string> value)
+            | "number"
+            | "bigint" ->
+                let number = jsToNumber value
 
-let private jsRowToSqlRow (row: obj) =
-    objectKeys row
-    |> Array.map (fun key -> key, propertyValue row key |> jsValueToSqlValue)
-    |> Map.ofArray
+                if number > float Int32.MaxValue || number < float Int32.MinValue then
+                    invalidOp $"SQLite integer value '{number}' is outside the supported Int32 range."
+                else
+                    SqlValue.Int(int number)
+            | _ -> SqlValue.Text(string value)
+
+    let jsRowToSqlRow (row: obj) =
+        objectKeys row
+        |> Array.map (fun key -> key, propertyValue row key |> jsValueToSqlValue)
+        |> Map.ofArray
 
 type BetterSqliteDriver internal (database: BetterSqliteDatabase, ownsDatabase: bool) =
 
     interface ISqliteDriver with
 
         member _.Execute sql parameters =
-            database.prepare(sql).run(parametersToJsObject parameters) |> ignore
+            match parameters with
+            | [] -> database.exec(sql) |> ignore
+            | _ -> database.prepare(sql).run(parametersToJsObject parameters) |> ignore
 
         member _.Query sql parameters =
             database.prepare(sql).all(parametersToJsObject parameters)
