@@ -1,4 +1,4 @@
-# Plan: F# SQL Profile Library
+# Plan: ProcessCore.SQL Library
 
 Create a F# library for reading and writing the SQL import profile in [schemas/sql/](../schemas/sql/). The first implementation is intentionally boring: a one-to-one representation of the tables as F# types plus simple CRUD/read APIs. Higher-level graph/domain APIs come later.
 
@@ -24,8 +24,8 @@ Proposed repository layout:
 
 ```text
 src/
-  ARC.Sql/
-    ARC.Sql.fsproj
+  ProcessCore.SQL/
+    ProcessCore.SQL.fsproj
     Tables.fs
     RowCodecs.fs
     Commands.fs
@@ -38,8 +38,8 @@ src/
       Python.fs
 
 tests/
-  ARC.Sql.Tests/
-    ARC.Sql.Tests.fsproj
+  ProcessCore.SQL.Tests/
+    ProcessCore.SQL.Tests.fsproj
     Main.fs
     Fixtures.fs
     TableRoundtripTests.fs
@@ -56,7 +56,7 @@ Directory.Packages.props
 
 Notes:
 
-- `ARC.Sql` contains the shared Fable-compatible code.
+- `ProcessCore.SQL` contains the shared Fable-compatible code.
 - `Platform/*` is the only layer allowed to bind to concrete SQLite connectors.
 - Tests compile against the public API, not private helper functions.
 - The existing SQL fixtures stay in `schemas/sql/`; tests copy/read those files instead of duplicating schema text.
@@ -281,7 +281,7 @@ Expected package categories:
 ### Phase 1 — Scaffold
 
 - Create solution/projects/build files using BuildProjects.NET conventions.
-- Add empty `ARC.Sql` and `ARC.Sql.Tests`.
+- Add empty `ProcessCore.SQL` and `ProcessCore.SQL.Tests`.
 - Wire FAKE targets for restore/build/test placeholders.
 - Add Fable.Pyxpecto test entrypoint with one smoke test.
 
