@@ -35,7 +35,7 @@ flowchart LR
 
 ## Entity Relationship Diagram
 
-A first Mermaid ERD draft for the currently specified core types lives in [ERD.md](ERD.md). It is intended as a bridge between the conceptual process graph and a later SQLite-oriented schema draft.
+For a relational view of the core types, see [schemas/sql/design.md](../../schemas/sql/design.md).
 
 ## Core Types
 

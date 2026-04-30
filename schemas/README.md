@@ -35,4 +35,4 @@ This keeps the default representation flat and diff-friendly while still allowin
 
 ## Current Drafts
 
-- [sql/core_logical_erd.md](sql/core_logical_erd.md) — SQLite-oriented logical ERD for the currently specified core types, with explicit join tables for multi-valued properties.
+- [sql/design.md](sql/design.md) — SQLite-oriented relational schema for the currently specified core types, with explicit join tables for multi-valued properties and DDL-level guidance.
