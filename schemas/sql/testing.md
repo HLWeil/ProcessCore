@@ -1,98 +1,88 @@
-# Testing the SQLite Schema
+# Testing The SQLite Core Schema
 
-This directory contains the ARC Data Model SQLite schema, an edge-native `Process` design, a seed example based on the proteomics assay, and a prebuilt database for quick exploration.
+This directory now contains a trimmed core-only SQLite example aligned with the current ProcessCore tables and relations.
 
 ## Files
 
 | File | Purpose |
 |------|---------|
-| `001_core.sql` | Schema DDL: core tables, edge-native `Process` table, decoration views, `Paths`/`PathSteps` views |
-| `seed_example.sql` | Seed data mirroring [`examples/isa/assay_proteomics.yml`](../../examples/isa/assay_proteomics.yml) |
-| `seed.db` | Prebuilt SQLite database (schema + seed already applied) |
+| `001_core.sql` | Core table DDL plus join tables for multi-valued relations |
+| `seed_example.sql` | Seed data mirroring the proteomics assay example using the current core entity names |
+| `seed_core.db` | Prebuilt SQLite database for the trimmed core-only schema (schema + seed already applied) |
 
-## Prerequisites
-
-- `sqlite3` CLI (ships with most systems; on Windows use the binaries from https://www.sqlite.org/download.html)
-- Optional: [DB Browser for SQLite](https://sqlitebrowser.org/) or DBeaver for GUI inspection
-
-## Quick Start — Use the Prebuilt DB
+## Quick Start
 
 ```bash
-sqlite3 schemas/sql/seed.db
+sqlite3 schemas/sql/seed_core.db
 ```
 
-Inside the SQLite shell:
+Inside SQLite:
 
 ```sql
-.headers on
-.mode column
-SELECT * FROM Paths;
+.tables
+SELECT COUNT(*) FROM LabProcess;
 ```
 
-Expected output: 6 rows tracing the full process graph from `Base Culture` to each column of `proteomics_result.csv`.
-
-## Rebuild the DB From Scratch
+## Rebuild The DB
 
 ```bash
-rm schemas/sql/seed.db
-sqlite3 schemas/sql/seed.db ".read schemas/sql/001_core.sql" ".read schemas/sql/seed_example.sql"
-```
-
-Or build in memory (no file written):
-
-```bash
-sqlite3 :memory: ".read schemas/sql/001_core.sql" ".read schemas/sql/seed_example.sql" "SELECT * FROM Paths;"
+rm schemas/sql/seed_core.db
+sqlite3 schemas/sql/seed_core.db ".read schemas/sql/001_core.sql" ".read schemas/sql/seed_example.sql"
 ```
 
 ## Smoke Tests
 
-### 1. Core tables are populated
+### 1. Core entities are populated
 
 ```sql
-SELECT 'Protocol' AS tbl, COUNT(*) AS n FROM Protocol
+SELECT 'DefinedTerm' AS tbl, COUNT(*) AS n FROM DefinedTerm
+UNION ALL SELECT 'FormalParameter', COUNT(*) FROM FormalParameter
 UNION ALL SELECT 'PropertyValue', COUNT(*) FROM PropertyValue
-UNION ALL SELECT 'Material',      COUNT(*) FROM Material
-UNION ALL SELECT 'Data',          COUNT(*) FROM Data
-UNION ALL SELECT 'Process',       COUNT(*) FROM Process
-UNION ALL SELECT 'Dataset',       COUNT(*) FROM Dataset;
+UNION ALL SELECT 'LabProtocol', COUNT(*) FROM LabProtocol
+UNION ALL SELECT 'Material', COUNT(*) FROM Material
+UNION ALL SELECT 'Data', COUNT(*) FROM Data
+UNION ALL SELECT 'Dataset', COUNT(*) FROM Dataset
+UNION ALL SELECT 'LabProcess', COUNT(*) FROM LabProcess;
 ```
 
-Expected: Protocol 4, PropertyValue 12, Material 9, Data 12, Process 20, Dataset 1.
+Expected: 4, 4, 12, 4, 9, 12, 1, 20.
 
-### 2. Paths view — end-to-end process graph
+### 2. Process parameters are linked through formal parameters
 
 ```sql
-SELECT * FROM Paths ORDER BY path_rendered;
+SELECT pv.id, pv.name, pv.value, fp.name AS formal_parameter
+FROM PropertyValue pv
+LEFT JOIN FormalParameter fp ON fp.id = pv.instance_of_id
+WHERE pv.additional_type = 'ParameterValue'
+ORDER BY pv.id;
 ```
 
-Expected: 6 paths, each of length 4, e.g.
-`Base Culture -> Cultivation Flask RT -> Eppi RT 1 -> sample1.raw -> proteomics_result.csv#col=12`
-
-Note: the `#col=12` suffix is composed by the `NodeRef` view from `Data.path` + `Data.selector` — it is not stored as a single string.
-
-Optional step expansion:
+### 3. Process inputs and outputs can be inspected via join tables
 
 ```sql
-SELECT * FROM PathSteps ORDER BY path_id, step;
+SELECT p.name,
+       im.material_id AS input_material,
+       idt.data_id    AS input_data,
+       om.material_id AS output_material,
+       od.data_id     AS output_data
+FROM LabProcess p
+LEFT JOIN LabProcessInputMaterial im
+  ON im.lab_process_id = p.id AND im.pair_index = 0
+LEFT JOIN LabProcessInputData idt
+  ON idt.lab_process_id = p.id AND idt.pair_index = 0
+LEFT JOIN LabProcessOutputMaterial om
+  ON om.lab_process_id = p.id AND om.pair_index = 0
+LEFT JOIN LabProcessOutputData od
+  ON od.lab_process_id = p.id AND od.pair_index = 0
+ORDER BY p.id;
 ```
 
-### 3. ISA decoration views
+### 4. Dataset relations are populated
 
 ```sql
-SELECT * FROM Assay;
-SELECT COUNT(*) FROM ParameterValue;       -- expect 6
-SELECT COUNT(*) FROM CharacteristicValue;  -- expect 1
-SELECT COUNT(*) FROM FactorValue;          -- expect 2
-SELECT COUNT(*) FROM Component;            -- expect 2
-```
-
-### 4. Workflow Run decoration views (should return 0 rows with ISA seed)
-
-```sql
-SELECT COUNT(*) FROM ArcWorkflow;          -- expect 0
-SELECT COUNT(*) FROM ArcRun;               -- expect 0
-SELECT COUNT(*) FROM WorkflowInvocation;   -- expect 0
-SELECT COUNT(*) FROM WorkflowInput;        -- expect 0
+SELECT COUNT(*) FROM DatasetProcess;              -- expect 20
+SELECT COUNT(*) FROM DatasetHasPartData;          -- expect 12
+SELECT COUNT(*) FROM DatasetAdditionalProperty;   -- expect 1
 ```
 
 ### 5. Foreign key enforcement
@@ -100,67 +90,8 @@ SELECT COUNT(*) FROM WorkflowInput;        -- expect 0
 ```sql
 PRAGMA foreign_keys;  -- expect 1
 
--- This should fail with a FK violation:
-INSERT INTO ProcessParameterValue (process_id, propertyvalue_id)
+INSERT INTO LabProcessParameterValue (lab_process_id, property_value_id)
 VALUES ('#does_not_exist', '#PV_software');
 ```
 
-## Exploratory Queries
-
-### Materials with their factor values (temperature)
-
-```sql
-SELECT m.name AS material, pv.name AS factor, pv.value, pv.unit_text
-FROM Material m
-JOIN MaterialAdditionalProperty map ON map.material_id = m.id
-JOIN PropertyValue pv ON pv.id = map.propertyvalue_id
-WHERE pv.additional_type = 'FactorValue';
-```
-
-### Which processes use the sonicator parameter?
-
-```sql
-SELECT DISTINCT p.name, p.id
-FROM Process p
-JOIN ProcessParameterValue ppv ON ppv.process_id = p.id
-JOIN PropertyValue pv ON pv.id = ppv.propertyvalue_id
-WHERE pv.name = 'sonicator';
-```
-
-### All data files produced in the assay
-
-```sql
-SELECT d.path, d.selector, d.encoding_format
-FROM Data d
-JOIN Process p
-  ON p.output_type = 'Data'
- AND p.output_id   = d.id;
-```
-
-### Query from the use-cases doc: "Samples where growth temperature = 25"
-
-```sql
-SELECT m.name
-FROM Material m
-JOIN Process p
-  ON p.output_type = 'Material'
- AND p.output_id   = m.id
-JOIN Protocol pr ON pr.id = p.executes_protocol_id
-JOIN MaterialAdditionalProperty map ON map.material_id = m.id
-JOIN PropertyValue pv ON pv.id = map.propertyvalue_id
-WHERE pr.name = 'Growth'
-  AND pv.additional_type = 'FactorValue'
-  AND pv.name  = 'temperature'
-  AND pv.value = '25';
-```
-
-## Design Note
-
-- `Process.input_*` and `Process.output_*` are polymorphic references to either `Material` or `Data`.
-- SQLite cannot enforce those two-column references as direct foreign keys across both target tables, so graph validity is checked through smoke tests and query behavior rather than DB-level FK constraints.
-
-## Troubleshooting
-
-- **"no such table: Data" etc.** — schema not loaded. Run `.read schemas/sql/001_core.sql` first, or open the prebuilt `seed.db`.
-- **Empty Paths view** — seed data not loaded. Re-run the rebuild command above.
-- **Journal files next to `seed.db`** — SQLite sets `journal_mode = WAL`. To consolidate into a single file, run `sqlite3 seed.db "PRAGMA wal_checkpoint(TRUNCATE);"`.
+The insert above should fail with a foreign key violation.
