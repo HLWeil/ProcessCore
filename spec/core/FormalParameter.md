@@ -23,7 +23,6 @@ flowchart TD
     nt@{ shape: stadium, label: "URL" }
 
     LabProtocol --parameters--> FormalParameter
-    FormalParameter --workExample--> Data/PropertyValue
     FormalParameter --name--> na
     FormalParameter --nameTAN--> nt
     FormalParameter --defaultValue--> DefinedTerm

@@ -637,7 +637,5 @@ Implementations should add cycle detection for production use, for example by ca
 
 - ISA, Workflow Run, and Datamap decoration-specific tables and constraints.
 - Process path views or closure tables; these remain derivable from `process_io`.
-- `Dataset.creator` -> `Person`; it appears in a spec diagram but not the property table or YAML schema.
-- `FormalParameter.workExample`; it appears in a spec diagram but not the property table or YAML schema.
 - Normalizing `DefinedTermSet` into its own table. The current design stores its ID and optional inline name on `defined_term`.
 - Numeric range indexing for `PropertyValue.value`. Add a generated numeric column or parallel numeric column later if range queries become a real requirement.
