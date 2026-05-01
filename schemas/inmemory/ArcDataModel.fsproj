@@ -3,6 +3,7 @@
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
     <Nullable>enable</Nullable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
 
   <ItemGroup>
@@ -11,6 +12,7 @@
     <Compile Include="PropertyValue.fs" />
     <Compile Include="Graph.fs" />
     <Compile Include="Path.fs" />
+    <Compile Include="Table.fs" />
   </ItemGroup>
 
   <ItemGroup>

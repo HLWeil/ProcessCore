@@ -750,9 +750,15 @@ and [<AttachMembers>] LabProcess(name: string) =
             _inputs.Add(node)
             addInputBackEdge node this
 
+    member this.AddInputMaterial(m: Material) = this.AddInput(MaterialNode m)
+    member this.AddInputData(d: Data)         = this.AddInput(DataNode d)
+
     member this.RemoveInput(node: IONode) =
         let removed = _inputs.Remove(node)
         if removed then removeInputBackEdge node this
+
+    member this.RemoveInputMaterial(m: Material) = this.RemoveInput(MaterialNode m)
+    member this.RemoveInputData(d: Data)         = this.RemoveInput(DataNode d)
 
     // ── Output CRUD ───────────────────────────────────────────────────────────
 
@@ -763,9 +769,15 @@ and [<AttachMembers>] LabProcess(name: string) =
             _outputs.Add(node)
             addOutputBackEdge node this
 
+    member this.AddOutputMaterial(m: Material) = this.AddOutput(MaterialNode m)
+    member this.AddOutputData(d: Data)         = this.AddOutput(DataNode d)
+
     member this.RemoveOutput(node: IONode) =
         let removed = _outputs.Remove(node)
         if removed then removeOutputBackEdge node this
+
+    member this.RemoveOutputMaterial(m: Material) = this.RemoveOutput(MaterialNode m)
+    member this.RemoveOutputData(d: Data)         = this.RemoveOutput(DataNode d)
 
     // ── ParameterValue CRUD ───────────────────────────────────────────────────
 
