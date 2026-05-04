@@ -1,4 +1,4 @@
-namespace rec ArcDataModel
+namespace rec ProcessCore
 
 open Fable.Core
 open System.Collections.Generic

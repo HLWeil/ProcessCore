@@ -1,7 +1,8 @@
-namespace rec ArcDataModel
+namespace rec ProcessCore
 
 open Fable.Core
 open System.Collections.Generic
+open DynamicObj
 
 // ─────────────────────────────────────────────────────────────────────────────
 // IONode discriminated union (forward-declared via namespace rec)
@@ -352,13 +353,13 @@ type IONode =
 /// bioschemas.org/Sample
 and [<AttachMembers>] Material(name: string) =
 
+    inherit DynamicObj()
+
     let mutable _name: string = name
     let mutable _additionalType: string option = None
     let _additionalProperty: ResizeArray<PropertyValue> = ResizeArray()
     let _inputOf: ResizeArray<LabProcess> = ResizeArray()
     let _outputOf: ResizeArray<LabProcess> = ResizeArray()
-
-    new() = Material("")
 
     member _.Name
         with get() = _name
@@ -470,6 +471,8 @@ and [<AttachMembers>] Material(name: string) =
 /// schema.org/MediaObject or File
 and [<AttachMembers>] Data(path: string) =
 
+    inherit DynamicObj()
+
     let mutable _path: string = path
     let mutable _selector: string option = None
     let mutable _selectorFormat: string option = None
@@ -478,8 +481,6 @@ and [<AttachMembers>] Data(path: string) =
     let _additionalProperty: ResizeArray<PropertyValue> = ResizeArray()
     let _inputOf: ResizeArray<LabProcess> = ResizeArray()
     let _outputOf: ResizeArray<LabProcess> = ResizeArray()
-
-    new() = Data("")
 
     member _.Path
         with get() = _path
@@ -606,6 +607,8 @@ and [<AttachMembers>] Data(path: string) =
 /// bioschemas.org/LabProtocol
 and [<AttachMembers>] LabProtocol(?name: string) =
 
+    inherit DynamicObj()
+
     let mutable _name: string option = name
     let mutable _description: string option = None
     let mutable _version: string option = None
@@ -685,6 +688,8 @@ and [<AttachMembers>] LabProtocol(?name: string) =
 /// Core transformation node. Connects inputs to outputs via a protocol.
 /// bioschemas.org/LabProcess
 and [<AttachMembers>] LabProcess(name: string) =
+
+    inherit DynamicObj()
 
     let mutable _name: string = name
     let mutable _executesProtocol: LabProtocol option = None
@@ -872,6 +877,8 @@ and [<AttachMembers>] LabProcess(name: string) =
 /// Container and context for data and processes.
 /// schema.org/Dataset
 and [<AttachMembers>] Dataset(identifier: string) =
+
+    inherit DynamicObj()
 
     let mutable _identifier: string = identifier
     let mutable _name: string option = None

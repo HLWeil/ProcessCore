@@ -1,17 +1,19 @@
-namespace rec ArcDataModel
+namespace rec ProcessCore
 
 open Fable.Core
+open DynamicObj
 
 /// Describes the shape and type of a protocol parameter slot.
 /// bioschemas.org/FormalParameter
 [<AttachMembers>]
 type FormalParameter(name: string) =
 
+    inherit DynamicObj()
+
     let mutable _name: string = name
     let mutable _nameTAN: string option = None
     let mutable _defaultValue: DefinedTerm option = None
 
-    new() = FormalParameter("")
 
     member _.Name
         with get() = _name

@@ -1,11 +1,14 @@
-namespace rec ArcDataModel
+namespace rec ProcessCore
 
 open Fable.Core
+open DynamicObj
 
 /// Ontology annotation referencing a term in a controlled vocabulary or ontology.
 /// schema.org/DefinedTerm
 [<AttachMembers>]
 type DefinedTerm(name: string) =
+
+    inherit DynamicObj()
 
     let mutable _name: string = name
     let mutable _tan: string option = None

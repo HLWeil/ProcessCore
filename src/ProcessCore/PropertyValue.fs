@@ -1,11 +1,14 @@
-namespace rec ArcDataModel
+namespace rec ProcessCore
 
 open Fable.Core
+open DynamicObj
 
 /// Extensible key-value-unit triple. Primary extension mechanism of ProcessCore.
 /// schema.org/PropertyValue
 [<AttachMembers>]
 type PropertyValue(name: string) =
+
+    inherit DynamicObj()
 
     let mutable _name: string = name
     let mutable _value: string option = None
@@ -15,8 +18,6 @@ type PropertyValue(name: string) =
     let mutable _unitTAN: string option = None
     let mutable _additionalType: string option = None
     let mutable _instanceOf: FormalParameter option = None
-
-    new() = PropertyValue("")
 
     member _.Name
         with get() = _name

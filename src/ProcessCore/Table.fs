@@ -1,7 +1,7 @@
-namespace ArcDataModel.Table
+namespace ProcessCore.Table
 
 open Fable.Core
-open ArcDataModel
+open ProcessCore
 
 // ─────────────────────────────────────────────────────────────────────────────
 // IOType
@@ -63,7 +63,7 @@ type CompositeCell =
     | Unitized  of value: string * unitName: string * unitTAN: string option
     /// Data file entity — used in Input/Output columns typed as IOType.Data;
     /// carries structured file metadata (path, selector, format, etc.)
-    | Data      of ArcDataModel.Data
+    | Data      of ProcessCore.Data
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CompositeColumn
@@ -775,6 +775,6 @@ type Tables(dataset: Dataset) =
 
 [<AutoOpen>]
 module DatasetTableExtensions =
-    type ArcDataModel.Dataset with
+    type ProcessCore.Dataset with
         /// A live tabular view of all processes in this dataset, grouped by process name.
         member this.Tables = Tables(this)
