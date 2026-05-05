@@ -1,11 +1,24 @@
 module BasicTasks
 
 open BlackFox.Fake
+open Fake.Core
 open Fake.IO
 open Fake.DotNet
 open Fake.IO.Globbing.Operators
 
 open ProjectInfo
+
+let createProcess exe arg dir =
+    CreateProcess.fromRawCommandLine exe arg
+    |> CreateProcess.withWorkingDirectory dir
+    |> CreateProcess.ensureExitCode
+
+let dotnet = createProcess "dotnet"
+
+let run proc arg dir =
+    proc arg dir
+    |> Proc.run
+    |> ignore
 
 let clean =
     BuildTask.create "Clean" [] {

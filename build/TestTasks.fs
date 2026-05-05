@@ -1,6 +1,5 @@
 module TestTasks
 
-open System
 open System.IO
 open BlackFox.Fake
 open Fake.Core
@@ -10,7 +9,7 @@ open ProjectInfo
 open BasicTasks
 
 let private runTool command args =
-    if OperatingSystem.IsWindows() then
+    if System.OperatingSystem.IsWindows() then
         CreateProcess.fromRawCommand "cmd.exe" (["/c"; command] @ args)
         |> Proc.run
     else
@@ -35,6 +34,39 @@ let private runPyxpectoDotNet project =
     if not result.OK then
         failwithf "Pyxpecto tests failed for %s" project
 
+let private transpileFable project outputDir language =
+    run dotnet $"fable {project} --lang {language} --noCache -o {outputDir}" ""
+
+let private transpileJavaScriptTests () =
+    let installPackages = runTool "npm" [ "install" ]
+
+    if installPackages.ExitCode <> 0 then
+        failwith "npm install failed"
+
+    transpileFable jsPyxpectoTestProject jsTestOutputDir "JavaScript"
+
+let private runJavaScriptTests () =
+    let testFile = $"{jsTestOutputDir}/Main.js"
+    let result = runTool "node" [ testFile; "--fail-on-focused-tests" ]
+
+    if result.ExitCode <> 0 then
+        failwith "JavaScript Pyxpecto tests failed"
+
+let private transpilePythonTests () =
+    transpileFable pyPyxpectoTestProject pyTestOutputDir "Python"
+
+let private runPythonTests () =
+    let testFile =
+        [ "Main.py"; "main.py" ]
+        |> List.map (fun fileName -> Path.Combine(pyTestOutputDir, fileName))
+        |> List.tryFind File.Exists
+        |> Option.defaultWith (fun () -> failwith $"Could not find Python test entrypoint in {pyTestOutputDir}.")
+
+    let result = runTool "uv" [ "run"; "python"; testFile; "--fail-on-focused-tests" ]
+
+    if result.ExitCode <> 0 then
+        failwith "Python Pyxpecto tests failed"
+
 let runTests =
     BuildTask.create "RunTests" [ clean; buildSolution ] {
         pyxpectoTestProjects
@@ -43,40 +75,12 @@ let runTests =
 
 let transpileJs =
     BuildTask.create "TranspileJs" [] {
-        let restoreTools = DotNet.exec id "tool" "restore"
-
-        if not restoreTools.OK then
-            failwith "dotnet tool restore failed"
-
-        let installPackages = runTool "npm" [ "install" ]
-
-        if installPackages.ExitCode <> 0 then
-            failwith "npm install failed"
-
-        let args =
-            [
-                "fable"
-                jsPyxpectoTestProject
-                "-o"
-                jsTestOutputDir
-                "--lang"
-                "JavaScript"
-            ]
-            |> String.concat " "
-
-        let transpile = DotNet.exec id "tool" $"run {args}"
-
-        if not transpile.OK then
-            failwith "Fable JavaScript transpilation failed"
+        transpileJavaScriptTests ()
     }
 
 let testJs =
     BuildTask.create "TestJs" [ transpileJs ] {
-        let testFile = $"{jsTestOutputDir}/Main.js"
-        let result = runTool "node" [ testFile; "--fail-on-focused-tests" ]
-
-        if result.ExitCode <> 0 then
-            failwith "JavaScript Pyxpecto tests failed"
+        runJavaScriptTests ()
     }
 
 let transpileTs =
@@ -91,38 +95,23 @@ let testTs =
 
 let transpilePy =
     BuildTask.create "TranspilePy" [] {
-        let restoreTools = DotNet.exec id "tool" "restore"
-
-        if not restoreTools.OK then
-            failwith "dotnet tool restore failed"
-
-        let args =
-            [
-                "fable"
-                pyPyxpectoTestProject
-                "-o"
-                pyTestOutputDir
-                "--lang"
-                "Python"
-            ]
-            |> String.concat " "
-
-        let transpile = DotNet.exec id "tool" $"run {args}"
-
-        if not transpile.OK then
-            failwith "Fable Python transpilation failed"
+        transpilePythonTests ()
     }
+
 
 let testPy =
     BuildTask.create "TestPy" [ transpilePy ] {
-        let testFile =
-            [ "Main.py"; "main.py" ]
-            |> List.map (fun fileName -> Path.Combine(pyTestOutputDir, fileName))
-            |> List.tryFind File.Exists
-            |> Option.defaultWith (fun () -> failwith $"Could not find Python test entrypoint in {pyTestOutputDir}.")
+        runPythonTests ()
+    }
 
-        let result = runTool "uv" [ "run"; "python"; testFile; "--fail-on-focused-tests" ]
+let runTestsAll =
+    BuildTask.create "RunTestsAll" [ clean; buildSolution ] {
+        pyxpectoTestProjects
+        |> Seq.iter runPyxpectoDotNet
 
-        if result.ExitCode <> 0 then
-            failwith "Python Pyxpecto tests failed"
+        transpileJavaScriptTests ()
+        runJavaScriptTests ()
+
+        transpilePythonTests ()
+        runPythonTests ()
     }
