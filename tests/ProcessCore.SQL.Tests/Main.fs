@@ -17,6 +17,7 @@ let all =
             TableModelTests.tests
             RowCodecTests.tests
             DotNetDriverTests.tests
+            RepositoryCrudTests.tests
         ]
 
 [<EntryPoint>]

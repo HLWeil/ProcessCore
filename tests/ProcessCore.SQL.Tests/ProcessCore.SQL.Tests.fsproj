@@ -9,6 +9,7 @@
     <Compile Include="TableModelTests.fs" />
     <Compile Include="RowCodecTests.fs" />
     <Compile Include="DotNetDriverTests.fs" />
+    <Compile Include="RepositoryCrudTests.fs" />
     <Compile Include="Main.fs" />
   </ItemGroup>
 

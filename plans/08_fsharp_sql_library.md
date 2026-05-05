@@ -430,9 +430,9 @@ Expected package categories:
 - Status: partially complete.
 - Done: implemented the .NET SQLite driver adapter with `Microsoft.Data.Sqlite`.
 - Done: added .NET tests that create an in-memory database from `001_core.sql` and `seed_example.sql`, check FK health, bind parameters, and read seeded rows through shared codecs.
-- Pending: implement CRUD modules for the 17 tables.
-- Pending: add CRUD tests for insert/get/list/update/delete across representative entity and association tables.
-- Pending: add view readers for `process_edges` and `property_value_orphans`.
+- Done: implemented table-shaped CRUD classes for all 17 tables (`insert`, `update`, `delete`, `get`, `list`), with composite-key accessors for association tables.
+- Done: added view readers for `process_edges` and `property_value_orphans`.
+- Done: added .NET CRUD tests that insert/read every table, update representative entity and association rows, delete representative entity and association rows, and read both views.
 - Pending: add transaction helpers or document explicit `BEGIN` / `COMMIT` / `ROLLBACK` usage.
 
 ### Phase 4 — Python Driver
@@ -588,12 +588,11 @@ The shared test list from `tests/ProcessCore.SQL.Tests/` should compile under Py
 - Pending: decide whether TypeScript gets a distinct binding or reuses the JavaScript binding output.
 - Pending: wire TypeScript transpilation and tests.
 
-### Next Implementation Step — Repository CRUD
+### Next Implementation Step — Repository Coverage and Transactions
 
-- Implement small shared SQL command helpers for `INSERT`, `UPDATE`, `DELETE`, primary-key predicates, and ordered `SELECT`.
-- Add table-specific modules for all 17 tables, starting with the 8 entity tables before association tables.
-- Keep the public API table-shaped and synchronous through `ISqliteDriver`.
-- Add .NET CRUD tests first, then reuse the same public tests under JavaScript once the shape is stable.
+- Reuse the CRUD/view test coverage under JavaScript and Python once shared fixtures are factored across target-specific drivers.
+- Add transaction helpers or document explicit `BEGIN` / `COMMIT` / `ROLLBACK` usage.
+- Decide whether `TestPy` should join the default `RunTests` aggregate now that the uv-backed smoke suite is green.
 
 ### Phase 6 — Polish
 
