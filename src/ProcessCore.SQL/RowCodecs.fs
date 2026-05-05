@@ -25,11 +25,32 @@ module private RowCodecHelpers =
         | "output" -> ProcessIoDirection.Output
         | other -> invalidArg $"{table}.{column}" $"Unknown process_io.direction '{other}'."
 
+/// <summary>
+/// Bidirectional codecs between row records and the on-the-wire <see cref="SqlRow"/> /
+/// <see cref="SqlParameters"/> representations consumed by <see cref="ISqliteDriver"/>.
+/// </summary>
+/// <remarks>
+/// Each entity type defined in <c>Tables.fs</c> is augmented with two members:
+/// <list type="bullet">
+///   <item><description>
+///     <c>static member ofRow : SqlRow -&gt; row</c> — decodes a query result row, raising
+///     <see cref="System.ArgumentException"/> with a fully qualified <c>table.column</c> tag if a
+///     required column is missing or has the wrong storage class.
+///   </description></item>
+///   <item><description>
+///     <c>member this.ToParameters : unit -&gt; SqlParameters</c> — encodes the row to the parameter
+///     array consumed by the repository's INSERT/UPDATE statements.
+///   </description></item>
+/// </list>
+/// The module is <c>AutoOpen</c>, so consumers obtain these members simply by opening the
+/// <c>ProcessCore.SQL</c> namespace.
+/// </remarks>
 [<AutoOpen>]
 module RowCodecExtensions =
 
     type DefinedTermRow with
 
+        /// <summary>Decodes a <see cref="DefinedTermRow"/> from a <c>defined_term</c> result row.</summary>
         static member ofRow(row: SqlRow) =
             let table = "defined_term"
 
@@ -42,6 +63,7 @@ module RowCodecExtensions =
                 ?InDefinedTermSetName = RowCodecHelpers.textOption table "in_defined_term_set_name" row
             )
 
+        /// <summary>Encodes the row to <see cref="SqlParameters"/> for INSERT/UPDATE on <c>defined_term</c>.</summary>
         member this.ToParameters() : SqlParameters =
             [|
                 RowCodecHelpers.textParam "id" this.Id
@@ -54,6 +76,7 @@ module RowCodecExtensions =
 
     type LabProtocolRow with
 
+        /// <summary>Decodes a <see cref="LabProtocolRow"/> from a <c>lab_protocol</c> result row.</summary>
         static member ofRow(row: SqlRow) =
             let table = "lab_protocol"
 
@@ -69,6 +92,7 @@ module RowCodecExtensions =
                 ?IntendedUseText = RowCodecHelpers.textOption table "intended_use_text" row
             )
 
+        /// <summary>Encodes the row to <see cref="SqlParameters"/> for INSERT/UPDATE on <c>lab_protocol</c>.</summary>
         member this.ToParameters() : SqlParameters =
             [|
                 RowCodecHelpers.textParam "id" this.Id
@@ -84,6 +108,7 @@ module RowCodecExtensions =
 
     type FormalParameterRow with
 
+        /// <summary>Decodes a <see cref="FormalParameterRow"/> from a <c>formal_parameter</c> result row.</summary>
         static member ofRow(row: SqlRow) =
             let table = "formal_parameter"
 
@@ -95,6 +120,7 @@ module RowCodecExtensions =
                 ?DefaultValueId = RowCodecHelpers.textOption table "default_value_id" row
             )
 
+        /// <summary>Encodes the row to <see cref="SqlParameters"/> for INSERT/UPDATE on <c>formal_parameter</c>.</summary>
         member this.ToParameters() : SqlParameters =
             [|
                 RowCodecHelpers.textParam "id" this.Id
@@ -106,6 +132,7 @@ module RowCodecExtensions =
 
     type DatasetRow with
 
+        /// <summary>Decodes a <see cref="DatasetRow"/> from a <c>dataset</c> result row.</summary>
         static member ofRow(row: SqlRow) =
             let table = "dataset"
 
@@ -118,6 +145,7 @@ module RowCodecExtensions =
                 ?Description = RowCodecHelpers.textOption table "description" row
             )
 
+        /// <summary>Encodes the row to <see cref="SqlParameters"/> for INSERT/UPDATE on <c>dataset</c>.</summary>
         member this.ToParameters() : SqlParameters =
             [|
                 RowCodecHelpers.textParam "id" this.Id
@@ -130,6 +158,7 @@ module RowCodecExtensions =
 
     type MaterialRow with
 
+        /// <summary>Decodes a <see cref="MaterialRow"/> from a <c>material</c> result row.</summary>
         static member ofRow(row: SqlRow) =
             let table = "material"
 
@@ -140,6 +169,7 @@ module RowCodecExtensions =
                 ?AdditionalType = RowCodecHelpers.textOption table "additional_type" row
             )
 
+        /// <summary>Encodes the row to <see cref="SqlParameters"/> for INSERT/UPDATE on <c>material</c>.</summary>
         member this.ToParameters() : SqlParameters =
             [|
                 RowCodecHelpers.textParam "id" this.Id
@@ -150,6 +180,7 @@ module RowCodecExtensions =
 
     type DataRow with
 
+        /// <summary>Decodes a <see cref="DataRow"/> from a <c>data</c> result row.</summary>
         static member ofRow(row: SqlRow) =
             let table = "data"
 
@@ -163,6 +194,7 @@ module RowCodecExtensions =
                 ?EncodingFormat = RowCodecHelpers.textOption table "encoding_format" row
             )
 
+        /// <summary>Encodes the row to <see cref="SqlParameters"/> for INSERT/UPDATE on <c>data</c>.</summary>
         member this.ToParameters() : SqlParameters =
             [|
                 RowCodecHelpers.textParam "id" this.Id
@@ -176,6 +208,7 @@ module RowCodecExtensions =
 
     type LabProcessRow with
 
+        /// <summary>Decodes a <see cref="LabProcessRow"/> from a <c>lab_process</c> result row.</summary>
         static member ofRow(row: SqlRow) =
             let table = "lab_process"
 
@@ -187,6 +220,7 @@ module RowCodecExtensions =
                 ?ExecutesProtocolId = RowCodecHelpers.textOption table "executes_protocol_id" row
             )
 
+        /// <summary>Encodes the row to <see cref="SqlParameters"/> for INSERT/UPDATE on <c>lab_process</c>.</summary>
         member this.ToParameters() : SqlParameters =
             [|
                 RowCodecHelpers.textParam "id" this.Id
@@ -198,6 +232,7 @@ module RowCodecExtensions =
 
     type PropertyValueRow with
 
+        /// <summary>Decodes a <see cref="PropertyValueRow"/> from a <c>property_value</c> result row.</summary>
         static member ofRow(row: SqlRow) =
             let table = "property_value"
 
@@ -214,6 +249,7 @@ module RowCodecExtensions =
                 ?InstanceOfId = RowCodecHelpers.textOption table "instance_of_id" row
             )
 
+        /// <summary>Encodes the row to <see cref="SqlParameters"/> for INSERT/UPDATE on <c>property_value</c>.</summary>
         member this.ToParameters() : SqlParameters =
             [|
                 RowCodecHelpers.textParam "id" this.Id
@@ -230,6 +266,7 @@ module RowCodecExtensions =
 
     type DatasetHasPartRow with
 
+        /// <summary>Decodes a <see cref="DatasetHasPartRow"/> from a <c>dataset_has_part</c> result row.</summary>
         static member ofRow(row: SqlRow) =
             let table = "dataset_has_part"
 
@@ -240,6 +277,7 @@ module RowCodecExtensions =
                 ?PartDataId = RowCodecHelpers.textOption table "part_data_id" row
             )
 
+        /// <summary>Encodes the row to <see cref="SqlParameters"/> for INSERT/UPDATE on <c>dataset_has_part</c>.</summary>
         member this.ToParameters() : SqlParameters =
             [|
                 RowCodecHelpers.textParam "dataset_id" this.DatasetId
@@ -250,6 +288,7 @@ module RowCodecExtensions =
 
     type DatasetProcessRow with
 
+        /// <summary>Decodes a <see cref="DatasetProcessRow"/> from a <c>dataset_process</c> result row.</summary>
         static member ofRow(row: SqlRow) =
             let table = "dataset_process"
 
@@ -259,6 +298,7 @@ module RowCodecExtensions =
                 RowCodecHelpers.text table "process_id" row
             )
 
+        /// <summary>Encodes the row to <see cref="SqlParameters"/> for INSERT/UPDATE on <c>dataset_process</c>.</summary>
         member this.ToParameters() : SqlParameters =
             [|
                 RowCodecHelpers.textParam "dataset_id" this.DatasetId
@@ -268,6 +308,7 @@ module RowCodecExtensions =
 
     type DatasetAdditionalPropertyRow with
 
+        /// <summary>Decodes a <see cref="DatasetAdditionalPropertyRow"/> from a <c>dataset_additional_property</c> result row.</summary>
         static member ofRow(row: SqlRow) =
             let table = "dataset_additional_property"
 
@@ -277,6 +318,7 @@ module RowCodecExtensions =
                 RowCodecHelpers.text table "property_value_id" row
             )
 
+        /// <summary>Encodes the row to <see cref="SqlParameters"/> for INSERT/UPDATE on <c>dataset_additional_property</c>.</summary>
         member this.ToParameters() : SqlParameters =
             [|
                 RowCodecHelpers.textParam "dataset_id" this.DatasetId
@@ -286,6 +328,7 @@ module RowCodecExtensions =
 
     type ProtocolParameterRow with
 
+        /// <summary>Decodes a <see cref="ProtocolParameterRow"/> from a <c>protocol_parameter</c> result row.</summary>
         static member ofRow(row: SqlRow) =
             let table = "protocol_parameter"
 
@@ -295,6 +338,7 @@ module RowCodecExtensions =
                 RowCodecHelpers.text table "formal_parameter_id" row
             )
 
+        /// <summary>Encodes the row to <see cref="SqlParameters"/> for INSERT/UPDATE on <c>protocol_parameter</c>.</summary>
         member this.ToParameters() : SqlParameters =
             [|
                 RowCodecHelpers.textParam "protocol_id" this.ProtocolId
@@ -304,6 +348,7 @@ module RowCodecExtensions =
 
     type ProcessIoRow with
 
+        /// <summary>Decodes a <see cref="ProcessIoRow"/> from a <c>process_io</c> result row, including the direction tag.</summary>
         static member ofRow(row: SqlRow) =
             let table = "process_io"
 
@@ -316,6 +361,7 @@ module RowCodecExtensions =
                 ?DataId = RowCodecHelpers.textOption table "data_id" row
             )
 
+        /// <summary>Encodes the row to <see cref="SqlParameters"/> for INSERT/UPDATE on <c>process_io</c>.</summary>
         member this.ToParameters() : SqlParameters =
             [|
                 RowCodecHelpers.textParam "process_id" this.ProcessId
@@ -327,6 +373,7 @@ module RowCodecExtensions =
 
     type ProcessParameterValueRow with
 
+        /// <summary>Decodes a <see cref="ProcessParameterValueRow"/> from a <c>process_parameter_value</c> result row.</summary>
         static member ofRow(row: SqlRow) =
             let table = "process_parameter_value"
 
@@ -336,6 +383,7 @@ module RowCodecExtensions =
                 RowCodecHelpers.text table "property_value_id" row
             )
 
+        /// <summary>Encodes the row to <see cref="SqlParameters"/> for INSERT/UPDATE on <c>process_parameter_value</c>.</summary>
         member this.ToParameters() : SqlParameters =
             [|
                 RowCodecHelpers.textParam "process_id" this.ProcessId
@@ -345,6 +393,7 @@ module RowCodecExtensions =
 
     type ProtocolAdditionalPropertyRow with
 
+        /// <summary>Decodes a <see cref="ProtocolAdditionalPropertyRow"/> from a <c>protocol_additional_property</c> result row.</summary>
         static member ofRow(row: SqlRow) =
             let table = "protocol_additional_property"
 
@@ -354,6 +403,7 @@ module RowCodecExtensions =
                 RowCodecHelpers.text table "property_value_id" row
             )
 
+        /// <summary>Encodes the row to <see cref="SqlParameters"/> for INSERT/UPDATE on <c>protocol_additional_property</c>.</summary>
         member this.ToParameters() : SqlParameters =
             [|
                 RowCodecHelpers.textParam "protocol_id" this.ProtocolId
@@ -363,6 +413,7 @@ module RowCodecExtensions =
 
     type MaterialAdditionalPropertyRow with
 
+        /// <summary>Decodes a <see cref="MaterialAdditionalPropertyRow"/> from a <c>material_additional_property</c> result row.</summary>
         static member ofRow(row: SqlRow) =
             let table = "material_additional_property"
 
@@ -372,6 +423,7 @@ module RowCodecExtensions =
                 RowCodecHelpers.text table "property_value_id" row
             )
 
+        /// <summary>Encodes the row to <see cref="SqlParameters"/> for INSERT/UPDATE on <c>material_additional_property</c>.</summary>
         member this.ToParameters() : SqlParameters =
             [|
                 RowCodecHelpers.textParam "material_id" this.MaterialId
@@ -381,6 +433,7 @@ module RowCodecExtensions =
 
     type DataAdditionalPropertyRow with
 
+        /// <summary>Decodes a <see cref="DataAdditionalPropertyRow"/> from a <c>data_additional_property</c> result row.</summary>
         static member ofRow(row: SqlRow) =
             let table = "data_additional_property"
 
@@ -390,6 +443,7 @@ module RowCodecExtensions =
                 RowCodecHelpers.text table "property_value_id" row
             )
 
+        /// <summary>Encodes the row to <see cref="SqlParameters"/> for INSERT/UPDATE on <c>data_additional_property</c>.</summary>
         member this.ToParameters() : SqlParameters =
             [|
                 RowCodecHelpers.textParam "data_id" this.DataId
@@ -399,6 +453,7 @@ module RowCodecExtensions =
 
     type ProcessEdgeRow with
 
+        /// <summary>Decodes a <see cref="ProcessEdgeRow"/> from a <c>process_edges</c> view row. Read-only — there is no <c>ToParameters</c>.</summary>
         static member ofRow(row: SqlRow) =
             let table = "process_edges"
 
@@ -414,6 +469,7 @@ module RowCodecExtensions =
 
     type PropertyValueOrphanRow with
 
+        /// <summary>Decodes a <see cref="PropertyValueOrphanRow"/> from a <c>property_value_orphans</c> view row. Read-only.</summary>
         static member ofRow(row: SqlRow) =
             let table = "property_value_orphans"
 

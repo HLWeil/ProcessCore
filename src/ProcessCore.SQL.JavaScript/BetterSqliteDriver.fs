@@ -7,11 +7,13 @@ open ProcessCore.SQL
 #if FABLE_COMPILER_JAVASCRIPT
 open Fable.Core.JsInterop
 
+/// <summary>Erased binding for a prepared statement of the <c>better-sqlite3</c> npm package.</summary>
 type internal BetterSqliteStatement =
     abstract run : obj -> obj
     abstract all : obj -> obj[]
     abstract get : obj -> obj
 
+/// <summary>Erased binding for a database handle of the <c>better-sqlite3</c> npm package.</summary>
 type internal BetterSqliteDatabase =
     abstract prepare : string -> BetterSqliteStatement
     abstract exec : string -> obj
@@ -81,6 +83,27 @@ module private BetterSqliteInterop =
         |> Array.map (fun key -> key, propertyValue row key |> jsValueToSqlValue)
         |> Map.ofArray
 
+/// <summary>
+/// Node.js-side <see cref="ISqliteDriver"/> implementation backed by the
+/// <a href="https://github.com/WiseLibs/better-sqlite3">better-sqlite3</a> npm package.
+/// </summary>
+/// <remarks>
+/// <para>
+/// Construction is private; obtain instances through the named-parameter factory members
+/// (<c>create</c>, <c>createInMemory</c>, <c>wrapDatabase</c>) or the <see cref="BetterSqlite"/>
+/// module. Each factory enables the <c>foreign_keys</c> pragma — better-sqlite3, like the C
+/// library, leaves it off by default.
+/// </para>
+/// <para>
+/// The driver tracks ownership of the underlying database handle. Handles opened by a factory are
+/// owned and closed when the driver is disposed; handles passed to <c>wrapDatabase</c> are borrowed.
+/// </para>
+/// <para>
+/// This file is dual-targeted: when compiled for the .NET runtime (no <c>FABLE_COMPILER_JAVASCRIPT</c>
+/// symbol), the type degrades to a stub that raises on every call so consumers can still reference
+/// the project from a .NET test harness without being able to use it.
+/// </para>
+/// </remarks>
 [<AttachMembers>]
 type BetterSqliteDriver internal (database: BetterSqliteDatabase, ownsDatabase: bool) =
 
@@ -88,6 +111,11 @@ type BetterSqliteDriver internal (database: BetterSqliteDatabase, ownsDatabase: 
         (driver :> ISqliteDriver).Execute "PRAGMA foreign_keys = ON;" [||]
         driver
 
+    /// <summary>
+    /// Opens a new database handle by invoking the default-export <c>better-sqlite3</c>
+    /// constructor with the given path. The resulting driver owns the handle.
+    /// </summary>
+    /// <param name="Path">A file-system path or <c>:memory:</c>.</param>
     [<NamedParams>]
     static member create (Path: string) =
         createNew betterSqliteDatabaseConstructor Path
@@ -95,10 +123,16 @@ type BetterSqliteDriver internal (database: BetterSqliteDatabase, ownsDatabase: 
         |> fun database -> new BetterSqliteDriver(database, true)
         |> BetterSqliteDriver.enableForeignKeys
 
+    /// <summary>Opens a driver backed by an in-memory database.</summary>
     [<NamedParams>]
     static member createInMemory () =
         BetterSqliteDriver.create ":memory:"
 
+    /// <summary>
+    /// Wraps an existing <c>better-sqlite3</c> database handle. The driver does not own the
+    /// handle; disposing the driver does <em>not</em> close it.
+    /// </summary>
+    /// <param name="Database">A <c>better-sqlite3</c> <c>Database</c> instance, passed as <c>obj</c> to keep the binding loose.</param>
     [<NamedParams>]
     static member wrapDatabase (Database: obj) =
         new BetterSqliteDriver(unbox<BetterSqliteDatabase> Database, false)
@@ -134,23 +168,36 @@ type BetterSqliteDriver internal (database: BetterSqliteDatabase, ownsDatabase: 
             if ownsDatabase then
                 database.close()
 
+/// <summary>
+/// Convenience helpers that mirror the named-parameter factory members of
+/// <see cref="BetterSqliteDriver"/> but expose plain F# functions.
+/// </summary>
 [<RequireQualifiedAccess>]
 module BetterSqlite =
 
+    /// <summary>Opens a driver against the given path. Use <c>:memory:</c> for an in-memory database.</summary>
     let openDatabase path =
         BetterSqliteDriver.create path
 
+    /// <summary>Wraps an existing <c>better-sqlite3</c> database handle. The driver does not own the handle.</summary>
     let wrapDatabase database =
         BetterSqliteDriver.wrapDatabase database
 
+    /// <summary>Alias for <c>openDatabase</c> with a file path. The driver owns the handle.</summary>
     let openFile path =
         openDatabase path
 
+    /// <summary>Opens a driver backed by an in-memory database.</summary>
     let openInMemory () =
         openDatabase ":memory:"
 
 #else
 
+/// <summary>
+/// .NET-only stub used when the project is compiled outside Fable. Every method raises
+/// <see cref="System.InvalidOperationException"/>; the type exists only so that .NET test
+/// harnesses can still link against the project.
+/// </summary>
 [<AttachMembers>]
 type BetterSqliteDriver() =
 
@@ -169,30 +216,38 @@ type BetterSqliteDriver() =
 
         member _.Dispose() = ()
 
+    /// <summary>Always raises — the driver is unavailable on .NET.</summary>
     [<NamedParams>]
     static member create (_Path: string) : BetterSqliteDriver =
         invalidOp "ProcessCore.SQL.JavaScript must be compiled with Fable for JavaScript and run with the better-sqlite3 npm package."
 
+    /// <summary>Always raises — the driver is unavailable on .NET.</summary>
     [<NamedParams>]
     static member createInMemory () : BetterSqliteDriver =
         invalidOp "ProcessCore.SQL.JavaScript must be compiled with Fable for JavaScript and run with the better-sqlite3 npm package."
 
+    /// <summary>Always raises — the driver is unavailable on .NET.</summary>
     [<NamedParams>]
     static member wrapDatabase (_Database: obj) : BetterSqliteDriver =
         invalidOp "ProcessCore.SQL.JavaScript must be compiled with Fable for JavaScript and run with the better-sqlite3 npm package."
 
+/// <summary>.NET-only stub mirroring the Fable-side <c>BetterSqlite</c> module. Every helper raises.</summary>
 [<RequireQualifiedAccess>]
 module BetterSqlite =
 
+    /// <summary>Always raises — the driver is unavailable on .NET.</summary>
     let openDatabase (_path: string) =
         BetterSqliteDriver.create _path
 
+    /// <summary>Always raises — the driver is unavailable on .NET.</summary>
     let wrapDatabase (_database: obj) =
         BetterSqliteDriver.wrapDatabase _database
 
+    /// <summary>Always raises — the driver is unavailable on .NET.</summary>
     let openFile path =
         openDatabase path
 
+    /// <summary>Always raises — the driver is unavailable on .NET.</summary>
     let openInMemory () =
         BetterSqliteDriver.createInMemory ()
 
