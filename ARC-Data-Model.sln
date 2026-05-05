@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 18
-VisualStudioVersion = 18.5.11723.231 stable
+VisualStudioVersion = 18.5.11723.231
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{827E0CD3-B72D-47B6-A68D-7590B98EB39B}"
 EndProject
@@ -18,6 +18,10 @@ EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "ProcessCore.SQL.JavaScript.Tests", "tests\ProcessCore.SQL.JavaScript.Tests\ProcessCore.SQL.JavaScript.Tests.fsproj", "{7726CA64-3F5E-4340-A823-5157DA82A91C}"
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "ProcessCore", "src\ProcessCore\ProcessCore.fsproj", "{B945D305-385B-BCAA-6B6A-F62317510C97}"
+EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "ProcessCore.SQL.Python", "src\ProcessCore.SQL.Python\ProcessCore.SQL.Python.fsproj", "{268797D0-67E5-4BE5-A5CE-49A36F6FBACF}"
+EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "ProcessCore.SQL.Python.Tests", "tests\ProcessCore.SQL.Python.Tests\ProcessCore.SQL.Python.Tests.fsproj", "{88609C6E-3CBC-4BF2-9565-FB9F6374B573}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -101,6 +105,30 @@ Global
 		{B945D305-385B-BCAA-6B6A-F62317510C97}.Release|x64.Build.0 = Release|Any CPU
 		{B945D305-385B-BCAA-6B6A-F62317510C97}.Release|x86.ActiveCfg = Release|Any CPU
 		{B945D305-385B-BCAA-6B6A-F62317510C97}.Release|x86.Build.0 = Release|Any CPU
+		{268797D0-67E5-4BE5-A5CE-49A36F6FBACF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{268797D0-67E5-4BE5-A5CE-49A36F6FBACF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{268797D0-67E5-4BE5-A5CE-49A36F6FBACF}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{268797D0-67E5-4BE5-A5CE-49A36F6FBACF}.Debug|x64.Build.0 = Debug|Any CPU
+		{268797D0-67E5-4BE5-A5CE-49A36F6FBACF}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{268797D0-67E5-4BE5-A5CE-49A36F6FBACF}.Debug|x86.Build.0 = Debug|Any CPU
+		{268797D0-67E5-4BE5-A5CE-49A36F6FBACF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{268797D0-67E5-4BE5-A5CE-49A36F6FBACF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{268797D0-67E5-4BE5-A5CE-49A36F6FBACF}.Release|x64.ActiveCfg = Release|Any CPU
+		{268797D0-67E5-4BE5-A5CE-49A36F6FBACF}.Release|x64.Build.0 = Release|Any CPU
+		{268797D0-67E5-4BE5-A5CE-49A36F6FBACF}.Release|x86.ActiveCfg = Release|Any CPU
+		{268797D0-67E5-4BE5-A5CE-49A36F6FBACF}.Release|x86.Build.0 = Release|Any CPU
+		{88609C6E-3CBC-4BF2-9565-FB9F6374B573}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{88609C6E-3CBC-4BF2-9565-FB9F6374B573}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{88609C6E-3CBC-4BF2-9565-FB9F6374B573}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{88609C6E-3CBC-4BF2-9565-FB9F6374B573}.Debug|x64.Build.0 = Debug|Any CPU
+		{88609C6E-3CBC-4BF2-9565-FB9F6374B573}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{88609C6E-3CBC-4BF2-9565-FB9F6374B573}.Debug|x86.Build.0 = Debug|Any CPU
+		{88609C6E-3CBC-4BF2-9565-FB9F6374B573}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{88609C6E-3CBC-4BF2-9565-FB9F6374B573}.Release|Any CPU.Build.0 = Release|Any CPU
+		{88609C6E-3CBC-4BF2-9565-FB9F6374B573}.Release|x64.ActiveCfg = Release|Any CPU
+		{88609C6E-3CBC-4BF2-9565-FB9F6374B573}.Release|x64.Build.0 = Release|Any CPU
+		{88609C6E-3CBC-4BF2-9565-FB9F6374B573}.Release|x86.ActiveCfg = Release|Any CPU
+		{88609C6E-3CBC-4BF2-9565-FB9F6374B573}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -112,5 +140,7 @@ Global
 		{4C4CE805-B783-4091-ABB5-BA6DB870F557} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{7726CA64-3F5E-4340-A823-5157DA82A91C} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{B945D305-385B-BCAA-6B6A-F62317510C97} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
+		{268797D0-67E5-4BE5-A5CE-49A36F6FBACF} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
+		{88609C6E-3CBC-4BF2-9565-FB9F6374B573} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 	EndGlobalSection
 EndGlobal

@@ -409,18 +409,20 @@ Expected package categories:
 
 ### Phase 2 — Shared Table Model
 
-- Status: **superseded — pending Fable-compat migration**. The original phase landed table-shaped shared code, but predates the *Public-surface checklist* above. Before Phase 4 (Python) can begin, the shared code must be migrated:
+- Status: complete for the Fable-compat migration.
+- Done: converted the 17 table row records and two view records to `[<AttachMembers>]` classes with positional constructors, mutable `member val` properties, and `[<NamedParams>] create factories.
+- Done: re-decorated `SqlValue` with `[<Erase>]` and `ProcessIoDirection` with `[<StringEnum>]`; removed the public `Sql` / `ofSql` helpers from the enum surface.
+- Done: replaced tuple/list SQL parameters with `SqlParameter[]`; `ISqliteDriver.Query` now returns `SqlRow[]`.
+- Done: moved codecs onto row classes as `RowType.ofRow` and `row.ToParameters()`.
+- Done: replaced the `Repository` module with a `[<AttachMembers>]` `Repository` class and array-based table metadata.
+- Done: updated .NET and JavaScript adapters/tests to the new public shape.
+- Verified: `.\build.cmd RunTests` and `.\build.cmd TestJs` passed after migration.
+- Legacy context: the original phase landed table-shaped shared code, but predates the *Public-surface checklist* above. The completed migration covered:
   - Convert the 17 row records (and the two view records) to `[<AttachMembers>]` classes per the *Table Types* pattern.
   - Re-decorate `SqlValue` with `[<Erase>]` and `ProcessIoDirection` with `[<StringEnum>]`; delete the now-unused `ProcessIoDirection.Sql`/`ofSql` helpers.
   - Replace the tuple-based `SqlParameters = (string * SqlValue) list` with the `SqlParameter[]` shape from *I/O Boundary*; update `ISqliteDriver` to match and to return `SqlRow[]`.
   - Move codec free functions from `module RowCodecs` onto each row class as `static member ofRow` + `member ToParameters` (per the *Row Codecs* section).
   - Replace the `Repository` module with the `Repository` class.
-- Existing `done` items remain valid as facts about the legacy shape and serve as a regression checklist for the migration:
-  - 17 row records added.
-  - `SqlValue`, `SqlRow`, `ISqliteDriver` defined.
-  - Row codecs for all tables present.
-  - .NET tests for table metadata and representative row codec roundtrips green.
-- Migration must keep all .NET tests green; updates to test code are expected wherever tests construct rows positionally with `{ ... }` record syntax.
 - Not part of this phase: CRUD/repository operations. Those remain in Phase 3.
 
 ### Phase 3 — .NET Driver and Repository
@@ -434,6 +436,16 @@ Expected package categories:
 - Pending: add transaction helpers or document explicit `BEGIN` / `COMMIT` / `ROLLBACK` usage.
 
 ### Phase 4 — Python Driver
+
+- Status: started; Python adapter, Python Pyxpecto smoke tests, uv-based runtime dependency, and `TranspilePy` / `TestPy` build targets are wired and passing for schema/seed execution, parameter binding, row mapping, and shared codecs.
+- Done: added `src/ProcessCore.SQL.Python/ProcessCore.SQL.Python.fsproj`.
+- Done: implemented `PythonSqliteDriver` over Python stdlib `sqlite3` via Fable Python interop.
+- Done: added `tests/ProcessCore.SQL.Python.Tests` with Python smoke tests.
+- Done: added root `pyproject.toml` and `uv.lock` for Python tooling; `fable-library==5.0.0` provides the Python Fable runtime.
+- Done: wired `TranspilePy` and `TestPy`; `TestPy` runs `uv run python build/out/py-tests/main.py --fail-on-focused-tests`.
+- Verified: `.\build.cmd TestPy` passes.
+- Pending: reuse the broader shared `ConstraintTests`, `TableRoundtripTests`, and `ViewTests` once CRUD/view APIs exist.
+- Pending: decide whether to append `TestPy` to the default `RunTests` aggregate now, or keep it explicit until Python support is less experimental.
 
 #### Prerequisite
 
@@ -460,11 +472,13 @@ build/output/python/                     # Fable transpilation output (gitignore
 pyproject.toml                           # at repo root for Python tooling/deps
 ```
 
+Current implementation note: the actual first-pass test project is `tests/ProcessCore.SQL.Python.Tests/`, and Fable currently emits to `build/out/py-tests/` to match the existing JavaScript target convention.
+
 #### Tooling decisions
 
 - **Python version**: pin to `>=3.11` (matches Fable Python's tested baseline).
-- **Package manager**: `uv` preferred for speed; `pip` + `venv` fallback documented.
-- **Test runner**: Fable.Pyxpecto's Python runner — confirm it executes via `python -m main` against the transpiled `Main.py`, not via `pytest`.
+- **Package manager**: `uv`.
+- **Test runner**: Fable.Pyxpecto's Python runner executes directly via `uv run python build/out/py-tests/main.py --fail-on-focused-tests`; it is not a pytest suite.
 - **Connector**: stdlib `sqlite3` only; no third-party SQLite package.
 
 #### Fable Python bindings for `sqlite3`
@@ -530,16 +544,18 @@ type PythonSqliteDriver(connection: Connection) =
 
 Notes:
 
-- `parameters` are converted to a Python dict (`{":id": ...}` style) inside `toPyDict`. Use `:name` placeholders in shared SQL strings so the same SQL works under .NET (`Microsoft.Data.Sqlite` accepts `:name`), JS (`better-sqlite3` accepts `:name`), and Python (stdlib `sqlite3` `execute(sql, dict)`).
+- `parameters` are converted to a Python dict inside `toPyDict` / `parametersToPyDict`. The implementation strips `$` / `@` / `:` prefixes from parameter names because Python `sqlite3` accepts `$name` placeholders in SQL but expects `name` keys in the parameter dict.
 - Map `cursor.description` columns + row tuples to `SqlRow` (`Map<string, SqlValue>`) at the adapter boundary, so the shared codec layer receives the same shape as on .NET / JS.
+- `Execute` uses `connection.executescript` when parameters are empty so schema/seed scripts with multiple statements work. Parameterized statements use `cursor.execute`.
+- Fable `int32` values must be converted to native Python `int` before binding to sqlite3.
 - `commit` per `Execute`: keep the simple write semantics for now; a transaction helper comes in Phase 6.
 
 #### Build pipeline wiring
 
 Add to `build/Build.fs`:
 
-- `TranspilePy` target — runs `dotnet fable src/ProcessCore.SQL --lang python --outDir build/output/python/process_core_sql`, then the same for `src/ProcessCore.SQL.Python` and the test project. Fable Python output must be runnable with `python -m main` from the test output dir.
-- `TestPy` target — runs `python -m main` in the transpiled tests dir; depends on `TranspilePy`.
+- `TranspilePy` target — runs Fable against `tests/ProcessCore.SQL.Python.Tests/ProcessCore.SQL.Python.Tests.fsproj`; project references bring in the shared library and Python adapter output.
+- `TestPy` target — runs `uv run python build/out/py-tests/main.py --fail-on-focused-tests`; depends on `TranspilePy`.
 - `RunTests` aggregate — append `TestPy` once green on a developer machine.
 
 Wrapper-script additions: `.\build.cmd TranspilePy`, `.\build.cmd TestPy`.
@@ -557,9 +573,9 @@ The shared test list from `tests/ProcessCore.SQL.Tests/` should compile under Py
 
 #### Verification
 
-1. `.\build.cmd TranspilePy` runs cleanly and produces `build/output/python/`.
-2. Spot-check one transpiled file (`build/output/python/process_core_sql/tables.py`) to confirm `DefinedTermRow` is a regular Python class with kw-only `create`, no boxed DU helpers around `SqlValue`, and `Array` parameters lower to `list[T]`.
-3. `.\build.cmd TestPy` exits 0 on the same suites as `TestDotNet` and `TestJs`.
+1. `.\build.cmd TranspilePy` runs cleanly and produces `build/out/py-tests/`.
+2. Spot-check one transpiled file under `build/out/py-tests/src/ProcessCore.SQL/` to confirm `DefinedTermRow` is a regular Python class with kw-only `create`, no boxed DU helpers around `SqlValue`, and `Array` parameters lower to `list[T]`.
+3. `.\build.cmd TestPy` exits 0 on the Python smoke suite.
 4. Manual smoke: `python -c "from process_core_sql_python.python_sqlite_driver import PythonSqliteDriver; d = PythonSqliteDriver.create_in_memory(); ..."` confirms the named-arg `create` and mutable members carry into Python.
 
 ### Phase 5 — JS/TS Drivers
@@ -593,7 +609,5 @@ The shared test list from `tests/ProcessCore.SQL.Tests/` should compile under Py
 - Should repository functions be sync-only for the first version, or should the abstraction be async from day one?
 - Should the library own schema creation/migration, or only read/write databases already created from `001_core.sql`?
 - Should generated `data.fragment_identity` ever be exposed in a view/read model?
-- Do existing .NET tests need updating after the record→class migration, or do they treat row types as opaque enough to survive the shape change?
-- Does Fable Python preserve `[<NamedParams>]` ergonomics as Python kw-only args? Verify on one row class before committing to the pattern across all 17.
 - Does `Map<string, SqlValue>` lower to a native `dict[str, SqlValue]` in Fable Python, or to a custom map class?
-- What is the exact Fable.Pyxpecto Python runner invocation (`python -m main` vs `pytest`)? Confirm against the upstream README before wiring `TestPy`.
+- Should `TestPy` be included in the default `RunTests` aggregate now that the uv-backed smoke tests pass?

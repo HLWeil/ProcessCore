@@ -1,6 +1,7 @@
 module TestTasks
 
 open System
+open System.IO
 open BlackFox.Fake
 open Fake.Core
 open Fake.DotNet
@@ -90,10 +91,38 @@ let testTs =
 
 let transpilePy =
     BuildTask.create "TranspilePy" [] {
-        printfn "Skipping TranspilePy: Fable Python tooling will be wired after connector/package choices are made."
+        let restoreTools = DotNet.exec id "tool" "restore"
+
+        if not restoreTools.OK then
+            failwith "dotnet tool restore failed"
+
+        let args =
+            [
+                "fable"
+                pyPyxpectoTestProject
+                "-o"
+                pyTestOutputDir
+                "--lang"
+                "Python"
+            ]
+            |> String.concat " "
+
+        let transpile = DotNet.exec id "tool" $"run {args}"
+
+        if not transpile.OK then
+            failwith "Fable Python transpilation failed"
     }
 
 let testPy =
     BuildTask.create "TestPy" [ transpilePy ] {
-        printfn "Skipping TestPy: Python test execution is not wired yet."
+        let testFile =
+            [ "Main.py"; "main.py" ]
+            |> List.map (fun fileName -> Path.Combine(pyTestOutputDir, fileName))
+            |> List.tryFind File.Exists
+            |> Option.defaultWith (fun () -> failwith $"Could not find Python test entrypoint in {pyTestOutputDir}.")
+
+        let result = runTool "uv" [ "run"; "python"; testFile; "--fail-on-focused-tests" ]
+
+        if result.ExitCode <> 0 then
+            failwith "Python Pyxpecto tests failed"
     }
