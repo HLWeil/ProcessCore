@@ -61,6 +61,7 @@ Directory.Packages.props
 Notes:
 
 - `ProcessCore.SQL` contains the shared Fable-compatible code.
+- All projects under `src/ProcessCore.SQL*` consume `Fable.Core` and apply Fable attributes. The shared `ProcessCore.SQL` project is consumed unchanged by every adapter; only the platform binding files differ per runtime.
 - Runtime adapter projects are the only layer allowed to bind to concrete SQLite connectors.
 - Package boundaries are intentional: publish `ProcessCore.SQL` as the shared package, then publish adapter packages per ecosystem/runtime (`ProcessCore.SQL.DotNet` on NuGet, JavaScript/TypeScript output to npm, Python output to PyPI).
 - Tests compile against the public API, not private helper functions.
@@ -101,7 +102,7 @@ Build commands should be simple:
 
 ## Table Types
 
-Create one F# record type per SQL table. Keep names close to SQL table names but idiomatic enough for F#.
+Create one F# class per SQL table, decorated with `[<AttachMembers>]` so Fable emits members directly on the JS/TS/Python class. Names stay close to SQL table names but idiomatic enough for F#.
 
 Entity tables:
 
@@ -126,31 +127,94 @@ Association tables:
 - `MaterialAdditionalPropertyRow`
 - `DataAdditionalPropertyRow`
 
+Two read-only view types:
+
+- `ProcessEdgeRow`
+- `PropertyValueOrphanRow`
+
+Pattern (illustrated for `DefinedTermRow`):
+
+```fsharp
+[<AttachMembers>]
+type DefinedTermRow(Id: string, Type: string, Name: string,
+                    ?Tan: string,
+                    ?InDefinedTermSetId: string,
+                    ?InDefinedTermSetName: string) =
+
+    member val Id = Id with get, set
+    member val Type = Type with get, set
+    member val Name = Name with get, set
+    member val Tan = Tan with get, set
+    member val InDefinedTermSetId = InDefinedTermSetId with get, set
+    member val InDefinedTermSetName = InDefinedTermSetName with get, set
+
+    [<NamedParams>]
+    static member create (Id, Type, Name, ?Tan, ?InDefinedTermSetId, ?InDefinedTermSetName) =
+        DefinedTermRow(Id, Type, Name,
+                       ?Tan = Tan,
+                       ?InDefinedTermSetId = InDefinedTermSetId,
+                       ?InDefinedTermSetName = InDefinedTermSetName)
+```
+
 Rules:
 
-- Use `string` for `TEXT NOT NULL`.
-- Use `string option` for nullable `TEXT`.
-- Use `int` for positions.
-- Use small discriminated unions only where they exactly reflect SQL constraints and are Fable-safe, e.g. `ProcessIoDirection = Input | Output`.
-- Do not introduce nested/domain-shaped records yet.
+- Each row type is a class with `[<AttachMembers>]`, not an F# record. Records lower to a `Record` shim in JS and a `dataclass`-shaped helper in Python; classes give consumers a regular `new RowType(...)` constructor in every target.
+- Provide a positional primary constructor and a `[<NamedParams>]` static `create` factory for the named-args (object-literal) variant in JS/TS/Python. Do **not** define overloads — Fable shadows them when `[<AttachMembers>]` is present.
+- Required SQL columns become required ctor params; nullable SQL columns become `?Optional` params.
+- Use `member val ... with get, set` so consumers can mutate row instances directly (matches the existing `ProcessCore` convention).
+- Use `string` for `TEXT NOT NULL`, `string option` for nullable `TEXT`, `int` for positions.
+- Use small discriminated unions only where they exactly reflect SQL constraints, and decorate them per the *I/O Boundary* rules (`[<Erase>]` for cases-with-data, `[<StringEnum>]` for case-only).
+- Do not introduce nested/domain-shaped types yet.
 
 ## I/O Boundary
 
 The shared library must not depend directly on `Microsoft.Data.Sqlite`, Node packages, Python `sqlite3`, or any other concrete connector. Define a small driver abstraction in shared code:
 
 ```fsharp
+[<Erase>]
 type SqlValue =
-    | SqlNull
-    | SqlText of string
-    | SqlInt of int
+    | Null
+    | Text of string
+    | Int of int
+
+[<StringEnum>]
+type ProcessIoDirection =
+    | [<CompiledName("input")>] Input
+    | [<CompiledName("output")>] Output
+
+[<AttachMembers>]
+type SqlParameter(Name: string, Value: SqlValue) =
+    member val Name = Name with get, set
+    member val Value = Value with get, set
+
+    [<NamedParams>]
+    static member create (Name, Value) = SqlParameter(Name, Value)
+
+type SqlParameters = SqlParameter[]
 
 type SqlRow = Map<string, SqlValue>
 
 type ISqliteDriver =
-    abstract Execute : sql: string -> parameters: (string * SqlValue) list -> unit
-    abstract Query : sql: string -> parameters: (string * SqlValue) list -> SqlRow list
-    abstract Scalar : sql: string -> parameters: (string * SqlValue) list -> SqlValue
+    abstract Execute : sql: string -> parameters: SqlParameters -> unit
+    abstract Query : sql: string -> parameters: SqlParameters -> SqlRow[]
+    abstract Scalar : sql: string -> parameters: SqlParameters -> SqlValue
 ```
+
+Fable-attribute rules:
+
+- Unions whose cases carry data → `[<Erase>]`. JS/TS see plain values, Python sees the unwrapped payload, with no boxed DU shim.
+- Unions with no payload → `[<StringEnum>]` plus `[<CompiledName(...)>]` to match SQL literals exactly. The string *is* the enum, so any `Sql`/`ofSql` helper goes away — `match dir with ProcessIoDirection.Input -> ...` still works in F#, and JS/TS receive the string directly.
+- Drop `[<RequireQualifiedAccess>]` from these unions; it's redundant alongside the Fable attributes and lengthens the JS surface.
+
+Collection rules:
+
+- All public collection-typed members use `Array<'T>` (`'T[]`). F# `list` lowers to a linked-list shim in JS and a custom class in Python — neither is what consumers expect.
+- Do not expose F# tuples on public surfaces. Tuples lower to plain JS arrays and are easy to confuse with array params. Use small `[<AttachMembers>]` classes (e.g. `SqlParameter`) instead.
+- `Map<string, SqlValue>` for `SqlRow` stays — the Fable guidance allows string-keyed maps because they lower to native JS `Map` / Python `dict`.
+
+Adapter wrapper convention:
+
+- `ISqliteDriver` stays as an F# interface. Each platform adapter ships a small concrete class with `[<AttachMembers>]` that implements the interface and exposes a `[<NamedParams>]` static `create` factory. JS/TS/Python users instantiate `new DotNetSqliteDriver({...})` / `BetterSqliteDriver.create({...})` / `PythonSqliteDriver.create({...})` rather than fighting bare interface objects.
 
 Platform adapters implement that shape:
 
@@ -174,33 +238,81 @@ Selection can use conditional compilation:
 
 If async-only connectors are chosen for JS/TS, split the abstraction into sync and async before implementation. Do not fake sync over async in shared code.
 
+## Public-surface checklist
+
+Anything appearing in a public type, member, or signature that crosses Fable to JS/TS/Python must follow these rules. They are not stylistic preferences — violating them produces non-ergonomic transpiled output (boxed DUs, linked-list shims, hidden methods).
+
+| Forbidden in public surface | Use instead |
+| --- | --- |
+| F# records | `[<AttachMembers>]` class with positional ctor + `[<NamedParams>]` `static member create` |
+| F# `'T list` | `'T[]` (`Array<'T>`) |
+| F# tuples (`'a * 'b`) | small `[<AttachMembers>]` class, or `[<NamedParams>]` named args |
+| Plain DU with cases that carry data | `[<Erase>]` |
+| Plain DU with no payload | `[<StringEnum>]` (+ `[<CompiledName>]` if the string must match an external literal) |
+| Overloaded methods on `[<AttachMembers>]` types | distinct names (`createFromPath`, `createFromConnection`) |
+| Non-primitive dictionary keys | string/int keys only — non-primitives block native `Map`/`dict` lowering |
+
+Internal-only helpers may keep `list`, tuples, or records freely; the rules apply only to the *exported* API surface.
+
 ## Row Codecs
 
-Each table gets two functions:
+Codecs attach to the row classes themselves, not to a free-standing module. Each row class exposes:
 
-- `ofRow : SqlRow -> TableRow`
-- `toParameters : TableRow -> (string * SqlValue) list`
+- a static factory: `static member ofRow (row: SqlRow) : RowType`
+- an instance method: `member this.ToParameters () : SqlParameters`
 
-Codec rules:
+Pattern:
 
+```fsharp
+[<AttachMembers>]
+type DefinedTermRow(...) =
+    // members from the *Table Types* section
+    ...
+
+    static member ofRow (row: SqlRow) : DefinedTermRow = ...
+    member this.ToParameters () : SqlParameters = ...
+```
+
+This keeps `DefinedTermRow.ofRow(row)` and `instance.toParameters()` (the Fable-lowered name) ergonomic in JS/TS/Python.
+
+Implementation notes:
+
+- `RowCodecs.fs` stays as the home for the codec bodies. Use F# `type ... with` augmentations there if separating the type declaration in `Tables.fs` from the codec body keeps the files small.
+- The existing `text` / `textOption` / `int` / `textParam` / `intParam` / `textOptionParam` helpers stay in a private module inside `RowCodecs.fs` — they must not appear on the public surface.
 - Centralize nullable handling.
 - Fail with table/column names in error messages.
 - Keep generated column `data.fragment_identity` read-only and out of `DataRow` for now; it is an implementation detail of the SQLite database.
+- View types (`ProcessEdgeRow`, `PropertyValueOrphanRow`) only need `ofRow`; they have no `ToParameters`.
 
 ## Repository API
 
-First pass API is generic and table-shaped:
+First pass API is generic and table-shaped, exposed as static members on per-table `[<AttachMembers>]` classes so JS/TS/Python see `Dataset.insert(driver, row)` etc.:
 
 ```fsharp
-module Dataset =
-    val insert : ISqliteDriver -> DatasetRow -> unit
-    val update : ISqliteDriver -> DatasetRow -> unit
-    val delete : ISqliteDriver -> id: string -> unit
-    val get : ISqliteDriver -> id: string -> DatasetRow option
-    val list : ISqliteDriver -> DatasetRow list
+[<AttachMembers>]
+type Dataset =
+    static member insert (driver: ISqliteDriver, row: DatasetRow) : unit = ...
+    static member update (driver: ISqliteDriver, row: DatasetRow) : unit = ...
+    static member delete (driver: ISqliteDriver, id: string) : unit = ...
+    static member get (driver: ISqliteDriver, id: string) : DatasetRow option = ...
+    static member list (driver: ISqliteDriver) : DatasetRow[] = ...
 ```
 
-Repeat this pattern for all 17 tables. Avoid clever generic metaprogramming until the duplication hurts in practice.
+A single `Repository` class collects the table-metadata accessors:
+
+```fsharp
+[<AttachMembers>]
+type Repository =
+    static member DefinedTerm : Table<DefinedTermRow> = ...
+    static member LabProtocol : Table<LabProtocolRow> = ...
+    // ... all 17 tables ...
+    static member EntityTables : string[] = [| ... |]
+    static member AssociationTables : string[] = [| ... |]
+```
+
+Repeat the per-table CRUD pattern for all 17 tables. Avoid clever generic metaprogramming until the duplication hurts in practice. Do not overload `insert` / `get` etc. — Fable would shadow them under `[<AttachMembers>]`. If a second arity is needed, give it a distinct name.
+
+The metadata holder `Table<'row>` is internal to the implementation. It currently uses an F# record; convert to an `[<AttachMembers>]` class only if it ever appears on a public signature.
 
 Current status: not implemented. `src/ProcessCore.SQL/Repository.fs` currently contains `Table<'row>` metadata for the 17 tables only. It does not yet expose `insert`, `update`, `delete`, `get`, `list`, view readers, or transaction helpers.
 
@@ -297,11 +409,18 @@ Expected package categories:
 
 ### Phase 2 — Shared Table Model
 
-- Status: complete for table-shaped shared code.
-- Done: added the 17 row records.
-- Done: added `SqlValue`, `SqlRow`, and `ISqliteDriver`.
-- Done: added row codecs for all tables.
-- Done: added .NET tests for table metadata and representative row codec roundtrips.
+- Status: **superseded — pending Fable-compat migration**. The original phase landed table-shaped shared code, but predates the *Public-surface checklist* above. Before Phase 4 (Python) can begin, the shared code must be migrated:
+  - Convert the 17 row records (and the two view records) to `[<AttachMembers>]` classes per the *Table Types* pattern.
+  - Re-decorate `SqlValue` with `[<Erase>]` and `ProcessIoDirection` with `[<StringEnum>]`; delete the now-unused `ProcessIoDirection.Sql`/`ofSql` helpers.
+  - Replace the tuple-based `SqlParameters = (string * SqlValue) list` with the `SqlParameter[]` shape from *I/O Boundary*; update `ISqliteDriver` to match and to return `SqlRow[]`.
+  - Move codec free functions from `module RowCodecs` onto each row class as `static member ofRow` + `member ToParameters` (per the *Row Codecs* section).
+  - Replace the `Repository` module with the `Repository` class.
+- Existing `done` items remain valid as facts about the legacy shape and serve as a regression checklist for the migration:
+  - 17 row records added.
+  - `SqlValue`, `SqlRow`, `ISqliteDriver` defined.
+  - Row codecs for all tables present.
+  - .NET tests for table metadata and representative row codec roundtrips green.
+- Migration must keep all .NET tests green; updates to test code are expected wherever tests construct rows positionally with `{ ... }` record syntax.
 - Not part of this phase: CRUD/repository operations. Those remain in Phase 3.
 
 ### Phase 3 — .NET Driver and Repository
@@ -316,9 +435,132 @@ Expected package categories:
 
 ### Phase 4 — Python Driver
 
-- Add Fable Python binding for stdlib `sqlite3`.
-- Transpile tests with Fable.
-- Run Pyxpecto tests under Python.
+#### Prerequisite
+
+The Phase 2 Fable-compat migration must complete first. Without `[<AttachMembers>]` / `Array<'T>` / `[<Erase>]` / `[<StringEnum>]` migration, Fable Python output is awkward (boxed DUs, linked-list helpers, no kw-only `create`).
+
+#### Project layout additions
+
+```text
+src/ProcessCore.SQL.Python/
+  ProcessCore.SQL.Python.fsproj          # Fable F# project compiled to Python
+  PythonSqliteDriver.fs                  # ISqliteDriver impl using Python stdlib sqlite3
+  PythonInterop.fs                       # Fable [<Import>]/[<Emit>] bindings for sqlite3
+
+tests/ProcessCore.SQL.Tests.Python/
+  ProcessCore.SQL.Tests.Python.fsproj    # Fable Pyxpecto test project for Python
+  Main.fs
+  Fixtures.fs                            # Python tempfile + sqlite3 connection helpers
+
+build/output/python/                     # Fable transpilation output (gitignored)
+  process_core_sql/                      # transpiled shared lib
+  process_core_sql_python/               # transpiled adapter
+  tests/                                 # transpiled tests
+
+pyproject.toml                           # at repo root for Python tooling/deps
+```
+
+#### Tooling decisions
+
+- **Python version**: pin to `>=3.11` (matches Fable Python's tested baseline).
+- **Package manager**: `uv` preferred for speed; `pip` + `venv` fallback documented.
+- **Test runner**: Fable.Pyxpecto's Python runner — confirm it executes via `python -m main` against the transpiled `Main.py`, not via `pytest`.
+- **Connector**: stdlib `sqlite3` only; no third-party SQLite package.
+
+#### Fable Python bindings for `sqlite3`
+
+`PythonInterop.fs` carries the thin Fable bindings — minimal, only what `PythonSqliteDriver.fs` consumes:
+
+```fsharp
+namespace ProcessCore.SQL.Platform.Python
+
+open Fable.Core
+open Fable.Core.PyInterop
+
+[<AllowNullLiteral; Interface>]
+type Cursor =
+    abstract execute : sql: string * parameters: obj -> Cursor
+    abstract fetchall : unit -> obj[]
+    abstract fetchone : unit -> obj
+    [<Emit("$0.description")>] abstract description : obj[]
+
+and [<AllowNullLiteral; Interface>] Connection =
+    abstract cursor : unit -> Cursor
+    abstract commit : unit -> unit
+    abstract close : unit -> unit
+    abstract executescript : sql: string -> unit
+
+[<Import("connect", from = "sqlite3")>]
+let connect (path: string) : Connection = nativeOnly
+```
+
+#### `PythonSqliteDriver` implementation
+
+```fsharp
+[<AttachMembers>]
+type PythonSqliteDriver(connection: Connection) =
+
+    interface ISqliteDriver with
+        member _.Execute sql parameters =
+            let cursor = connection.cursor ()
+            cursor.execute (sql, toPyDict parameters) |> ignore
+            connection.commit ()
+
+        member _.Query sql parameters =
+            let cursor = connection.cursor ()
+            cursor.execute (sql, toPyDict parameters) |> ignore
+            let columns = cursor.description |> Array.map (fun col -> col?(0) :?> string)
+            cursor.fetchall () |> Array.map (fun row -> rowToSqlRow columns row)
+
+        member this.Scalar sql parameters =
+            ((this :> ISqliteDriver).Query sql parameters)
+            |> Array.head
+            |> Map.toArray
+            |> Array.head
+            |> snd
+
+    [<NamedParams>]
+    static member create (Path: string) =
+        PythonSqliteDriver (connect Path)
+
+    [<NamedParams>]
+    static member createInMemory () =
+        PythonSqliteDriver (connect ":memory:")
+```
+
+Notes:
+
+- `parameters` are converted to a Python dict (`{":id": ...}` style) inside `toPyDict`. Use `:name` placeholders in shared SQL strings so the same SQL works under .NET (`Microsoft.Data.Sqlite` accepts `:name`), JS (`better-sqlite3` accepts `:name`), and Python (stdlib `sqlite3` `execute(sql, dict)`).
+- Map `cursor.description` columns + row tuples to `SqlRow` (`Map<string, SqlValue>`) at the adapter boundary, so the shared codec layer receives the same shape as on .NET / JS.
+- `commit` per `Execute`: keep the simple write semantics for now; a transaction helper comes in Phase 6.
+
+#### Build pipeline wiring
+
+Add to `build/Build.fs`:
+
+- `TranspilePy` target — runs `dotnet fable src/ProcessCore.SQL --lang python --outDir build/output/python/process_core_sql`, then the same for `src/ProcessCore.SQL.Python` and the test project. Fable Python output must be runnable with `python -m main` from the test output dir.
+- `TestPy` target — runs `python -m main` in the transpiled tests dir; depends on `TranspilePy`.
+- `RunTests` aggregate — append `TestPy` once green on a developer machine.
+
+Wrapper-script additions: `.\build.cmd TranspilePy`, `.\build.cmd TestPy`.
+
+#### Python tests
+
+Reuse `ConstraintTests`, `TableRoundtripTests`, `ViewTests` modules unchanged — they're written against the public `ISqliteDriver` and shared codecs. Add a Python-only `Fixtures.fs`:
+
+- `createEmptyDatabase`: create a `tempfile.NamedTemporaryFile(suffix=".sqlite")` via Fable Python interop, plus `connection.executescript(open(schemaPath).read())`.
+- `createSeededDatabase`: same, then `executescript(open(seedPath).read())`.
+- `readSchemaSql` / `readSeedSql`: read-text helpers using Python's `pathlib.Path`.
+- `closeAndDelete`: cleanup helper.
+
+The shared test list from `tests/ProcessCore.SQL.Tests/` should compile under Python without changes once the row classes and codecs follow Phase 2's migrated shape.
+
+#### Verification
+
+1. `.\build.cmd TranspilePy` runs cleanly and produces `build/output/python/`.
+2. Spot-check one transpiled file (`build/output/python/process_core_sql/tables.py`) to confirm `DefinedTermRow` is a regular Python class with kw-only `create`, no boxed DU helpers around `SqlValue`, and `Array` parameters lower to `list[T]`.
+3. `.\build.cmd TestPy` exits 0 on the same suites as `TestDotNet` and `TestJs`.
+4. Manual smoke: `python -c "from process_core_sql_python.python_sqlite_driver import PythonSqliteDriver; d = PythonSqliteDriver.create_in_memory(); ..."` confirms the named-arg `create` and mutable members carry into Python.
 
 ### Phase 5 — JS/TS Drivers
 
@@ -351,3 +593,7 @@ Expected package categories:
 - Should repository functions be sync-only for the first version, or should the abstraction be async from day one?
 - Should the library own schema creation/migration, or only read/write databases already created from `001_core.sql`?
 - Should generated `data.fragment_identity` ever be exposed in a view/read model?
+- Do existing .NET tests need updating after the record→class migration, or do they treat row types as opaque enough to survive the shape change?
+- Does Fable Python preserve `[<NamedParams>]` ergonomics as Python kw-only args? Verify on one row class before committing to the pattern across all 17.
+- Does `Map<string, SqlValue>` lower to a native `dict[str, SqlValue]` in Fable Python, or to a custom map class?
+- What is the exact Fable.Pyxpecto Python runner invocation (`python -m main` vs `pytest`)? Confirm against the upstream README before wiring `TestPy`.
