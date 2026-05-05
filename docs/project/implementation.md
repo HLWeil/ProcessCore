@@ -1,0 +1,66 @@
+---
+title: Implementation Guide
+category: Project
+categoryindex: 2
+index: 3
+---
+
+# Implementation Guide
+
+The repository now includes F# implementation projects in addition to the markdown specification. The implementation is intentionally small and follows the schema/spec work rather than replacing it.
+
+## Projects
+
+| Project | Role | Runtime |
+|---------|------|---------|
+| `src/ProcessCore` | In-memory ProcessCore model, graph traversal, and table projection helpers | `netstandard2.0` |
+| `src/ProcessCore.SQL` | Shared SQL profile rows, row codecs, table descriptors, and CRUD facades | `net10.0`, Fable-friendly |
+| `src/ProcessCore.SQL.DotNet` | SQLite adapter backed by `Microsoft.Data.Sqlite` | .NET |
+| `src/ProcessCore.SQL.JavaScript` | SQLite adapter for Fable JavaScript output backed by `better-sqlite3` | Node.js |
+| `src/ProcessCore.SQL.Python` | SQLite adapter for Fable Python output backed by stdlib `sqlite3` | Python |
+| `tests/ProcessCore.SQL.Tests` | Shared Pyxpecto tests | .NET, JavaScript, Python |
+
+## SQL Profile
+
+The SQL profile artifacts live in `schemas/sql/`:
+
+- `001_core.sql` contains the executable SQLite DDL.
+- `seed_example.sql` contains a small seeded process graph.
+- `seeded_core.sqlite` is the generated SQLite database.
+- `design.md` explains the relational design.
+
+`ProcessCore.SQL` mirrors the SQL profile:
+
+- `Tables.fs` defines row types for tables and views.
+- `RowCodecs.fs` converts between `SqlRow` values and row types.
+- `Repository.fs` defines table metadata and CRUD facades.
+- `Sql.fs` defines the portable SQL value shape and `ISqliteDriver`.
+- `Platform/Driver.fs` records runtime adapter choices.
+
+## Runtime Adapters
+
+The shared SQL project does not own a concrete SQLite package. Runtime-specific packages live in adapter projects:
+
+- .NET uses `Microsoft.Data.Sqlite`.
+- JavaScript uses `better-sqlite3` after Fable transpilation.
+- Python uses the standard-library `sqlite3` module after Fable transpilation.
+
+The JavaScript and Python adapter projects compile as .NET stubs outside their Fable runtime so the solution can build while still exposing useful runtime code after transpilation.
+
+## Commands
+
+```powershell
+.\build.cmd BuildSolution
+.\build.cmd RunTests
+.\build.cmd RunTestsAll
+.\build.cmd TestJs
+.\build.cmd TestPy
+```
+
+Repo-level Node tooling is already present:
+
+```powershell
+npm run test:js
+```
+
+Python test execution uses `uv` through the FAKE `TestPy` and `RunTestsAll` targets.

@@ -1,8 +1,8 @@
 # Core SQL Import Profile
 
-A SQLite import profile for the [ProcessCore model](../../spec/core/README.md). Scope: core entities only. ISA, Workflow Run, and Datamap decorations can layer on top later through `additional_type` and decoration-owned tables.
+A SQLite import profile for the [ProcessCore model](../../docs/spec/core/overview.md). Scope: core entities only. ISA, Workflow Run, and Datamap decorations can layer on top later through `additional_type` and decoration-owned tables.
 
-The Markdown files in `spec/core/` remain authoritative. This SQL import profile round-trips YAML documents that conform to it. The profile narrows the open YAML surface where SQL needs a concrete contract: no orphan PropertyValues at commit time, exact-one-target foreign keys for mixed-target lists, deterministic generated IDs for fragment-level Data, and unresolved references as import errors except for `intendedUse` free text.
+The Markdown files in `docs/spec/core/` remain authoritative. This SQL import profile round-trips YAML documents that conform to it. The profile narrows the open YAML surface where SQL needs a concrete contract: no orphan PropertyValues at commit time, exact-one-target foreign keys for mixed-target lists, deterministic generated IDs for fragment-level Data, and unresolved references as import errors except for `intendedUse` free text.
 
 ## Design Decisions
 
@@ -556,7 +556,7 @@ These rules should be enforced either in DDL, import/export code, or both:
 
 ## Indexes
 
-Index shapes are tied to the documented query patterns in [spec/querying/use-cases.md](../../spec/querying/use-cases.md). Process graph traversal usually starts from a specific material or data node, so node-leading partial indexes are preferred.
+Index shapes are tied to the documented query patterns in [docs/spec/querying/use-cases.md](../../docs/spec/querying/use-cases.md). Process graph traversal usually starts from a specific material or data node, so node-leading partial indexes are preferred.
 
 ### Graph Traversal
 
