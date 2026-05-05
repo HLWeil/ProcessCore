@@ -3,47 +3,48 @@ module ProcessCore.SQL.Tests.RowCodecTests
 open Fable.Pyxpecto
 open ProcessCore.SQL
 
-let private parameter name parameters =
+let private parameter name (parameters: SqlParameters) =
     parameters
-    |> List.tryFind (fun (parameterName, _) -> parameterName = name)
-    |> Option.map snd
+    |> Array.tryFind (fun (parameter: SqlParameter) -> parameter.Name = name)
+    |> Option.map (fun parameter -> parameter.Value)
+
+let private parametersToRow (parameters: SqlParameters) =
+    parameters
+    |> Array.map (fun (parameter: SqlParameter) -> parameter.Name, parameter.Value)
+    |> Map.ofArray
 
 let tests =
     testList
         "row codecs"
         [
             testCase "roundtrips dataset rows through SQL parameters" (fun _ ->
-                let row: DatasetRow =
-                    {
-                        Id = "dataset-1"
-                        Type = "Dataset"
-                        AdditionalType = Some "Study"
-                        Identifier = "DS-001"
-                        Name = Some "Seed dataset"
-                        Description = None
-                    }
+                let row = DatasetRow("dataset-1", "Dataset", "DS-001", AdditionalType = "Study", Name = "Seed dataset")
 
-                let parameters = RowCodecs.Dataset.toParameters row
+                let parameters = row.ToParameters()
+                let actual = DatasetRow.ofRow (parametersToRow parameters)
 
                 Expect.equal (parameter "id" parameters) (Some(SqlValue.Text "dataset-1")) "id should be serialized."
                 Expect.equal (parameter "description" parameters) (Some SqlValue.Null) "None should serialize as SQL NULL."
-                Expect.equal (RowCodecs.Dataset.ofRow (Map.ofList parameters)) row "Dataset codec should roundtrip.")
+                Expect.equal actual.Id row.Id "Dataset id should roundtrip."
+                Expect.equal actual.Type row.Type "Dataset type should roundtrip."
+                Expect.equal actual.Identifier row.Identifier "Dataset identifier should roundtrip."
+                Expect.equal actual.AdditionalType row.AdditionalType "Dataset additional_type should roundtrip."
+                Expect.equal actual.Name row.Name "Dataset name should roundtrip."
+                Expect.equal actual.Description row.Description "Dataset description should roundtrip.")
 
             testCase "roundtrips process IO rows with direction literals" (fun _ ->
-                let row: ProcessIoRow =
-                    {
-                        ProcessId = "process-1"
-                        Direction = ProcessIoDirection.Input
-                        Position = 0
-                        MaterialId = Some "material-1"
-                        DataId = None
-                    }
+                let row = ProcessIoRow("process-1", ProcessIoDirection.Input, 0, MaterialId = "material-1")
 
-                let parameters = RowCodecs.ProcessIo.toParameters row
+                let parameters = row.ToParameters()
+                let actual = ProcessIoRow.ofRow (parametersToRow parameters)
 
                 Expect.equal (parameter "direction" parameters) (Some(SqlValue.Text "input")) "Direction should use the SQL literal."
                 Expect.equal (parameter "data_id" parameters) (Some SqlValue.Null) "Missing data target should serialize as NULL."
-                Expect.equal (RowCodecs.ProcessIo.ofRow (Map.ofList parameters)) row "Process IO codec should roundtrip.")
+                Expect.equal actual.ProcessId row.ProcessId "Process id should roundtrip."
+                Expect.equal actual.Direction row.Direction "Direction should roundtrip."
+                Expect.equal actual.Position row.Position "Position should roundtrip."
+                Expect.equal actual.MaterialId row.MaterialId "Material target should roundtrip."
+                Expect.equal actual.DataId row.DataId "Data target should roundtrip.")
 
             testCase "reads nullable text columns" (fun _ ->
                 let row =
@@ -57,7 +58,7 @@ let tests =
                             "in_defined_term_set_name", SqlValue.Null
                         ]
 
-                let actual = RowCodecs.DefinedTerm.ofRow row
+                let actual = DefinedTermRow.ofRow row
 
                 Expect.equal actual.Tan None "tan should parse from SQL NULL."
                 Expect.equal actual.InDefinedTermSetId (Some "ontology-1") "text values should parse as Some.")

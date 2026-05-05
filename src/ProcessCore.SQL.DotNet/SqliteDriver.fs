@@ -2,9 +2,11 @@ namespace ProcessCore.SQL.DotNet
 
 open System
 open System.Data
+open Fable.Core
 open Microsoft.Data.Sqlite
 open ProcessCore.SQL
 
+[<AttachMembers>]
 type SqliteDriver internal (connection: SqliteConnection, ownsConnection: bool) =
 
     let normalizeParameterName (name: string) =
@@ -23,12 +25,12 @@ type SqliteDriver internal (connection: SqliteConnection, ownsConnection: bool) 
         | SqlValue.Text text -> text :> obj
         | SqlValue.Int number -> number :> obj
 
-    let addParameters (command: SqliteCommand) parameters =
+    let addParameters (command: SqliteCommand) (parameters: SqlParameters) =
         parameters
-        |> List.iter (fun (name, value) ->
+        |> Array.iter (fun (sqlParameter: SqlParameter) ->
             let parameter = command.CreateParameter()
-            parameter.ParameterName <- normalizeParameterName name
-            parameter.Value <- parameterValue value
+            parameter.ParameterName <- normalizeParameterName sqlParameter.Name
+            parameter.Value <- parameterValue sqlParameter.Value
             command.Parameters.Add(parameter) |> ignore)
 
     let sqliteValueToSqlValue (value: obj) =
@@ -54,6 +56,36 @@ type SqliteDriver internal (connection: SqliteConnection, ownsConnection: bool) 
 
     member _.Connection = connection
 
+    static member private enableForeignKeys (driver: SqliteDriver) =
+        (driver :> ISqliteDriver).Execute "PRAGMA foreign_keys = ON;" [||]
+        driver
+
+    [<NamedParams>]
+    static member create (ConnectionString: string) =
+        let connection = new SqliteConnection(ConnectionString)
+        connection.Open()
+
+        new SqliteDriver(connection, true)
+        |> SqliteDriver.enableForeignKeys
+
+    [<NamedParams>]
+    static member createFromFile (Path: string) =
+        let builder = SqliteConnectionStringBuilder()
+        builder.DataSource <- Path
+        SqliteDriver.create(builder.ToString())
+
+    [<NamedParams>]
+    static member createInMemory () =
+        SqliteDriver.create "Data Source=:memory:"
+
+    [<NamedParams>]
+    static member wrapConnection (Connection: SqliteConnection) =
+        if Connection.State <> ConnectionState.Open then
+            Connection.Open()
+
+        new SqliteDriver(Connection, false)
+        |> SqliteDriver.enableForeignKeys
+
     interface ISqliteDriver with
 
         member _.Execute sql parameters =
@@ -64,14 +96,14 @@ type SqliteDriver internal (connection: SqliteConnection, ownsConnection: bool) 
             use command = createCommand sql parameters
             use reader = command.ExecuteReader()
 
-            [
+            [|
                 while reader.Read() do
-                    [
+                    [|
                         for index in 0 .. reader.FieldCount - 1 do
                             reader.GetName index, sqliteValueToSqlValue(reader.GetValue index)
-                    ]
-                    |> Map.ofList
-            ]
+                    |]
+                    |> Map.ofArray
+            |]
 
         member _.Scalar sql parameters =
             use command = createCommand sql parameters
@@ -86,27 +118,14 @@ type SqliteDriver internal (connection: SqliteConnection, ownsConnection: bool) 
 [<RequireQualifiedAccess>]
 module Sqlite =
 
-    let private enableForeignKeys (driver: SqliteDriver) =
-        (driver :> ISqliteDriver).Execute "PRAGMA foreign_keys = ON;" []
-        driver
-
     let openConnectionString (connectionString: string) =
-        let connection = new SqliteConnection(connectionString)
-        connection.Open()
-        new SqliteDriver(connection, true)
-        |> enableForeignKeys
+        SqliteDriver.create connectionString
 
     let wrapConnection (connection: SqliteConnection) =
-        if connection.State <> ConnectionState.Open then
-            connection.Open()
-
-        new SqliteDriver(connection, false)
-        |> enableForeignKeys
+        SqliteDriver.wrapConnection connection
 
     let openFile path =
-        let builder = SqliteConnectionStringBuilder()
-        builder.DataSource <- path
-        openConnectionString (builder.ToString())
+        SqliteDriver.createFromFile path
 
     let openInMemory () =
-        openConnectionString "Data Source=:memory:"
+        SqliteDriver.createInMemory ()

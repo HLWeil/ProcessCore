@@ -14,4 +14,8 @@
     <Compile Include="Repository.fs" />
     <Compile Include="Platform\Driver.fs" />
   </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Fable.Core" Version="5.0.0" />
+  </ItemGroup>
 </Project>

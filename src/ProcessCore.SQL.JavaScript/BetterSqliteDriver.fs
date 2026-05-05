@@ -1,10 +1,10 @@
 namespace ProcessCore.SQL.JavaScript
 
 open System
+open Fable.Core
 open ProcessCore.SQL
 
 #if FABLE_COMPILER_JAVASCRIPT
-open Fable.Core
 open Fable.Core.JsInterop
 
 type internal BetterSqliteStatement =
@@ -40,9 +40,9 @@ module private BetterSqliteInterop =
         | SqlValue.Text text -> text :> obj
         | SqlValue.Int number -> number :> obj
 
-    let parametersToJsObject parameters =
+    let parametersToJsObject (parameters: SqlParameters) =
         parameters
-        |> List.map (fun (name, value) -> normalizeParameterName name ==> sqlValueToJs value)
+        |> Array.map (fun (parameter: SqlParameter) -> normalizeParameterName parameter.Name ==> sqlValueToJs parameter.Value)
         |> createObj
 
     let inline jsIsNullOrUndefined (value: obj) : bool =
@@ -81,19 +81,39 @@ module private BetterSqliteInterop =
         |> Array.map (fun key -> key, propertyValue row key |> jsValueToSqlValue)
         |> Map.ofArray
 
+[<AttachMembers>]
 type BetterSqliteDriver internal (database: BetterSqliteDatabase, ownsDatabase: bool) =
+
+    static member private enableForeignKeys (driver: BetterSqliteDriver) =
+        (driver :> ISqliteDriver).Execute "PRAGMA foreign_keys = ON;" [||]
+        driver
+
+    [<NamedParams>]
+    static member create (Path: string) =
+        createNew betterSqliteDatabaseConstructor Path
+        |> unbox<BetterSqliteDatabase>
+        |> fun database -> new BetterSqliteDriver(database, true)
+        |> BetterSqliteDriver.enableForeignKeys
+
+    [<NamedParams>]
+    static member createInMemory () =
+        BetterSqliteDriver.create ":memory:"
+
+    [<NamedParams>]
+    static member wrapDatabase (Database: obj) =
+        new BetterSqliteDriver(unbox<BetterSqliteDatabase> Database, false)
+        |> BetterSqliteDriver.enableForeignKeys
 
     interface ISqliteDriver with
 
         member _.Execute sql parameters =
             match parameters with
-            | [] -> database.exec(sql) |> ignore
+            | [||] -> database.exec(sql) |> ignore
             | _ -> database.prepare(sql).run(parametersToJsObject parameters) |> ignore
 
         member _.Query sql parameters =
             database.prepare(sql).all(parametersToJsObject parameters)
             |> Array.map jsRowToSqlRow
-            |> Array.toList
 
         member _.Scalar sql parameters =
             let row = database.prepare(sql).get(parametersToJsObject parameters)
@@ -117,19 +137,11 @@ type BetterSqliteDriver internal (database: BetterSqliteDatabase, ownsDatabase: 
 [<RequireQualifiedAccess>]
 module BetterSqlite =
 
-    let private enableForeignKeys (driver: BetterSqliteDriver) =
-        (driver :> ISqliteDriver).Execute "PRAGMA foreign_keys = ON;" []
-        driver
-
     let openDatabase path =
-        createNew betterSqliteDatabaseConstructor path
-        |> unbox<BetterSqliteDatabase>
-        |> fun database -> new BetterSqliteDriver(database, true)
-        |> enableForeignKeys
+        BetterSqliteDriver.create path
 
     let wrapDatabase database =
-        new BetterSqliteDriver(unbox<BetterSqliteDatabase> database, false)
-        |> enableForeignKeys
+        BetterSqliteDriver.wrapDatabase database
 
     let openFile path =
         openDatabase path
@@ -139,6 +151,7 @@ module BetterSqlite =
 
 #else
 
+[<AttachMembers>]
 type BetterSqliteDriver() =
 
     let unavailable () =
@@ -156,19 +169,31 @@ type BetterSqliteDriver() =
 
         member _.Dispose() = ()
 
+    [<NamedParams>]
+    static member create (_Path: string) : BetterSqliteDriver =
+        invalidOp "ProcessCore.SQL.JavaScript must be compiled with Fable for JavaScript and run with the better-sqlite3 npm package."
+
+    [<NamedParams>]
+    static member createInMemory () : BetterSqliteDriver =
+        invalidOp "ProcessCore.SQL.JavaScript must be compiled with Fable for JavaScript and run with the better-sqlite3 npm package."
+
+    [<NamedParams>]
+    static member wrapDatabase (_Database: obj) : BetterSqliteDriver =
+        invalidOp "ProcessCore.SQL.JavaScript must be compiled with Fable for JavaScript and run with the better-sqlite3 npm package."
+
 [<RequireQualifiedAccess>]
 module BetterSqlite =
 
     let openDatabase (_path: string) =
-        invalidOp "ProcessCore.SQL.JavaScript must be compiled with Fable for JavaScript and run with the better-sqlite3 npm package."
+        BetterSqliteDriver.create _path
 
     let wrapDatabase (_database: obj) =
-        invalidOp "ProcessCore.SQL.JavaScript must be compiled with Fable for JavaScript and run with the better-sqlite3 npm package."
+        BetterSqliteDriver.wrapDatabase _database
 
     let openFile path =
         openDatabase path
 
     let openInMemory () =
-        openDatabase ":memory:"
+        BetterSqliteDriver.createInMemory ()
 
 #endif

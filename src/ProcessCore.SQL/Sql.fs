@@ -1,20 +1,32 @@
 namespace ProcessCore.SQL
 
+open Fable.Core
+
 /// SQLite values supported by the shared, Fable-compatible API surface.
-[<RequireQualifiedAccess>]
+[<Erase>]
 type SqlValue =
     | Null
     | Text of string
     | Int of int
 
-type SqlParameters = (string * SqlValue) list
+[<AttachMembers>]
+type SqlParameter(Name: string, Value: SqlValue) =
+
+    member val Name = Name with get, set
+    member val Value = Value with get, set
+
+    [<NamedParams>]
+    static member create (Name: string, Value: SqlValue) =
+        SqlParameter(Name, Value)
+
+type SqlParameters = SqlParameter[]
 
 type SqlRow = Map<string, SqlValue>
 
 /// Minimal driver contract implemented by runtime-specific SQLite adapters.
 type ISqliteDriver =
     abstract Execute : sql: string -> parameters: SqlParameters -> unit
-    abstract Query : sql: string -> parameters: SqlParameters -> SqlRow list
+    abstract Query : sql: string -> parameters: SqlParameters -> SqlRow[]
     abstract Scalar : sql: string -> parameters: SqlParameters -> SqlValue
 
 [<RequireQualifiedAccess>]

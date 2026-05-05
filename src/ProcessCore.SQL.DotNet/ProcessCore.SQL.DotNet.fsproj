@@ -12,6 +12,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\ProcessCore.SQL\ProcessCore.SQL.fsproj" />
+    <PackageReference Include="Fable.Core" Version="5.0.0" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.6" />
   </ItemGroup>
 </Project>
