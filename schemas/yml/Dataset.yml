@@ -1,0 +1,69 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$id: "Dataset.yml"
+title: Dataset
+description: >
+  Container and context for data and processes. A Dataset groups a set of processes
+  that belong together and provides administrative metadata.
+type: object
+
+properties:
+  id:
+    type: string
+    description: Unique identifier for the dataset (MUST)
+
+  type:
+    type: string
+    const: "schema:Dataset"
+    description: Fixed type discriminator
+
+  additionalType:
+    type: string
+    description: >
+      Decoration discriminator (e.g. Investigation, Study, Assay, ARC Workflow, ARC Run, Datamap)
+
+  identifier:
+    type: string
+    description: Identifying descriptor for the dataset (MUST)
+
+  name:
+    type: string
+    description: Human-readable title (SHOULD)
+
+  description:
+    type: string
+    description: Short description or abstract (SHOULD)
+
+  processes:
+    type: array
+    description: Processes contained in this dataset (SHOULD)
+    items:
+      oneOf:
+        - type: string
+          description: "@id reference to a LabProcess"
+        - $ref: "LabProcess.yml"
+
+  hasPart:
+    type: array
+    description: Sub-datasets or data files that are part of this dataset (SHOULD)
+    items:
+      oneOf:
+        - type: string
+          description: "@id reference to a Dataset or Data object"
+        - $ref: "Dataset.yml"
+        - $ref: "Data.yml"
+
+  additionalProperty:
+    type: array
+    description: Extensible metadata (COULD)
+    items:
+      oneOf:
+        - type: string
+          description: "@id reference to a PropertyValue"
+        - $ref: "PropertyValue.yml"
+
+required:
+  - id
+  - type
+  - identifier
+
+additionalProperties: false

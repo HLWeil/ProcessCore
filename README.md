@@ -1,13 +1,46 @@
-# ARC-Data-Model
+# ARC Data Model
 
-Repo to collect planning and design of the upcoming changes regarding core ARC representation, data model and querying.
+Specification repository for the ARC Data Model — a process-centric, extensible model for representing scientific experiments and computational workflows.
 
+## Core Principles
 
-## Current status
+- **ProcessCore foundation**: The data model is built on an extensible `ProcessCore` model that abstracts scientific experiments as a graph connecting sources to created data via processes. It is the core ISA process model, abstracted away from Investigation/Study/Assay data types.
+- **Extensible via decorations**: ProcessCore is extensible via PropertyValues, attached either through `additionalProperty` or dedicated relationships such as `parameterValue`, allowing any RDM data model that relies on processes to be depicted via domain-specific "decorations".
+- **Representation-agnostic**: The model can be depicted as a SQL schema, a document database, or RDF/JSON-LD.
+
+## Repository Structure
+
+```text
+├── spec/                          Normative specification
+│   ├── core/                      ProcessCore model (Dataset, Process, Protocol, Material, DataContext, ...)
+│   ├── decorations/
+│   │   ├── datamap/               Datamap decoration (FragmentDescriptor, ...)
+│   │   ├── isa/                   ISA decoration (Investigation, Study, Assay, ...)
+│   │   └── workflow-run/          Workflow Run decoration (ARC Workflow, ARC Run, ...)
+│   └── querying/                  Query patterns on the process graph
+│
+├── schemas/                       Derived schema representations
+│   ├── sql/                       SQL schema
+│   └── document-db/               Document database schema
+│
+├── examples/                      Concrete YAML instances
+│   ├── isa/                       ISA decoration examples
+│   └── workflow-run/              Workflow Run examples
+│
+└── references/                    Upstream RO-Crate profile specs
+```
+
+## Getting Started
+
+Start with the [specification overview](spec/README.md), then explore the [ProcessCore model](spec/core/README.md).
+
+## Current Status: Prior Art
+
+The sections below document the existing ARCtrl implementations that this specification builds upon and will eventually supersede.
 
 ### ARCtrl: Core Representation
 
-https://github.com/nfdi4plants/ARCtrl/tree/main/src/Core
+<https://github.com/nfdi4plants/ARCtrl/tree/main/src/Core>
 
 This is the current main datamodel in the ARC ecosystem. It uses a tabular representation for the experimental annotations, which is based on the ISA-Tab format. The main entities are:
 
@@ -49,12 +82,9 @@ flowchart TD
 
 ```
 
-
-
-
 ### ARCtrl: ISA-JSON Representation
 
-https://github.com/nfdi4plants/ARCtrl/tree/main/src/Core/Process
+<https://github.com/nfdi4plants/ARCtrl/tree/main/src/Core/Process>
 
 - Closely follows the ISA-JSON format
 - Mostly Immutable Record types
@@ -63,7 +93,7 @@ https://github.com/nfdi4plants/ARCtrl/tree/main/src/Core/Process
 
 #### Generic layer of basic JSON-LD objects:
 
-https://github.com/nfdi4plants/ARCtrl/tree/main/src/ROCrate
+<https://github.com/nfdi4plants/ARCtrl/tree/main/src/ROCrate>
 
 - LDGraph (graph containing collection of flattened nodes)
 - LDNode (main object representing any complex object)
@@ -120,23 +150,26 @@ flowchart TD
 ```mermaid
 flowchart TD
     Dataset --about--> LabProcess
+    Dataset --additionalProperty--> PropertyValue
     LabProcess --"object"--> Sample
     LabProcess --"object"--> File
     LabProcess --result--> Sample
     LabProcess --result--> File
     LabProcess --parameterValue--> PropertyValue
+    LabProcess --additionalProperty--> PropertyValue
     LabProcess --executesLabProtocol--> LabProtocol
     Sample --additionalProperty--> PropertyValue
+    File --additionalProperty--> PropertyValue
+    LabProtocol --additionalProperty--> PropertyValue
 ```
 
 ### Querymodel: Core Extensions
 
-https://github.com/nfdi4plants/ARCtrl.Querymodel/tree/main/src/ARCtrl.QueryModel
+<https://github.com/nfdi4plants/ARCtrl.Querymodel/tree/main/src/ARCtrl.QueryModel>
 
 ### Querymodel: RO-Crate Extensions
 
-https://github.com/nfdi4plants/ARCtrl.Querymodel/tree/main/src/ARCtrl.QueryModel/ProcessCore
-
+<https://github.com/nfdi4plants/ARCtrl.Querymodel/tree/main/src/ARCtrl.QueryModel/ProcessCore>
 
 ### Mappings and IO
 

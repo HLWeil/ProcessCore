@@ -1,0 +1,67 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$id: "PropertyValue.yml"
+title: PropertyValue
+description: >
+  Extensible key-value-unit triple. The primary extension mechanism of ProcessCore.
+  Can be attached via additionalProperty for cross-cutting metadata, or via dedicated
+  relationships such as parameterValue when the host type defines a more specific role.
+type: object
+
+properties:
+  id:
+    type: string
+    description: Unique identifier for the property value
+
+  type:
+    type: string
+    const: "schema:PropertyValue"
+    description: Fixed type discriminator
+
+  additionalType:
+    type: string
+    description: >
+      Subtype discriminator (e.g. ParameterValue, CharacteristicValue, FactorValue, Component,
+      WorkflowInput, Prefix, Position)
+
+  name:
+    type: string
+    description: Key name
+
+  value:
+    oneOf:
+      - type: string
+      - type: number
+    description: The value associated with the key
+
+  unit:
+    type: string
+    description: Unit label (e.g. "degree Celsius")
+
+  nameTAN:
+    type: string
+    format: uri
+    description: Key ontology reference – URI of the term annotating the property name
+
+  valueTAN:
+    type: string
+    format: uri
+    description: Value term annotation – URI of the term annotating the value
+
+  unitTAN:
+    type: string
+    format: uri
+    description: Unit term annotation – URI of the term annotating the unit
+
+  instanceOf:
+    oneOf:
+      - type: string
+        description: "@id reference to a FormalParameter"
+      - $ref: "FormalParameter.yml"
+    description: Links this value to its formal parameter definition (COULD)
+
+required:
+  - id
+  - type
+  - name
+
+additionalProperties: false

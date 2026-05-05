@@ -1,0 +1,7 @@
+[project]
+name = "arc-data-model-python-tests"
+version = "0.0.0"
+requires-python = ">=3.11"
+dependencies = [
+    "fable-library==5.0.0",
+]

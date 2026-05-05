@@ -1,0 +1,11 @@
+bin/
+obj/
+.fake/
+.ionide/
+.vs/
+*.user
+*.suo
+node_modules/
+.venv/
+npm-debug.log*
+build/out/

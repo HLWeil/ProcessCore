@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="DefinedTerm.fs" />
+    <Compile Include="FormalParameter.fs" />
+    <Compile Include="PropertyValue.fs" />
+    <Compile Include="Graph.fs" />
+    <Compile Include="Path.fs" />
+    <Compile Include="Table.fs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Fable.Core" Version="5.0.0" />
+    <PackageReference Include="DynamicObj" Version="7.1.0" />
+  </ItemGroup>
+
+</Project>
