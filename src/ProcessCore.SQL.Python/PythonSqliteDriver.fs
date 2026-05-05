@@ -7,6 +7,7 @@ open ProcessCore.SQL
 #if FABLE_COMPILER_PYTHON
 open Fable.Core.PyInterop
 
+/// <summary>Erased binding for a <c>sqlite3.Cursor</c> Python object.</summary>
 [<AllowNullLiteral; Interface>]
 type Cursor =
     abstract execute: sql: string * parameters: obj -> Cursor
@@ -15,6 +16,7 @@ type Cursor =
     [<Emit("$0.description")>]
     abstract description: obj[]
 
+/// <summary>Erased binding for a <c>sqlite3.Connection</c> Python object.</summary>
 [<AllowNullLiteral; Interface>]
 type Connection =
     abstract cursor: unit -> Cursor
@@ -88,24 +90,58 @@ module private PythonSqliteInterop =
         |> Array.mapi (fun index column -> column, item row index |> pyValueToSqlValue)
         |> Map.ofArray
 
+/// <summary>
+/// Python-side <see cref="ISqliteDriver"/> implementation backed by the Python standard-library
+/// <c>sqlite3</c> module.
+/// </summary>
+/// <remarks>
+/// <para>
+/// Construction is private; obtain instances through the named-parameter factory members
+/// (<c>create</c>, <c>createInMemory</c>, <c>wrapConnection</c>). Each factory enables the
+/// <c>foreign_keys</c> pragma — Python's <c>sqlite3</c>, like the underlying C library, leaves
+/// it off by default.
+/// </para>
+/// <para>
+/// Parameter-less <c>Execute</c> calls are routed through <c>executescript</c> so that
+/// multi-statement DDL works in a single round-trip; parameterised calls go through a fresh
+/// cursor with <c>execute</c>. Both paths call <c>commit</c> after the operation, matching the
+/// auto-commit semantics expected by the rest of the repository layer.
+/// </para>
+/// <para>
+/// This file is dual-targeted: when compiled outside Fable Python, the type degrades to a stub
+/// whose members raise <see cref="System.InvalidOperationException"/>.
+/// </para>
+/// </remarks>
 [<AttachMembers>]
 type PythonSqliteDriver internal (connection: Connection, ownsConnection: bool) =
 
+    /// <summary>The underlying <c>sqlite3.Connection</c>, exposed for advanced scenarios such as transactions or backup.</summary>
     member _.Connection = connection
 
     static member private enableForeignKeys (driver: PythonSqliteDriver) =
         (driver :> ISqliteDriver).Execute "PRAGMA foreign_keys = ON;" [||]
         driver
 
+    /// <summary>
+    /// Opens a new connection via <c>sqlite3.connect</c>. The resulting driver owns the
+    /// connection and will close it on dispose.
+    /// </summary>
+    /// <param name="Path">A file-system path or <c>:memory:</c>.</param>
     [<NamedParams>]
     static member create (Path: string) =
         new PythonSqliteDriver(connect Path, true)
         |> PythonSqliteDriver.enableForeignKeys
 
+    /// <summary>Opens a driver backed by an in-memory database.</summary>
     [<NamedParams>]
     static member createInMemory () =
         PythonSqliteDriver.create ":memory:"
 
+    /// <summary>
+    /// Wraps an existing <c>sqlite3.Connection</c>. The driver does not own the connection;
+    /// disposing the driver does <em>not</em> close it.
+    /// </summary>
+    /// <param name="Connection">The connection to wrap.</param>
     [<NamedParams>]
     static member wrapConnection (Connection: Connection) =
         new PythonSqliteDriver(Connection, false)
@@ -156,6 +192,11 @@ module private PythonSqliteUnavailable =
     let unavailable () =
         invalidOp "ProcessCore.SQL.Python must be compiled with Fable for Python and run with the Python stdlib sqlite3 module."
 
+/// <summary>
+/// .NET-only stub used when the project is compiled outside Fable Python. Every method raises
+/// <see cref="System.InvalidOperationException"/>; the type exists only so that .NET test
+/// harnesses can still link against the project.
+/// </summary>
 [<AttachMembers>]
 type PythonSqliteDriver() =
 
@@ -171,14 +212,17 @@ type PythonSqliteDriver() =
 
         member _.Dispose() = ()
 
+    /// <summary>Always raises — the driver is unavailable on .NET.</summary>
     [<NamedParams>]
     static member create (_Path: string) : PythonSqliteDriver =
         PythonSqliteUnavailable.unavailable ()
 
+    /// <summary>Always raises — the driver is unavailable on .NET.</summary>
     [<NamedParams>]
     static member createInMemory () : PythonSqliteDriver =
         PythonSqliteUnavailable.unavailable ()
 
+    /// <summary>Always raises — the driver is unavailable on .NET.</summary>
     [<NamedParams>]
     static member wrapConnection (_Connection: obj) : PythonSqliteDriver =
         PythonSqliteUnavailable.unavailable ()
