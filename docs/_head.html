@@ -1,0 +1,41 @@
+<style>
+  .mermaid {
+    margin: 1rem 0;
+    overflow-x: auto;
+    text-align: center;
+  }
+
+  .mermaid svg {
+    height: auto;
+    max-width: 100%;
+  }
+</style>
+<script type="module">
+  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+
+  const prepareMermaidBlocks = () => {
+    document.querySelectorAll("pre > code[lang='mermaid'], pre > code.language-mermaid, pre > code.lang-mermaid").forEach((code) => {
+      const pre = code.parentElement;
+      const wrapper = code.closest("table.pre") || pre;
+
+      if (!pre || pre.classList.contains("mermaid")) {
+        return;
+      }
+
+      const diagram = document.createElement("pre");
+      diagram.className = "mermaid";
+      diagram.textContent = code.textContent || "";
+      wrapper.replaceWith(diagram);
+    });
+  };
+
+  mermaid.initialize({
+    startOnLoad: false,
+    securityLevel: "strict",
+  });
+
+  window.addEventListener("load", async () => {
+    prepareMermaidBlocks();
+    await mermaid.run({ querySelector: ".mermaid", suppressErrors: true });
+  });
+</script>
