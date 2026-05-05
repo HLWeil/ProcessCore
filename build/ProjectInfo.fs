@@ -9,11 +9,11 @@ let pyxpectoTestProjects =
         "tests/ProcessCore.SQL.Tests/ProcessCore.SQL.Tests.fsproj"
     ]
 
-let jsPyxpectoTestProject = "tests/ProcessCore.SQL.JavaScript.Tests/ProcessCore.SQL.JavaScript.Tests.fsproj"
+let jsPyxpectoTestProject = "tests/ProcessCore.SQL.Tests/ProcessCore.SQL.Tests.fsproj"
 
 let jsTestOutputDir = "build/out/js-tests"
 
-let pyPyxpectoTestProject = "tests/ProcessCore.SQL.Python.Tests/ProcessCore.SQL.Python.Tests.fsproj"
+let pyPyxpectoTestProject = "tests/ProcessCore.SQL.Tests/ProcessCore.SQL.Tests.fsproj"
 
 let pyTestOutputDir = "build/out/py-tests"
 

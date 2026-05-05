@@ -1,34 +1,8 @@
 module ProcessCore.SQL.Tests.RepositoryCrudTests
 
-open System.IO
 open Fable.Pyxpecto
 open ProcessCore.SQL
-open ProcessCore.SQL.DotNet
-
-let private repoRoot =
-    let rec findRoot directory =
-        let schema = Path.Combine(directory, "schemas", "sql", "001_core.sql")
-
-        if File.Exists schema then
-            directory
-        else
-            let parent = Directory.GetParent directory
-
-            if isNull parent then
-                failwith "Could not find repository root containing schemas/sql/001_core.sql."
-            else
-                findRoot parent.FullName
-
-    findRoot (Directory.GetCurrentDirectory())
-
-let private readFixture relativePath =
-    File.ReadAllText(Path.Combine(repoRoot, relativePath))
-
-let private createEmptyDriver () =
-    let driver = Sqlite.openInMemory ()
-    let sql = driver :> ISqliteDriver
-    sql.Execute (readFixture "schemas/sql/001_core.sql") [||]
-    driver
+open ProcessCore.SQL.Tests.Fixtures
 
 let private insertGraph (sql: ISqliteDriver) =
     DefinedTerm.insert (sql, DefinedTermRow("term:temperature", "DefinedTerm", "temperature"))
@@ -55,8 +29,7 @@ let tests =
         "repository CRUD"
         [
             testCase "inserts and reads rows for every table" (fun _ ->
-                use driver = createEmptyDriver ()
-                let sql = driver :> ISqliteDriver
+                let sql = createEmptyDriver ()
 
                 insertGraph sql
 
@@ -80,8 +53,7 @@ let tests =
                 Expect.equal (ProcessIo.list sql).Length 2 "ProcessIo list should include both input and output rows.")
 
             testCase "updates entity and association rows" (fun _ ->
-                use driver = createEmptyDriver ()
-                let sql = driver :> ISqliteDriver
+                let sql = createEmptyDriver ()
 
                 insertGraph sql
                 Dataset.update (sql, DatasetRow("dataset:assay", "Dataset", "assay-002", AdditionalType = "Assay", Name = "Updated"))
@@ -93,8 +65,7 @@ let tests =
                 Expect.equal (DatasetHasPart.get (sql, "dataset:assay", 0)).Value.PartDataId (Some "data:processed") "Association update should persist.")
 
             testCase "deletes entity and association rows" (fun _ ->
-                use driver = createEmptyDriver ()
-                let sql = driver :> ISqliteDriver
+                let sql = createEmptyDriver ()
 
                 insertGraph sql
                 Data.insert (sql, DataRow("data:extra", "Data", "extra.dat"))
@@ -107,8 +78,7 @@ let tests =
                 Expect.equal (Data.get (sql, "data:extra")) None "Entity delete should remove the row.")
 
             testCase "lists process edges and property value orphans" (fun _ ->
-                use driver = createEmptyDriver ()
-                let sql = driver :> ISqliteDriver
+                let sql = createEmptyDriver ()
 
                 insertGraph sql
                 PropertyValue.insert (sql, PropertyValueRow("pv:orphan", "PropertyValue", "orphan"))
