@@ -3,7 +3,6 @@ namespace ProcessCore.SQL
 open Fable.Core
 
 /// SQLite values supported by the shared, Fable-compatible API surface.
-[<Erase>]
 type SqlValue =
     | Null
     | Text of string
