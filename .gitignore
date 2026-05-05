@@ -9,3 +9,5 @@ node_modules/
 .venv/
 npm-debug.log*
 build/out/
+.fsdocs/
+tmp/watch/
