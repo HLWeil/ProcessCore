@@ -42,13 +42,14 @@ src/
     ProcessCore.SQL.Python.fsproj
 
 tests/
-  ProcessCore.SQL.Tests/
-    ProcessCore.SQL.Tests.fsproj
-    Main.fs
-    Fixtures.fs
-    TableRoundtripTests.fs
-    ConstraintTests.fs
-    ViewTests.fs
+  ProcessCore.SQL.Tests/                  # single Pyxpecto project, transpiled to JS/Python
+    ProcessCore.SQL.Tests.fsproj          # conditional ProjectReferences per Fable target
+    Fixtures.fs                           # conditional driver helpers (.NET / JS / Python)
+    TableModelTests.fs
+    RowCodecTests.fs
+    DotNetDriverTests.fs                  # driver-agnostic; named for historical reasons
+    RepositoryCrudTests.fs
+    Main.fs                               # shared testList run by every target
 
 build/
   Build.fs
@@ -336,17 +337,35 @@ Use the existing seeded artifacts as fixtures:
 
 For tests, prefer creating a fresh temporary database from `001_core.sql` and `seed_example.sql` per test suite. The committed `seeded_core.sqlite` is useful for smoke tests and manual inspection, but tests should not mutate it.
 
-Fixture helpers:
+Fixture helpers (live in `tests/ProcessCore.SQL.Tests/Fixtures.fs`, one set per target via `#if FABLE_COMPILER_*`):
 
-- `createEmptyDatabase`
-- `createSeededDatabase`
-- `readSchemaSql`
-- `readSeedSql`
-- `copySeededDatabase`
+- `readFixture relativePath` — returns the schema/seed file content as a string. Each target uses its native filesystem API (`System.IO.File.ReadAllText` for .NET, `node:fs.readFileSync` for JS, Python `open(...).read()` via `[<Emit>]` for Python).
+- `createEmptyDriver ()` — opens an in-memory database (`Sqlite.openInMemory` / `BetterSqlite.openInMemory` / `PythonSqliteDriver.createInMemory`) and applies `001_core.sql`. Returns an `ISqliteDriver`.
+- `createSeededDriver ()` — extends `createEmptyDriver` with `seed_example.sql`.
 
-Target-specific temp-file creation belongs in test platform helpers, not in row codecs.
+These three helpers are the entire test surface — every test module receives an `ISqliteDriver` from one of them and stays driver-agnostic. Target-specific temp-file creation, when needed, belongs in `Fixtures.fs`, not in row codecs.
 
 ## Tests
+
+A **single transpilable test project** at `tests/ProcessCore.SQL.Tests` runs the same Pyxpecto suite against every target. Test modules know nothing about which driver is in use — they take an `ISqliteDriver` from `Fixtures.fs` and exercise the public shared API. Target selection happens in two places only:
+
+1. `Fixtures.fs` — `#if FABLE_COMPILER_JAVASCRIPT` / `FABLE_COMPILER_PYTHON` / else, picking the matching adapter and filesystem helper.
+2. `ProcessCore.SQL.Tests.fsproj` — `ProjectReference`s gated by the same Fable compiler symbols, so each transpilation pulls in only its adapter project:
+
+   ```xml
+   <ProjectReference Include="..\..\src\ProcessCore.SQL.DotNet\..."     Condition="'$(FABLE_COMPILER)' != 'True'" />
+   <ProjectReference Include="..\..\src\ProcessCore.SQL.JavaScript\..." Condition="'$(FABLE_COMPILER_JAVASCRIPT)' == 'True' Or '$(FABLE_COMPILER_TYPESCRIPT)' == 'True'" />
+   <ProjectReference Include="..\..\src\ProcessCore.SQL.Python\..."     Condition="'$(FABLE_COMPILER_PYTHON)' == 'True'" />
+   ```
+
+`Main.fs` builds one `testList "ProcessCore.SQL"` from all module-level `tests` values and runs it via `Pyxpecto.runTests`. The `!!` operator from `Fable.Core.JsInterop` only opens under JS/TS targets so the same `Main.fs` compiles unchanged everywhere.
+
+Adding a new test:
+
+- Add a new `*Tests.fs` module exposing a `let tests = testList "..." [ ... ]`.
+- Append it to `ProcessCore.SQL.Tests.fsproj` *before* `Main.fs` (compile order matters).
+- Append the module's `tests` to the `all` list in `Main.fs`.
+- The test runs under .NET, JS, and Python without further changes — provided it only uses public types and the fixture helpers.
 
 Use Fable.Pyxpecto for portable tests. Its README documents Expecto-like `testList`, `testCase`, and `testCaseAsync`, and runners for .NET, JavaScript, TypeScript, and Python.
 
@@ -432,20 +451,20 @@ Expected package categories:
 - Done: added .NET tests that create an in-memory database from `001_core.sql` and `seed_example.sql`, check FK health, bind parameters, and read seeded rows through shared codecs.
 - Done: implemented table-shaped CRUD classes for all 17 tables (`insert`, `update`, `delete`, `get`, `list`), with composite-key accessors for association tables.
 - Done: added view readers for `process_edges` and `property_value_orphans`.
-- Done: added .NET CRUD tests that insert/read every table, update representative entity and association rows, delete representative entity and association rows, and read both views.
+- Done: moved the driver and CRUD tests into the shared `tests/ProcessCore.SQL.Tests` project with target-specific driver fixtures for .NET, JavaScript, and Python.
 - Pending: add transaction helpers or document explicit `BEGIN` / `COMMIT` / `ROLLBACK` usage.
 
 ### Phase 4 — Python Driver
 
-- Status: started; Python adapter, Python Pyxpecto smoke tests, uv-based runtime dependency, and `TranspilePy` / `TestPy` build targets are wired and passing for schema/seed execution, parameter binding, row mapping, and shared codecs.
+- Status: started; Python adapter, uv-based runtime dependency, and `TranspilePy` / `TestPy` build targets are wired against the shared SQL test project.
 - Done: added `src/ProcessCore.SQL.Python/ProcessCore.SQL.Python.fsproj`.
 - Done: implemented `PythonSqliteDriver` over Python stdlib `sqlite3` via Fable Python interop.
-- Done: added `tests/ProcessCore.SQL.Python.Tests` with Python smoke tests.
+- Done: Python now reuses `tests/ProcessCore.SQL.Tests` via Fable Python; only the fixture selects `PythonSqliteDriver`.
 - Done: added root `pyproject.toml` and `uv.lock` for Python tooling; `fable-library==5.0.0` provides the Python Fable runtime.
 - Done: wired `TranspilePy` and `TestPy`; `TestPy` runs `uv run python build/out/py-tests/main.py --fail-on-focused-tests`.
-- Verified: `.\build.cmd TestPy` passes.
-- Pending: reuse the broader shared `ConstraintTests`, `TableRoundtripTests`, and `ViewTests` once CRUD/view APIs exist.
-- Pending: decide whether to append `TestPy` to the default `RunTests` aggregate now, or keep it explicit until Python support is less experimental.
+- Done: added `RunTestsAll` to run .NET, JavaScript, then Python test execution in sequence.
+- Pending: verify the expanded shared Python suite after the fixture consolidation.
+- Pending: decide whether to append `TestPy` to the default `RunTests` aggregate now, or keep it explicit behind `RunTestsAll` until Python support is less experimental.
 
 #### Prerequisite
 
@@ -459,10 +478,10 @@ src/ProcessCore.SQL.Python/
   PythonSqliteDriver.fs                  # ISqliteDriver impl using Python stdlib sqlite3
   PythonInterop.fs                       # Fable [<Import>]/[<Emit>] bindings for sqlite3
 
-tests/ProcessCore.SQL.Tests.Python/
-  ProcessCore.SQL.Tests.Python.fsproj    # Fable Pyxpecto test project for Python
+tests/ProcessCore.SQL.Tests/
+  ProcessCore.SQL.Tests.fsproj           # Shared Pyxpecto test project for .NET / JS / Python
   Main.fs
-  Fixtures.fs                            # Python tempfile + sqlite3 connection helpers
+  Fixtures.fs                            # Conditional driver fixture selected by Fable target
 
 build/output/python/                     # Fable transpilation output (gitignored)
   process_core_sql/                      # transpiled shared lib
@@ -472,7 +491,7 @@ build/output/python/                     # Fable transpilation output (gitignore
 pyproject.toml                           # at repo root for Python tooling/deps
 ```
 
-Current implementation note: the actual first-pass test project is `tests/ProcessCore.SQL.Python.Tests/`, and Fable currently emits to `build/out/py-tests/` to match the existing JavaScript target convention.
+Current implementation note: JavaScript and Python both transpile `tests/ProcessCore.SQL.Tests/ProcessCore.SQL.Tests.fsproj`; Fable output still goes to `build/out/js-tests/` and `build/out/py-tests/`.
 
 #### Tooling decisions
 
@@ -554,43 +573,45 @@ Notes:
 
 Add to `build/Build.fs`:
 
-- `TranspilePy` target — runs Fable against `tests/ProcessCore.SQL.Python.Tests/ProcessCore.SQL.Python.Tests.fsproj`; project references bring in the shared library and Python adapter output.
+- `TranspilePy` target — runs Fable against `tests/ProcessCore.SQL.Tests/ProcessCore.SQL.Tests.fsproj`; conditional project references bring in the shared library and Python adapter output.
 - `TestPy` target — runs `uv run python build/out/py-tests/main.py --fail-on-focused-tests`; depends on `TranspilePy`.
-- `RunTests` aggregate — append `TestPy` once green on a developer machine.
+- `RunTestsAll` aggregate — runs .NET Pyxpecto tests, JavaScript transpile/test, and Python transpile/test sequentially.
+- `RunTests` aggregate — append `TestPy` once green on a developer machine, or keep `RunTestsAll` as the explicit cross-runtime target.
 
 Wrapper-script additions: `.\build.cmd TranspilePy`, `.\build.cmd TestPy`.
 
 #### Python tests
 
-Reuse `ConstraintTests`, `TableRoundtripTests`, `ViewTests` modules unchanged — they're written against the public `ISqliteDriver` and shared codecs. Add a Python-only `Fixtures.fs`:
+Reuse shared test modules unchanged — they're written against the public `ISqliteDriver` and shared codecs. `Fixtures.fs` is conditional rather than Python-only:
 
-- `createEmptyDatabase`: create a `tempfile.NamedTemporaryFile(suffix=".sqlite")` via Fable Python interop, plus `connection.executescript(open(schemaPath).read())`.
-- `createSeededDatabase`: same, then `executescript(open(seedPath).read())`.
-- `readSchemaSql` / `readSeedSql`: read-text helpers using Python's `pathlib.Path`.
-- `closeAndDelete`: cleanup helper.
+- .NET uses `Sqlite.openInMemory`.
+- JavaScript uses `BetterSqlite.openInMemory`.
+- Python uses `PythonSqliteDriver.createInMemory`.
+- All three read `001_core.sql` and `seed_example.sql` from the repo root and expose `createEmptyDriver` / `createSeededDriver`.
 
-The shared test list from `tests/ProcessCore.SQL.Tests/` should compile under Python without changes once the row classes and codecs follow Phase 2's migrated shape.
+The shared test list from `tests/ProcessCore.SQL.Tests/` compiles under Python without test-body changes once the fixture selects the Python adapter.
 
 #### Verification
 
 1. `.\build.cmd TranspilePy` runs cleanly and produces `build/out/py-tests/`.
 2. Spot-check one transpiled file under `build/out/py-tests/src/ProcessCore.SQL/` to confirm `DefinedTermRow` is a regular Python class with kw-only `create`, no boxed DU helpers around `SqlValue`, and `Array` parameters lower to `list[T]`.
-3. `.\build.cmd TestPy` exits 0 on the Python smoke suite.
+3. `.\build.cmd TestPy` exits 0 on the shared SQL suite.
 4. Manual smoke: `python -c "from process_core_sql_python.python_sqlite_driver import PythonSqliteDriver; d = PythonSqliteDriver.create_in_memory(); ..."` confirms the named-arg `create` and mutable members carry into Python.
 
 ### Phase 5 — JS/TS Drivers
 
-- Status: started; JavaScript adapter project, `better-sqlite3` binding, Node tooling, JS Pyxpecto test project, and `TestJs` build target are wired and passing. TypeScript remains pending.
+- Status: started; JavaScript adapter project, `better-sqlite3` binding, Node tooling, shared SQL Pyxpecto test project, and `TestJs` build target are wired. TypeScript remains pending.
 - Done: chose `better-sqlite3` as the Node SQLite connector for the synchronous driver boundary.
 - Done: introduced Node tooling with `package.json`, `package-lock.json`, npm scripts, generated output ignores, and `better-sqlite3` dependency management.
 - Done: wired Fable JavaScript transpilation and `TestJs` into the BuildProject pipeline.
-- Done: added JavaScript binding and JS Pyxpecto tests for schema/seed execution plus parameter/row mapping.
+- Done: JavaScript now reuses `tests/ProcessCore.SQL.Tests` via Fable JavaScript; only the fixture selects `BetterSqlite`.
+- Pending: verify the expanded shared JavaScript suite after the fixture consolidation.
 - Pending: decide whether TypeScript gets a distinct binding or reuses the JavaScript binding output.
 - Pending: wire TypeScript transpilation and tests.
 
 ### Next Implementation Step — Repository Coverage and Transactions
 
-- Reuse the CRUD/view test coverage under JavaScript and Python once shared fixtures are factored across target-specific drivers.
+- Verify `RunTestsAll` after the shared fixture consolidation.
 - Add transaction helpers or document explicit `BEGIN` / `COMMIT` / `ROLLBACK` usage.
 - Decide whether `TestPy` should join the default `RunTests` aggregate now that the uv-backed smoke suite is green.
 
