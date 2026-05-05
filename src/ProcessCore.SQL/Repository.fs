@@ -28,22 +28,22 @@ type Table<'row>(
     ) =
         Table<'row>(Name, Columns, PrimaryKey, OfRow, ToParameters)
 
-[<AttachMembers>]
-type Repository =
+[<RequireQualifiedAccess>]
+module Repository =
 
-    static member private table name columns primaryKey ofRow toParameters =
+    let private table name columns primaryKey ofRow toParameters =
         Table(name, columns, primaryKey, ofRow, toParameters)
 
-    static member DefinedTerm =
-        Repository.table
+    let DefinedTerm =
+        table
             "defined_term"
             [| "id"; "type"; "name"; "tan"; "in_defined_term_set_id"; "in_defined_term_set_name" |]
             [| "id" |]
             DefinedTermRow.ofRow
             (fun row -> row.ToParameters())
 
-    static member LabProtocol =
-        Repository.table
+    let LabProtocol =
+        table
             "lab_protocol"
             [|
                 "id"
@@ -60,48 +60,48 @@ type Repository =
             LabProtocolRow.ofRow
             (fun row -> row.ToParameters())
 
-    static member FormalParameter =
-        Repository.table
+    let FormalParameter =
+        table
             "formal_parameter"
             [| "id"; "type"; "name"; "name_tan"; "default_value_id" |]
             [| "id" |]
             FormalParameterRow.ofRow
             (fun row -> row.ToParameters())
 
-    static member Dataset =
-        Repository.table
+    let Dataset =
+        table
             "dataset"
             [| "id"; "type"; "additional_type"; "identifier"; "name"; "description" |]
             [| "id" |]
             DatasetRow.ofRow
             (fun row -> row.ToParameters())
 
-    static member Material =
-        Repository.table
+    let Material =
+        table
             "material"
             [| "id"; "type"; "additional_type"; "name" |]
             [| "id" |]
             MaterialRow.ofRow
             (fun row -> row.ToParameters())
 
-    static member Data =
-        Repository.table
+    let Data =
+        table
             "data"
             [| "id"; "type"; "additional_type"; "path"; "selector"; "selector_format"; "encoding_format" |]
             [| "id" |]
             DataRow.ofRow
             (fun row -> row.ToParameters())
 
-    static member LabProcess =
-        Repository.table
+    let LabProcess =
+        table
             "lab_process"
             [| "id"; "type"; "additional_type"; "name"; "executes_protocol_id" |]
             [| "id" |]
             LabProcessRow.ofRow
             (fun row -> row.ToParameters())
 
-    static member PropertyValue =
-        Repository.table
+    let PropertyValue =
+        table
             "property_value"
             [|
                 "id"
@@ -119,101 +119,101 @@ type Repository =
             PropertyValueRow.ofRow
             (fun row -> row.ToParameters())
 
-    static member DatasetHasPart =
-        Repository.table
+    let DatasetHasPart =
+        table
             "dataset_has_part"
             [| "dataset_id"; "position"; "part_dataset_id"; "part_data_id" |]
             [| "dataset_id"; "position" |]
             DatasetHasPartRow.ofRow
             (fun row -> row.ToParameters())
 
-    static member DatasetProcess =
-        Repository.table
+    let DatasetProcess =
+        table
             "dataset_process"
             [| "dataset_id"; "position"; "process_id" |]
             [| "dataset_id"; "position" |]
             DatasetProcessRow.ofRow
             (fun row -> row.ToParameters())
 
-    static member DatasetAdditionalProperty =
-        Repository.table
+    let DatasetAdditionalProperty =
+        table
             "dataset_additional_property"
             [| "dataset_id"; "position"; "property_value_id" |]
             [| "dataset_id"; "position" |]
             DatasetAdditionalPropertyRow.ofRow
             (fun row -> row.ToParameters())
 
-    static member ProtocolParameter =
-        Repository.table
+    let ProtocolParameter =
+        table
             "protocol_parameter"
             [| "protocol_id"; "position"; "formal_parameter_id" |]
             [| "protocol_id"; "position" |]
             ProtocolParameterRow.ofRow
             (fun row -> row.ToParameters())
 
-    static member ProcessIo =
-        Repository.table
+    let ProcessIo =
+        table
             "process_io"
             [| "process_id"; "direction"; "position"; "material_id"; "data_id" |]
             [| "process_id"; "direction"; "position" |]
             ProcessIoRow.ofRow
             (fun row -> row.ToParameters())
 
-    static member ProcessParameterValue =
-        Repository.table
+    let ProcessParameterValue =
+        table
             "process_parameter_value"
             [| "process_id"; "position"; "property_value_id" |]
             [| "process_id"; "position" |]
             ProcessParameterValueRow.ofRow
             (fun row -> row.ToParameters())
 
-    static member ProtocolAdditionalProperty =
-        Repository.table
+    let ProtocolAdditionalProperty =
+        table
             "protocol_additional_property"
             [| "protocol_id"; "position"; "property_value_id" |]
             [| "protocol_id"; "position" |]
             ProtocolAdditionalPropertyRow.ofRow
             (fun row -> row.ToParameters())
 
-    static member MaterialAdditionalProperty =
-        Repository.table
+    let MaterialAdditionalProperty =
+        table
             "material_additional_property"
             [| "material_id"; "position"; "property_value_id" |]
             [| "material_id"; "position" |]
             MaterialAdditionalPropertyRow.ofRow
             (fun row -> row.ToParameters())
 
-    static member DataAdditionalProperty =
-        Repository.table
+    let DataAdditionalProperty =
+        table
             "data_additional_property"
             [| "data_id"; "position"; "property_value_id" |]
             [| "data_id"; "position" |]
             DataAdditionalPropertyRow.ofRow
             (fun row -> row.ToParameters())
 
-    static member EntityTables =
+    let EntityTables () =
         [|
-            Repository.DefinedTerm.Name
-            Repository.LabProtocol.Name
-            Repository.FormalParameter.Name
-            Repository.Dataset.Name
-            Repository.Material.Name
-            Repository.Data.Name
-            Repository.LabProcess.Name
-            Repository.PropertyValue.Name
+            DefinedTerm.Name
+            LabProtocol.Name
+            FormalParameter.Name
+            Dataset.Name
+            Material.Name
+            Data.Name
+            LabProcess.Name
+            PropertyValue.Name
         |]
 
-    static member AssociationTables =
+    let AssociationTables () =
         [|
-            Repository.DatasetHasPart.Name
-            Repository.DatasetProcess.Name
-            Repository.DatasetAdditionalProperty.Name
-            Repository.ProtocolParameter.Name
-            Repository.ProcessIo.Name
-            Repository.ProcessParameterValue.Name
-            Repository.ProtocolAdditionalProperty.Name
-            Repository.MaterialAdditionalProperty.Name
-            Repository.DataAdditionalProperty.Name
+            DatasetHasPart.Name
+            DatasetProcess.Name
+            DatasetAdditionalProperty.Name
+            ProtocolParameter.Name
+            ProcessIo.Name
+            ProcessParameterValue.Name
+            ProtocolAdditionalProperty.Name
+            MaterialAdditionalProperty.Name
+            DataAdditionalProperty.Name
         |]
 
 module private Crud =

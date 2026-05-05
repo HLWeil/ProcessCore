@@ -9,8 +9,8 @@ let tests =
         "table model"
         [
             testCase "tracks 8 entity tables and 9 association tables" (fun _ ->
-                Expect.equal Repository.EntityTables.Length 8 "Entity table count should match the SQL profile."
-                Expect.equal Repository.AssociationTables.Length 9 "Association table count should match the SQL profile.")
+                Expect.equal (Repository.EntityTables()).Length 8 "Entity table count should match the SQL profile."
+                Expect.equal (Repository.AssociationTables()).Length 9 "Association table count should match the SQL profile.")
 
             testCase "keeps generated data.fragment_identity out of the public row model" (fun _ ->
                 Expect.isFalse (Array.contains "fragment_identity" Repository.Data.Columns) "fragment_identity is a generated database detail.")
