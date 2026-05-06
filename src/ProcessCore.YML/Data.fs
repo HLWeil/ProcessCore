@@ -8,23 +8,19 @@ module Data =
 
     let private knownFields =
         Set.ofList
-            [ "id"; "type"; "additionalType"; "path"; "selector"
+            [ "type"; "additionalType"; "path"; "selector"
               "selectorFormat"; "encodingFormat"; "additionalProperty" ]
 
     let private knownPropertyNames =
         Set.ofList
-            [ "id"; "type"; "additionaltype"; "path"; "selector"
+            [ "type"; "additionaltype"; "path"; "selector"
               "selectorformat"; "encodingformat"; "additionalproperty" ]
 
     let decoder (processCoreOnly: bool) (value: YAMLElement) : Data =
         checkType processCoreOnly "Data" value
-        // `path` is the canonical field; fall back to `id` for round-tripped documents
         let path =
-            match tryGetField "path" value |> Option.bind tryDecodeString with
-            | Some p -> p
-            | None   ->
-                tryGetField "id" value |> Option.map decodeString
-                |> Option.defaultWith (fun () -> failwith "Data YAML object is missing required 'path' (or 'id') field.")
+            tryGetField "path" value |> Option.bind tryDecodeString
+            |> Option.defaultWith (fun () -> failwith "Data YAML object is missing required 'path' field.")
 
         let selector        = tryGetField "selector"        value |> Option.map decodeString
         let selectorFormat  = tryGetField "selectorFormat"  value |> Option.map decodeString

@@ -8,22 +8,19 @@ module Dataset =
 
     let private knownFields =
         Set.ofList
-            [ "id"; "type"; "additionalType"; "identifier"; "name"; "description"
+            [ "type"; "additionalType"; "identifier"; "name"; "description"
               "processes"; "hasPart"; "additionalProperty" ]
 
     let private knownPropertyNames =
         Set.ofList
-            [ "id"; "type"; "additionaltype"; "identifier"; "name"; "description"
+            [ "type"; "additionaltype"; "identifier"; "name"; "description"
               "processes"; "haspart"; "additionalproperty" ]
 
     let rec decoder (processCoreOnly: bool) (value: YAMLElement) : Dataset =
         checkType processCoreOnly "Dataset" value
         let identifier =
-            match tryGetField "identifier" value |> Option.bind tryDecodeString with
-            | Some id -> id
-            | None    ->
-                tryGetField "id" value |> Option.map decodeString
-                |> Option.defaultWith (fun () -> failwith "Dataset YAML object is missing required 'identifier' (or 'id') field.")
+            tryGetField "identifier" value |> Option.bind tryDecodeString
+            |> Option.defaultWith (fun () -> failwith "Dataset YAML object is missing required 'identifier' field.")
 
         let name           = tryGetField "name"           value |> Option.map decodeString
         let description    = tryGetField "description"    value |> Option.map decodeString
