@@ -87,6 +87,10 @@ All traversal methods accept an optional `scope: ResizeArray<LabProcess>` parame
 | `Path` | `AllPropertyValues`, `PropertyValuesByName`, `ProtocolParameters`, `TerminalInputs`, `TerminalOutputs` |
 | `ProcessGraph` | Scoped versions of all traversal and finder methods; `PathsThrough` |
 
+## Target folder
+
+The core datamodel implementation will be located in `src/ProcessCore/`, around a [ProcessCore.fsproj](../src/ProcessCore/ProcessCore.fsproj) file.
+
 ## Out of Scope
 
 The following are explicitly **not** part of this implementation:
