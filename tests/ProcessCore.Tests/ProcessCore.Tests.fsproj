@@ -18,6 +18,8 @@
     <Compile Include="Types/IONode.fs" />
     <Compile Include="Graph/BackEdges.fs" />
     <Compile Include="Graph/Deduplication.fs" />
+    <Compile Include="Graph/Traversal.fs" />
+    <Compile Include="Graph/PropertyValueSources.fs" />
     <Compile Include="Synchronization.fs" />
     <Compile Include="Main.fs" />
   </ItemGroup>

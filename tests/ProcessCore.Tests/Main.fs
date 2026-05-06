@@ -26,6 +26,8 @@ let all =
             Types.IONode.tests
             Graph.BackEdges.tests
             Graph.Deduplication.tests
+            Graph.Traversal.tests
+            Graph.PropertyValueSources.tests
         ]
 
 [<EntryPoint>]
