@@ -16,6 +16,8 @@
     <Compile Include="Types/LabProcess.fs" />
     <Compile Include="Types/Dataset.fs" />
     <Compile Include="Types/IONode.fs" />
+    <Compile Include="Graph/BackEdges.fs" />
+    <Compile Include="Graph/Deduplication.fs" />
     <Compile Include="Synchronization.fs" />
     <Compile Include="Main.fs" />
   </ItemGroup>

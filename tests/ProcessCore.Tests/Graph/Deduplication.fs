@@ -2,7 +2,7 @@ module ProcessCore.Tests.Graph.Deduplication
 
 open Fable.Pyxpecto
 open ProcessCore
-open ProcessCore.Tests
+open ProcessCore.Tests.Fixtures
 
 let tests = testList "Deduplication" [
 

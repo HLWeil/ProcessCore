@@ -24,6 +24,8 @@ let all =
             Types.LabProcess.tests
             Types.Dataset.tests
             Types.IONode.tests
+            Graph.BackEdges.tests
+            Graph.Deduplication.tests
         ]
 
 [<EntryPoint>]
