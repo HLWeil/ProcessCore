@@ -1,43 +1,57 @@
-#r "../src/ProcessCore/bin/Debug/netstandard2.0/ProcessCore.dll"
-
+#r "nuget: Fable.Core, 4.3.0"
 #r "nuget: DynamicObj"
-
+#r @"C:\Users\HLWei\source\repos\ARC-Data-Model\src\ProcessCore\bin\Debug\netstandard2.0\ProcessCore.dll"
 
 open ProcessCore
+open ProcessCore.Table
 
-let p1 = LabProcess("Growth1")
-let p2 = LabProcess("Growth2")
-let p3 = LabProcess("Extraction")
-
-let d1 = Dataset("MyDataset")
-let d2 = Dataset("MyDataset2")
-let outerD = Dataset("MyDataset3")
-
-let s1 = Material("Source1")
-let s2 = Material("Source2")
-
-let s3 = Material("Material1")
-let s4 = Material("Material2")
-
-let s5 = Material("Output")
+DefinedTerm("dawdwa")
 
 
-p1.AddInput(MaterialNode s1)
-p1.AddOutput(MaterialNode s3)
+let childD1 = Dataset("ChildDataset1")
+let childD2 = Dataset("ChildDataset2")
+let dataset = Dataset("MyDataset")
+dataset.AddPart(childD1)
+dataset.AddPart(childD2)
 
-p2.AddInput(MaterialNode s2)
-p2.AddOutput(MaterialNode s4)
+let process1 = LabProcess("MyProcess")
+let process2 = LabProcess("MyProcess")
+let process3 = LabProcess("MyProcess2")
 
-p3.AddInput(MaterialNode s3)
-p3.AddOutput(MaterialNode s5)
+childD1.AddProcess(process1)
+childD1.AddProcess(process2)
+childD2.AddProcess(process3)
 
-d1.AddProcess(p1)
-d1.AddProcess(p2)
-d2.AddProcess(p3)
+let material1 = (Material("MyInputMaterial1"))
+let material2 = (Material("MyInputMaterial2"))
+let material3 = (Material("MyOutputMaterial1"))
+let material4 = (Material("MyOutputMaterial2"))
+let data1 = (Data("MyOutputData1"))
 
-outerD.AddPart(d1)
-outerD.AddPart(d2)
+process1.AddInputMaterial(material1)
+process2.AddInputMaterial(material2)
 
-s5.UpstreamMaterials().Count
+process1.AddOutputMaterial(material3)
+process2.AddOutputMaterial(material4)
 
-s5.OutputOf
+process3.AddInputMaterial(material3)
+process3.AddOutputData(data1)
+
+
+process1.AddInputMaterial(Material("MyInputMaterial1"))
+process2.AddInputMaterial(Material("MyInputMaterial2"))
+
+process1.AddOutputMaterial(Material("MyOutputMaterial1"))
+process2.AddOutputMaterial(Material("MyOutputMaterial2"))
+
+process3.AddInputMaterial(Material("MyOutputMaterial1"))
+process3.AddOutputData(Data("MyOutputData1"))
+
+
+
+dataset.Tables
+
+dataset.AllData().[0].UpstreamNodes()
+|> Seq.length
+
+dataset.Tables.RemoveTable(dataset.Tables.TableNames.[1])
