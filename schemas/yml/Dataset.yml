@@ -13,7 +13,7 @@ properties:
 
   type:
     type: string
-    const: "schema:Dataset"
+    const: "Dataset"
     description: Fixed type discriminator
 
   additionalType:

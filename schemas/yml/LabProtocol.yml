@@ -13,7 +13,8 @@ properties:
 
   type:
     type: string
-    description: Protocol type (e.g. "bioschemas:LabProtocol")
+    const: "LabProtocol"
+    description: Fixed type discriminator
 
   additionalType:
     type: string

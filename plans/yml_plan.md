@@ -45,3 +45,5 @@ The schema files should be then placed in [schemas/yml](schemas/yml) and referen
   - Need to decide whether we define a generic mechanism to place collections of cross-referenced entities (e.g. a `registry` section) or allow them to be defined inline in the main document.
 
 - **Allow extension**: Yes, as we need this for decorations. We can allow for additional properties using `additionalProperties: true` or a similar mechanism, while still enforcing the core structure.
+
+- **Type value**: The value for the `type` field MUST be a string that corresponds to the name of the entity (e.g. "Data", "Dataset", "LabProcess").

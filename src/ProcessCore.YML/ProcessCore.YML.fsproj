@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="Helpers.fs" />
+    <Compile Include="DefinedTerm.fs" />
+    <Compile Include="FormalParameter.fs" />
+    <Compile Include="PropertyValue.fs" />
+    <Compile Include="Material.fs" />
+    <Compile Include="Data.fs" />
+    <Compile Include="LabProtocol.fs" />
+    <Compile Include="LabProcess.fs" />
+    <Compile Include="Dataset.fs" />
+    <Compile Include="Encode.fs" />
+    <Compile Include="Decode.fs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="YAMLicious" Version="1.0.0-alpha.9" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../ProcessCore/ProcessCore.fsproj" />
+  </ItemGroup>
+
+</Project>

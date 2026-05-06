@@ -12,7 +12,7 @@ properties:
 
   type:
     type: string
-    const: "bioschemas:FormalParameter"
+    const: "FormalParameter"
     description: Fixed type discriminator
 
   name:
