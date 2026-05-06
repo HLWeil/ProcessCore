@@ -6,13 +6,13 @@ open DynamicObj
 /// Ontology annotation referencing a term in a controlled vocabulary or ontology.
 /// schema.org/DefinedTerm
 [<AttachMembers>]
-type DefinedTerm(name: string) =
+type DefinedTerm(name: string, ?tan: string, ?inDefinedTermSet: string) =
 
     inherit DynamicObj()
 
     let mutable _name: string = name
-    let mutable _tan: string option = None
-    let mutable _inDefinedTermSet: string option = None
+    let mutable _tan: string option = tan
+    let mutable _inDefinedTermSet: string option = inDefinedTermSet
 
     new() = DefinedTerm("")
 

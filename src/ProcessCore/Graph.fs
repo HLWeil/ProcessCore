@@ -351,15 +351,18 @@ type IONode =
 
 /// Input or output biological, chemical, or digital material in the process graph.
 /// bioschemas.org/Sample
-and [<AttachMembers>] Material(name: string) =
+and [<AttachMembers>] Material(name: string, ?additionalType: string, ?additionalProperty: seq<PropertyValue>) as this =
 
     inherit DynamicObj()
 
     let mutable _name: string = name
-    let mutable _additionalType: string option = None
+    let mutable _additionalType: string option = additionalType
     let _additionalProperty: ResizeArray<PropertyValue> = ResizeArray()
     let _inputOf: ResizeArray<LabProcess> = ResizeArray()
     let _outputOf: ResizeArray<LabProcess> = ResizeArray()
+
+    do
+        additionalProperty |> Option.iter (fun pvs -> for pv in pvs do this.AddAdditionalProperty(pv))
 
     member _.Name
         with get() = _name
@@ -469,18 +472,21 @@ and [<AttachMembers>] Material(name: string) =
 
 /// Data file produced or consumed by processes.
 /// schema.org/MediaObject or File
-and [<AttachMembers>] Data(path: string) =
+and [<AttachMembers>] Data(path: string, ?selector: string, ?selectorFormat: string, ?encodingFormat: string, ?additionalType: string, ?additionalProperty: seq<PropertyValue>) as this =
 
     inherit DynamicObj()
 
     let mutable _path: string = path
-    let mutable _selector: string option = None
-    let mutable _selectorFormat: string option = None
-    let mutable _encodingFormat: string option = None
-    let mutable _additionalType: string option = None
+    let mutable _selector: string option = selector
+    let mutable _selectorFormat: string option = selectorFormat
+    let mutable _encodingFormat: string option = encodingFormat
+    let mutable _additionalType: string option = additionalType
     let _additionalProperty: ResizeArray<PropertyValue> = ResizeArray()
     let _inputOf: ResizeArray<LabProcess> = ResizeArray()
     let _outputOf: ResizeArray<LabProcess> = ResizeArray()
+
+    do
+        additionalProperty |> Option.iter (fun pvs -> for pv in pvs do this.AddAdditionalProperty(pv))
 
     member _.Path
         with get() = _path
@@ -605,19 +611,24 @@ and [<AttachMembers>] Data(path: string) =
 
 /// Description of a planned procedure.
 /// bioschemas.org/LabProtocol
-and [<AttachMembers>] LabProtocol(?name: string) =
+and [<AttachMembers>] LabProtocol(?name: string, ?description: string, ?version: string, ?url: string, ?intendedUse: DefinedTerm, ?additionalType: string, ?parameters: seq<FormalParameter>, ?labEquipment: seq<PropertyValue>, ?additionalProperty: seq<PropertyValue>) as this =
 
     inherit DynamicObj()
 
     let mutable _name: string option = name
-    let mutable _description: string option = None
-    let mutable _version: string option = None
-    let mutable _url: string option = None
-    let mutable _intendedUse: DefinedTerm option = None
-    let mutable _additionalType: string option = None
+    let mutable _description: string option = description
+    let mutable _version: string option = version
+    let mutable _url: string option = url
+    let mutable _intendedUse: DefinedTerm option = intendedUse
+    let mutable _additionalType: string option = additionalType
     let _parameters: ResizeArray<FormalParameter> = ResizeArray()
     let _labEquipment: ResizeArray<PropertyValue> = ResizeArray()
     let _additionalProperty: ResizeArray<PropertyValue> = ResizeArray()
+
+    do
+        parameters         |> Option.iter (fun fps -> for fp in fps do this.AddParameter(fp))
+        labEquipment       |> Option.iter (fun pvs -> for pv in pvs do this.AddLabEquipment(pv))
+        additionalProperty |> Option.iter (fun pvs -> for pv in pvs do this.AddAdditionalProperty(pv))
 
     member _.Name
         with get() = _name
@@ -687,13 +698,13 @@ and [<AttachMembers>] LabProtocol(?name: string) =
 
 /// Core transformation node. Connects inputs to outputs via a protocol.
 /// bioschemas.org/LabProcess
-and [<AttachMembers>] LabProcess(name: string) =
+and [<AttachMembers>] LabProcess(name: string, ?executesProtocol: LabProtocol, ?additionalType: string, ?inputs: seq<IONode>, ?outputs: seq<IONode>, ?parameterValue: seq<PropertyValue>) as this =
 
     inherit DynamicObj()
 
     let mutable _name: string = name
-    let mutable _executesProtocol: LabProtocol option = None
-    let mutable _additionalType: string option = None
+    let mutable _executesProtocol: LabProtocol option = executesProtocol
+    let mutable _additionalType: string option = additionalType
     let mutable _processOf: Dataset option = None
     let _inputs: ResizeArray<IONode> = ResizeArray()
     let _outputs: ResizeArray<IONode> = ResizeArray()
@@ -724,6 +735,11 @@ and [<AttachMembers>] LabProcess(name: string) =
         match node with
         | MaterialNode m -> m.OutputOf.Remove(proc) |> ignore
         | DataNode d     -> d.OutputOf.Remove(proc) |> ignore
+
+    do
+        inputs         |> Option.iter (fun ns  -> for n  in ns  do this.AddInput(n))
+        outputs        |> Option.iter (fun ns  -> for n  in ns  do this.AddOutput(n))
+        parameterValue |> Option.iter (fun pvs -> for pv in pvs do this.AddParameterValue(pv))
 
     member _.Name
         with get() = _name
@@ -876,18 +892,23 @@ and [<AttachMembers>] LabProcess(name: string) =
 
 /// Container and context for data and processes.
 /// schema.org/Dataset
-and [<AttachMembers>] Dataset(identifier: string) =
+and [<AttachMembers>] Dataset(identifier: string, ?name: string, ?description: string, ?additionalType: string, ?processes: seq<LabProcess>, ?hasPart: seq<Dataset>, ?additionalProperty: seq<PropertyValue>) as this =
 
     inherit DynamicObj()
 
     let mutable _identifier: string = identifier
-    let mutable _name: string option = None
-    let mutable _description: string option = None
-    let mutable _additionalType: string option = None
+    let mutable _name: string option = name
+    let mutable _description: string option = description
+    let mutable _additionalType: string option = additionalType
     let mutable _partOf: Dataset option = None
     let _processes: ResizeArray<LabProcess> = ResizeArray()
     let _hasPart: ResizeArray<Dataset> = ResizeArray()
     let _additionalProperty: ResizeArray<PropertyValue> = ResizeArray()
+
+    do
+        processes          |> Option.iter (fun ps  -> for p  in ps  do this.AddProcess(p))
+        hasPart            |> Option.iter (fun ds  -> for d  in ds  do this.AddPart(d))
+        additionalProperty |> Option.iter (fun pvs -> for pv in pvs do this.AddAdditionalProperty(pv))
 
     new() = Dataset("")
 

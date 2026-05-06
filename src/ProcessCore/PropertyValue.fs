@@ -6,18 +6,18 @@ open DynamicObj
 /// Extensible key-value-unit triple. Primary extension mechanism of ProcessCore.
 /// schema.org/PropertyValue
 [<AttachMembers>]
-type PropertyValue(name: string) =
+type PropertyValue(name: string, ?value: string, ?unit: string, ?nameTAN: string, ?valueTAN: string, ?unitTAN: string, ?additionalType: string, ?instanceOf: FormalParameter) =
 
     inherit DynamicObj()
 
     let mutable _name: string = name
-    let mutable _value: string option = None
-    let mutable _unit: string option = None
-    let mutable _nameTAN: string option = None
-    let mutable _valueTAN: string option = None
-    let mutable _unitTAN: string option = None
-    let mutable _additionalType: string option = None
-    let mutable _instanceOf: FormalParameter option = None
+    let mutable _value: string option = value
+    let mutable _unit: string option = unit
+    let mutable _nameTAN: string option = nameTAN
+    let mutable _valueTAN: string option = valueTAN
+    let mutable _unitTAN: string option = unitTAN
+    let mutable _additionalType: string option = additionalType
+    let mutable _instanceOf: FormalParameter option = instanceOf
 
     member _.Name
         with get() = _name
