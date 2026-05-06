@@ -15,6 +15,15 @@ let all =
         "ProcessCore"
         [
             Synchronization.tests
+            Types.PropertyValue.tests
+            Types.DefinedTerm.tests
+            Types.FormalParameter.tests
+            Types.Material.tests
+            Types.Data.tests
+            Types.LabProtocol.tests
+            Types.LabProcess.tests
+            Types.Dataset.tests
+            Types.IONode.tests
         ]
 
 [<EntryPoint>]
