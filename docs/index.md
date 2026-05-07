@@ -1,26 +1,31 @@
 ---
-title: Documentation
+title: ARC Data Model
 category: Documentation
 categoryindex: 1
 index: 1
 ---
 
-# Your Project Name
+# ARC Data Model
 
-Welcome to the documentation for **Your Project Name**.
+Specification and implementation workspace for the ARC process data model. The project defines a small ProcessCore vocabulary, derived schema representations, examples, and F# libraries for working with the SQL profile across .NET, JavaScript, and Python runtimes.
 
-## Getting Started
+## Start Here
 
-Add your documentation here. You can use Markdown, F# scripts (`.fsx`) or Jupyter notebooks (`.ipynb`).
+- [Project overview](project/overview.md)
+- [Normative specification](spec/index.md)
+- [Specification guide](project/specification.md)
+- [Implementation guide](project/implementation.md)
+- [Examples and schemas](project/examples-and-schemas.md)
+- [Reference material](project/references.md)
+- [Prior art notes](project/prior-art.md)
 
-Run `dotnet fsdocs watch` to preview the site locally.
-
-## Mermaid Sample
+## ProcessCore Sketch
 
 ```mermaid
 flowchart LR
-    source[Source material] --> process[Lab process]
-    process --> sample[Sample]
-    process --> data[Data file]
-    protocol[Lab protocol] -. executes .-> process
+    dataset[Dataset] --> process[LabProcess]
+    process --> material[Material]
+    process --> data[Data]
+    protocol[LabProtocol] -. executes .-> process
+    process --> value[PropertyValue]
 ```

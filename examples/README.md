@@ -1,13 +1,9 @@
 # Examples
 
-Concrete instances of the ARC Data Model, organized by decoration.
+Example documentation is maintained in [../docs/project/examples-and-schemas.md](../docs/project/examples-and-schemas.md).
 
-## ISA Examples
+Example groups:
 
-- [investigation.yml](isa/investigation.yml) — Investigation-level metadata for a proteomics study.
-- [assay_proteomics.yml](isa/assay_proteomics.yml) — Full proteomics assay with process chain, protocols, and property values.
-- [datamap_proteomics.yml](isa/datamap_proteomics.yml) — Data context mapping for proteomics result files.
-
-## Workflow Run Examples
-
-_(To be added)_
+- [core](core/) - schema-shaped core examples
+- [isa](isa/) - legacy/profile-shaped ISA and Datamap examples
+- [workflow-run](workflow-run/) - placeholder for future Workflow Run examples

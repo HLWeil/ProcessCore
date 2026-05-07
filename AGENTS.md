@@ -1,92 +1,70 @@
 # Project Context
 
-<!-- One-liner: what is this project? -->
-This repo contains the core data model specifications for the ARC ecosystem. It serves as a reference for the design and implementation of the data structures used in core tooling across nfdi4plants, including ARCtrl and related applications.
+ARC Data Model is the specification and implementation workspace for the ARC process data model. It contains the normative markdown spec, derived SQL/YAML schema artifacts, examples, reference material, fsdocs documentation, and F# libraries for ProcessCore and the SQL profile.
 
 ## Architecture
 
-<!-- Where things live. The agent will grep/glob to explore, but this saves tokens and wrong turns. -->
-This is not an implementation repo, it is where specs live.
-```
+```text
 ARC-Data-Model/
-├── README.md                              # Project overview, principles, links
-├── AGENTS.md                              # Agent instructions
-│
-├── spec/
-│   ├── README.md                          # Spec reading guide, design principles
-│   │
-│   ├── core/                              # ProcessCore specification
-│   │   ├── README.md                      # Core model overview + process graph diagram
-│   │   ├── Dataset.md                     # Container/context for processes
-│   │   ├── Process.md                     # Core transformation node (inputs → outputs)
-│   │   ├── Protocol.md                    # Planned procedure description
-│   │   ├── Material.md                    # Input/output materials (sources, samples)
-│   │   ├── Data.md                        # Data files
-│   │   ├── PropertyValue.md               # Extensible key-value-unit triples
-│   │   ├── Person.md                      # Contributors
-│   │   └── DefinedTerm.md                 # Ontology annotations
-│   │
-│   ├── decorations/
-│   │   ├── README.md                      # What decorations are, extension mechanism
-│   │   │
-│   │   ├── isa/                           # ISA decoration
-│   │   │   ├── README.md                  # Overview + mapping table (core → ISA)
-│   │   │   ├── Investigation.md           # Dataset → Investigation
-│   │   │   ├── Study.md                   # Dataset → Study
-│   │   │   ├── Assay.md                   # Dataset → Assay
-│   │   │   ├── LabProcess.md              # Process → LabProcess
-│   │   │   ├── LabProtocol.md             # Protocol → LabProtocol
-│   │   │   ├── Sample.md                  # Material → Sample/Source
-│   │   │   └── PropertyValues.md          # Parameter, Characteristic, Factor, Component
-│   │   │
-│   │   └── workflow-run/                  # Workflow Run decoration
-│   │       ├── README.md                  # Overview + mapping table (core → WR)
-│   │       ├── ArcWorkflow.md             # Dataset → ARC Workflow
-│   │       ├── ArcRun.md                  # Dataset → ARC Run
-│   │       ├── WorkflowProtocol.md        # Protocol → Workflow Protocol
-│   │       ├── WorkflowInvocation.md      # Process → Workflow Invocation
-│   │       ├── FormalParameter.md         # WR-specific entity
-│   │       └── PropertyValues.md          # Workflow Input, Prefix, Position
-│   │
-│   └── querying/
-│       └── use-cases.md                   # Query patterns on the process graph
-│
-├── schemas/
-│   ├── README.md                          # How schemas relate to the spec
-│   ├── sql/                               # SQL schema representations (future)
-│   └── document-db/                       # Document DB representations (future)
-│
-├── examples/
-│   ├── README.md                          # Index of examples
-│   ├── isa/
-│   │   ├── investigation.yml              # ← isa.investigation.yml
-│   │   ├── assay_proteomics.yml           # ← isa.assay_proteomics-example.yml
-│   │   └── datamap_proteomics.yml         # ← isa.datamap_proteomics.yml
-│   └── workflow-run/                      # (future WR examples)
-│
-└── references/
-    ├── README.md                          # What these reference specs are
-    ├── isa_ro_crate.md                    # ← roc-profiles/isa_ro_crate.md
-    ├── arc_datamap_ro_crate.md            # ← roc-profiles/arc_datamap_ro_crate.md
-    └── arc_wr_ro_crate.md                 # ← roc-profiles/arc_wr_ro_crate.md
+├── docs/                         fsdocs documentation pages
+│   ├── index.md
+│   ├── _head.html                 fsdocs head injection, including Mermaid support
+│   └── project/                   canonical project guides
+│   └── spec/                      normative model specification
+│       ├── core/                  ProcessCore entities
+│       ├── decorations/           ISA, Workflow Run, and Datamap decorations
+│       └── querying/              query use cases and graph traversal notes
+├── spec/                         compatibility pointer to docs/spec
+├── schemas/                      derived schema representations
+│   ├── sql/                       executable SQLite profile and design notes
+│   ├── yml/                       JSON Schema draft 2020-12 expressed in YAML
+│   └── document-db/               placeholder for future document DB schemas
+├── examples/                     concrete example documents
+│   ├── core/                      schema-shaped core examples
+│   ├── isa/                       legacy/profile-shaped ISA and Datamap examples
+│   └── workflow-run/              placeholder for future Workflow Run examples
+├── references/                   upstream profiles and preserved prior implementation notes
+├── src/                          F# implementation projects
+│   ├── ProcessCore/
+│   ├── ProcessCore.SQL/
+│   ├── ProcessCore.SQL.DotNet/
+│   ├── ProcessCore.SQL.JavaScript/
+│   └── ProcessCore.SQL.Python/
+├── tests/                        Pyxpecto tests
+└── build/                        FAKE build project and task modules
 ```
-<!-- Add key boundaries the agent must respect: -->
-<!-- - "All database access goes through src/db/, never import the ORM directly in route handlers" -->
-<!-- - "src/legacy/ is frozen — read but never modify" -->
+
+## Current Vocabulary
+
+- Core process/protocol entities are `LabProcess` and `LabProtocol`.
+- Core process I/O properties are `inputs`, `outputs`, and `executesProtocol`.
+- Some upstream/profile-shaped examples use `object`, `result`, and `executesLabProtocol`; treat those as legacy/profile terminology unless the task explicitly says to preserve profile shape.
+- Long-form project documentation belongs under `docs/project/`.
+- Normative specification prose belongs under `docs/spec/`.
+- Existing README files should stay short and link into `docs/`.
 
 ## Tech Stack
 
-<!-- Be specific about versions. Agents default to whatever was common in training data. -->
+- F# / .NET projects in `src/`, currently targeting `netstandard2.0` for `ProcessCore` and `net10.0` for SQL projects.
+- FAKE build project under `build/`.
+- fsdocs for generated documentation.
+- Pyxpecto tests, with Fable transpilation paths for JavaScript and Python.
+- JavaScript runtime tests use Node and `better-sqlite3`.
+- Python runtime tests use `uv` and Python stdlib `sqlite3`.
 
 ## Commands
 
-<!-- Exact strings. Agents use these verbatim. -->
-
-## Code Style
-
-<!-- Only rules a linter can't enforce. If ruff/prettier/eslint handles it, don't repeat it here. -->
-
-## Testing
+```powershell
+.\build.cmd BuildSolution
+.\build.cmd RunTests
+.\build.cmd RunTestsAll
+.\build.cmd TestJs
+.\build.cmd TestPy
+.\build.cmd BuildDocs
+.\build.cmd WatchDocs
+dotnet fsdocs watch
+npm run test:js
+```
 
 ## Git & Commits
 
@@ -96,20 +74,9 @@ ARC-Data-Model/
 
 ## Prohibitions
 
-<!-- Things the agent must never do. Be explicit — agents are eager to help. -->
-
 - Do NOT add new production dependencies without asking first.
+- Do NOT rewrite preserved upstream reference files unless explicitly asked; prefer documenting current behavior in `docs/project/`.
 
 ## Verification
 
-<!-- What must pass before the agent considers a task complete. -->
-
-Before marking work as done:
-
-## Gotchas
-
-<!-- Add real failure points as you discover them. This section is the highest-signal content. -->
-<!-- Examples: -->
-<!-- - "The ORM lazy-loads by default. Always use `selectinload()` in queries or you get N+1." -->
-<!-- - "The CI runner has no network access. Mock all external API calls." -->
-<!-- - "Environment variables are in .env.example, not .env. Copy first." -->
+Before marking docs plumbing work as done, run an fsdocs build or a targeted markdown/link check when practical. Before marking implementation work as done, run the relevant FAKE test target.

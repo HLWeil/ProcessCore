@@ -1,0 +1,45 @@
+id: dataset:demo
+type: schema:Dataset
+identifier: demo
+name: Minimal ProcessCore example
+description: A small schema-shaped example using the current core YAML vocabulary.
+processes:
+  - id: process:extraction
+    type: bioschemas:LabProcess
+    name: Extraction
+    inputs:
+      - id: material:leaf
+        type: bioschemas:Sample
+        additionalType: Source
+        name: Leaf tissue
+        additionalProperty:
+          - id: pv:organism
+            type: schema:PropertyValue
+            additionalType: CharacteristicValue
+            name: organism
+            value: Arabidopsis thaliana
+    outputs:
+      - id: data:extract
+        type: File
+        path: raw/extract.tsv
+        encodingFormat: text/tab-separated-values
+    executesProtocol:
+      id: protocol:extraction
+      type: bioschemas:LabProtocol
+      name: Protein extraction
+      parameters:
+        - id: parameter:temperature
+          type: bioschemas:FormalParameter
+          name: temperature
+    parameterValue:
+      - id: pv:temperature
+        type: schema:PropertyValue
+        additionalType: ParameterValue
+        name: temperature
+        value: 4
+        unit: degree Celsius
+hasPart:
+  - id: data:extract
+    type: File
+    path: raw/extract.tsv
+    encodingFormat: text/tab-separated-values
