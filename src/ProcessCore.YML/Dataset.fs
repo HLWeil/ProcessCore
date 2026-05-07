@@ -68,7 +68,7 @@ module Dataset =
                     | Choice1Of2 _  -> ()
             | None -> ())
 
-        applyOverflow knownFields ds value
+        applyOverflow "Dataset" processCoreOnly knownFields ds value
         ds
 
     let rec encoder (ds: Dataset) : YAMLElement =

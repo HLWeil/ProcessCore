@@ -24,7 +24,7 @@ module FormalParameter =
                 | Choice1Of2 _  -> None)   // id references left unresolved
 
         let fp = FormalParameter(name, ?nameTAN = nameTAN, ?defaultValue = defaultValue)
-        applyOverflow knownFields fp value
+        applyOverflow "FormalParameter" processCoreOnly knownFields fp value
         fp
 
     let encoder (fp: FormalParameter) : YAMLElement =
@@ -42,8 +42,8 @@ module FormalParameter =
         ]
         |> yamlMap
 
-    let fromYamlString (s: string) : FormalParameter =
-        YAMLicious.Reader.read s |> decoder true
+    let fromYamlString (processCoreOnly: bool) (s: string) : FormalParameter =
+        YAMLicious.Reader.read s |> decoder processCoreOnly
 
     let toYamlString (whitespace: int option) (fp: FormalParameter) : string =
         writeYaml whitespace (encoder fp)

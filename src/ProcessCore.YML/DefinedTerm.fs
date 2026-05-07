@@ -25,7 +25,7 @@ module DefinedTerm =
                 | None   -> tryGetField "id" v |> Option.map decodeString |> Option.defaultValue "")
 
         let dt = DefinedTerm(name, ?tan = tan, ?inDefinedTermSet = inDefinedTermSet)
-        applyOverflow knownFields dt value
+        applyOverflow "DefinedTerm" processCoreOnly knownFields dt value
         dt
 
     let encoder (dt: DefinedTerm) : YAMLElement =
@@ -43,8 +43,8 @@ module DefinedTerm =
         ]
         |> yamlMap
 
-    let fromYamlString (s: string) : DefinedTerm =
-        YAMLicious.Reader.read s |> decoder true
+    let fromYamlString (processCoreOnly: bool) (s: string) : DefinedTerm =
+        YAMLicious.Reader.read s |> decoder processCoreOnly
 
     let toYamlString (whitespace: int option) (dt: DefinedTerm) : string =
         writeYaml whitespace (encoder dt)

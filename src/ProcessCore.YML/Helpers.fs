@@ -173,10 +173,15 @@ module Helpers =
     // ── Overflow helpers ───────────────────────────────────────────────────────
 
     /// Store all YAML fields whose keys are not in knownFields as dynamic properties on obj.
-    let applyOverflow (knownFields: Set<string>) (obj: DynamicObj) (value: YAMLElement) =
+    let applyOverflow (objectType : string) (processCoreOnly : bool) (knownFields: Set<string>) (obj: DynamicObj) (value: YAMLElement) =
         for (key, yamlVal) in getMappings value do
             if not (knownFields |> Set.contains key) then
-                obj.SetProperty(key, genericDecodeToObj yamlVal)
+                if processCoreOnly then
+                    failwithf $"Unknown field '{key}' found in YAML for object of type '{objectType}'. Strict mode is enabled, so this is not allowed. Field value: '{yamlVal}'"
+                else
+                    obj.SetProperty(key, genericDecodeToObj yamlVal)
+             
+
 
     /// Emit all dynamic properties whose lowercase key is not in knownPropertyNames.
     let emitOverflow (knownPropertyNames: Set<string>) (obj: DynamicObj) : (string * YAMLElement) list =

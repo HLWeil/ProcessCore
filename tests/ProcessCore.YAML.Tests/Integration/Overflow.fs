@@ -9,7 +9,7 @@ let tests = testList "Overflow" [
 
     testCase "unknown field on DefinedTerm survives round-trip" <| fun _ ->
         let yaml = "type: DefinedTerm\nname: foo\nmyCustomField: bar\n"
-        let dt   = Yaml.DefinedTerm.fromYamlString yaml
+        let dt   = Yaml.DefinedTerm.fromYamlString false yaml
         // accessible via DynamicObj overflow
         let v = dt.TryGetTypedPropertyValue<string>("myCustomField")
         Expect.equal v (Some "bar") "overflow value accessible after decode"
@@ -20,11 +20,16 @@ let tests = testList "Overflow" [
 
     testCase "unknown field on Material survives round-trip" <| fun _ ->
         let yaml = "type: Material\nname: S1\nextraAnnotation: some-value\n"
-        let m    = Yaml.Material.fromYamlString yaml
+        let m    = Yaml.Material.fromYamlString false yaml
         let v = m.TryGetTypedPropertyValue<string>("extraAnnotation")
         Expect.equal v (Some "some-value") "overflow value accessible"
         let yaml2 = Yaml.Material.toYamlString None m
         Expect.isTrue (yaml2.Contains("extraAnnotation")) "overflow key re-emitted"
+
+    testCase "unknown field on Material throws on round-trip for processcore only" <| fun _ ->
+        let yaml = "type: Data\npath: data.csv\nunexpectedField: surprise\n"
+        let f ()  = Yaml.Data.fromYamlString true yaml |> ignore
+        Expect.throws f "unexpected field should raise in processCoreOnly mode"
 
     testCase "unknown field on Dataset survives round-trip" <| fun _ ->
         let yaml = "type: Dataset\nidentifier: DS-1\ncustomMeta: my-value\n"
@@ -36,7 +41,7 @@ let tests = testList "Overflow" [
 
     testCase "unknown nested object survives round-trip" <| fun _ ->
         let yaml = "type: DefinedTerm\nname: foo\nnested:\n  key: value\n  count: 42\n"
-        let dt   = Yaml.DefinedTerm.fromYamlString yaml
+        let dt   = Yaml.DefinedTerm.fromYamlString false yaml
         // nested object stored as DynamicObj
         let v = dt.TryGetTypedPropertyValue<DynamicObj>("nested")
         Expect.isSome v "nested object in overflow"
@@ -50,7 +55,7 @@ let tests = testList "Overflow" [
 
     testCase "unknown sequence survives round-trip" <| fun _ ->
         let yaml = "type: Material\nname: S1\nmyList:\n  - alpha\n  - beta\n  - gamma\n"
-        let m    = Yaml.Material.fromYamlString yaml
+        let m    = Yaml.Material.fromYamlString false yaml
         // sequence stored as ResizeArray<obj>
         let exists = m.GetProperties(true) |> Seq.exists (fun kv -> kv.Key = "myList")
         Expect.isTrue exists "sequence present in overflow"

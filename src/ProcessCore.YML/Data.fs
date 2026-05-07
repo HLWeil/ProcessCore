@@ -41,16 +41,16 @@ module Data =
                     | Choice1Of2 _  -> ()
             | None -> ())
 
-        applyOverflow knownFields d value
+        applyOverflow "Data" processCoreOnly knownFields d value
         d
 
     let encoder (d: Data) : YAMLElement =
-        let id =
-            match d.Selector with
-            | Some sel -> d.Path + "#" + sel
-            | None     -> d.Path
+        //let id =
+        //    match d.Selector with
+        //    | Some sel -> d.Path + "#" + sel
+        //    | None     -> d.Path
         [
-            yield "id",   yamlValue id
+            //yield "id",   yamlValue id
             yield "type", yamlValue "Data"
             yield "path", yamlValue d.Path
             match d.AdditionalType with
@@ -75,8 +75,8 @@ module Data =
         ]
         |> yamlMap
 
-    let fromYamlString (s: string) : Data =
-        YAMLicious.Reader.read s |> decoder true
+    let fromYamlString (processCoreOnly: bool) (s: string) : Data =
+        YAMLicious.Reader.read s |> decoder processCoreOnly
 
     let toYamlString (whitespace: int option) (d: Data) : string =
         writeYaml whitespace (encoder d)

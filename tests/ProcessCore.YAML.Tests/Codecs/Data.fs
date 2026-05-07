@@ -28,26 +28,26 @@ let tests = testList "Data" [
 
     testCase "decode path only" <| fun _ ->
         let yaml = "type: Data\npath: results.csv\n"
-        let d    = Yaml.Data.fromYamlString yaml
+        let d    = Yaml.Data.fromYamlString true yaml
         Expect.equal d.Path           "results.csv" "path"
         Expect.equal d.Selector       None           "no selector"
         Expect.equal d.EncodingFormat None           "no encodingFormat"
 
     testCase "decode with selector and selectorFormat" <| fun _ ->
         let yaml = "type: Data\npath: results.csv\nselector: Sheet1\nselectorFormat: excel\n"
-        let d    = Yaml.Data.fromYamlString yaml
+        let d    = Yaml.Data.fromYamlString true yaml
         Expect.equal d.Selector       (Some "Sheet1") "selector"
         Expect.equal d.SelectorFormat (Some "excel")  "selectorFormat"
 
     testCase "id field goes to overflow — missing path throws" <| fun _ ->
         // 'id' is not a fallback for path; missing path must throw
         let yaml = "type: Data\nid: results.csv\n"
-        Expect.throws (fun () -> Yaml.Data.fromYamlString yaml |> ignore) "missing path throws"
+        Expect.throws (fun () -> Yaml.Data.fromYamlString true yaml |> ignore) "missing path throws"
 
     testCase "id field goes to overflow — present alongside path" <| fun _ ->
         // When both 'id' and 'path' are present, 'id' goes to overflow, 'path' is used
         let yaml = "type: Data\npath: results.csv\nid: some-override-id\n"
-        let d    = Yaml.Data.fromYamlString yaml
+        let d    = Yaml.Data.fromYamlString false yaml
         Expect.equal d.Path "results.csv" "path not overridden by id"
         // 'id' should be stored as overflow
         let overflowId = d.TryGetTypedPropertyValue<string>("id")
@@ -62,7 +62,7 @@ additionalProperty:
     name: instrument
     value: Q Exactive
 """
-        let d = Yaml.Data.fromYamlString yaml
+        let d = Yaml.Data.fromYamlString true yaml
         Expect.equal d.AdditionalProperty.Count 1         "one property"
         Expect.equal d.AdditionalProperty.[0].Name "instrument" "prop name"
 
@@ -75,14 +75,14 @@ additionalProperty:
     testCase "round-trip path only" <| fun _ ->
         let original = Data("results.csv")
         let yaml     = Yaml.Data.toYamlString None original
-        let decoded  = Yaml.Data.fromYamlString yaml
+        let decoded  = Yaml.Data.fromYamlString true yaml
         Expect.equal decoded.Path original.Path "path"
 
     testCase "round-trip all fields" <| fun _ ->
         let original = Data("raw.csv", selector = "Sheet1", selectorFormat = "excel", encodingFormat = "text/csv", additionalType = "RawData")
         original.AddAdditionalProperty(PropertyValue("instrument", value = "Q Exactive"))
         let yaml    = Yaml.Data.toYamlString None original
-        let decoded = Yaml.Data.fromYamlString yaml
+        let decoded = Yaml.Data.fromYamlString true yaml
         Expect.equal decoded.Path            original.Path            "path"
         Expect.equal decoded.Selector        original.Selector        "selector"
         Expect.equal decoded.SelectorFormat  original.SelectorFormat  "selectorFormat"

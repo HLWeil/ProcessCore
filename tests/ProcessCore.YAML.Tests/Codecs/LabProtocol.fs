@@ -49,7 +49,7 @@ let tests = testList "LabProtocol" [
 
     testCase "decode minimal" <| fun _ ->
         let yaml  = "type: LabProtocol\n"
-        let proto = Yaml.LabProtocol.fromYamlString yaml
+        let proto = Yaml.LabProtocol.fromYamlString true yaml
         Expect.equal proto.Name        None "no name"
         Expect.equal proto.Description None "no description"
         Expect.equal proto.Parameters.Count 0 "no parameters"
@@ -68,7 +68,7 @@ parameters:
   - type: FormalParameter
     name: temperature
 """
-        let proto = Yaml.LabProtocol.fromYamlString yaml
+        let proto = Yaml.LabProtocol.fromYamlString true yaml
         Expect.equal proto.Name        (Some "extraction")                  "name"
         Expect.equal proto.Description (Some "Standard protein extraction") "description"
         Expect.equal proto.Version     (Some "1.0")                         "version"
@@ -85,18 +85,18 @@ name: extraction
 parameters:
   - some-fp-id
 """
-        let proto = Yaml.LabProtocol.fromYamlString yaml
+        let proto = Yaml.LabProtocol.fromYamlString true yaml
         Expect.equal proto.Parameters.Count 0 "id refs skipped"
 
     testCase "decode intendedUse as id-reference" <| fun _ ->
         let yaml = "type: LabProtocol\nname: extraction\nintendedUse: some-dt-id\n"
-        let proto = Yaml.LabProtocol.fromYamlString yaml
+        let proto = Yaml.LabProtocol.fromYamlString true yaml
         Expect.equal proto.IntendedUse None "id ref leaves IntendedUse as None"
 
     testCase "round-trip minimal" <| fun _ ->
         let original = LabProtocol(name = "extraction")
         let yaml     = Yaml.LabProtocol.toYamlString None original
-        let decoded  = Yaml.LabProtocol.fromYamlString yaml
+        let decoded  = Yaml.LabProtocol.fromYamlString true yaml
         Expect.equal decoded.Name original.Name "name"
 
     testCase "round-trip all fields" <| fun _ ->
@@ -106,7 +106,7 @@ parameters:
         original.AddLabEquipment(PropertyValue("centrifuge", value = "Eppendorf"))
         original.AddAdditionalProperty(PropertyValue("notes", value = "On ice"))
         let yaml    = Yaml.LabProtocol.toYamlString None original
-        let decoded = Yaml.LabProtocol.fromYamlString yaml
+        let decoded = Yaml.LabProtocol.fromYamlString true yaml
         Expect.equal decoded.Name        original.Name        "name"
         Expect.equal decoded.Description original.Description "description"
         Expect.equal decoded.Version     original.Version     "version"

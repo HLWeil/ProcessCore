@@ -74,7 +74,7 @@ module LabProcess =
                     | Choice1Of2 _  -> ()
             | None -> ())
 
-        applyOverflow knownFields proc value
+        applyOverflow "LabProcess" processCoreOnly knownFields proc value
         proc
 
     let private encodeIONode (node: IONode) : YAMLElement =
@@ -109,8 +109,8 @@ module LabProcess =
         ]
         |> yamlMap
 
-    let fromYamlString (s: string) : LabProcess =
-        YAMLicious.Reader.read s |> decoder true
+    let fromYamlString (processCoreOnly: bool) (s: string) : LabProcess =
+        YAMLicious.Reader.read s |> decoder processCoreOnly
 
     let toYamlString (whitespace: int option) (proc: LabProcess) : string =
         writeYaml whitespace (encoder proc)

@@ -26,7 +26,7 @@ let tests = testList "Material" [
 
     testCase "decode name only" <| fun _ ->
         let yaml = "type: Material\nname: Source1\n"
-        let m    = Yaml.Material.fromYamlString yaml
+        let m    = Yaml.Material.fromYamlString true yaml
         Expect.equal m.Name           "Source1" "name"
         Expect.equal m.AdditionalType None      "no additionalType"
         Expect.equal m.AdditionalProperty.Count 0 "no additionalProperty"
@@ -43,7 +43,7 @@ additionalProperty:
     value: '4'
     unit: week
 """
-        let m = Yaml.Material.fromYamlString yaml
+        let m = Yaml.Material.fromYamlString true yaml
         Expect.equal m.AdditionalProperty.Count 2 "two properties"
         Expect.equal m.AdditionalProperty.[0].Name "organism" "first prop name"
         Expect.equal m.AdditionalProperty.[1].Name "age"      "second prop name"
@@ -56,7 +56,7 @@ name: Sample1
 additionalProperty:
   - some-pv-id
 """
-        let m = Yaml.Material.fromYamlString yaml
+        let m = Yaml.Material.fromYamlString true yaml
         Expect.equal m.AdditionalProperty.Count 0 "id refs skipped"
 
     testCase "back-edges not in output" <| fun _ ->
@@ -69,7 +69,7 @@ additionalProperty:
     testCase "round-trip name only" <| fun _ ->
         let original = Material("Source1")
         let yaml     = Yaml.Material.toYamlString None original
-        let decoded  = Yaml.Material.fromYamlString yaml
+        let decoded  = Yaml.Material.fromYamlString true yaml
         Expect.equal decoded.Name           original.Name           "name"
         Expect.equal decoded.AdditionalType original.AdditionalType "additionalType"
 
@@ -78,7 +78,7 @@ additionalProperty:
         original.AddAdditionalProperty(PropertyValue("organism", value = "Arabidopsis thaliana"))
         original.AddAdditionalProperty(PropertyValue("age", value = "4", unit = "week"))
         let yaml    = Yaml.Material.toYamlString None original
-        let decoded = Yaml.Material.fromYamlString yaml
+        let decoded = Yaml.Material.fromYamlString true yaml
         Expect.equal decoded.Name                        original.Name           "name"
         Expect.equal decoded.AdditionalType              original.AdditionalType "additionalType"
         Expect.equal decoded.AdditionalProperty.Count    2                       "property count"

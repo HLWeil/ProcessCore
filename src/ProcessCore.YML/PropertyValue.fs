@@ -42,7 +42,7 @@ module PropertyValue =
                 ?unitTAN        = unitTAN,
                 ?additionalType = additionalType,
                 ?instanceOf     = instanceOf)
-        applyOverflow knownFields pv value
+        applyOverflow "PropertyValue" processCoreOnly knownFields pv value
         pv
 
     let encoder (pv: PropertyValue) : YAMLElement =
@@ -75,8 +75,8 @@ module PropertyValue =
         ]
         |> yamlMap
 
-    let fromYamlString (s: string) : PropertyValue =
-        YAMLicious.Reader.read s |> decoder true
+    let fromYamlString (processCoreOnly: bool) (s: string) : PropertyValue =
+        YAMLicious.Reader.read s |> decoder processCoreOnly
 
     let toYamlString (whitespace: int option) (pv: PropertyValue) : string =
         writeYaml whitespace (encoder pv)

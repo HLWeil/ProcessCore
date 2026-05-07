@@ -51,10 +51,16 @@ let tests = testList "Examples" [
         let names = inv.AdditionalProperty |> Seq.map (fun pv -> pv.Name) |> Seq.toList
         Expect.equal names ["latitude"; "longitude"; "aim"] "property names"
 
-    testCase "investigation strict mode passes" <| fun _ ->
-        // processCoreOnly=true — should not throw
-        let inv  = Yaml.Dataset.fromYamlString true ProcessCore.Yaml.Tests.Fixtures.investigationString   // fromYamlString uses decoder true
-        Expect.equal inv.Identifier "ara_prot_2023" "strict mode decode ok"
+
+    testCase "investigation lenient mode passes" <| fun _ ->
+        // processCoreOnly=false — should not throw
+        let inv  = Yaml.Dataset.fromYamlString false ProcessCore.Yaml.Tests.Fixtures.investigationString   // fromYamlString uses decoder false
+        Expect.equal inv.Identifier "ara_prot_2023" "lenient mode decode ok"
+
+    testCase "investigation strict mode throws" <| fun _ ->
+        // processCoreOnly=true — should throw
+        Expect.throws (fun () -> Yaml.Dataset.fromYamlString true ProcessCore.Yaml.Tests.Fixtures.investigationString |> ignore)
+                      "strict mode decode should throw"
 
     testCase "assay identifier" <| fun _ ->
         let assay = loadAssay(false)
@@ -118,7 +124,7 @@ let tests = testList "Examples" [
             |> Seq.exists (fun kv -> kv.Key = "labProtocols")
         Expect.isTrue hasLabProtocols "labProtocols stored in overflow"
 
-    ptestCase "assay strict mode fails" <| fun _ ->
+    testCase "assay strict mode fails" <| fun _ ->
         // processCoreOnly=true — should throw because of unknown fields like creators, labProtocols
         let decode = fun () -> Yaml.Dataset.fromYamlString true ProcessCore.Yaml.Tests.Fixtures.proteomicsAssayString |> ignore
         Expect.throws decode "strict mode should throw on unknown fields"

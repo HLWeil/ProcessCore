@@ -21,38 +21,38 @@ let tests = testList "DefinedTerm" [
 
     testCase "decode name only" <| fun _ ->
         let yaml = "type: DefinedTerm\nname: bar\n"
-        let dt   = Yaml.DefinedTerm.fromYamlString yaml
+        let dt   = Yaml.DefinedTerm.fromYamlString true yaml
         Expect.equal dt.Name "bar" "name"
         Expect.equal dt.TAN  None  "no TAN"
 
     testCase "decode all fields" <| fun _ ->
         let yaml = "type: DefinedTerm\nname: cell growth\nTAN: GO:0016049\ninDefinedTermSet: http://purl.obolibrary.org/obo/go.owl\n"
-        let dt   = Yaml.DefinedTerm.fromYamlString yaml
+        let dt   = Yaml.DefinedTerm.fromYamlString true yaml
         Expect.equal dt.Name              "cell growth"                               "name"
         Expect.equal dt.TAN               (Some "GO:0016049")                          "TAN"
         Expect.equal dt.InDefinedTermSet  (Some "http://purl.obolibrary.org/obo/go.owl") "inDefinedTermSet"
 
     testCase "decode inDefinedTermSet as inline object" <| fun _ ->
         let yaml = "type: DefinedTerm\nname: foo\ninDefinedTermSet:\n  id: http://example.org/onto.owl\n"
-        let dt   = Yaml.DefinedTerm.fromYamlString yaml
+        let dt   = Yaml.DefinedTerm.fromYamlString true yaml
         Expect.equal dt.InDefinedTermSet (Some "http://example.org/onto.owl") "inDefinedTermSet from inline object"
 
     testCase "round-trip name only" <| fun _ ->
         let original = DefinedTerm("alpha")
         let yaml     = Yaml.DefinedTerm.toYamlString None original
-        let decoded  = Yaml.DefinedTerm.fromYamlString yaml
+        let decoded  = Yaml.DefinedTerm.fromYamlString true yaml
         Expect.equal decoded.Name original.Name "name"
         Expect.equal decoded.TAN  original.TAN  "TAN"
 
     testCase "round-trip all fields" <| fun _ ->
         let original = DefinedTerm("cell growth", tan = "GO:0016049", inDefinedTermSet = "http://purl.obolibrary.org/obo/go.owl")
         let yaml     = Yaml.DefinedTerm.toYamlString None original
-        let decoded  = Yaml.DefinedTerm.fromYamlString yaml
+        let decoded  = Yaml.DefinedTerm.fromYamlString true yaml
         Expect.equal decoded original "round-trip equality"
 
     testCase "fromYamlString" <| fun _ ->
         let yaml = "type: DefinedTerm\nname: baz\nTAN: MS:1000031\n"
-        let dt   = Yaml.DefinedTerm.fromYamlString yaml
+        let dt   = Yaml.DefinedTerm.fromYamlString true yaml
         Expect.equal dt.Name "baz"              "name"
         Expect.equal dt.TAN  (Some "MS:1000031") "TAN"
 
@@ -75,7 +75,7 @@ let tests = testList "DefinedTerm" [
     testCase "missing name field" <| fun _ ->
         // When the YAML has no 'name' field the decoder defaults to empty string.
         let yaml = "type: DefinedTerm\nTAN: GO:0001\n"
-        let dt   = Yaml.DefinedTerm.fromYamlString yaml
+        let dt   = Yaml.DefinedTerm.fromYamlString true yaml
         Expect.equal dt.Name "" "name defaults to empty string"
 
 ]

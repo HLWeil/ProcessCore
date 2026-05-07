@@ -29,7 +29,7 @@ module Material =
                     | Choice1Of2 _  -> ()   // id references left unresolved
             | None -> ())
 
-        applyOverflow knownFields m value
+        applyOverflow "Material" processCoreOnly knownFields m value
         m
 
     let encoder (m: Material) : YAMLElement =
@@ -50,8 +50,8 @@ module Material =
         ]
         |> yamlMap
 
-    let fromYamlString (s: string) : Material =
-        YAMLicious.Reader.read s |> decoder true
+    let fromYamlString (processCoreOnly: bool) (s: string) : Material =
+        YAMLicious.Reader.read s |> decoder processCoreOnly
 
     let toYamlString (whitespace: int option) (m: Material) : string =
         writeYaml whitespace (encoder m)

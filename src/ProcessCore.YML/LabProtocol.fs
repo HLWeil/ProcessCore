@@ -54,7 +54,7 @@ module LabProtocol =
         decodeSeq "labEquipment"       (PropertyValue.decoder processCoreOnly)    proto.AddLabEquipment
         decodeSeq "additionalProperty" (PropertyValue.decoder processCoreOnly)    proto.AddAdditionalProperty
 
-        applyOverflow knownFields proto value
+        applyOverflow "LabProtocol" processCoreOnly knownFields proto value
         proto
 
     let encoder (proto: LabProtocol) : YAMLElement =
@@ -105,8 +105,8 @@ module LabProtocol =
         ]
         |> yamlMap
 
-    let fromYamlString (s: string) : LabProtocol =
-        YAMLicious.Reader.read s |> decoder true
+    let fromYamlString (processCoreOnly: bool) (s: string) : LabProtocol =
+        YAMLicious.Reader.read s |> decoder processCoreOnly
 
     let toYamlString (whitespace: int option) (proto: LabProtocol) : string =
         writeYaml whitespace (encoder proto)
