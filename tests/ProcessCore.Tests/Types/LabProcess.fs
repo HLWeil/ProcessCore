@@ -15,19 +15,19 @@ let tests = testList "LabProcess" [
         let p2 = LabProcess("p2")
         Expect.notEqual p1 p2 "Different names → not equal"
 
-    testCase "AddInput deduplicates material" <| fun _ ->
+    testCase "AddInput does not deduplicate material" <| fun _ ->
         let p = LabProcess("p")
         let m = Material("Sample1")
         p.AddInputMaterial(m)
         p.AddInputMaterial(m)
-        Expect.equal p.Inputs.Count 1 "Identical material added twice → one input"
+        Expect.equal p.Inputs.Count 2 "Identical material added twice → two inputs"
 
-    testCase "AddInput deduplicates data" <| fun _ ->
+    testCase "AddInput does not deduplicate data" <| fun _ ->
         let p = LabProcess("p")
         let d = Data("file.csv")
         p.AddInputData(d)
         p.AddInputData(d)
-        Expect.equal p.Inputs.Count 1 "Identical data added twice → one input"
+        Expect.equal p.Inputs.Count 2 "Identical data added twice → two inputs"
 
     testCase "RemoveInput material clears back-edge" <| fun _ ->
         let p = LabProcess("p")
@@ -46,12 +46,12 @@ let tests = testList "LabProcess" [
         Expect.equal p.Inputs.Count 0 "Input removed from process"
         Expect.isFalse (d.InputOf |> Seq.exists (fun x -> x = p)) "Back-edge cleared after removal"
 
-    testCase "AddOutput deduplicates material" <| fun _ ->
+    testCase "AddOutput does not deduplicate material" <| fun _ ->
         let p = LabProcess("p")
         let m = Material("Sample2")
         p.AddOutputMaterial(m)
         p.AddOutputMaterial(m)
-        Expect.equal p.Outputs.Count 1 "Identical material added twice → one output"
+        Expect.equal p.Outputs.Count 2 "Identical material added twice → two outputs"
 
     testCase "RemoveOutput material clears back-edge" <| fun _ ->
         let p = LabProcess("p")
@@ -62,12 +62,12 @@ let tests = testList "LabProcess" [
         Expect.equal p.Outputs.Count 0 "Output removed from process"
         Expect.isFalse (m.OutputOf |> Seq.exists (fun x -> x = p)) "Back-edge cleared after removal"
 
-    testCase "AddParameterValue deduplicates" <| fun _ ->
+    testCase "AddParameterValue does not deduplicate" <| fun _ ->
         let p  = LabProcess("p")
         let pv = PropertyValue("temperature", value = "37")
         p.AddParameterValue(pv)
         p.AddParameterValue(pv)
-        Expect.equal p.ParameterValue.Count 1 "Identical PV added twice → one entry"
+        Expect.equal p.ParameterValue.Count 2 "Identical PV added twice → two entries"
 
     testCase "RemoveParameterValue" <| fun _ ->
         let p  = LabProcess("p")

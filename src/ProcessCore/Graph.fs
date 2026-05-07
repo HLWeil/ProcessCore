@@ -715,9 +715,9 @@ and [<AttachMembers>] LabProcess(name: string, ?executesProtocol: LabProtocol, ?
     let addInputBackEdge (node: IONode) (proc: LabProcess) =
         match node with
         | MaterialNode m ->
-            if not (m.InputOf |> Seq.exists (fun p -> p = proc)) then m.InputOf.Add(proc) |> ignore
+            m.InputOf.Add(proc) |> ignore
         | DataNode d ->
-            if not (d.InputOf |> Seq.exists (fun p -> p = proc)) then d.InputOf.Add(proc) |> ignore
+            d.InputOf.Add(proc) |> ignore
 
     let removeInputBackEdge (node: IONode) (proc: LabProcess) =
         match node with
@@ -727,9 +727,9 @@ and [<AttachMembers>] LabProcess(name: string, ?executesProtocol: LabProtocol, ?
     let addOutputBackEdge (node: IONode) (proc: LabProcess) =
         match node with
         | MaterialNode m ->
-            if not (m.OutputOf |> Seq.exists (fun p -> p = proc)) then m.OutputOf.Add(proc) |> ignore
+            m.OutputOf.Add(proc) |> ignore
         | DataNode d ->
-            if not (d.OutputOf |> Seq.exists (fun p -> p = proc)) then d.OutputOf.Add(proc) |> ignore
+            d.OutputOf.Add(proc) |> ignore
 
     let removeOutputBackEdge (node: IONode) (proc: LabProcess) =
         match node with
@@ -766,10 +766,8 @@ and [<AttachMembers>] LabProcess(name: string, ?executesProtocol: LabProtocol, ?
 
     /// Add input. If an identical node is already present it is reused (deduplication).
     member this.AddInput(node: IONode) =
-        let duplicate = _inputs |> Seq.exists (fun n -> n.EqualTo(node))
-        if not duplicate then
-            _inputs.Add(node)
-            addInputBackEdge node this
+        _inputs.Add(node)
+        addInputBackEdge node this
 
     member this.AddInputMaterial(m: Material) = this.AddInput(MaterialNode m)
     member this.AddInputData(d: Data)         = this.AddInput(DataNode d)
@@ -784,11 +782,9 @@ and [<AttachMembers>] LabProcess(name: string, ?executesProtocol: LabProtocol, ?
     // ── Output CRUD ───────────────────────────────────────────────────────────
 
     /// Add output. If an identical node is already present it is reused (deduplication).
-    member this.AddOutput(node: IONode) =
-        let duplicate = _outputs |> Seq.exists (fun n -> n.EqualTo(node))
-        if not duplicate then
-            _outputs.Add(node)
-            addOutputBackEdge node this
+    member this.AddOutput(node: IONode) =       
+        _outputs.Add(node)
+        addOutputBackEdge node this
 
     member this.AddOutputMaterial(m: Material) = this.AddOutput(MaterialNode m)
     member this.AddOutputData(d: Data)         = this.AddOutput(DataNode d)
@@ -803,8 +799,8 @@ and [<AttachMembers>] LabProcess(name: string, ?executesProtocol: LabProtocol, ?
     // ── ParameterValue CRUD ───────────────────────────────────────────────────
 
     member this.AddParameterValue(pv: PropertyValue) =
-        if not (_parameterValue |> Seq.exists (fun x -> x = pv)) then
-            _parameterValue.Add(pv)
+        //if not (_parameterValue |> Seq.exists (fun x -> x = pv)) then
+        _parameterValue.Add(pv)
 
     member _.RemoveParameterValue(pv: PropertyValue) =
         _parameterValue.Remove(pv) |> ignore
@@ -909,8 +905,6 @@ and [<AttachMembers>] Dataset(identifier: string, ?name: string, ?description: s
         processes          |> Option.iter (fun ps  -> for p  in ps  do this.AddProcess(p))
         hasPart            |> Option.iter (fun ds  -> for d  in ds  do this.AddPart(d))
         additionalProperty |> Option.iter (fun pvs -> for pv in pvs do this.AddAdditionalProperty(pv))
-
-    new() = Dataset("")
 
     member _.Identifier
         with get() = _identifier

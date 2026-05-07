@@ -6,19 +6,19 @@ open ProcessCore.Tests.Fixtures
 
 let tests = testList "Deduplication" [
 
-    testCase "AddInput: identical node not doubled" <| fun _ ->
+    testCase "AddInput: identical node can be added" <| fun _ ->
         let f = makeFixtureA()
         // Sample1 is already an input of p2 (added during fixture construction)
         let countBefore = f.P2.Inputs.Count
         f.P2.AddInputMaterial(f.Sample1)
-        Expect.equal f.P2.Inputs.Count countBefore "Adding Sample1 again to p2 inputs should not create a second entry"
+        Expect.equal f.P2.Inputs.Count (countBefore + 1) "Adding Sample1 again to p2 inputs should create a second entry"
 
-    testCase "AddOutput: identical node not doubled" <| fun _ ->
+    testCase "AddOutput: identical node can be added" <| fun _ ->
         let f = makeFixtureA()
         // Sample1 is already an output of p1
         let countBefore = f.P1.Outputs.Count
         f.P1.AddOutputMaterial(f.Sample1)
-        Expect.equal f.P1.Outputs.Count countBefore "Adding Sample1 again to p1 outputs should not create a second entry"
+        Expect.equal f.P1.Outputs.Count (countBefore + 1) "Adding Sample1 again to p1 outputs should create a second entry"
 
     testCase "shared node is same object instance" <| fun _ ->
         let f = makeFixtureA()
@@ -40,12 +40,12 @@ let tests = testList "Deduplication" [
         f.Parent.AddPart(f.Child1)
         Expect.equal f.Parent.HasPart.Count countBefore "Adding child1 to parent a second time should leave count unchanged"
 
-    testCase "AddParameterValue: duplicate ignored" <| fun _ ->
+    testCase "AddParameterValue: duplicate not ignored" <| fun _ ->
         let f           = makeFixtureA()
         let countBefore = f.P1.ParameterValue.Count
         let pv          = f.P1.ParameterValue.[0]
         f.P1.AddParameterValue(pv)
-        Expect.equal f.P1.ParameterValue.Count countBefore "Adding the same PV again should leave count unchanged"
+        Expect.equal f.P1.ParameterValue.Count (countBefore + 1) "Adding the same PV again should create another entry"
 
     testCase "AddParameter (protocol): duplicate ignored" <| fun _ ->
         let proto  = LabProtocol("extraction")

@@ -15,10 +15,6 @@ let tests = testList "Dataset" [
         let ds2 = Dataset("DS-B")
         Expect.notEqual ds1 ds2 "Different identifiers → not equal"
 
-    testCase "default constructor" <| fun _ ->
-        let ds = Dataset()
-        Expect.equal ds.Identifier "" "Default identifier should be empty string"
-
     testCase "AddProcess sets ProcessOf back-edge" <| fun _ ->
         let ds = Dataset("DS-A")
         let p  = LabProcess("p1")
