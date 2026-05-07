@@ -14,7 +14,7 @@ let all =
     testList
         "ProcessCore"
         [
-            Synchronization.tests
+            Integration.tests
             Types.PropertyValue.tests
             Types.DefinedTerm.tests
             Types.FormalParameter.tests
@@ -31,6 +31,11 @@ let all =
             Graph.DatasetQueries.tests
             Graph.PathQueries.tests
             Graph.ProcessGraphQueries.tests
+            Table.CompositeTypes.tests
+            Table.TableAux.tests
+            Table.TableRead.tests
+            Table.TableWrite.tests
+            Table.TablesApi.tests
         ]
 
 [<EntryPoint>]

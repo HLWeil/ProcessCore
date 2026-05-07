@@ -23,7 +23,12 @@
     <Compile Include="Graph/DatasetQueries.fs" />
     <Compile Include="Graph/PathQueries.fs" />
     <Compile Include="Graph/ProcessGraphQueries.fs" />
-    <Compile Include="Synchronization.fs" />
+    <Compile Include="Table/CompositeTypes.fs" />
+    <Compile Include="Table/TableAux.fs" />
+    <Compile Include="Table/TableRead.fs" />
+    <Compile Include="Table/TableWrite.fs" />
+    <Compile Include="Table/TablesApi.fs" />
+    <Compile Include="Integration.fs" />
     <Compile Include="Main.fs" />
   </ItemGroup>
 
