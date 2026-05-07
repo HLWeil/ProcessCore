@@ -1,9 +1,12 @@
 #r "nuget: Fable.Core, 4.3.0"
 #r "nuget: DynamicObj"
-#r @"C:\Users\HLWei\source\repos\ARC-Data-Model\src\ProcessCore\bin\Debug\netstandard2.0\ProcessCore.dll"
+#r "nuget: YAMLicious"
+#r @"..\src\ProcessCore\bin\Debug\netstandard2.0\ProcessCore.dll"
+#r @"..\src\ProcessCore.YML\bin\Debug\netstandard2.0\ProcessCore.YML.dll"
 
 open ProcessCore
 open ProcessCore.Table
+open ProcessCore.Yaml
 
 DefinedTerm("dawdwa")
 
@@ -55,3 +58,27 @@ dataset.AllData().[0].UpstreamNodes()
 |> Seq.length
 
 dataset.Tables.RemoveTable(dataset.Tables.TableNames.[1])
+
+
+
+let assayFilePath = @"./isa/assay_proteomics.yml"
+let ymlContent = System.IO.File.ReadAllText(assayFilePath)
+
+let myAssay = Decode.fromYamlString (Dataset.decoder false) ymlContent
+
+myAssay.Processes
+
+
+let ddd = Dataset(identifier = "MyDataset")
+
+ddd.AddProcess(LabProcess("MyProcess"))
+ddd.AddProcess(LabProcess("MyProcess"))
+ddd.AddProcess(LabProcess("MyProcess2"))
+
+ddd.Processes
+
+childD1.Processes
+|> Seq.length
+
+
+LabProcess("MyProcess").ReferenceEquals(LabProcess("MyProcess"))

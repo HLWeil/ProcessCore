@@ -14,7 +14,7 @@ module LabProcess =
     let private knownPropertyNames =
         Set.ofList
             [ "id"; "type"; "additionaltype"; "name"; "inputs"; "outputs"
-              "executesprotocol"; "parametervalue" ]
+              "executesprotocol"; "parametervalue"; "processof" ]
 
     /// Decode a single input/output YAML element into an IONode.
     /// Discriminates by the `type` field value; defaults to Material when absent.

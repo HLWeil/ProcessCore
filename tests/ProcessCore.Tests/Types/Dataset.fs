@@ -27,12 +27,20 @@ let tests = testList "Dataset" [
         Expect.isSome p.ProcessOf "ProcessOf should be Some after AddProcess"
         Expect.equal p.ProcessOf.Value ds "ProcessOf should point to the dataset"
 
-    testCase "AddProcess deduplicates" <| fun _ ->
+    testCase "AddProcess deduplicates reference Identity" <| fun _ ->
         let ds = Dataset("DS-A")
         let p  = LabProcess("p1")
         ds.AddProcess(p)
         ds.AddProcess(p)
         Expect.equal ds.Processes.Count 1 "Same process added twice → one entry"
+
+    testCase "AddProcess does not deduplicate different instances" <| fun _ ->
+        let ds = Dataset("DS-A")
+        let p1 = LabProcess("p1")
+        let p2 = LabProcess("p1")
+        ds.AddProcess(p1)
+        ds.AddProcess(p2)
+        Expect.equal ds.Processes.Count 2 "Different instances with same identifier → two entries"
 
     testCase "RemoveProcess clears ProcessOf" <| fun _ ->
         let ds = Dataset("DS-A")

@@ -941,7 +941,7 @@ and [<AttachMembers>] Dataset(identifier: string, ?name: string, ?description: s
     // ── Process CRUD ──────────────────────────────────────────────────────────
 
     member this.AddProcess(proc: LabProcess) =
-        if not (_processes |> Seq.exists (fun p -> p = proc)) then
+        if not (_processes |> Seq.exists (fun p -> p.ReferenceEquals proc)) then
             _processes.Add(proc)
             proc.ProcessOf <- Some this
 

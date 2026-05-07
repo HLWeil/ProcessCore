@@ -14,7 +14,8 @@ module Data =
     let private knownPropertyNames =
         Set.ofList
             [ "type"; "additionaltype"; "path"; "selector"
-              "selectorformat"; "encodingformat"; "additionalproperty" ]
+              "selectorformat"; "encodingformat"; "additionalproperty"
+              "inputof"; "outputof" ]
 
     let decoder (processCoreOnly: bool) (value: YAMLElement) : Data =
         checkType processCoreOnly "Data" value

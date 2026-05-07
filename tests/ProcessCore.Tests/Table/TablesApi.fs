@@ -59,9 +59,8 @@ let tests = testList "TablesApi" [
         let ds = makeDatasetWithTwoTables()
         let t  = Tables(ds).GetTable("TableA")
         Expect.equal t.Name     "TableA" "name"
-        // LabProcess equality is by name, so AddProcess deduplicates same-named procs;
-        // the dataset only holds one process per distinct name.
-        Expect.equal t.RowCount 1        "RowCount = 1 (one entry per name in dataset)"
+        // LabProcess equality is by reference, so AddProcess does not deduplicate same-named procs;
+        Expect.equal t.RowCount 2        "RowCount = 2 (two processes with the same name in the dataset)"
 
     testCase "GetTable — non-existent raises" <| fun _ ->
         let ds = makeDatasetWithTwoTables()
@@ -91,8 +90,8 @@ let tests = testList "TablesApi" [
         let ds     = makeDatasetWithTwoTables()
         let before = ds.Processes.Count
         Tables(ds).RemoveTable("TableA")
-        // Only 1 process with name "TableA" is in the dataset (dedup by name during AddProcess)
-        Expect.equal ds.Processes.Count (before - 1) "one TableA process removed"
+        // 2 processes with name "TableA" is in the dataset (no dedup by name during AddProcess)
+        Expect.equal ds.Processes.Count (before - 2) "one TableA process removed"
 
     testCase "RemoveTable — other tables unaffected" <| fun _ ->
         let ds = makeDatasetWithTwoTables()

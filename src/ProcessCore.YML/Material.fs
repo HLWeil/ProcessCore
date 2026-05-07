@@ -10,7 +10,7 @@ module Material =
         Set.ofList [ "id"; "type"; "additionalType"; "name"; "additionalProperty" ]
 
     let private knownPropertyNames =
-        Set.ofList [ "id"; "type"; "additionaltype"; "name"; "additionalproperty" ]
+        Set.ofList [ "id"; "type"; "additionaltype"; "name"; "additionalproperty"; "inputof"; "outputof" ]
 
     let decoder (processCoreOnly: bool) (value: YAMLElement) : Material =
         checkType processCoreOnly "Material" value

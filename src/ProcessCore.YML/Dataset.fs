@@ -14,7 +14,7 @@ module Dataset =
     let private knownPropertyNames =
         Set.ofList
             [ "type"; "additionaltype"; "identifier"; "name"; "description"
-              "processes"; "haspart"; "additionalproperty" ]
+              "processes"; "haspart"; "additionalproperty"; "partof" ]
 
     let rec decoder (processCoreOnly: bool) (value: YAMLElement) : Dataset =
         checkType processCoreOnly "Dataset" value
@@ -107,8 +107,8 @@ module Dataset =
         ]
         |> yamlMap
 
-    let fromYamlString (s: string) : Dataset =
-        YAMLicious.Reader.read s |> decoder true
+    let fromYamlString (processCoreOnly : bool) (s: string) : Dataset =
+        YAMLicious.Reader.read s |> decoder processCoreOnly
 
     let toYamlString (whitespace: int option) (ds: Dataset) : string =
         writeYaml whitespace (encoder ds)
