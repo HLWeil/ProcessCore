@@ -16,7 +16,7 @@ Ontology annotation referencing a term in a controlled vocabulary or ontology.
 | Property | Type | Required | Description |
 |----------|------|----------|-------------|
 | `id` | Text | MUST | Term URI |
-| `type` | Text | MUST | `schema.org/DefinedTerm` |
+| `type` | Text | MUST | `DefinedTerm` |
 | `name` | Text | MUST | Term name |
 | `TAN` | Text | SHOULD | Identifier within the ontology |
 | `inDefinedTermSet` | URL, DefinedTermSet | SHOULD | Link to the ontology |

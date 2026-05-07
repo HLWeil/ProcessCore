@@ -16,7 +16,7 @@ Describes the shape and type of protocol inputs/outputs, providing prospective p
 | Property | Type | Required | Description |
 |----------|------|----------|-------------|
 | `id` | Text | MUST | Unique identifier |
-| `type` | Text | MUST | `bioschemas.org/FormalParameter` |
+| `type` | Text | MUST | `FormalParameter` |
 | `name` | Text | SHOULD | Parameter slot name (should match workflow parameter) |
 | `nameTAN` | URL | SHOULD | Key ontology reference |
 | `defaultValue` | DefinedTerm | COULD | Default value for input |

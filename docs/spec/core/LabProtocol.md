@@ -20,7 +20,7 @@ Decorations specialize Protocol:
 | Property | Type | Required | Description |
 |----------|------|----------|-------------|
 | `id` | Text | COULD | URL or identifier for the protocol |
-| `type` | Text | MUST | Protocol type |
+| `type` | Text | MUST | `LabProcess` |
 | `additionalType` | Text | COULD | Decoration discriminator, e.g. `LabProtocol` |
 | `name` | Text | SHOULD | Main title |
 | `parameters` | [FormalParameter](FormalParameter.md) | COULD | Prospectively specifies parameters for which values should be given in the execution of the protocol, Maps to `input` in Bioschemas type|

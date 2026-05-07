@@ -20,7 +20,7 @@ Decoration subtypes:
 | Property | Type | Required | Description |
 |----------|------|----------|-------------|
 | `id` | Text | MUST | Unique identifier |
-| `type` | Text | MUST | `schema.org/PropertyValue` |
+| `type` | Text | MUST | `PropertyValue` |
 | `additionalType` | Text | SHOULD | Subtype discriminator |
 | `name` | Text | MUST | Key name |
 | `value` | Text, Number | SHOULD | The value |

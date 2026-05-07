@@ -16,7 +16,7 @@ Data files produced or consumed by processes. A Data object may represent either
 | Property | Type | Required | Description |
 |----------|------|----------|-------------|
 | `id` | Text | COULD | Path pointing to the file |
-| `type` | Text | MUST | `File` or `MediaObject` |
+| `type` | Text | MUST | `Data` |
 | `additionalType` | Text | COULD | Decoration discriminator, e.g. `Raw Data` |
 | `path` | Text | MUST | Path to the target data object when using the flat form |
 | `selector` | Text | COULD | Fragment selector that narrows the target to a subset of the data object |

@@ -20,7 +20,7 @@ Decorations specialize Process:
 | Property | Type | Required | Description |
 |----------|------|----------|-------------|
 | `id` | Text | COULD | Unique process identifier |
-| `type` | Text | MUST | Process type |
+| `type` | Text | MUST | `LabProcess` |
 | `additionalType` | Text | COULD | Decoration discriminator, e.g. `LabProcess` |
 | `name` | Text | MUST | Name of the process |
 | `inputs` | [Material](Material.md), [Data](Data.md) | SHOULD | Input(s) of the process |
