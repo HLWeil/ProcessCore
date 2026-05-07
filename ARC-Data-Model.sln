@@ -25,6 +25,8 @@ Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "ProcessCore.YML", "src\Proc
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "SpeedTest", "tests\SpeedTest\SpeedTest.fsproj", "{E18A7212-0073-4D1C-B72A-854B2F96BE03}"
 EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "build", "build\build.fsproj", "{338B3FE6-B61C-6FC6-F788-A4C367EE299F}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -143,6 +145,18 @@ Global
 		{E18A7212-0073-4D1C-B72A-854B2F96BE03}.Release|x64.Build.0 = Release|Any CPU
 		{E18A7212-0073-4D1C-B72A-854B2F96BE03}.Release|x86.ActiveCfg = Release|Any CPU
 		{E18A7212-0073-4D1C-B72A-854B2F96BE03}.Release|x86.Build.0 = Release|Any CPU
+		{338B3FE6-B61C-6FC6-F788-A4C367EE299F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{338B3FE6-B61C-6FC6-F788-A4C367EE299F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{338B3FE6-B61C-6FC6-F788-A4C367EE299F}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{338B3FE6-B61C-6FC6-F788-A4C367EE299F}.Debug|x64.Build.0 = Debug|Any CPU
+		{338B3FE6-B61C-6FC6-F788-A4C367EE299F}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{338B3FE6-B61C-6FC6-F788-A4C367EE299F}.Debug|x86.Build.0 = Debug|Any CPU
+		{338B3FE6-B61C-6FC6-F788-A4C367EE299F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{338B3FE6-B61C-6FC6-F788-A4C367EE299F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{338B3FE6-B61C-6FC6-F788-A4C367EE299F}.Release|x64.ActiveCfg = Release|Any CPU
+		{338B3FE6-B61C-6FC6-F788-A4C367EE299F}.Release|x64.Build.0 = Release|Any CPU
+		{338B3FE6-B61C-6FC6-F788-A4C367EE299F}.Release|x86.ActiveCfg = Release|Any CPU
+		{338B3FE6-B61C-6FC6-F788-A4C367EE299F}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

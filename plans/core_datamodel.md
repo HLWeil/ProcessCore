@@ -38,6 +38,23 @@ For each object in the datamodel, identity is determined by it's values. Each ty
 This distinctness must be kept consistent eagerly: whenever an object is added to a container (e.g. a `Material` to a `LabProcess`'s `inputs`), the container must check if an identical object already exists in that container. If it does, the existing object is reused instead of adding the new one. This ensures that all references to a given entity point to the same object instance, maintaining consistency and enabling efficient graph traversal.
 In the same sense, when datasets are nested, if a child dataset is added to a parent dataset, the parent must check if an identical child already exists in its collection. If it does, the existing child is reused instead of adding the new one.
 
+### IONode registry
+
+The **root dataset** of each hierarchy maintains a single `Dictionary<string, IONode>` keyed by `IONode.Key()`. This is the only registry in the hierarchy; child datasets hold no registry of their own. Canonicalization scope is therefore the entire dataset tree, which matches the identity rule that equal nodes are identical across datasets.
+
+The root is reached by walking `PartOf` until `None`.
+
+**Population rules:**
+
+- `process.AddInput(node)` / `AddOutput(node)` — walk up to the root registry via `PartOf`. If the key is present, substitute the canonical instance; otherwise insert the new node as canonical.
+- `dataset.AddProcess(proc)` — register all nodes already in `proc.Inputs` and `proc.Outputs` into the root registry.
+- `dataset.AddPart(child)` — register all nodes reachable through `child.AllNodes()` into the root registry.
+
+**Removal rules:**
+
+- When a process is removed, each of its nodes is checked via `InputOf`/`OutputOf` back-edges. A node is evicted from the root registry only if no process remaining anywhere in the tree still references it.
+- When a child dataset is removed from a parent, apply the same per-node check for all nodes reachable through the child.
+
 ## Path Type
 
 A `Path` type is part of the core data model. It represents a sequence of `LabProcess` instances connected through their shared I/O nodes, i.e. a directed walk through the process graph. It is a **read-only view** — it has no CRUD API of its own and does not own the processes it references. It is produced by graph-traversal queries and exposes the ordered list of processes and the nodes connecting them.
