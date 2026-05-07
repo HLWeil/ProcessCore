@@ -6,6 +6,8 @@ let project = "ARC-Data-Model"
 
 let pyxpectoTestProjects =
     [
+        "tests/ProcessCore.Tests/ProcessCore.Tests.fsproj"
+        "tests/ProcessCore.YAML.Tests/ProcessCore.YAML.Tests.fsproj"
         "tests/ProcessCore.SQL.Tests/ProcessCore.SQL.Tests.fsproj"
     ]
 

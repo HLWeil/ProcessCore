@@ -13,7 +13,7 @@ properties:
 
   type:
     type: string
-    const: "bioschemas:Sample"
+    const: "Material"
     description: Fixed type discriminator
 
   additionalType:

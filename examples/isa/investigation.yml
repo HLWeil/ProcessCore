@@ -1,6 +1,7 @@
-type: Investigation # inherits from Dataset
+type: Dataset
+additionalType: Investigation
 identifier: ara_prot_2023
-title: Validation of Proteins in Arabidopsis thaliana
+name: Validation of Proteins in Arabidopsis thaliana
 description: Some people say that Arabidopsis thaliana does not contain any proteins, but lives on vibes. This investigation aims to validate the presence of proteins in Arabidopsis thaliana using various experimental techniques, including proteomics and chill.
 creators:
   type: Person
@@ -15,7 +16,7 @@ creators:
     "@type": DefinedTerm
     name: research assistant
     termCode: http://purl.org/spar/scoro/research-assistant  
-additionalProperties:
+additionalProperty:
   - type: PropertyValue
     name: latitude
     nameTAN: http://www.eionet.europa.eu/gemet/concept/14936

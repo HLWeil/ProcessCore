@@ -6,13 +6,13 @@ open DynamicObj
 /// Describes the shape and type of a protocol parameter slot.
 /// bioschemas.org/FormalParameter
 [<AttachMembers>]
-type FormalParameter(name: string) =
+type FormalParameter(name: string, ?nameTAN: string, ?defaultValue: DefinedTerm) =
 
     inherit DynamicObj()
 
     let mutable _name: string = name
-    let mutable _nameTAN: string option = None
-    let mutable _defaultValue: DefinedTerm option = None
+    let mutable _nameTAN: string option = nameTAN
+    let mutable _defaultValue: DefinedTerm option = defaultValue
 
 
     member _.Name

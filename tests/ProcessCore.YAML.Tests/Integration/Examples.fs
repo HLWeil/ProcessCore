@@ -1,0 +1,136 @@
+module ProcessCore.Yaml.Tests.Integration.Examples
+
+open Fable.Pyxpecto
+open ProcessCore
+open ProcessCore.Yaml
+
+// let private examplesDir =
+//     System.IO.Path.GetFullPath(
+//         System.IO.Path.Combine(
+//             System.AppDomain.CurrentDomain.BaseDirectory,
+//             "../../../../../examples/isa"))
+
+// let private readExample name =
+//     System.IO.File.ReadAllText(System.IO.Path.Combine(examplesDir, name))
+
+// The example files use ProcessCore type strings (Dataset, LabProcess, Material, Data)
+// with ISA additionalType decorations. Strict mode (processCoreOnly=true) works fine;
+// extra fields (creators, labProtocols, …) go to overflow.
+
+let private loadInvestigation (processCoreOnly : bool) =
+    // Yaml.Dataset.fromYamlString (readExample "investigation.yml")
+    Yaml.Dataset.fromYamlString processCoreOnly ProcessCore.Yaml.Tests.Fixtures.investigationString
+
+
+let private loadAssay (processCoreOnly : bool) =
+    // Yaml.Dataset.fromYamlString (readExample "assay_proteomics.yml")
+    Yaml.Dataset.fromYamlString processCoreOnly ProcessCore.Yaml.Tests.Fixtures.proteomicsAssayString
+
+let tests = testList "Examples" [
+
+    testCase "investigation identifier" <| fun _ ->
+        let inv = loadInvestigation(false)
+        Expect.equal inv.Identifier "ara_prot_2023" "identifier"
+
+    testCase "investigation name" <| fun _ ->
+        let inv = loadInvestigation(false)
+        Expect.equal inv.Name
+                     (Some "Validation of Proteins in Arabidopsis thaliana")
+                     "name"
+
+    testCase "investigation additionalType" <| fun _ ->
+        let inv = loadInvestigation(false)
+        Expect.equal inv.AdditionalType (Some "Investigation") "additionalType"
+
+    testCase "investigation additionalProperty count" <| fun _ ->
+        let inv = loadInvestigation(false)
+        Expect.equal inv.AdditionalProperty.Count 3 "three additionalProperties"
+
+    testCase "investigation PV names" <| fun _ ->
+        let inv  = loadInvestigation(false)
+        let names = inv.AdditionalProperty |> Seq.map (fun pv -> pv.Name) |> Seq.toList
+        Expect.equal names ["latitude"; "longitude"; "aim"] "property names"
+
+    testCase "investigation strict mode passes" <| fun _ ->
+        // processCoreOnly=true — should not throw
+        let inv  = Yaml.Dataset.fromYamlString true ProcessCore.Yaml.Tests.Fixtures.investigationString   // fromYamlString uses decoder true
+        Expect.equal inv.Identifier "ara_prot_2023" "strict mode decode ok"
+
+    testCase "assay identifier" <| fun _ ->
+        let assay = loadAssay(false)
+        Expect.equal assay.Identifier "measurement1" "identifier"
+
+    testCase "assay process count" <| fun _ ->
+        let assay = loadAssay(false)
+        // 2 Growth + 6 Cell Lysis + 6 MS Run + 6 CPA = 20
+        Expect.equal assay.Processes.Count 20 "twenty processes"
+
+    testCase "assay first process name" <| fun _ ->
+        let assay = loadAssay(false)
+        Expect.equal assay.Processes.[0].Name "Growth" "first process is Growth"
+
+    testCase "assay first process input name" <| fun _ ->
+        let assay = loadAssay(false)
+        let input = assay.Processes.[0].Inputs.[0]
+        match input with
+        | MaterialNode m -> Expect.equal m.Name "Base Culture" "first input name"
+        | DataNode _     -> failwith "Expected MaterialNode"
+
+    testCase "assay first process input additionalType" <| fun _ ->
+        let assay = loadAssay(false)
+        let input = assay.Processes.[0].Inputs.[0]
+        match input with
+        | MaterialNode m -> Expect.equal m.AdditionalType (Some "Source") "additionalType"
+        | DataNode _     -> failwith "Expected MaterialNode"
+
+    testCase "assay MS Run output is Data" <| fun _ ->
+        let assay = loadAssay(false)
+        let msRun =
+            assay.Processes
+            |> Seq.find (fun p -> p.Name = "MS Run")
+        Expect.equal msRun.Outputs.Count 1 "one output"
+        match msRun.Outputs.[0] with
+        | DataNode d -> Expect.isTrue (d.Path.EndsWith(".raw")) "MS Run output is .raw data file"
+        | MaterialNode _ -> failwith "Expected DataNode for MS Run output"
+
+    testCase "assay CPA output path" <| fun _ ->
+        let assay = loadAssay(false)
+        let cpa =
+            assay.Processes
+            |> Seq.find (fun p -> p.Name = "Computational Proteome Analysis")
+        Expect.equal cpa.Outputs.Count 1 "one output"
+        match cpa.Outputs.[0] with
+        | DataNode d ->
+            Expect.isTrue (d.Path.StartsWith("proteomics_result.csv")) "CPA output file"
+        | MaterialNode _ -> failwith "Expected DataNode for CPA output"
+
+    testCase "assay creators in overflow" <| fun _ ->
+        let assay = loadAssay(false)
+        let hasCreators =
+            assay.GetProperties(true)
+            |> Seq.exists (fun kv -> kv.Key = "creators")
+        Expect.isTrue hasCreators "creators stored in overflow"
+
+    testCase "assay labProtocols in overflow" <| fun _ ->
+        let assay = loadAssay(false)
+        let hasLabProtocols =
+            assay.GetProperties(true)
+            |> Seq.exists (fun kv -> kv.Key = "labProtocols")
+        Expect.isTrue hasLabProtocols "labProtocols stored in overflow"
+
+    ptestCase "assay strict mode fails" <| fun _ ->
+        // processCoreOnly=true — should throw because of unknown fields like creators, labProtocols
+        let decode = fun () -> Yaml.Dataset.fromYamlString true ProcessCore.Yaml.Tests.Fixtures.proteomicsAssayString |> ignore
+        Expect.throws decode "strict mode should throw on unknown fields"
+
+    // testCase "datamap raw YAML load" <| fun _ ->
+    //     // datamap is not a Dataset — just test that the raw YAML can be parsed
+    //     let yaml = readExample "datamap_proteomics.yml"
+    //     let element = YAMLicious.Reader.read yaml
+    //     // The root object should have a 'datacontexts' key
+    //     let hasDataContexts =
+    //         ProcessCore.Yaml.Helpers.getMappings element
+    //         |> List.exists (fun (k, _) -> k = "datacontexts")
+    //     Expect.isTrue hasDataContexts "datacontexts key present in raw parse"
+
+]

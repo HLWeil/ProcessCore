@@ -126,306 +126,307 @@ processes:
     # Possible worksheet grouping
     type: LabProcess
     name: Growth
-    object:
-      type: Material # = additionalType: [Source]
-      additionalType: Source
-      name: Base Culture
-      additionalProperties:
-        - 
-         "@id": "#CharacteristicValue_organism_Arabidopsis_thaliana"
-    result:
-      type: Material
-      additionalType: Sample      
-      name: Cultivation Flask RT
-      additionalProperties:
-        - 
-         "@id": "#FactorValue_temperature_25_degree_Celsius"
-    executesLabProtocol:
+    inputs:
+      - type: Material # = additionalType: [Source]
+        additionalType: Source
+        name: Base Culture
+        additionalProperty:
+          - 
+           "@id": "#CharacteristicValue_organism_Arabidopsis_thaliana"
+    outputs:
+      - type: Material
+        additionalType: Sample      
+        name: Cultivation Flask RT
+        additionalProperty:
+          - 
+           "@id": "#FactorValue_temperature_25_degree_Celsius"
+    executesProtocol:
       "@id": "#Protocol_Growth"
   - 
     type: LabProcess
     name: Growth
-    object: 
-      type: Source # = additionalType: [Source]
-      name: Base Culture
-      additionalProperties:
-        - 
-         "@id": "#CharacteristicValue_organism_Arabidopsis_thaliana"
-    result:
-      type: Material
-      additionalType: Sample
-      name: Cultivation Flask HT
-      additionalProperties:
-        - 
-         "@id": "#FactorValue_temperature_30_degree_Celsius"
-    executesLabProtocol:
+    inputs: 
+      - type: Material
+        additionalType: Source
+        name: Base Culture
+        additionalProperty:
+          - 
+           "@id": "#CharacteristicValue_organism_Arabidopsis_thaliana"
+    outputs:
+      - type: Material
+        additionalType: Sample
+        name: Cultivation Flask HT
+        additionalProperty:
+          - 
+           "@id": "#FactorValue_temperature_30_degree_Celsius"
+    executesProtocol:
       "@id": "#Protocol_Growth"
   - 
     type: LabProcess
     name: Cell Lysis
-    object: 
-      type: Material
-      additionalType: Source # = additionalType: [Source]
-      name: Cultivation Flask RT
-    result:
-      type: Material      
-      additionalType: Sample
-      name: Eppi RT 1
-    executesLabProtocol:
+    inputs: 
+      - type: Material
+        additionalType: Source # = additionalType: [Source]
+        name: Cultivation Flask RT
+    outputs:
+      - type: Material      
+        additionalType: Sample
+        name: Eppi RT 1
+    executesProtocol:
       "@id": "#Protocol_Cell_Lysis"
-    parameterValues:
+    parameterValue:
       - "@id": "#ParameterValue_time_10_minute"
       - "@id": "#ParameterValue_sonicator_Fisherbrand_Model_705_Sonic_Dismembrator"
       - "@id": "#ParameterValue_technical_replicate_group_1"
   - 
     type: LabProcess
     name: Cell Lysis
-    object: 
-      type: Material # = additionalType: [Source]
-      additionalType: Source
-      name: Cultivation Flask RT
-    result:
-      type: Material      
-      additionalType: Sample
-      name: Eppi RT 2
-    executesLabProtocol:
+    inputs: 
+      - type: Material # = additionalType: [Source]
+        additionalType: Source
+        name: Cultivation Flask RT
+    outputs:
+      - type: Material      
+        additionalType: Sample
+        name: Eppi RT 2
+    executesProtocol:
       "@id": "#Protocol_Cell_Lysis"
-    parameterValues:
+    parameterValue:
       - "@id": "#ParameterValue_time_10_minute"
       - "@id": "#ParameterValue_sonicator_Fisherbrand_Model_705_Sonic_Dismembrator"
       - "@id": "#ParameterValue_technical_replicate_group_2"
   - 
     type: LabProcess
     name: Cell Lysis
-    object: 
-      type: Material # = additionalType: [Source]
-      additionalType: Source
-      name: Cultivation Flask RT
-    result:
-      type: Material      
-      additionalType: Sample
-      name: Eppi RT 3
-    executesLabProtocol:
+    inputs: 
+      - type: Material # = additionalType: [Source]
+        additionalType: Source
+        name: Cultivation Flask RT
+    outputs:
+      - type: Material      
+        additionalType: Sample
+        name: Eppi RT 3
+    executesProtocol:
       "@id": "#Protocol_Cell_Lysis"
-    parameterValues:
+    parameterValue:
       - "@id": "#ParameterValue_time_10_minute"
       - "@id": "#ParameterValue_sonicator_Fisherbrand_Model_705_Sonic_Dismembrator"
       - "@id": "#ParameterValue_technical_replicate_group_3"
   - 
     type: LabProcess
     name: Cell Lysis
-    object: 
-      type: Material # = additionalType: [Source]
-      additionalType: Source
-      name: Cultivation Flask HT
-    result:
-      type: Material      
-      additionalType: Sample
-      name: Eppi HT 1
-    executesLabProtocol:
+    inputs: 
+      - type: Material # = additionalType: [Source]
+        additionalType: Source
+        name: Cultivation Flask HT
+    outputs:
+      - type: Material      
+        additionalType: Sample
+        name: Eppi HT 1
+    executesProtocol:
       "@id": "#Protocol_Cell_Lysis"
-    parameterValues:
+    parameterValue:
       - "@id": "#ParameterValue_time_10_minute"
       - "@id": "#ParameterValue_sonicator_Fisherbrand_Model_705_Sonic_Dismembrator"
       - "@id": "#ParameterValue_technical_replicate_group_1"
   - 
     type: LabProcess
     name: Cell Lysis
-    object: 
-      type: Material # = additionalType: [Source]
-      additionalType: Source
-      name: Cultivation Flask HT
-    result:
-      type: Material      
-      additionalType: Sample
-      name: Eppi HT 2
-    executesLabProtocol:
+    inputs: 
+      - type: Material # = additionalType: [Source]
+        additionalType: Source
+        name: Cultivation Flask HT
+    outputs:
+      - type: Material      
+        additionalType: Sample
+        name: Eppi HT 2
+    executesProtocol:
       "@id": "#Protocol_Cell_Lysis"
-    parameterValues:
+    parameterValue:
       - "@id": "#ParameterValue_time_10_minute"
       - "@id": "#ParameterValue_sonicator_Fisherbrand_Model_705_Sonic_Dismembrator"
       - "@id": "#ParameterValue_technical_replicate_group_2"
   - 
     type: LabProcess
     name: Cell Lysis
-    object: 
-      type: Material # = additionalType: [Source]
-      additionalType: Source
-      name: Cultivation Flask HT
-    result:
-      type: Material      
-      additionalType: Sample
-      name: Eppi HT 3
-    executesLabProtocol:
+    inputs: 
+      - type: Material # = additionalType: [Source]
+        additionalType: Source
+        name: Cultivation Flask HT
+    outputs:
+      - type: Material      
+        additionalType: Sample
+        name: Eppi HT 3
+    executesProtocol:
       "@id": "#Protocol_Cell_Lysis"
-    parameterValues:
+    parameterValue:
       - "@id": "#ParameterValue_time_10_minute"
       - "@id": "#ParameterValue_sonicator_Fisherbrand_Model_705_Sonic_Dismembrator"
       - "@id": "#ParameterValue_technical_replicate_group_3"
   - 
     type: LabProcess
     name: MS Run
-    object: 
-      type: Material
-      additionalType: Sample
-      name: Eppi RT 1
-    result:
-      type: File
-      name: sample1.raw
-    executesLabProtocol:
+    inputs: 
+      - type: Material
+        additionalType: Sample
+        name: Eppi RT 1
+    outputs:
+      - type: Data
+        path: sample1.raw
+    executesProtocol:
       "@id": "#Protocol_MS_Run"
   - 
     type: LabProcess
     name: MS Run
-    object: 
-      type: Material      
-      additionalType: Sample
-      name: Eppi RT 2
-    result:
-      type: File
-      name: sample2.raw
-    executesLabProtocol:
+    inputs: 
+      - type: Material      
+        additionalType: Sample
+        name: Eppi RT 2
+    outputs:
+      - type: Data
+        path: sample2.raw
+    executesProtocol:
       "@id": "#Protocol_MS_Run"
   - 
     type: LabProcess
     name: MS Run
-    object: 
-      type: Material      
-      additionalType: Sample
-      name: Eppi RT 3
-    result:
-      type: File
-      name: sample3.raw
-    executesLabProtocol:
+    inputs: 
+      - type: Material      
+        additionalType: Sample
+        name: Eppi RT 3
+    outputs:
+      - type: Data
+        path: sample3.raw
+    executesProtocol:
       "@id": "#Protocol_MS_Run"
   - 
     type: LabProcess
     name: MS Run
-    object: 
-      type: Material      
-      additionalType: Sample
-      name: Eppi HT 1
-    result:
-      type: File
-      name: sample4.raw
-    executesLabProtocol:
+    inputs: 
+      - type: Material      
+        additionalType: Sample
+        name: Eppi HT 1
+    outputs:
+      - type: Data
+        path: sample4.raw
+    executesProtocol:
       "@id": "#Protocol_MS_Run"
   - 
     type: LabProcess
     name: MS Run
-    object: 
-      type: Material      
-      additionalType: Sample
-      name: Eppi HT 2
-    result:
-      type: File
-      name: sample5.raw
-    executesLabProtocol:
+    inputs: 
+      - type: Material      
+        additionalType: Sample
+        name: Eppi HT 2
+    outputs:
+      - type: Data
+        path: sample5.raw
+    executesProtocol:
       "@id": "#Protocol_MS_Run"
   -
     type: LabProcess
     name: MS Run
-    object: 
-      type: Material      
-      additionalType: Sample
-      name: Eppi HT 3
-    result:
-      type: File
-      name: sample6.raw
-    executesLabProtocol:
+    inputs: 
+      - type: Material      
+        additionalType: Sample
+        name: Eppi HT 3
+    outputs:
+      - type: Data
+        path: sample6.raw
+    executesProtocol:
       "@id": "#Protocol_MS_Run"
   -
     type: LabProcess
     name: Computational Proteome Analysis
-    object:      
-      type: File
-      name: sample1.raw
-    result:
-      type: File
-      name: "proteomics_result.csv#col=12"
-      encodingFormat: text/csv
-      usageInfo: https://datatracker.ietf.org/doc/html/rfc7111
-    executesLabProtocol:
+    inputs:      
+      - type: Data
+        path: sample1.raw
+    outputs:
+      - type: Data
+        path: "proteomics_result.csv#col=12"
+        encodingFormat: text/csv
+        usageInfo: https://datatracker.ietf.org/doc/html/rfc7111
+    executesProtocol:
       "@id": "#Protocol_Computational_Proteome_Analysis"
-    parameterValues:
+    parameterValue:
       "@id": "#ParameterValue_software_ProteomIqon"
   - 
     type: LabProcess
     name: Computational Proteome Analysis
-    object:      
-      type: File
-      name: sample2.raw
-    result:
-      type: File
-      name: "proteomics_result.csv#col=13"
-      encodingFormat: text/csv
-      usageInfo: https://datatracker.ietf.org/doc/html/rfc7111
-    executesLabProtocol:
+    inputs:      
+      - type: Data
+        path: sample2.raw
+    outputs:
+      - type: Data
+        path: "proteomics_result.csv#col=13"
+        encodingFormat: text/csv
+        usageInfo: https://datatracker.ietf.org/doc/html/rfc7111
+    executesProtocol:
       "@id": "#Protocol_Computational_Proteome_Analysis"
-    parameterValues:
+    parameterValue:
       "@id": "#ParameterValue_software_ProteomIqon"
   - 
     type: LabProcess
     name: Computational Proteome Analysis
-    object:      
-      type: File
-      name: sample3.raw
-    result:
-      type: File
-      name: "proteomics_result.csv#col=14"
-      encodingFormat: text/csv
-      usageInfo: https://datatracker.ietf.org/doc/html/rfc7111
-    executesLabProtocol:
+    inputs:      
+      - type: Data
+        path: sample3.raw
+    outputs:
+      - type: Data
+        path: "proteomics_result.csv#col=14"
+        encodingFormat: text/csv
+        usageInfo: https://datatracker.ietf.org/doc/html/rfc7111
+    executesProtocol:
       "@id": "#Protocol_Computational_Proteome_Analysis"
-    parameterValues:
+    parameterValue:
       "@id": "#ParameterValue_software_ProteomIqon"
   - 
     type: LabProcess
     name: Computational Proteome Analysis
-    object:      
-      type: File
-      name: sample4.raw
-    result:
-      type: File
-      name: "proteomics_result.csv#col=15"
-      encodingFormat: text/csv
-      usageInfo: https://datatracker.ietf.org/doc/html/rfc7111
-    executesLabProtocol:
+    inputs:      
+      - type: Data
+        path: sample4.raw
+    outputs:
+      - type: Data
+        path: "proteomics_result.csv#col=15"
+        encodingFormat: text/csv
+        usageInfo: https://datatracker.ietf.org/doc/html/rfc7111
+    executesProtocol:
       "@id": "#Protocol_Computational_Proteome_Analysis"
-    parameterValues:
+    parameterValue:
       "@id": "#ParameterValue_software_ProteomIqon"
   - 
     type: LabProcess
     name: Computational Proteome Analysis
-    object:      
-      type: File
-      name: sample5.raw
-    result:
-      type: File
-      name: "proteomics_result.csv#col=16"
-      encodingFormat: text/csv
-      usageInfo: https://datatracker.ietf.org/doc/html/rfc7111
-    executesLabProtocol:
+    inputs:      
+      - type: Data
+        path: sample5.raw
+    outputs:
+      - type: Data
+        path: "proteomics_result.csv#col=16"
+        encodingFormat: text/csv
+        usageInfo: https://datatracker.ietf.org/doc/html/rfc7111
+    executesProtocol:
       "@id": "#Protocol_Computational_Proteome_Analysis"
-    parameterValues:
+    parameterValue:
       "@id": "#ParameterValue_software_ProteomIqon"
   - 
     type: LabProcess
     name: Computational Proteome Analysis
-    object:      
-      type: File
-      name: sample6.raw
-    result:
-      type: File
-      name: "proteomics_result.csv#col=17"
-      encodingFormat: text/csv
-      usageInfo: https://datatracker.ietf.org/doc/html/rfc7111
-    executesLabProtocol:
+    inputs:      
+      - type: Data
+        path: sample6.raw
+    outputs:
+      - type: Data
+        path: "proteomics_result.csv#col=17"
+        encodingFormat: text/csv
+        usageInfo: https://datatracker.ietf.org/doc/html/rfc7111
+    executesProtocol:
       "@id": "#Protocol_Computational_Proteome_Analysis"
-    parameterValues:
+    parameterValue:
       "@id": "#ParameterValue_software_ProteomIqon"
 
-additionalProperties: 
+additionalProperty: 
   - # = generalProperty: (measurement type)
     type: PropertyValue
     name: variableMeasured

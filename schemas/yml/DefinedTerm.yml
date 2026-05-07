@@ -12,7 +12,7 @@ properties:
 
   type:
     type: string
-    const: "schema:DefinedTerm"
+    const: "DefinedTerm"
     description: Fixed type discriminator
 
   name:

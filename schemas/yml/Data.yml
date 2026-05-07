@@ -13,10 +13,8 @@ properties:
 
   type:
     type: string
-    enum:
-      - "File"
-      - "schema:MediaObject"
-    description: "Must be either 'File' or 'schema:MediaObject'"
+    const: "Data"
+    description: Fixed type discriminator
 
   additionalType:
     type: string

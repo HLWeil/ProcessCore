@@ -6,7 +6,29 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="Synchronization.fs" />
+    <Compile Include="Fixtures.fs" />
+    <Compile Include="Types/PropertyValue.fs" />
+    <Compile Include="Types/DefinedTerm.fs" />
+    <Compile Include="Types/FormalParameter.fs" />
+    <Compile Include="Types/Material.fs" />
+    <Compile Include="Types/Data.fs" />
+    <Compile Include="Types/LabProtocol.fs" />
+    <Compile Include="Types/LabProcess.fs" />
+    <Compile Include="Types/Dataset.fs" />
+    <Compile Include="Types/IONode.fs" />
+    <Compile Include="Graph/BackEdges.fs" />
+    <Compile Include="Graph/Deduplication.fs" />
+    <Compile Include="Graph/Traversal.fs" />
+    <Compile Include="Graph/PropertyValueSources.fs" />
+    <Compile Include="Graph/DatasetQueries.fs" />
+    <Compile Include="Graph/PathQueries.fs" />
+    <Compile Include="Graph/ProcessGraphQueries.fs" />
+    <Compile Include="Table/CompositeTypes.fs" />
+    <Compile Include="Table/TableAux.fs" />
+    <Compile Include="Table/TableRead.fs" />
+    <Compile Include="Table/TableWrite.fs" />
+    <Compile Include="Table/TablesApi.fs" />
+    <Compile Include="Integration.fs" />
     <Compile Include="Main.fs" />
   </ItemGroup>
 

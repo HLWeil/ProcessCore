@@ -22,7 +22,8 @@ properties:
 
   type:
     type: string
-    description: Process type (e.g. "bioschemas:LabProcess")
+    const: "LabProcess"
+    description: Fixed type discriminator
 
   additionalType:
     type: string
