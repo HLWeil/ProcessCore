@@ -26,13 +26,13 @@ type IONode =
         | DataNode d     -> "D:" + d.Path + (d.Selector |> Option.defaultValue "")
 
     /// Processes for which this node is an input (forward back-edges).
-    member this.GetInputOf() : ResizeArray<LabProcess> =
+    member this.GetInputOf() : HashSet<LabProcess> =
         match this with
         | MaterialNode m -> m.InputOf
         | DataNode d     -> d.InputOf
 
     /// Processes for which this node is an output (backward back-edges).
-    member this.GetOutputOf() : ResizeArray<LabProcess> =
+    member this.GetOutputOf() : HashSet<LabProcess> =
         match this with
         | MaterialNode m -> m.OutputOf
         | DataNode d     -> d.OutputOf
@@ -358,8 +358,8 @@ and [<AttachMembers>] Material(name: string, ?additionalType: string, ?additiona
     let mutable _name: string = name
     let mutable _additionalType: string option = additionalType
     let _additionalProperty: ResizeArray<PropertyValue> = ResizeArray()
-    let _inputOf: ResizeArray<LabProcess> = ResizeArray()
-    let _outputOf: ResizeArray<LabProcess> = ResizeArray()
+    let _inputOf: HashSet<LabProcess> = HashSet()
+    let _outputOf: HashSet<LabProcess> = HashSet()
 
     do
         additionalProperty |> Option.iter (fun pvs -> for pv in pvs do this.AddAdditionalProperty(pv))
@@ -376,10 +376,10 @@ and [<AttachMembers>] Material(name: string, ?additionalType: string, ?additiona
     member _.AdditionalProperty = _additionalProperty
 
     /// Processes for which this material is an input (back-edge)
-    member _.InputOf: ResizeArray<LabProcess> = _inputOf
+    member _.InputOf: HashSet<LabProcess> = _inputOf
 
     /// Processes for which this material is an output (back-edge)
-    member _.OutputOf: ResizeArray<LabProcess> = _outputOf
+    member _.OutputOf: HashSet<LabProcess> = _outputOf
 
     member this.AddAdditionalProperty(pv: PropertyValue) =
         if not (_additionalProperty |> Seq.exists (fun x -> x = pv)) then
@@ -482,8 +482,8 @@ and [<AttachMembers>] Data(path: string, ?selector: string, ?selectorFormat: str
     let mutable _encodingFormat: string option = encodingFormat
     let mutable _additionalType: string option = additionalType
     let _additionalProperty: ResizeArray<PropertyValue> = ResizeArray()
-    let _inputOf: ResizeArray<LabProcess> = ResizeArray()
-    let _outputOf: ResizeArray<LabProcess> = ResizeArray()
+    let _inputOf: HashSet<LabProcess> = HashSet()
+    let _outputOf: HashSet<LabProcess> = HashSet()
 
     do
         additionalProperty |> Option.iter (fun pvs -> for pv in pvs do this.AddAdditionalProperty(pv))
@@ -515,10 +515,10 @@ and [<AttachMembers>] Data(path: string, ?selector: string, ?selectorFormat: str
     member _.AdditionalProperty = _additionalProperty
 
     /// Processes for which this data node is an input (back-edge)
-    member _.InputOf: ResizeArray<LabProcess> = _inputOf
+    member _.InputOf: HashSet<LabProcess> = _inputOf
 
     /// Processes for which this data node is an output (back-edge)
-    member _.OutputOf: ResizeArray<LabProcess> = _outputOf
+    member _.OutputOf: HashSet<LabProcess> = _outputOf
 
     member this.AddAdditionalProperty(pv: PropertyValue) =
         if not (_additionalProperty |> Seq.exists (fun x -> x = pv)) then
@@ -715,9 +715,9 @@ and [<AttachMembers>] LabProcess(name: string, ?executesProtocol: LabProtocol, ?
     let addInputBackEdge (node: IONode) (proc: LabProcess) =
         match node with
         | MaterialNode m ->
-            if not (m.InputOf |> Seq.exists (fun p -> p = proc)) then m.InputOf.Add(proc)
+            if not (m.InputOf |> Seq.exists (fun p -> p = proc)) then m.InputOf.Add(proc) |> ignore
         | DataNode d ->
-            if not (d.InputOf |> Seq.exists (fun p -> p = proc)) then d.InputOf.Add(proc)
+            if not (d.InputOf |> Seq.exists (fun p -> p = proc)) then d.InputOf.Add(proc) |> ignore
 
     let removeInputBackEdge (node: IONode) (proc: LabProcess) =
         match node with
@@ -727,9 +727,9 @@ and [<AttachMembers>] LabProcess(name: string, ?executesProtocol: LabProtocol, ?
     let addOutputBackEdge (node: IONode) (proc: LabProcess) =
         match node with
         | MaterialNode m ->
-            if not (m.OutputOf |> Seq.exists (fun p -> p = proc)) then m.OutputOf.Add(proc)
+            if not (m.OutputOf |> Seq.exists (fun p -> p = proc)) then m.OutputOf.Add(proc) |> ignore
         | DataNode d ->
-            if not (d.OutputOf |> Seq.exists (fun p -> p = proc)) then d.OutputOf.Add(proc)
+            if not (d.OutputOf |> Seq.exists (fun p -> p = proc)) then d.OutputOf.Add(proc) |> ignore
 
     let removeOutputBackEdge (node: IONode) (proc: LabProcess) =
         match node with
@@ -941,7 +941,10 @@ and [<AttachMembers>] Dataset(identifier: string, ?name: string, ?description: s
     // ── Process CRUD ──────────────────────────────────────────────────────────
 
     member this.AddProcess(proc: LabProcess) =
-        if not (_processes |> Seq.exists (fun p -> p.ReferenceEquals proc)) then
+        if proc.ProcessOf.IsSome then
+            if proc.ProcessOf.Value <> this then
+                failwithf "Process '%s' already belongs to another dataset." proc.Name
+        else 
             _processes.Add(proc)
             proc.ProcessOf <- Some this
 
