@@ -28,6 +28,9 @@ let all =
             Graph.Deduplication.tests
             Graph.Traversal.tests
             Graph.PropertyValueSources.tests
+            Graph.DatasetQueries.tests
+            Graph.PathQueries.tests
+            Graph.ProcessGraphQueries.tests
         ]
 
 [<EntryPoint>]
