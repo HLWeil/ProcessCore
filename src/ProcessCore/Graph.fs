@@ -4,6 +4,16 @@ open Fable.Core
 open System.Collections.Generic
 open DynamicObj
 
+[<AutoOpen>]
+module private Comparers =
+    /// Reference-equality comparer for back-edge HashSets.
+    /// LabProcess.Equals is name-based, so without this two distinct process
+    /// objects with the same name would collide in the set.
+    let refEqProcess =
+        { new IEqualityComparer<LabProcess> with
+            member _.Equals(x, y)   = obj.ReferenceEquals(x, y)
+            member _.GetHashCode(o) = System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(o) }
+
 // ─────────────────────────────────────────────────────────────────────────────
 // IONode discriminated union (forward-declared via namespace rec)
 // ─────────────────────────────────────────────────────────────────────────────
@@ -358,8 +368,8 @@ and [<AttachMembers>] Material(name: string, ?additionalType: string, ?additiona
     let mutable _name: string = name
     let mutable _additionalType: string option = additionalType
     let _additionalProperty: ResizeArray<PropertyValue> = ResizeArray()
-    let _inputOf: HashSet<LabProcess> = HashSet()
-    let _outputOf: HashSet<LabProcess> = HashSet()
+    let _inputOf:  HashSet<LabProcess> = HashSet(refEqProcess)
+    let _outputOf: HashSet<LabProcess> = HashSet(refEqProcess)
 
     do
         additionalProperty |> Option.iter (fun pvs -> for pv in pvs do this.AddAdditionalProperty(pv))
@@ -482,8 +492,8 @@ and [<AttachMembers>] Data(path: string, ?selector: string, ?selectorFormat: str
     let mutable _encodingFormat: string option = encodingFormat
     let mutable _additionalType: string option = additionalType
     let _additionalProperty: ResizeArray<PropertyValue> = ResizeArray()
-    let _inputOf: HashSet<LabProcess> = HashSet()
-    let _outputOf: HashSet<LabProcess> = HashSet()
+    let _inputOf:  HashSet<LabProcess> = HashSet(refEqProcess)
+    let _outputOf: HashSet<LabProcess> = HashSet(refEqProcess)
 
     do
         additionalProperty |> Option.iter (fun pvs -> for pv in pvs do this.AddAdditionalProperty(pv))

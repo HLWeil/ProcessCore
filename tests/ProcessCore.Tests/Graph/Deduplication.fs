@@ -61,7 +61,7 @@ let tests = testList "Deduplication" [
         proto.AddLabEquipment(pv)
         Expect.equal proto.LabEquipment.Count 1 "Adding same PV to LabEquipment twice → one entry"
 
-    ftestCase "Share materials with same name across dataset" <| fun _ ->
+    testCase "Share materials with same name across dataset" <| fun _ ->
         
         let d = Dataset("MyDataset")
 

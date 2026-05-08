@@ -104,4 +104,16 @@ let tests = testList "BackEdges" [
         p.AddInputMaterial(m)
         Expect.isTrue (m.InputOf |> Seq.exists (fun x -> x = p)) "Back-edge re-established after re-add"
 
+    // Two *distinct* LabProcess objects with the same name must both appear in a
+    // shared material's OutputOf back-edge set. The HashSet uses reference equality
+    // so name-equal but distinct objects are stored separately.
+    testCase "two same-named processes both appear in OutputOf back-edges" <| fun _ ->
+        let p1 = LabProcess("SameName")
+        let p2 = LabProcess("SameName")
+        let m  = Material("SharedOutput")
+        p1.AddOutputMaterial(m)
+        p2.AddOutputMaterial(m)
+        Expect.equal m.OutputOf.Count 2
+            "OutputOf should contain both distinct process objects even though they share a name"
+
 ]
