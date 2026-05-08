@@ -1,8 +1,8 @@
 #r "nuget: Fable.Core, 4.3.0"
 #r "nuget: DynamicObj"
 #r "nuget: YAMLicious"
-#r @"..\src\ProcessCore\bin\Debug\netstandard2.0\ProcessCore.dll"
-#r @"..\src\ProcessCore.YML\bin\Debug\netstandard2.0\ProcessCore.YML.dll"
+#r @"..\src\ProcessCore\bin\Release\netstandard2.0\ProcessCore.dll"
+#r @"..\src\ProcessCore.YML\bin\Release\netstandard2.0\ProcessCore.YML.dll"
 
 open ProcessCore
 open ProcessCore.Table
@@ -82,3 +82,71 @@ childD1.Processes
 
 
 LabProcess("MyProcess").ReferenceEquals(LabProcess("MyProcess"))
+
+#time
+
+let arabidopsis = PropertyValue(name = "Organism", value = "Arabidopsis thaliana")
+let tenDays = PropertyValue(name = "Time", value = "10", unit = "day")
+let normalTemp = PropertyValue(name = "Temperature", value = "22", unit = "degree Celsius")
+let highTemp = PropertyValue(name = "Temperature", value = "30", unit = "degree Celsius")
+
+
+let timeSecond (f: unit -> unit) =
+    let stopwatch = System.Diagnostics.Stopwatch.StartNew()
+    f()
+    f()
+    f()
+    stopwatch.Stop()
+    stopwatch.Elapsed.TotalSeconds / 3.
+
+
+let wait1Second () =
+    System.Threading.Thread.Sleep(1000)
+
+timeSecond wait1Second
+
+let createBySize (size: int) =
+    let dataset = Dataset("Dataset")
+    for i in 1 .. size do
+        let p = LabProcess(sprintf "Process%d" i)
+        let inp = Material(sprintf "InputMaterial%d" i, additionalProperty = [arabidopsis])
+        let out = Material(sprintf "OutputMaterial%d" i, additionalProperty = [arabidopsis])
+        p.AddParameterValue(tenDays)
+        p.AddParameterValue(normalTemp)
+        dataset.AddProcess(p)
+        p.AddInputMaterial(inp)
+        p.AddOutputMaterial(out)
+
+
+let times = 
+    [1000; 2000; 5000; 10000; 20000; 50000; 100000; 1000000]
+    |> List.map (fun s -> 
+        printfn "Creating dataset with %d processes..." s
+        let f () = createBySize s |> ignore
+        s, timeSecond(f)
+    )
+
+let processes : ResizeArray<LabProcess> = ResizeArray()
+
+for i in 1 .. 100000 do
+    let newProcess = LabProcess(sprintf "Process%d" i)
+    if not (processes |> Seq.exists (fun p -> p.ReferenceEquals newProcess)) then
+        processes.Add(newProcess)
+
+
+
+
+
+
+
+
+
+
+
+
+let yaml = "type: Investigation\nidentifier: DS-1\n"
+Yaml.Dataset.fromYamlString false yaml
+
+
+let yaml2 = "type: Process\nname: p1\n"
+Yaml.LabProcess.fromYamlString yaml2

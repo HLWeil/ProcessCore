@@ -24,8 +24,6 @@ let private runPyxpectoDotNet project =
             "--configuration"
             configuration
             "--no-build"
-            "--"
-            "--fail-on-focused-tests"
         ]
         |> String.concat " "
 

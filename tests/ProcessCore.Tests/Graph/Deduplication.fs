@@ -61,4 +61,26 @@ let tests = testList "Deduplication" [
         proto.AddLabEquipment(pv)
         Expect.equal proto.LabEquipment.Count 1 "Adding same PV to LabEquipment twice → one entry"
 
+    ftestCase "Share materials with same name across dataset" <| fun _ ->
+        
+        let d = Dataset("MyDataset")
+
+        let process1 = LabProcess("MyProcess")
+        let process2 = LabProcess("MyProcess")
+
+        d.AddProcess(process1)
+        d.AddProcess(process2)
+
+        // Pooling of inputs into a single output
+        // InputOne  \
+        //            -> Process 1/ Process2 -> Output 1
+        // OutputTwo /
+
+        process1.AddInputMaterial(Material("InputOne"))
+        process2.AddInputMaterial(Material("InputTwo"))
+
+        process1.AddOutputMaterial(Material("TheOutput"))
+        process2.AddOutputMaterial(Material("TheOutput"))
+
+        Expect.equal 2 (process1.Outputs[0].UpstreamNodes().Count) "TheOutput should have two upstream nodes (one from each process)"
 ]

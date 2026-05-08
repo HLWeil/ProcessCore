@@ -736,6 +736,13 @@ and [<AttachMembers>] LabProcess(name: string, ?executesProtocol: LabProtocol, ?
         | MaterialNode m -> m.OutputOf.Remove(proc) |> ignore
         | DataNode d     -> d.OutputOf.Remove(proc) |> ignore
 
+    /// Returns the canonical instance from the root dataset's registry, or the
+    /// node itself if no dataset is assigned yet.
+    let resolveNode (node: IONode) =
+        match _processOf with
+        | None    -> node
+        | Some ds -> ds.CanonicalizeNode(node)
+
     do
         inputs         |> Option.iter (fun ns  -> for n  in ns  do this.AddInput(n))
         outputs        |> Option.iter (fun ns  -> for n  in ns  do this.AddOutput(n))
@@ -764,10 +771,43 @@ and [<AttachMembers>] LabProcess(name: string, ?executesProtocol: LabProtocol, ?
 
     // ── Input CRUD ────────────────────────────────────────────────────────────
 
-    /// Add input. If an identical node is already present it is reused (deduplication).
+    /// Add input. Resolves the node against the root registry so back-edges are
+    /// shared when an equal node already exists anywhere in the dataset hierarchy.
     member this.AddInput(node: IONode) =
+        let node = resolveNode node
         _inputs.Add(node)
         addInputBackEdge node this
+
+    /// Re-canonicalize all existing inputs and outputs against the given dataset's
+    /// root registry. Called when the process is added to a dataset after its nodes
+    /// were already populated. Migrates back-edges if the canonical instance differs.
+    member this.CanonicalizeAllNodes(ds: Dataset) =
+        for i in 0 .. _inputs.Count - 1 do
+            let original  = _inputs.[i]
+            let canonical = ds.CanonicalizeNode(original)
+            match original, canonical with
+            | MaterialNode mo, MaterialNode mc when not (obj.ReferenceEquals(mo, mc)) ->
+                _inputs.[i] <- canonical
+                removeInputBackEdge original this
+                addInputBackEdge canonical this
+            | DataNode do', DataNode dc when not (obj.ReferenceEquals(do', dc)) ->
+                _inputs.[i] <- canonical
+                removeInputBackEdge original this
+                addInputBackEdge canonical this
+            | _ -> ()
+        for i in 0 .. _outputs.Count - 1 do
+            let original  = _outputs.[i]
+            let canonical = ds.CanonicalizeNode(original)
+            match original, canonical with
+            | MaterialNode mo, MaterialNode mc when not (obj.ReferenceEquals(mo, mc)) ->
+                _outputs.[i] <- canonical
+                removeOutputBackEdge original this
+                addOutputBackEdge canonical this
+            | DataNode do', DataNode dc when not (obj.ReferenceEquals(do', dc)) ->
+                _outputs.[i] <- canonical
+                removeOutputBackEdge original this
+                addOutputBackEdge canonical this
+            | _ -> ()
 
     member this.AddInputMaterial(m: Material) = this.AddInput(MaterialNode m)
     member this.AddInputData(d: Data)         = this.AddInput(DataNode d)
@@ -781,8 +821,10 @@ and [<AttachMembers>] LabProcess(name: string, ?executesProtocol: LabProtocol, ?
 
     // ── Output CRUD ───────────────────────────────────────────────────────────
 
-    /// Add output. If an identical node is already present it is reused (deduplication).
-    member this.AddOutput(node: IONode) =       
+    /// Add output. Resolves the node against the root registry so back-edges are
+    /// shared when an equal node already exists anywhere in the dataset hierarchy.
+    member this.AddOutput(node: IONode) =
+        let node = resolveNode node
         _outputs.Add(node)
         addOutputBackEdge node this
 
@@ -900,11 +942,48 @@ and [<AttachMembers>] Dataset(identifier: string, ?name: string, ?description: s
     let _processes: ResizeArray<LabProcess> = ResizeArray()
     let _hasPart: ResizeArray<Dataset> = ResizeArray()
     let _additionalProperty: ResizeArray<PropertyValue> = ResizeArray()
+    /// IONode registry — only meaningfully populated when this is the root dataset.
+    let _nodeRegistry: Dictionary<string, IONode> = Dictionary<string, IONode>()
 
     do
         processes          |> Option.iter (fun ps  -> for p  in ps  do this.AddProcess(p))
         hasPart            |> Option.iter (fun ds  -> for d  in ds  do this.AddPart(d))
         additionalProperty |> Option.iter (fun pvs -> for pv in pvs do this.AddAdditionalProperty(pv))
+
+    // ── Registry helpers ──────────────────────────────────────────────────────
+
+    // Direct access to the backing dictionary of this dataset instance.
+    member private _.NodeRegistryDirect = _nodeRegistry
+
+    /// Walk PartOf until reaching the root dataset of this hierarchy.
+    member private this.RootDataset() : Dataset =
+        match _partOf with
+        | None   -> this
+        | Some p -> p.RootDataset()
+
+    /// Returns the canonical IONode for `node` from the root registry.
+    /// Registers and returns `node` itself if its key is not yet present.
+    member this.CanonicalizeNode(node: IONode) : IONode =
+        let registry = this.RootDataset().NodeRegistryDirect
+        let key = node.Key()
+        match registry.TryGetValue(key) with
+        | true, existing -> existing
+        | false, _       ->
+            registry.[key] <- node
+            node
+
+    /// Evicts `node` from the root registry if no process remaining in the
+    /// hierarchy still holds it as an input or output.
+    member private this.TryEvictNode(node: IONode) =
+        let root = this.RootDataset()
+        let key  = node.Key()
+        let stillUsed =
+            Seq.append (node.GetInputOf() :> seq<LabProcess>) (node.GetOutputOf() :> seq<LabProcess>)
+            |> Seq.exists (fun proc ->
+                proc.ProcessOf
+                |> Option.exists (fun ds -> obj.ReferenceEquals(ds.RootDataset(), root)))
+        if not stillUsed then
+            root.NodeRegistryDirect.Remove(key) |> ignore
 
     member _.Identifier
         with get() = _identifier
@@ -938,14 +1017,18 @@ and [<AttachMembers>] Dataset(identifier: string, ?name: string, ?description: s
         if proc.ProcessOf.IsSome then
             if proc.ProcessOf.Value <> this then
                 failwithf "Process '%s' already belongs to another dataset." proc.Name
-        else 
+        else
             _processes.Add(proc)
             proc.ProcessOf <- Some this
+            // Canonicalize any nodes the process already carries against the root registry.
+            proc.CanonicalizeAllNodes(this)
 
     member this.RemoveProcess(proc: LabProcess) =
         let removed = _processes.Remove(proc)
         if removed && proc.ProcessOf = Some this then
             proc.ProcessOf <- None
+            for node in Seq.append proc.Inputs proc.Outputs do
+                this.TryEvictNode(node)
 
     member _.TryGetProcess(name: string) =
         _processes |> Seq.tryFind (fun p -> p.Name = name)
@@ -959,11 +1042,30 @@ and [<AttachMembers>] Dataset(identifier: string, ?name: string, ?description: s
         if not (_hasPart |> Seq.exists (fun d -> d = child)) then
             _hasPart.Add(child)
             child.PartOf <- Some this
+            // Canonicalize every node in the child's subtree against the new root.
+            for proc in child.AllProcesses() do
+                proc.CanonicalizeAllNodes(this)
 
     member this.RemovePart(child: Dataset) =
         let removed = _hasPart.Remove(child)
         if removed && child.PartOf = Some this then
+            // Collect nodes before disconnecting so the root reference is still valid.
+            let nodesToCheck =
+                child.AllProcesses()
+                |> Seq.collect (fun p -> Seq.append p.Inputs p.Outputs)
+                |> Seq.distinctBy (fun n -> n.Key())
+                |> Seq.toList
             child.PartOf <- None
+            // Evict nodes that are no longer used anywhere in the (now smaller) tree.
+            for node in nodesToCheck do
+                this.TryEvictNode(node)
+            // Rebuild child's own registry now that it is a root again.
+            child.NodeRegistryDirect.Clear()
+            for proc in child.AllProcesses() do
+                for node in Seq.append proc.Inputs proc.Outputs do
+                    let key = node.Key()
+                    if not (child.NodeRegistryDirect.ContainsKey(key)) then
+                        child.NodeRegistryDirect.[key] <- node
 
     member _.TryGetPart(identifier: string) =
         _hasPart |> Seq.tryFind (fun d -> d.Identifier = identifier)
