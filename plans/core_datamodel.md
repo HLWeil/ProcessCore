@@ -84,6 +84,12 @@ Graph traversal methods come in three flavours:
 - **Upstream** (`UpstreamProcesses`, `UpstreamNodes`, …) — BFS following `OutputOf` back-edges to predecessor processes and their inputs.
 - **Downstream** (`DownstreamProcesses`, `DownstreamNodes`, …) — BFS following `InputOf` back-edges to successor processes and their outputs.
 
+### Positional N-to-N mapping within a process
+
+Within a single `LabProcess` the I/O slots are positionally paired: the **Nth input corresponds to the Nth output**. Directional traversal (`UpstreamNodes`, `DownstreamNodes`, and their `*Processes` counterparts) exploits this by walking only through the positional peer rather than through all inputs or outputs. For example, `Output[1].UpstreamNodes()` follows only `Input[1]` of the producing process, not `Input[0]`.
+
+This mapping applies when a process has **equal numbers of inputs and outputs**. When the counts differ (e.g. a merge or split step) the traversal falls back to considering all inputs or all outputs.
+
 ### Root and final nodes
 
 A node is a **root** if no in-scope process produces it as output (`IsRootNode`).  

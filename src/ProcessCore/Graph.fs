@@ -180,7 +180,7 @@ type IONode =
                 for p: LabProcess in node.GetOutputOf() do
                     if inScope p && seenP.Add(p.Name) then
                         result.Add(p)
-                        for n: IONode in p.Inputs do
+                        for n: IONode in p.GetInputsOfOutput(node) do
                             if seenN.Add(n.Key()) then next.Add(n)
             frontier <- next
         result
@@ -200,12 +200,15 @@ type IONode =
                 for p: LabProcess in node.GetInputOf() do
                     if inScope p && seenP.Add(p.Name) then
                         result.Add(p)
-                        for n: IONode in p.Outputs do
+                        for n: IONode in p.GetOutputsOfInput(node) do
                             if seenN.Add(n.Key()) then next.Add(n)
             frontier <- next
         result
 
     /// All IONodes reachable by walking upstream from this node.
+    /// When a process has equal numbers of inputs and outputs the Nth output
+    /// corresponds to the Nth input (positional N-to-N mapping). Falls back to
+    /// all inputs when counts differ.
     member this.UpstreamNodes(?scope: ResizeArray<LabProcess>) : ResizeArray<IONode> =
         let inScope (p: LabProcess) =
             scope |> Option.forall (fun s -> s |> Seq.exists (fun q -> q = p))
@@ -218,7 +221,7 @@ type IONode =
             for node in frontier do
                 for p: LabProcess in node.GetOutputOf() do
                     if inScope p then
-                        for n: IONode in p.Inputs do
+                        for n: IONode in p.GetInputsOfOutput(node) do
                             if seenN.Add(n.Key()) then
                                 result.Add(n)
                                 next.Add(n)
@@ -226,6 +229,9 @@ type IONode =
         result
 
     /// All IONodes reachable by walking downstream from this node.
+    /// When a process has equal numbers of inputs and outputs the Nth input
+    /// corresponds to the Nth output (positional N-to-N mapping). Falls back to
+    /// all outputs when counts differ.
     member this.DownstreamNodes(?scope: ResizeArray<LabProcess>) : ResizeArray<IONode> =
         let inScope (p: LabProcess) =
             scope |> Option.forall (fun s -> s |> Seq.exists (fun q -> q = p))
@@ -238,7 +244,7 @@ type IONode =
             for node in frontier do
                 for p: LabProcess in node.GetInputOf() do
                     if inScope p then
-                        for n: IONode in p.Outputs do
+                        for n: IONode in p.GetOutputsOfInput(node) do
                             if seenN.Add(n.Key()) then
                                 result.Add(n)
                                 next.Add(n)
@@ -778,6 +784,28 @@ and [<AttachMembers>] LabProcess(name: string, ?executesProtocol: LabProtocol, ?
     member _.Inputs = _inputs
     member _.Outputs = _outputs
     member _.ParameterValue = _parameterValue
+
+    /// Returns the positional input peer(s) of the given output node.
+    /// When this process has equal numbers of inputs and outputs the Nth output
+    /// maps to the Nth input (N-to-N). Falls back to all inputs when counts differ
+    /// or when the node is not found in Outputs.
+    member this.GetInputsOfOutput(output: IONode) : IONode seq =
+        if _inputs.Count = _outputs.Count then
+            let idx = _outputs.IndexOf(output)
+            if idx >= 0 then Seq.singleton _inputs.[idx]
+            else _inputs :> seq<IONode>
+        else _inputs :> seq<IONode>
+
+    /// Returns the positional output peer(s) of the given input node.
+    /// When this process has equal numbers of inputs and outputs the Nth input
+    /// maps to the Nth output (N-to-N). Falls back to all outputs when counts differ
+    /// or when the node is not found in Inputs.
+    member this.GetOutputsOfInput(input: IONode) : IONode seq =
+        if _inputs.Count = _outputs.Count then
+            let idx = _inputs.IndexOf(input)
+            if idx >= 0 then Seq.singleton _outputs.[idx]
+            else _outputs :> seq<IONode>
+        else _outputs :> seq<IONode>
 
     // ── Input CRUD ────────────────────────────────────────────────────────────
 
