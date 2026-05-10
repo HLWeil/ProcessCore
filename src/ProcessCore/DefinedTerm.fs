@@ -38,3 +38,9 @@ type DefinedTerm(name: string, ?tan: string, ?inDefinedTermSet: string) =
 
     override this.GetHashCode() =
         hash (this.Name, this.TAN, this.InDefinedTermSet)
+
+
+    member this.TermAccessionShort() = 
+        match Helper.computeTanInfo this.TAN None with
+        | Some id -> $"{id.IDSpace}:{id.LocalID}"
+        | _ -> ""

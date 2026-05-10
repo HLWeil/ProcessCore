@@ -43,31 +43,36 @@ let tests = testList "CompositeTypes" [
     testList "CompositeHeader" [
 
         testCase "Parameter carries name and TAN" <| fun _ ->
-            let h = CompositeHeader.Parameter("Temperature", Some "PATO:0000146")
+            let temperature = DefinedTerm("Temperature", "PATO:0000146")
+            let h = CompositeHeader.Parameter(temperature)
             match h with
-            | CompositeHeader.Parameter(n, tan) ->
-                Expect.equal n   "Temperature"         "name"
-                Expect.equal tan (Some "PATO:0000146")  "TAN"
+            | CompositeHeader.Parameter(dt) ->
+                Expect.equal dt.Name "Temperature" "name"
+                Expect.equal dt.TAN (Some "PATO:0000146") "TAN"
             | _ -> failwith "Expected Parameter"
 
         testCase "Parameter TAN can be None" <| fun _ ->
-            match CompositeHeader.Parameter("enzyme", None) with
-            | CompositeHeader.Parameter(_, None) -> ()
+            let enzyme = DefinedTerm("enzyme")
+            match CompositeHeader.Parameter(enzyme) with
+            | CompositeHeader.Parameter(dt) when dt.TAN.IsNone -> ()
             | _ -> failwith "Expected Parameter with None TAN"
 
         testCase "Characteristic header" <| fun _ ->
-            match CompositeHeader.Characteristic("organism", Some "OBI:001") with
-            | CompositeHeader.Characteristic("organism", Some "OBI:001") -> ()
+            let organism = DefinedTerm("organism", "OBI:001")
+            match CompositeHeader.Characteristic(organism) with
+            | CompositeHeader.Characteristic(dt) -> ()
             | _ -> failwith "Expected Characteristic"
 
         testCase "Factor header" <| fun _ ->
-            match CompositeHeader.Factor("growth_phase", None) with
-            | CompositeHeader.Factor("growth_phase", None) -> ()
+            let growth_phase = DefinedTerm("growth_phase")
+            match CompositeHeader.Factor(growth_phase) with
+            | CompositeHeader.Factor(dt) when dt.TAN.IsNone -> ()
             | _ -> failwith "Expected Factor"
 
         testCase "Component header" <| fun _ ->
-            match CompositeHeader.Component("instrument", None) with
-            | CompositeHeader.Component("instrument", None) -> ()
+            let instrument = DefinedTerm("instrument")
+            match CompositeHeader.Component(instrument) with
+            | CompositeHeader.Component(dt) when dt.TAN.IsNone -> ()
             | _ -> failwith "Expected Component"
 
         testCase "ProtocolREF header" <| fun _ ->
@@ -130,7 +135,8 @@ let tests = testList "CompositeTypes" [
 
         testCase "ColumnCount matches Cells.Count" <| fun _ ->
             let cells = ResizeArray<CompositeCell>([| CompositeCell.FreeText "a"; CompositeCell.FreeText "b" |])
-            let col   = CompositeColumn(CompositeHeader.Parameter("temp", None), cells)
+            let temp = DefinedTerm("temp")
+            let col   = CompositeColumn(CompositeHeader.Parameter(temp), cells)
             Expect.equal col.ColumnCount 2 "ColumnCount = 2"
 
         testCase "Header is accessible" <| fun _ ->
@@ -140,7 +146,8 @@ let tests = testList "CompositeTypes" [
             | _ -> failwith "Expected ProtocolREF header"
 
         testCase "Empty column has ColumnCount 0" <| fun _ ->
-            let col = CompositeColumn(CompositeHeader.Parameter("x", None), ResizeArray())
+            let x = DefinedTerm("x")
+            let col = CompositeColumn(CompositeHeader.Parameter(x), ResizeArray())
             Expect.equal col.ColumnCount 0 "empty column"
 
     ]

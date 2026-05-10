@@ -51,9 +51,10 @@ let tests = testList "TableRead" [
 
     testCase "single process — parameter column present" <| fun _ ->
         let t, proc, _ = makeSingleProcessTable()
+        let temp = DefinedTerm("temperature")
         proc.AddParameterValue(PropertyValue("temperature", value = "37", unit = "°C", additionalType = "ParameterValue"))
         let headers = t.Headers
-        let hasParam = headers |> Seq.exists (fun h -> match h with | CompositeHeader.Parameter("temperature", _) -> true | _ -> false)
+        let hasParam = headers |> Seq.exists (fun h -> match h with | CompositeHeader.Parameter(dt) when dt.Name = "temperature" -> true | _ -> false)
         Expect.isTrue hasParam "Parameter column for temperature"
 
     testCase "single process — characteristic column present" <| fun _ ->
@@ -62,7 +63,7 @@ let tests = testList "TableRead" [
         | Some (MaterialNode m) -> m.AddAdditionalProperty(PropertyValue("organism", value = "Mouse", additionalType = "CharacteristicValue"))
         | _ -> ()
         let headers = t.Headers
-        let hasChar = headers |> Seq.exists (fun h -> match h with | CompositeHeader.Characteristic("organism", _) -> true | _ -> false)
+        let hasChar = headers |> Seq.exists (fun h -> match h with | CompositeHeader.Characteristic(dt) when dt.Name = "organism" -> true | _ -> false)
         Expect.isTrue hasChar "Characteristic column for organism"
 
     testCase "single process — factor column present" <| fun _ ->
@@ -71,7 +72,7 @@ let tests = testList "TableRead" [
         | Some (MaterialNode m) -> m.AddAdditionalProperty(PropertyValue("growth_phase", value = "log", additionalType = "FactorValue"))
         | _ -> ()
         let headers = t.Headers
-        let hasFactor = headers |> Seq.exists (fun h -> match h with | CompositeHeader.Factor("growth_phase", _) -> true | _ -> false)
+        let hasFactor = headers |> Seq.exists (fun h -> match h with | CompositeHeader.Factor(dt) when dt.Name = "growth_phase" -> true | _ -> false)
         Expect.isTrue hasFactor "Factor column for growth_phase"
 
     testCase "single process — component column present" <| fun _ ->
@@ -80,7 +81,7 @@ let tests = testList "TableRead" [
         proto.AddLabEquipment(PropertyValue("instrument", value = "Orbitrap", additionalType = "Component"))
         proc.ExecutesProtocol <- Some proto
         let headers = t.Headers
-        let hasComp = headers |> Seq.exists (fun h -> match h with | CompositeHeader.Component("instrument", _) -> true | _ -> false)
+        let hasComp = headers |> Seq.exists (fun h -> match h with | CompositeHeader.Component(dt) when dt.Name = "instrument" -> true | _ -> false)
         Expect.isTrue hasComp "Component column for instrument"
 
     testCase "column order: Input → ProtocolREF → Characteristic → Component → Parameter → Factor → Output" <| fun _ ->
@@ -190,7 +191,7 @@ let tests = testList "TableRead" [
     testCase "TryGetColumnByHeader — found" <| fun _ ->
         let t, proc, _ = makeSingleProcessTable()
         proc.AddParameterValue(PropertyValue("temperature", value = "37", unit = "°C", additionalType = "ParameterValue"))
-        let result = t.TryGetColumnByHeader(fun h -> match h with CompositeHeader.Parameter("temperature", _) -> true | _ -> false)
+        let result = t.TryGetColumnByHeader(fun h -> match h with CompositeHeader.Parameter(dt) when dt.Name = "temperature" -> true | _ -> false)
         Expect.isSome result "Parameter column found"
 
     testCase "TryGetColumnByHeader — not found" <| fun _ ->
@@ -220,7 +221,7 @@ let tests = testList "TableRead" [
         let compCols = t.GetComponentColumns()
         Expect.equal compCols.Count 1 "one component column"
         match compCols.[0].Header with
-        | CompositeHeader.Component("instrument", _) -> ()
+        | CompositeHeader.Component(dt) when dt.Name = "instrument" -> ()
         | h -> failwithf "Expected Component(instrument) but got %A" h
 
     // ── GetCellAt / TryGetCellAt ──────────────────────────────────────────────

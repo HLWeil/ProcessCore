@@ -29,21 +29,24 @@ let tests = testList "TableWrite" [
 
         testCase "AddColumn — Parameter appears in Decompose" <| fun _ ->
             let t, _, _ = makeBaseTable()
-            t.AddColumn(CompositeHeader.Parameter("rpm", None),
+            let rpm = DefinedTerm("rpm")
+            t.AddColumn(CompositeHeader.Parameter(rpm),
                         ResizeArray([| CompositeCell.Unitized("200", "rpm", None) |]))
-            let hasParam = t.Headers |> Seq.exists (fun h -> match h with CompositeHeader.Parameter("rpm", _) -> true | _ -> false)
+            let hasParam = t.Headers |> Seq.exists (fun h -> match h with CompositeHeader.Parameter(dt) when dt.Name = "rpm" -> true | _ -> false)
             Expect.isTrue hasParam "Parameter column added"
 
         testCase "AddColumn — Parameter stored in ParameterValue list" <| fun _ ->
             let t, proc, _ = makeBaseTable()
-            t.AddColumn(CompositeHeader.Parameter("rpm", None),
+            let rpm = DefinedTerm("rpm")
+            t.AddColumn(CompositeHeader.Parameter(rpm),
                         ResizeArray([| CompositeCell.Unitized("200", "rpm", None) |]))
             let pv = proc.ParameterValue |> Seq.tryFind (fun pv -> pv.Name = "rpm")
             Expect.isSome pv "PV added to process.ParameterValue"
 
         testCase "AddColumn — Characteristic stored on input material" <| fun _ ->
             let t, proc, _ = makeBaseTable()
-            t.AddColumn(CompositeHeader.Characteristic("organism", None),
+            let organism = DefinedTerm("organism")
+            t.AddColumn(CompositeHeader.Characteristic(organism),
                         ResizeArray([| CompositeCell.FreeText "E. coli" |]))
             match proc.Inputs |> Seq.tryHead with
             | Some (MaterialNode m) ->
@@ -53,7 +56,8 @@ let tests = testList "TableWrite" [
 
         testCase "AddColumn — Factor stored on output material" <| fun _ ->
             let t, proc, _ = makeBaseTable()
-            t.AddColumn(CompositeHeader.Factor("growth_phase", None),
+            let growthPhase = DefinedTerm("growth_phase")
+            t.AddColumn(CompositeHeader.Factor(growthPhase),
                         ResizeArray([| CompositeCell.FreeText "log" |]))
             match proc.Outputs |> Seq.tryHead with
             | Some (MaterialNode m) ->
@@ -63,7 +67,8 @@ let tests = testList "TableWrite" [
 
         testCase "AddColumn — Component stored on protocol.LabEquipment" <| fun _ ->
             let t, proc, _ = makeBaseTable()
-            t.AddColumn(CompositeHeader.Component("instrument", None),
+            let instrument = DefinedTerm("instrument")
+            t.AddColumn(CompositeHeader.Component(instrument),
                         ResizeArray([| CompositeCell.FreeText "Orbitrap" |]))
             match proc.ExecutesProtocol with
             | Some proto ->
@@ -90,7 +95,8 @@ let tests = testList "TableWrite" [
             let ds = Dataset("DS")
             ds.AddProcess(p1) ; ds.AddProcess(p2)
             let t = Table("T", ResizeArray([| p1; p2 |]), ds)
-            t.AddColumn(CompositeHeader.Parameter("temp", None),
+            let temp = DefinedTerm("temperature")
+            t.AddColumn(CompositeHeader.Parameter(temp),
                         ResizeArray([| CompositeCell.FreeText "37" |]))
             // p2 should still get an empty PV
             Expect.equal (p2.ParameterValue.Count) 1 "p2 gets a PV (with empty value)"
@@ -102,18 +108,20 @@ let tests = testList "TableWrite" [
 
         testCase "RemoveColumn — removes Parameter" <| fun _ ->
             let t, proc, _ = makeBaseTable()
+            let rpm = DefinedTerm("rpm")
             proc.AddParameterValue(PropertyValue("rpm", value = "200", unit = "rpm", additionalType = "ParameterValue"))
-            t.RemoveColumn(CompositeHeader.Parameter("rpm", None))
+            t.RemoveColumn(CompositeHeader.Parameter(rpm))
             let hasPV = proc.ParameterValue |> Seq.exists (fun pv -> pv.Name = "rpm")
             Expect.isFalse hasPV "Parameter PV removed"
 
         testCase "RemoveColumn — removes Characteristic from input" <| fun _ ->
             let t, proc, _ = makeBaseTable()
+            let organism = DefinedTerm("organism")
             match proc.Inputs |> Seq.tryHead with
             | Some (MaterialNode m) ->
                 m.AddAdditionalProperty(PropertyValue("organism", value = "Mouse", additionalType = "CharacteristicValue"))
             | _ -> ()
-            t.RemoveColumn(CompositeHeader.Characteristic("organism", None))
+            t.RemoveColumn(CompositeHeader.Characteristic(organism))
             let hasPV =
                 match proc.Inputs |> Seq.tryHead with
                 | Some (MaterialNode m) -> m.AdditionalProperty |> Seq.exists (fun p -> p.Name = "organism")
@@ -122,11 +130,12 @@ let tests = testList "TableWrite" [
 
         testCase "RemoveColumn — removes Factor from output" <| fun _ ->
             let t, proc, _ = makeBaseTable()
+            let growthPhase = DefinedTerm("growth_phase")
             match proc.Outputs |> Seq.tryHead with
             | Some (MaterialNode m) ->
                 m.AddAdditionalProperty(PropertyValue("growth_phase", value = "log", additionalType = "FactorValue"))
             | _ -> ()
-            t.RemoveColumn(CompositeHeader.Factor("growth_phase", None))
+            t.RemoveColumn(CompositeHeader.Factor(growthPhase))
             let hasPV =
                 match proc.Outputs |> Seq.tryHead with
                 | Some (MaterialNode m) -> m.AdditionalProperty |> Seq.exists (fun p -> p.Name = "growth_phase")
@@ -139,7 +148,8 @@ let tests = testList "TableWrite" [
             | Some proto ->
                 proto.AddLabEquipment(PropertyValue("instrument", value = "Orbitrap", additionalType = "Component"))
             | None -> ()
-            t.RemoveColumn(CompositeHeader.Component("instrument", None))
+            let instrument = DefinedTerm("instrument")
+            t.RemoveColumn(CompositeHeader.Component(instrument))
             let hasPV =
                 match proc.ExecutesProtocol with
                 | Some proto -> proto.LabEquipment |> Seq.exists (fun p -> p.Name = "instrument")
@@ -314,7 +324,7 @@ let tests = testList "TableWrite" [
             proc.AddParameterValue(PropertyValue("rpm", value = "200", unit = "rpm", additionalType = "ParameterValue"))
             let headers = t.Headers
             let cells   = ResizeArray(Seq.init headers.Count (fun _ -> CompositeCell.FreeText ""))
-            let paramIdx = headers |> Seq.findIndex (fun h -> match h with CompositeHeader.Parameter("rpm", _) -> true | _ -> false)
+            let paramIdx = headers |> Seq.findIndex (fun h -> match h with CompositeHeader.Parameter(dt) when dt.Name = "rpm" -> true | _ -> false)
             cells.[paramIdx] <- CompositeCell.Unitized("300", "rpm", None)
             t.UpdateRow(0, cells)
             let pv = proc.ParameterValue |> Seq.find (fun pv -> pv.Name = "rpm")
@@ -343,7 +353,7 @@ let tests = testList "TableWrite" [
             // Headers derived from both rows → includes Parameter("rpm")
             let headers  = t.Headers
             let cells    = ResizeArray(Seq.init headers.Count (fun _ -> CompositeCell.FreeText ""))
-            let paramIdx = headers |> Seq.findIndex (fun h -> match h with CompositeHeader.Parameter("rpm", _) -> true | _ -> false)
+            let paramIdx = headers |> Seq.findIndex (fun h -> match h with CompositeHeader.Parameter(dt) when dt.Name = "rpm" -> true | _ -> false)
             cells.[paramIdx] <- CompositeCell.Unitized("400", "rpm", None)
             t.UpdateRow(1, cells)
             let pv = p2.ParameterValue |> Seq.tryFind (fun pv -> pv.Name = "rpm")

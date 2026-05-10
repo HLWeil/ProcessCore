@@ -17,6 +17,22 @@ type IOType =
     | Data
     | FreeText of string
 
+    /// Used to match only(!) IOType string to IOType (without Input/Output). This matching is case sensitive.
+    ///
+    /// Exmp. 1: "Source" --> Source
+    ///
+    /// Exmp. 2: "Raw Data File" | "RawDataFile" -> RawDataFile
+    static member ofString (str: string) =  
+        match str with
+        | "Source" | "Source Name"                  -> Source
+        | "Sample" | "Sample Name"                  -> Sample
+        | "RawDataFile" | "Raw Data File"           
+        | "DerivedDataFile" | "Derived Data File"  
+        | "ImageFile" | "Image File"                
+        | "Data"                                    -> Data
+        | "Material"                                -> Material
+        | _                                         -> FreeText str // use str to not store `str.ToLower()`
+
 // ─────────────────────────────────────────────────────────────────────────────
 // CompositeHeader
 // ─────────────────────────────────────────────────────────────────────────────
@@ -27,17 +43,10 @@ type IOType =
 [<RequireQualifiedAccess>]
 type CompositeHeader =
     // Annotation columns — each carries a (name, TAN) pair
-    #if FABLE_COMPILER_PYTHON
-    | Parameter         of string * string option
-    | Characteristic    of string * string option
-    | Factor            of string * string option
-    | Component         of string * string option
-    #else
-    | Parameter         of name: string * tan: string option
-    | Characteristic    of name: string * tan: string option
-    | Factor            of name: string * tan: string option
-    | Component         of name: string * tan: string option
-    #endif
+    | Parameter         of DefinedTerm
+    | Characteristic    of DefinedTerm
+    | Factor            of DefinedTerm
+    | Component         of DefinedTerm
     // Protocol metadata columns
     | ProtocolREF
     | ProtocolType
@@ -53,7 +62,188 @@ type CompositeHeader =
     // Fallback
     | FreeText          of string
     | Comment           of string
+    member this.IsCvParamColumn =
+        match this with 
+        | Parameter _ | Factor _| Characteristic _| Component _ -> true
+        | anythingElse -> false
 
+    /// <summary>
+    /// Is true if this Building Block type is a TermColumn.
+    ///
+    /// The name "TermColumn" refers to all columns with the syntax "Parameter/Factor/etc [TERM-NAME]" and featured columns
+    /// such as Protocol Type as these are also represented as a triplet of MainColumn-TSR-TAN.
+    /// </summary>
+    member this.IsTermColumn =
+        match this with 
+        | Parameter _ | Factor _| Characteristic _| Component _
+        | ProtocolType -> true 
+        | anythingElse -> false
+
+    member this.IsDataColumn =
+        match this with 
+        | Input IOType.Data | Output IOType.Data -> true 
+        | anythingElse -> false
+
+    /// <summary>
+    /// Is true if the Building Block type is a FeaturedColumn. 
+    ///
+    /// A FeaturedColumn can be abstracted by Parameter/Factor/Characteristic and describes one common usecase of either.
+    /// Such a block will contain TSR and TAN and can be used for directed Term search.
+    /// </summary>
+    member this.IsFeaturedColumn =
+        match this with | ProtocolType -> true | anythingElse -> false
+
+    /// <summary>
+    /// This function gets the associated term accession for featured columns. 
+    /// 
+    /// It contains the hardcoded term accessions.
+    /// </summary>
+    member this.GetFeaturedColumnAccession =
+        match this with
+        | ProtocolType -> "DPBO:1000161"
+        | anyelse -> failwith $"Tried matching {anyelse} in getFeaturedColumnAccession, but is not a featured column."
+
+    /// <summary>
+    /// This function gets the associated term accession for term columns. 
+    /// </summary>
+    member this.GetColumnAccessionShort =
+        match this with
+        | ProtocolType -> this.GetFeaturedColumnAccession
+        | Parameter dt -> dt.TermAccessionShort()
+        | Factor dt -> dt.TermAccessionShort()
+        | Characteristic dt -> dt.TermAccessionShort()
+        | Component dt -> dt.TermAccessionShort()
+        | anyelse -> failwith $"Tried matching {anyelse}, but is not a column with an accession."
+
+    /// <summary>
+    /// Is true if the Building Block type is parsed to a single column. 
+    ///
+    /// This can be any input, output column, as well as for example: `ProtocolREF` and `Performer` with FreeText body cells.
+    /// </summary>
+    member this.IsSingleColumn =
+        match this with 
+        | FreeText _
+        | Input _ | Output _ 
+        | Comment _ 
+        | ProtocolREF | ProtocolDescription | ProtocolUri | ProtocolVersion | Performer | Date -> true 
+        | anythingElse -> false
+
+    ///
+    member this.IsIOType =
+        match this with 
+        | Input io | Output io -> true 
+        | anythingElse -> false
+
+    // lower case "i" because of clashing naming: 
+    // Issue: https://github.com/dotnet/fsharp/issues/10359
+    // Proposed design: https://github.com/fsharp/fslang-design/blob/main/RFCs/FS-1079-union-properties-visible.md
+    member this.isInput =
+        match this with 
+        | Input io -> true 
+        | anythingElse -> false
+
+    member this.isOutput =
+        match this with 
+        | Output io -> true 
+        | anythingElse -> false
+
+    member this.isParameter =
+        match this with 
+        | Parameter _ -> true 
+        | anythingElse -> false
+
+    member this.isFactor =
+        match this with 
+        | Factor _ -> true 
+        | anythingElse -> false
+
+    member this.isCharacteristic =
+        match this with 
+        | Characteristic _ -> true 
+        | anythingElse -> false
+
+    member this.isComponent =
+        match this with
+        | Component _ -> true
+        | anythingElse -> false
+
+    member this.isProtocolType =
+        match this with
+        | ProtocolType -> true
+        | anythingElse -> false
+
+    member this.isProtocolREF =
+        match this with
+        | ProtocolREF -> true
+        | anythingElse -> false
+
+    member this.isProtocolDescription =
+        match this with
+        | ProtocolDescription -> true
+        | anythingElse -> false
+
+    member this.isProtocolUri =
+        match this with
+        | ProtocolUri -> true
+        | anythingElse -> false
+
+    member this.isProtocolVersion =
+        match this with
+        | ProtocolVersion -> true
+        | anythingElse -> false
+
+    member this.isProtocolColumn =
+        match this with
+        | ProtocolREF | ProtocolDescription | ProtocolUri | ProtocolVersion | ProtocolType -> true
+        | anythingElse -> false
+
+    member this.isPerformer =
+        match this with
+        | Performer -> true
+        | anythingElse -> false
+
+    member this.isDate =
+        match this with
+        | Date -> true
+        | anythingElse -> false
+
+    member this.isComment =
+        match this with
+        | Comment _ -> true
+        | anythingElse -> false
+
+    member this.isFreeText =
+        match this with
+        | FreeText _ -> true
+        | anythingElse -> false
+
+    member this.TryInput() =
+        match this with
+        | Input io -> Some io
+        | _ -> None
+
+    member this.TryOutput() =
+        match this with
+        | Output io -> Some io
+        | _ -> None
+
+    member this.TryIOType() =
+        match this with
+        | Output io | Input io -> Some io
+        | _ -> None
+
+    member this.IsUnique =
+        match this with
+        | ProtocolType | ProtocolREF | ProtocolDescription | ProtocolUri | ProtocolVersion | Performer | Date | Input _ | Output _ -> true
+        | _ -> false
+
+    // member this.Copy() =
+    //     match this with
+    //     | Parameter oa -> Parameter (oa.Copy())
+    //     | Factor oa -> Factor (oa.Copy())
+    //     | Characteristic oa -> Characteristic (oa.Copy())
+    //     | Component oa -> Component (oa.Copy())
+    //     | _ -> this
 // ─────────────────────────────────────────────────────────────────────────────
 // CompositeCell
 // ─────────────────────────────────────────────────────────────────────────────
@@ -131,7 +321,7 @@ module TableAux =
 
     /// Build a CompositeHeader from a PropertyValue.
     let PVToHeader (pv: PropertyValue) : CompositeHeader =
-        let pair = (pv.Name, pv.NameTAN)
+        let pair = DefinedTerm(pv.Name, ?tan = pv.NameTAN)
         match pv.AdditionalType with
         | Some "ParameterValue"      -> CompositeHeader.Parameter pair
         | Some "FactorValue"         -> CompositeHeader.Factor pair
@@ -163,11 +353,11 @@ module TableAux =
     let MakePV (header: CompositeHeader, cell: CompositeCell) : PropertyValue =
         let pv =
             match header with
-            | CompositeHeader.Parameter(n, tan)      -> PropertyValue(n, NameTAN = tan, AdditionalType = Some "ParameterValue")
-            | CompositeHeader.Characteristic(n, tan) -> PropertyValue(n, NameTAN = tan, AdditionalType = Some "CharacteristicValue")
-            | CompositeHeader.Factor(n, tan)         -> PropertyValue(n, NameTAN = tan, AdditionalType = Some "FactorValue")
-            | CompositeHeader.Component(n, tan)      -> PropertyValue(n, NameTAN = tan, AdditionalType = Some "Component")
-            | _                                      -> PropertyValue("")
+            | CompositeHeader.Parameter(dt)      -> PropertyValue(dt.Name, NameTAN = dt.TAN, AdditionalType = Some "ParameterValue")
+            | CompositeHeader.Characteristic(dt) -> PropertyValue(dt.Name, NameTAN = dt.TAN, AdditionalType = Some "CharacteristicValue")
+            | CompositeHeader.Factor(dt)         -> PropertyValue(dt.Name, NameTAN = dt.TAN, AdditionalType = Some "FactorValue")
+            | CompositeHeader.Component(dt)      -> PropertyValue(dt.Name, NameTAN = dt.TAN, AdditionalType = Some "Component")
+            | _                                  -> PropertyValue("")
         ApplyCellToPV(pv, cell)
         pv
 
@@ -444,24 +634,24 @@ type Table(name: string, processes: ResizeArray<LabProcess>, dataset: Dataset) =
             | Some i -> pvList.RemoveAt(i)
             | None   -> ()
         match header with
-        | CompositeHeader.Parameter(n, _) ->
-            for p in processes do removeFirst p.ParameterValue "ParameterValue" n
-        | CompositeHeader.Characteristic(n, _) ->
+        | CompositeHeader.Parameter(dt) ->
+            for p in processes do removeFirst p.ParameterValue "ParameterValue" dt.Name
+        | CompositeHeader.Characteristic(dt) ->
             for p in processes do
                 match p.Inputs |> Seq.tryHead with
-                | Some (MaterialNode m) -> removeFirst m.AdditionalProperty "CharacteristicValue" n
-                | Some (DataNode d)     -> removeFirst d.AdditionalProperty "CharacteristicValue" n
+                | Some (MaterialNode m) -> removeFirst m.AdditionalProperty "CharacteristicValue" dt.Name
+                | Some (DataNode d)     -> removeFirst d.AdditionalProperty "CharacteristicValue" dt.Name
                 | None -> ()
-        | CompositeHeader.Factor(n, _) ->
+        | CompositeHeader.Factor(dt) ->
             for p in processes do
                 match p.Outputs |> Seq.tryHead with
-                | Some (MaterialNode m) -> removeFirst m.AdditionalProperty "FactorValue" n
-                | Some (DataNode d)     -> removeFirst d.AdditionalProperty "FactorValue" n
+                | Some (MaterialNode m) -> removeFirst m.AdditionalProperty "FactorValue" dt.Name
+                | Some (DataNode d)     -> removeFirst d.AdditionalProperty "FactorValue" dt.Name
                 | None -> ()
-        | CompositeHeader.Component(n, _) ->
+        | CompositeHeader.Component(dt) ->
             for p in processes do
                 match p.ExecutesProtocol with
-                | Some proto -> removeFirst proto.LabEquipment "Component" n
+                | Some proto -> removeFirst proto.LabEquipment "Component" dt.Name
                 | None -> ()
         | _ -> ()
 
@@ -533,33 +723,33 @@ type Table(name: string, processes: ResizeArray<LabProcess>, dataset: Dataset) =
                         IONode.MaterialNode m
                     | _, _ -> IONode.MaterialNode(Material(sprintf "%s_%d_out" name rowIdx))
                 proc.AddOutput(node)
-            | CompositeHeader.Parameter(n, tan) ->
-                let pv = PropertyValue(n)
-                pv.NameTAN        <- tan
+            | CompositeHeader.Parameter(dt) ->
+                let pv = PropertyValue(dt.Name)
+                pv.NameTAN        <- dt.TAN
                 pv.AdditionalType <- Some "ParameterValue"
                 TableAux.ApplyCellToPV(pv, cell)
                 proc.AddParameterValue(pv)
-            | CompositeHeader.Characteristic(n, tan) ->
-                let pv = PropertyValue(n)
-                pv.NameTAN        <- tan
+            | CompositeHeader.Characteristic(dt) ->
+                let pv = PropertyValue(dt.Name)
+                pv.NameTAN        <- dt.TAN
                 pv.AdditionalType <- Some "CharacteristicValue"
                 TableAux.ApplyCellToPV(pv, cell)
                 match proc.Inputs |> Seq.tryHead with
                 | Some (MaterialNode m) -> m.AddAdditionalProperty(pv)
                 | Some (DataNode d)     -> d.AddAdditionalProperty(pv)
                 | None -> ()
-            | CompositeHeader.Factor(n, tan) ->
-                let pv = PropertyValue(n)
-                pv.NameTAN        <- tan
+            | CompositeHeader.Factor(dt) ->
+                let pv = PropertyValue(dt.Name)
+                pv.NameTAN        <- dt.TAN
                 pv.AdditionalType <- Some "FactorValue"
                 TableAux.ApplyCellToPV(pv, cell)
                 match proc.Outputs |> Seq.tryHead with
                 | Some (MaterialNode m) -> m.AddAdditionalProperty(pv)
                 | Some (DataNode d)     -> d.AddAdditionalProperty(pv)
                 | None -> ()
-            | CompositeHeader.Component(n, tan) ->
-                let pv = PropertyValue(n)
-                pv.NameTAN        <- tan
+            | CompositeHeader.Component(dt) ->
+                let pv = PropertyValue(dt.Name)
+                pv.NameTAN        <- dt.TAN
                 pv.AdditionalType <- Some "Component"
                 TableAux.ApplyCellToPV(pv, cell)
                 match proc.ExecutesProtocol with
@@ -637,11 +827,11 @@ type Table(name: string, processes: ResizeArray<LabProcess>, dataset: Dataset) =
                 let header = headers.[colIdx]
                 let cell   = if colIdx < cells.Count then cells.[colIdx] else CompositeCell.FreeText ""
                 match header with
-                | CompositeHeader.Parameter(n, _) ->
-                    match p.TryGetParameterValue(n) with
+                | CompositeHeader.Parameter(dt) ->
+                    match p.TryGetParameterValue(dt.Name) with
                     | Some pv -> TableAux.ApplyCellToPV(pv, cell)
                     | None    ->
-                        let pv = PropertyValue(n)
+                        let pv = PropertyValue(dt.Name)
                         pv.AdditionalType <- Some "ParameterValue"
                         TableAux.ApplyCellToPV(pv, cell)
                         p.AddParameterValue(pv)
@@ -665,7 +855,7 @@ type Table(name: string, processes: ResizeArray<LabProcess>, dataset: Dataset) =
                         d.SelectorFormat <- d2.SelectorFormat
                         d.EncodingFormat <- d2.EncodingFormat
                     | _ -> ()
-                | CompositeHeader.Characteristic(n, _) ->
+                | CompositeHeader.Characteristic(dt) ->
                     let pvList =
                         match p.Inputs |> Seq.tryHead with
                         | Some (MaterialNode m) -> Some m.AdditionalProperty
@@ -673,15 +863,15 @@ type Table(name: string, processes: ResizeArray<LabProcess>, dataset: Dataset) =
                         | None                  -> None
                     match pvList with
                     | Some lst ->
-                        match lst |> Seq.tryFind (fun pv -> pv.AdditionalType = Some "CharacteristicValue" && pv.Name = n) with
+                        match lst |> Seq.tryFind (fun pv -> pv.AdditionalType = Some "CharacteristicValue" && pv.Name = dt.Name) with
                         | Some pv -> TableAux.ApplyCellToPV(pv, cell)
                         | None    ->
-                            let pv = PropertyValue(n)
+                            let pv = PropertyValue(dt.Name)
                             pv.AdditionalType <- Some "CharacteristicValue"
                             TableAux.ApplyCellToPV(pv, cell)
                             lst.Add(pv)
                     | None -> ()
-                | CompositeHeader.Factor(n, _) ->
+                | CompositeHeader.Factor(dt) ->
                     let pvList =
                         match p.Outputs |> Seq.tryHead with
                         | Some (MaterialNode m) -> Some m.AdditionalProperty
@@ -689,21 +879,21 @@ type Table(name: string, processes: ResizeArray<LabProcess>, dataset: Dataset) =
                         | None                  -> None
                     match pvList with
                     | Some lst ->
-                        match lst |> Seq.tryFind (fun pv -> pv.AdditionalType = Some "FactorValue" && pv.Name = n) with
+                        match lst |> Seq.tryFind (fun pv -> pv.AdditionalType = Some "FactorValue" && pv.Name = dt.Name) with
                         | Some pv -> TableAux.ApplyCellToPV(pv, cell)
                         | None    ->
-                            let pv = PropertyValue(n)
+                            let pv = PropertyValue(dt.Name)
                             pv.AdditionalType <- Some "FactorValue"
                             TableAux.ApplyCellToPV(pv, cell)
                             lst.Add(pv)
                     | None -> ()
-                | CompositeHeader.Component(n, _) ->
+                | CompositeHeader.Component(dt) ->
                     match p.ExecutesProtocol with
                     | Some proto ->
-                        match proto.LabEquipment |> Seq.tryFind (fun pv -> pv.Name = n) with
+                        match proto.LabEquipment |> Seq.tryFind (fun pv -> pv.Name = dt.Name) with
                         | Some pv -> TableAux.ApplyCellToPV(pv, cell)
                         | None    ->
-                            let pv = PropertyValue(n)
+                            let pv = PropertyValue(dt.Name)
                             pv.AdditionalType <- Some "Component"
                             TableAux.ApplyCellToPV(pv, cell)
                             proto.AddLabEquipment(pv)
