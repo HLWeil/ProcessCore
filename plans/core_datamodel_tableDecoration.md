@@ -24,7 +24,7 @@ The core datamodel represents experimental workflows as a process graph. The sam
 
 ### Grouping processes into tables
 
-A `Dataset`'s processes are grouped into `Table` objects by **name**: all `LabProcess` nodes in the dataset that share the same name belong to the same table. Each table has one row per process node.
+A `Dataset`'s processes are grouped into `Table` objects by **name**: all `LabProcess` nodes in the dataset that share the same name belong to the same table. In the simple case, each table has one row per process node. If a process has multiple inputs and/or outputs, table rows are a projection over that process's input/output pairs as described in [Multi-I/O row projection](#multi-io-row-projection).
 
 ### Column roles and graph slots
 
@@ -61,9 +61,23 @@ Because the process graph does not preserve column order, every annotation `Prop
 
 ---
 
+### Multi-I/O row projection
+
+The public table row index is not always the same thing as the underlying `LabProcess` index. A `Table` must maintain or derive a row projection that maps each visible row to:
+
+- one `LabProcess`
+- zero or one selected input entity for that visible row
+- zero or one selected output entity for that visible row
+
+For processes with more than one input or output, decompose produces one visible row per input/output pair. If the input and output counts differ, the shorter side is padded with empty cells. Cell updates for `Input`, `Output`, `Characteristic`, and `Factor` must target the projected input/output entity for that row, not blindly use the first input or output of the process.
+
+The table's `RowCount`, `GetRow`, `GetCellAt`, `TryGetCellAt`, `AddRow`, `UpdateRow`, and `RemoveRow` APIs operate on visible table rows. When a visible row represents a multi-I/O projection of an existing process, row mutation must preserve the other projected rows for that same process unless the operation explicitly removes the underlying process.
+
+---
+
 ## Required Changes to the Core Datamodel
 
-(Skip for now. Skip performer and comments fields. Skip sorting of annotation columns across header types.)
+(Skip performer and comments fields for now. Skip sorting of annotation columns across header types for now.)
 
 - **`PropertyValue`**: Add `ColumnIndex: int option` field for annotation column order preservation.
 - **`LabProcess`**: Add a `Performer` field and a `Comments` collection to support the corresponding column roles.
@@ -77,11 +91,27 @@ Because the process graph does not preserve column order, every annotation `Prop
 - Wraps a `ResizeArray<LabProcess>` — the processes it represents.
 - Exposes `Name`, `ColumnCount`, `RowCount`, `Headers` (`ResizeArray<CompositeHeader>`).
 - Provides full cell, column, row, and protocol column APIs following the `ArcTable` reference.
+- `AddColumn`, `RemoveColumn`, and cell/row update APIs must handle all supported column roles, not only annotation columns. `Input`, `Output`, `ProtocolREF`, `ProtocolType`, `ProtocolDescription`, `ProtocolUri`, and `ProtocolVersion` columns are first-class writable columns.
 - Adding/removing a row creates/removes the corresponding `LabProcess` node (and its input/output entities) in the parent `Dataset`.
 - Modifying a cell updates the corresponding `PropertyValue`, entity name, or protocol field on the underlying process nodes.
 - Missing Input or Output: if a table has no Input column but has Characteristic columns, a synthetic input entity is created per row (named `<tableName>_<rowIndex>`). The same applies symmetrically for Output and Factor columns.
 - Multi-I/O: if a process node has more than one input or output entity, decompose produces one row per (input × output) pair; the shorter side is padded with empty cells.
 - Protocol multiplicity: each process node references its own copy of a protocol object. Protocol column values may vary per row.
+- Protocol-field writes must create a `LabProtocol` for the row's process when one does not already exist. Component-column writes must also create a protocol when needed so the component `PropertyValue` has a valid graph slot.
+
+### Technical difficulty coverage
+
+The following implementation risks are explicitly part of this plan:
+
+| Entry | Status in this plan |
+|---|---|
+| Non-annotation columns were ignored by `AddColumn` / `RemoveColumn` | Covered by the first-class writable column requirement above |
+| Decompose/read/update used only the first input/output | Covered by Multi-I/O row projection |
+| `RowCount` assumed one row per `LabProcess` | Covered by Multi-I/O row projection |
+| Characteristic/Factor writes failed when the carrier input/output was missing | Covered by the synthetic input/output rule |
+| Annotation column order could not round-trip because `PropertyValue.ColumnIndex` was missing | Covered by Required Changes and Column ordering |
+| Protocol fields were not updated consistently by row/cell APIs | Covered by first-class writable protocol columns |
+| Component writes failed when a process had no protocol | Covered by protocol-field/component write creation rule |
 
 ### `Tables` collection on `Dataset`
 

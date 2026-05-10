@@ -405,6 +405,26 @@ type IONode =
     | MaterialNode of Material
     | DataNode of Data
 
+    member this.TryMaterial() =
+        match this with
+        | MaterialNode m -> Some m
+        | _ -> None
+
+    member this.TryData() =
+        match this with
+        | DataNode d -> Some d
+        | _ -> None
+
+    member this.AsMaterial() =
+        match this with
+        | MaterialNode m -> m
+        | other -> failwithf "Expected Material node but got %A" other
+
+    member this.AsData() =
+        match this with
+        | DataNode d -> d
+        | other -> failwithf "Expected Data node but got %A" other
+
     member this.EqualTo(other: IONode) =
         match this, other with
         | MaterialNode a, MaterialNode b -> a = b

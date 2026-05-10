@@ -17,6 +17,11 @@ let makeSingleProcessTable () =
     ds.AddProcess(proc)
     Table("Growth", ResizeArray([| proc |]), ds), proc, ds
 
+let freeTextValue (cell : CompositeCell) =
+    match cell with
+    | CompositeCell.FreeText value -> value
+    | other -> failwithf "Expected FreeText cell but got %A" other
+
 let tests = testList "TableRead" [
 
     // ── empty process list ────────────────────────────────────────────────────
@@ -252,5 +257,71 @@ let tests = testList "TableRead" [
         let t, _, _ = makeSingleProcessTable()
         let row = t.GetRow(0)
         Expect.equal row.Count t.ColumnCount "one cell per column"
+
+    testList "Multi-I/O row projection" [
+
+        testCase "RowCount counts projected input/output rows, not only processes" <| fun _ ->
+            let p = LabProcess("Pairing")
+            p.AddInputMaterial(Material("Input1", additionalType = "Source"))
+            p.AddInputMaterial(Material("Input2", additionalType = "Source"))
+            p.AddOutputMaterial(Material("Output1", additionalType = "Sample"))
+            p.AddOutputMaterial(Material("Output2", additionalType = "Sample"))
+            p.AddOutputMaterial(Material("Output3", additionalType = "Sample"))
+            let ds = Dataset("DS")
+            ds.AddProcess(p)
+            let t = Table("Pairing", ResizeArray([| p |]), ds)
+
+            Expect.equal t.RowCount 3 "one process with two inputs and three outputs projects to three visible rows"
+
+        testCase "Decompose pads the shorter I/O side with empty cells" <| fun _ ->
+            let p = LabProcess("Pairing")
+            p.AddInputMaterial(Material("Input1", additionalType = "Source"))
+            p.AddInputMaterial(Material("Input2", additionalType = "Source"))
+            p.AddOutputMaterial(Material("Output1", additionalType = "Sample"))
+            p.AddOutputMaterial(Material("Output2", additionalType = "Sample"))
+            p.AddOutputMaterial(Material("Output3", additionalType = "Sample"))
+            let ds = Dataset("DS")
+            ds.AddProcess(p)
+            let t = Table("Pairing", ResizeArray([| p |]), ds)
+
+            let inputCol = t.TryGetInputColumn().Value
+            let outputCol = t.TryGetOutputColumn().Value
+            Expect.equal inputCol.Cells.Count 3 "input column has one cell per visible row"
+            Expect.equal outputCol.Cells.Count 3 "output column has one cell per visible row"
+            if inputCol.Cells.Count >= 3 && outputCol.Cells.Count >= 3 then
+                Expect.equal (freeTextValue inputCol.Cells.[0]) "Input1" "first projected input"
+                Expect.equal (freeTextValue inputCol.Cells.[1]) "Input2" "second projected input"
+                Expect.equal (freeTextValue inputCol.Cells.[2]) "" "missing third input is padded"
+                Expect.equal (freeTextValue outputCol.Cells.[2]) "Output3" "third output is still visible"
+
+        testCase "Projected rows use the projected input/output for characteristic and factor cells" <| fun _ ->
+            let p = LabProcess("Pairing")
+            let i1 = Material("Input1", additionalType = "Source")
+            let i2 = Material("Input2", additionalType = "Source")
+            i1.AddAdditionalProperty(PropertyValue("organism", value = "Mouse", additionalType = "CharacteristicValue"))
+            i2.AddAdditionalProperty(PropertyValue("organism", value = "Human", additionalType = "CharacteristicValue"))
+            let o1 = Material("Output1", additionalType = "Sample")
+            let o2 = Material("Output2", additionalType = "Sample")
+            o1.AddAdditionalProperty(PropertyValue("phase", value = "early", additionalType = "FactorValue"))
+            o2.AddAdditionalProperty(PropertyValue("phase", value = "late", additionalType = "FactorValue"))
+            p.AddInputMaterial(i1)
+            p.AddInputMaterial(i2)
+            p.AddOutputMaterial(o1)
+            p.AddOutputMaterial(o2)
+            let ds = Dataset("DS")
+            ds.AddProcess(p)
+            let t = Table("Pairing", ResizeArray([| p |]), ds)
+
+            let organismCol = t.TryGetColumnByHeader(fun h -> match h with CompositeHeader.Characteristic dt when dt.Name = "organism" -> true | _ -> false).Value
+            let phaseCol = t.TryGetColumnByHeader(fun h -> match h with CompositeHeader.Factor dt when dt.Name = "phase" -> true | _ -> false).Value
+            Expect.equal organismCol.Cells.Count 2 "characteristic column has one cell per projected row"
+            Expect.equal phaseCol.Cells.Count 2 "factor column has one cell per projected row"
+            if organismCol.Cells.Count >= 2 && phaseCol.Cells.Count >= 2 then
+                Expect.equal (freeTextValue organismCol.Cells.[0]) "Mouse" "first row reads first input characteristic"
+                Expect.equal (freeTextValue organismCol.Cells.[1]) "Human" "second row reads second input characteristic"
+                Expect.equal (freeTextValue phaseCol.Cells.[0]) "early" "first row reads first output factor"
+                Expect.equal (freeTextValue phaseCol.Cells.[1]) "late" "second row reads second output factor"
+
+    ]
 
 ]
