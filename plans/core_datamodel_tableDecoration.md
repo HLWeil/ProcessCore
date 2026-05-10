@@ -48,7 +48,7 @@ Each column in a table corresponds to a consistently-typed slot across all proce
 
 ### Column ordering
 
-Because the process graph does not preserve column order, every annotation `PropertyValue` (Parameter, Factor, Characteristic, Component) must carry a `ColumnIndex: int option` field. This stores the column's ordinal position **within annotation columns only** (Input / Output / Protocol / Comment columns are not counted). During **compose** (table → processes), the column index is written from the column's position. During **decompose** (processes → table), annotation values are sorted by this field before assembling a row; values without an index are placed last. The fixed full column order on decompose is:
+Because the process graph does not preserve column order, every annotation `PropertyValue` (Parameter, Factor, Characteristic, Component) must carry `ColumnIndex` as extensible `DynamicObj` metadata, accessed through helper functions in the table module rather than as a core `PropertyValue` field. This stores the column's ordinal position **within annotation columns only** (Input / Output / Protocol / Comment columns are not counted). During **compose** (table → processes), the column index is written from the column's position. During **decompose** (processes → table), annotation values are sorted by this metadata before assembling a row; values without an index are placed last. The fixed full column order on decompose is:
 
 1. Input
 2. ProtocolREF, ProtocolType, ProtocolDescription, ProtocolUri, ProtocolVersion
@@ -79,7 +79,7 @@ The table's `RowCount`, `GetRow`, `GetCellAt`, `TryGetCellAt`, `AddRow`, `Update
 
 (Skip performer and comments fields for now. Skip sorting of annotation columns across header types for now.)
 
-- **`PropertyValue`**: Add `ColumnIndex: int option` field for annotation column order preservation.
+- **`PropertyValue`**: Do not add a dedicated `ColumnIndex` field. Preserve annotation column order through `DynamicObj` metadata and table-module helper functions.
 - **`LabProcess`**: Add a `Performer` field and a `Comments` collection to support the corresponding column roles.
 
 ---
@@ -109,7 +109,7 @@ The following implementation risks are explicitly part of this plan:
 | Decompose/read/update used only the first input/output | Covered by Multi-I/O row projection |
 | `RowCount` assumed one row per `LabProcess` | Covered by Multi-I/O row projection |
 | Characteristic/Factor writes failed when the carrier input/output was missing | Covered by the synthetic input/output rule |
-| Annotation column order could not round-trip because `PropertyValue.ColumnIndex` was missing | Covered by Required Changes and Column ordering |
+| Annotation column order could not round-trip because column order metadata was missing | Covered by Required Changes and Column ordering |
 | Protocol fields were not updated consistently by row/cell APIs | Covered by first-class writable protocol columns |
 | Component writes failed when a process had no protocol | Covered by protocol-field/component write creation rule |
 
