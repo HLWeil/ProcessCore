@@ -119,6 +119,17 @@ let tests = testList "Traversal" [
             Expect.equal keys (Set.ofList ["M:Source1"])
                 "Sample1 → upstream: {Source1}"
 
+        testCase "distinguish by process io order" <| fun _ ->
+            let p     = LabProcess("MyProcess")
+            p.AddInputMaterial(Material("Input1"))
+            p.AddInputMaterial(Material("Input2"))
+            p.AddOutputMaterial(Material("Output1"))
+            p.AddOutputMaterial(Material("Output2"))
+            let output2 = p.Outputs.[1] // Output2
+            let nodes   = output2.UpstreamNodes()
+            Expect.hasLength nodes 1 "Output2 should have exactly one upstream node (Input2)"
+            Expect.equal (nodes[0].Key()) ("M:Input2") "Output2 → {Input2} in correct order"
+
     ]
 
     // ── 5.3 DownstreamProcesses / DownstreamNodes ────────────────────────────
@@ -141,6 +152,17 @@ let tests = testList "Traversal" [
             let f     = makeFixtureA()
             let procs = (DataNode f.RawData1).DownstreamProcesses()
             Expect.equal procs.Count 0 "rawData1.csv → no downstream processes"
+
+        testCase "distinguish by process io order" <| fun _ ->
+            let p     = LabProcess("MyProcess")
+            p.AddInputMaterial(Material("Input1"))
+            p.AddInputMaterial(Material("Input2"))
+            p.AddOutputMaterial(Material("Output1"))
+            p.AddOutputMaterial(Material("Output2"))
+            let input1  = p.Inputs.[0] // Input1
+            let nodes   = input1.DownstreamNodes()
+            Expect.hasLength nodes 1 "Input1 should have exactly one downstream node (Output1)"
+            Expect.equal (nodes[0].Key()) ("M:Output1") "Input1 → {Output1} in correct order"
 
     ]
 
