@@ -383,7 +383,7 @@ module Table =
                     stringCellColumns
                     |> Array.map CompositeColumn.fixDeprecatedIOHeader
                     |> composeColumns
-                let t = Table(t.Name, ResizeArray(),ds)
+                let t = Table(sheet.Name, ResizeArray(),ds)
                 columns
                 |> Array.iter (fun c -> t.AddColumn(c.Header, c.Cells))
                 t
@@ -394,7 +394,7 @@ module Table =
         | err -> failwithf "Could not parse table with name \"%s\":\n%s" sheet.Name err.Message
 
 
-let assayPath = @"C:\Users\HLWei\source\repos\Ru_ChlamyHeatstress\assays\Proteomics\isa.assay.xlsx"
+let assayPath = @"C:\Users\HLWei\source\repos\ARCs\Ru_ChlamyHeatstress\assays\Proteomics\isa.assay.xlsx"
 
 
 let wb = FsWorkbook.fromXlsxFile(assayPath)
@@ -404,26 +404,11 @@ let t = Table.tryAnnotationTable ws |> Option.get
 
 let d = Dataset("My Dataset")
 
-//Table.tryFromFsWorksheet d ws
+Table.tryFromFsWorksheet d ws
+
+let at = d.Tables.GetTable("Harvesting")
 
 
-
-
-let stringCellColumns = 
-    [|
-    for c = 1 to t.RangeAddress.LastAddress.ColumnNumber do
-        [|for r = 1 to t.RangeAddress.LastAddress.RowNumber do
-            match ws.CellCollection.TryGetCell(r,c) with
-            | Some cell -> cell.ValueAsString()
-            | None -> ""
-        |]
-    |]         
-    
-let columns = 
-    stringCellColumns
-    |> Array.map CompositeColumn.fixDeprecatedIOHeader
-    |> Table.composeColumns
-
-let newT = Table(ws.Name, ResizeArray(), d)
-
-newT.add
+at.ColumnCount
+at.Headers
+|> Seq.toArray
