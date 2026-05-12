@@ -9,6 +9,77 @@ let setOfNames (procs: ResizeArray<LabProcess>) = procs |> Seq.map (fun p -> p.N
 let setOfMaterials (ms: ResizeArray<Material>) = ms |> Seq.map (fun m -> m.Name) |> Set.ofSeq
 let setOfData (ds: ResizeArray<Data>) = ds |> Seq.map (fun d -> d.Path) |> Set.ofSeq
 let nodeKeys (ns: ResizeArray<IONode>) = ns |> Seq.map (fun n -> n.Key()) |> Set.ofSeq
+let propertyValueNames (pvs: ResizeArray<PropertyValue>) = pvs |> Seq.map (fun pv -> pv.Name) |> Set.ofSeq
+
+let private makeLinearDataPropertyValueFixture () =
+    let material1 = Material("PV_Material1")
+    material1.AddAdditionalProperty(PropertyValue("material1_characteristic", value = "m1"))
+
+    let material2 = Material("PV_Material2")
+    material2.AddAdditionalProperty(PropertyValue("material2_characteristic", value = "m2"))
+
+    let data1 = Data("pv-data1.csv")
+    data1.AddAdditionalProperty(PropertyValue("data1_property", value = "d1"))
+
+    let material3 = Material("PV_Material3")
+    material3.AddAdditionalProperty(PropertyValue("material3_characteristic", value = "m3"))
+
+    let material4 = Material("PV_Material4")
+    material4.AddAdditionalProperty(PropertyValue("material4_characteristic", value = "m4"))
+
+    let data2 = Data("pv-data2.csv")
+    data2.AddAdditionalProperty(PropertyValue("data2_property", value = "d2"))
+
+    let protocol1 = LabProtocol("pv-protocol-1")
+    protocol1.AddLabEquipment(PropertyValue("protocol1_component", value = "instrument-1"))
+
+    let process1 = LabProcess("pv-process-1")
+    process1.ExecutesProtocol <- Some protocol1
+    process1.AddParameterValue(PropertyValue("process1_parameter", value = "p1"))
+    process1.AddInputMaterial(material1)
+    process1.AddInputMaterial(material3)
+    process1.AddOutputMaterial(material2)
+    process1.AddOutputMaterial(material4)
+
+    let protocol2 = LabProtocol("pv-protocol-2")
+    protocol2.AddLabEquipment(PropertyValue("protocol2_component", value = "instrument-2"))
+
+    let process2 = LabProcess("pv-process-2")
+    process2.ExecutesProtocol <- Some protocol2
+    process2.AddParameterValue(PropertyValue("process2_parameter", value = "p2"))
+    process2.AddInputMaterial(material2)
+    process2.AddInputMaterial(material4)
+    process2.AddOutputData(data1)
+    process2.AddOutputData(data2)
+
+    let dataset = Dataset("PV-linear")
+    dataset.AddProcess(process1)
+    dataset.AddProcess(process2)
+
+    dataset, material1, material2, data1
+
+let private expectedLinearPathPVNames =
+    Set.ofList [
+        "material1_characteristic"
+        "material2_characteristic"
+        "data1_property"
+        "process1_parameter"
+        "process2_parameter"
+        "protocol1_component"
+        "protocol2_component"
+    ]
+
+let private unrelatedParallelLanePVNames =
+    Set.ofList [
+        "material3_characteristic"
+        "material4_characteristic"
+        "data2_property"
+    ]
+
+let private expectNoParallelLanePropertyValues (pvs: ResizeArray<PropertyValue>) =
+    let names = propertyValueNames pvs
+    for name in unrelatedParallelLanePVNames do
+        Expect.isFalse (names.Contains name) $"should not include {name} from the parallel IO pair"
 
 let tests = testList "Traversal" [
 
@@ -262,6 +333,98 @@ let tests = testList "Traversal" [
             let data = (MaterialNode f.Source1).ConnectedData()
             Expect.equal (setOfData data) (Set.ofList ["rawData1.csv"])
                 "Source1 connected data: {rawData1.csv}"
+
+    ]
+
+    testList "PropertyValue traversal" [
+
+        testCase "Data.UpstreamPropertyValues collects process, protocol, and IONode values" <| fun _ ->
+            let _, _, _, data1 = makeLinearDataPropertyValueFixture()
+            let pvs = data1.UpstreamPropertyValues()
+            Expect.equal (propertyValueNames pvs) expectedLinearPathPVNames
+                "data1 upstream query collects all PropertyValues along material1 -> process1 -> material2 -> process2 -> data1"
+            expectNoParallelLanePropertyValues pvs
+
+        testCase "Data.UpstreamPropertyValues ignores unconnected IONodes in process" <| fun _ ->
+            let f = makeFixtureE()
+            let data1 = f.Data1
+            let pvs = data1.UpstreamPropertyValues()
+            Expect.hasLength pvs 5 "should have 5 PVs from the main path"
+            Expect.sequenceEqual pvs [f.Source1PV; f.P1PV; f.Sample1PV; f.P2PV; f.Data1PV] "Should contain exactly the nodes from the path"
+
+        testCase "IONode.UpstreamPropertyValues on data collects all sources" <| fun _ ->
+            let _, _, _, data1 = makeLinearDataPropertyValueFixture()
+            let pvs = (DataNode data1).UpstreamPropertyValues()
+            Expect.equal (propertyValueNames pvs) expectedLinearPathPVNames
+                "DataNode upstream query has the same complete source coverage"
+            expectNoParallelLanePropertyValues pvs
+
+        testCase "Material.DownstreamPropertyValues collects process, protocol, and IONode values" <| fun _ ->
+            let _, material1, _, _ = makeLinearDataPropertyValueFixture()
+            let pvs = material1.DownstreamPropertyValues()
+            Expect.equal (propertyValueNames pvs) expectedLinearPathPVNames
+                "material1 downstream query collects all PropertyValues along the full path"
+            expectNoParallelLanePropertyValues pvs
+
+        testCase "Material.DownstreamPropertyValues ignores unconnected IONodes in process" <| fun _ ->
+            let f = makeFixtureE()
+            let material1 = f.Source1
+            let pvs = material1.DownstreamPropertyValues()
+            Expect.hasLength pvs 5 "should have 5 PVs from the main path"
+            Expect.sequenceEqual pvs [f.Source1PV; f.P1PV; f.Sample1PV; f.P2PV; f.Data1PV] "Should contain exactly the nodes from the path"
+
+        testCase "Material.DownstreamPropertyValues does not walk upstream" <| fun _ ->
+            let f = makeFixtureE()
+            let material1 = f.Sample1
+            let pvs = material1.DownstreamPropertyValues()
+            Expect.hasLength pvs 3 "should have 3 PVs from the main path"
+            Expect.sequenceEqual pvs [f.Sample1PV; f.P2PV; f.Data1PV] "Should contain exactly the nodes from the path"
+
+        testCase "IONode.DownstreamPropertyValues on material collects all sources" <| fun _ ->
+            let _, material1, _, _ = makeLinearDataPropertyValueFixture()
+            let pvs = (MaterialNode material1).DownstreamPropertyValues()
+            Expect.equal (propertyValueNames pvs) expectedLinearPathPVNames
+                "MaterialNode downstream query has the same complete source coverage"
+            expectNoParallelLanePropertyValues pvs
+
+        testCase "Material.AllPropertyValues collects process, protocol, and IONode values" <| fun _ ->
+            let _, _, material2, _ = makeLinearDataPropertyValueFixture()
+            let pvs = material2.AllPropertyValues()
+            Expect.equal (propertyValueNames pvs) expectedLinearPathPVNames
+                "all-connected query from the middle node collects all sources in both directions"
+            expectNoParallelLanePropertyValues pvs
+
+        testCase "Dataset.UpstreamPropertyValuesForNode on data collects all sources" <| fun _ ->
+            let ds, _, _, data1 = makeLinearDataPropertyValueFixture()
+            let pvs = ds.UpstreamPropertyValuesForNode(DataNode data1)
+            Expect.equal (propertyValueNames pvs) expectedLinearPathPVNames
+                "dataset-scoped upstream query keeps complete property value coverage"
+            expectNoParallelLanePropertyValues pvs
+
+        testCase "Dataset.DownstreamPropertyValuesForNode on material collects all sources" <| fun _ ->
+            let ds, material1, _, _ = makeLinearDataPropertyValueFixture()
+            let pvs = ds.DownstreamPropertyValuesForNode(MaterialNode material1)
+            Expect.equal (propertyValueNames pvs) expectedLinearPathPVNames
+                "dataset-scoped downstream query keeps complete property value coverage"
+            expectNoParallelLanePropertyValues pvs
+
+        testCase "Dataset.PropertyValuesForNode all directions collects all sources" <| fun _ ->
+            let ds, _, material2, _ = makeLinearDataPropertyValueFixture()
+            let pvs = ds.PropertyValuesForNode(MaterialNode material2)
+            Expect.equal (propertyValueNames pvs) expectedLinearPathPVNames
+                "dataset-scoped upstream + downstream query keeps complete property value coverage"
+            expectNoParallelLanePropertyValues pvs
+
+        testCase "Path.AllPropertyValues collects all sources on the path" <| fun _ ->
+            let ds, _, _, _ = makeLinearDataPropertyValueFixture()
+            let path = Path(ds.AllProcesses())
+            let pvs = path.AllPropertyValues()
+            let expected =
+                Set.union
+                    expectedLinearPathPVNames
+                    unrelatedParallelLanePVNames
+            Expect.equal (propertyValueNames pvs) expected
+                "explicit Path query includes every IO node on the supplied process path"
 
     ]
 

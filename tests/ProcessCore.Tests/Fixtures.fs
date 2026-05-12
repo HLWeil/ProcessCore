@@ -2,6 +2,34 @@ module ProcessCore.Tests.Fixtures
 
 open ProcessCore
 
+module Utils = 
+
+    let firstDiff s1 s2 =
+        let s1 = Seq.append (Seq.map Some s1) (Seq.initInfinite (fun _ -> None))
+        let s2 = Seq.append (Seq.map Some s2) (Seq.initInfinite (fun _ -> None))
+        Seq.mapi2 (fun i s p -> i,s,p) s1 s2
+        |> Seq.find (function |_,Some s,Some p when s=p -> false |_-> true)
+
+
+module Expect = 
+
+    open Utils
+
+    /// Expects the `actual` sequence to equal the `expected` one.
+    let sequenceEqual actual expected message =
+      match firstDiff actual expected with
+      | _,None,None -> ()
+      | i,Some a, Some e ->
+        failwithf "%s. Sequence does not match at position %i. Expected item: %O, but got %O."
+          message i e a
+      | i,None,Some e ->
+        failwithf "%s. Sequence actual shorter than expected, at pos %i for expected item %O."
+          message i e
+      | i,Some a,None ->
+        failwithf "%s. Sequence actual longer than expected, at pos %i found item %O."
+          message i a
+
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Fixture A — Linear Chain
 //
@@ -214,6 +242,80 @@ let makeFixtureD () : FixtureD =
     { Parent = parent; Child1 = child1; Child2 = child2
       P1 = p1; P2 = p2
       Source1 = source1; Sample1 = sample1; RawData1 = rawData1 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Fixture E — IOGroupedProcesses
+//
+//   Two processes each containing two input/output pairs, i.e. two distinct 1D paths.
+//
+//   Source1 --[p1]--> Sample1 --[p2]--> Data1
+//   Source2 --[p1]--> Sample2 --[p2]--> Data2
+// ─────────────────────────────────────────────────────────────────────────────
+
+
+type FixtureE =
+    { DS        : Dataset
+      P1        : LabProcess
+      P1PV      : PropertyValue
+      P2        : LabProcess
+      P2PV      : PropertyValue
+      Source1   : Material
+      Source1PV : PropertyValue
+      Source2   : Material
+      Source2PV : PropertyValue
+      Sample1   : Material
+      Sample1PV : PropertyValue
+      Sample2   : Material
+      Sample2PV : PropertyValue
+      Data1     : Data
+      Data1PV   : PropertyValue
+      Data2     : Data 
+      Data2PV   : PropertyValue }
+
+let makeFixtureE () : FixtureE =
+    
+    let source1PV = PropertyValue("source1_characteristic", value = "source1_val", additionalType = "Characteristic")
+    let source2PV = PropertyValue("source2_characteristic", value = "source2_val", additionalType = "Characteristic")
+    let sample1PV = PropertyValue("sample1_characteristic", value = "sample1_val", additionalType = "Characteristic")
+    let sample2PV = PropertyValue("sample2_characteristic", value = "sample2_val", additionalType = "Characteristic")
+    let p1PV      = PropertyValue("p1_parameter", value = "p1_val", additionalType = "ParameterValue")
+    let p2PV      = PropertyValue("p2_parameter", value = "p2_val", additionalType = "ParameterValue")
+    let data1PV   = PropertyValue("data1_characteristic", value = "data1_val", additionalType = "Characteristic")
+    let data2PV   = PropertyValue("data2_characteristic", value = "data2_val", additionalType = "Characteristic")
+
+    let source1 = Material("Source1", additionalType = "Source", additionalProperty = [source1PV])
+    let source2 = Material("Source2", additionalType = "Source", additionalProperty = [source2PV])
+    let sample1 = Material("Sample1", additionalType = "Sample", additionalProperty = [sample1PV])
+    let sample2 = Material("Sample2", additionalType = "Sample", additionalProperty = [sample2PV])
+    let data1   = Data("Data1", additionalProperty = [data1PV])
+    let data2   = Data("Data2", additionalProperty = [data2PV])
+
+    let p1 = LabProcess("p1")
+    let p2 = LabProcess("p2")
+
+    p1.AddParameterValue(p1PV)
+    p2.AddParameterValue(p2PV)
+
+    p1.AddInputMaterial(source1)
+    p1.AddInputMaterial(source2)
+    p1.AddOutputMaterial(sample1)
+    p1.AddOutputMaterial(sample2)
+    p2.AddInputMaterial(sample1)
+    p2.AddInputMaterial(sample2)
+    p2.AddOutputData(data1)
+    p2.AddOutputData(data2)
+
+    let ds = Dataset("DS-E")
+
+    ds.AddProcess(p1)
+    ds.AddProcess(p2)
+    { DS = ds; P1 = p1; P1PV = p1PV; P2 = p2; P2PV = p2PV
+      Source1 = source1; Source1PV = source1PV
+      Source2 = source2; Source2PV = source2PV
+      Sample1 = sample1; Sample1PV = sample1PV
+      Sample2 = sample2; Sample2PV = sample2PV
+      Data1 = data1; Data1PV = data1PV
+      Data2 = data2; Data2PV = data2PV }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Fixture FourSources

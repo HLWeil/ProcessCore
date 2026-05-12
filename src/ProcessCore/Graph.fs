@@ -97,25 +97,7 @@ type Path(processes: ResizeArray<LabProcess>) =
     /// All PropertyValues from all sources (parameters, input/output node properties, protocol components)
     /// across all processes in this path
     member _.AllPropertyValues() : ResizeArray<PropertyValue> =
-        let acc  = ResizeArray<PropertyValue>()
-        let seen = HashSet<string>()
-        let addPV (pv: PropertyValue) =
-            let key = pv.Name + "|" + (pv.Value |> Option.defaultValue "") + "|" + (pv.NameTAN |> Option.defaultValue "")
-            if seen.Add(key) then acc.Add(pv)
-        for proc in processes do
-            for pv: PropertyValue in proc.ParameterValue do addPV pv
-            for n: IONode in proc.Inputs do
-                match n with
-                | MaterialNode m -> for pv: PropertyValue in m.AdditionalProperty do addPV pv
-                | DataNode d     -> for pv: PropertyValue in d.AdditionalProperty do addPV pv
-            for n: IONode in proc.Outputs do
-                match n with
-                | MaterialNode m -> for pv: PropertyValue in m.AdditionalProperty do addPV pv
-                | DataNode d     -> for pv: PropertyValue in d.AdditionalProperty do addPV pv
-            match proc.ExecutesProtocol with
-            | Some (proto: LabProtocol) -> for pv: PropertyValue in proto.LabEquipment do addPV pv
-            | None -> ()
-        acc
+        collectPropertyValuesFromProcesses processes
 
     /// All PropertyValues from all sources whose name matches the given string
     member this.PropertyValuesByName(name: string) : ResizeArray<PropertyValue> =
@@ -135,6 +117,56 @@ type Path(processes: ResizeArray<LabProcess>) =
 
 [<AutoOpen>]
 module private PathTraversal =
+    let propertyValueKey (pv: PropertyValue) =
+        pv.Name + "|" + (pv.Value |> Option.defaultValue "") + "|" + (pv.NameTAN |> Option.defaultValue "")
+
+    let addPropertyValue (result: ResizeArray<PropertyValue>) (seen: HashSet<string>) (pv: PropertyValue) =
+        if seen.Add(propertyValueKey pv) then result.Add(pv)
+
+    let addPropertyValuesFromNode (result: ResizeArray<PropertyValue>) (seen: HashSet<string>) (node: IONode) =
+        match node with
+        | MaterialNode m -> for pv: PropertyValue in m.AdditionalProperty do addPropertyValue result seen pv
+        | DataNode d     -> for pv: PropertyValue in d.AdditionalProperty do addPropertyValue result seen pv
+
+    let addProcessPropertyValues (result: ResizeArray<PropertyValue>) (seen: HashSet<string>) (proc: LabProcess) =
+        for pv: PropertyValue in proc.ParameterValue do addPropertyValue result seen pv
+        match proc.ExecutesProtocol with
+        | Some (proto: LabProtocol) -> for pv: PropertyValue in proto.LabEquipment do addPropertyValue result seen pv
+        | None -> ()
+
+    let addPropertyValuesFromProcess (result: ResizeArray<PropertyValue>) (seen: HashSet<string>) (proc: LabProcess) =
+        addProcessPropertyValues result seen proc
+        for n: IONode in proc.Inputs do addPropertyValuesFromNode result seen n
+        for n: IONode in proc.Outputs do addPropertyValuesFromNode result seen n
+
+    let collectPropertyValuesFromProcesses (processes: seq<LabProcess>) : ResizeArray<PropertyValue> =
+        let result = ResizeArray<PropertyValue>()
+        let seen = HashSet<string>()
+        for proc in processes do
+            addPropertyValuesFromProcess result seen proc
+        result
+
+    let collectPropertyValuesFromProcessesWithProtocolName (protocolName: string option) (processes: seq<LabProcess>) : ResizeArray<PropertyValue> =
+        let includeProcess (proc: LabProcess) =
+            match protocolName with
+            | Some pn ->
+                match proc.ExecutesProtocol with
+                | Some (proto: LabProtocol) -> proto.Name = Some pn
+                | None -> false
+            | None -> true
+
+        processes
+        |> Seq.filter includeProcess
+        |> collectPropertyValuesFromProcesses
+
+    let processMatchesProtocolName (protocolName: string option) (proc: LabProcess) =
+        match protocolName with
+        | Some pn ->
+            match proc.ExecutesProtocol with
+            | Some (proto: LabProtocol) -> proto.Name = Some pn
+            | None -> false
+        | None -> true
+
     let inScope (processes: ResizeArray<LabProcess>) (p: LabProcess) =
         processes |> Seq.exists (fun q -> q = p)
 
@@ -143,6 +175,61 @@ module private PathTraversal =
         acc.AddRange(node.GetInputOf() |> Seq.filter (inScope processes))
         acc.AddRange(node.GetOutputOf() |> Seq.filter (inScope processes))
         acc |> Seq.distinct |> ResizeArray
+
+    let inOptionalScope (scope: ResizeArray<LabProcess> option) (p: LabProcess) =
+        scope |> Option.forall (fun s -> s |> Seq.exists (fun q -> q = p))
+
+    let collectUpstreamPropertyValues
+        (protocolName: string option)
+        (scope: ResizeArray<LabProcess> option)
+        (start: IONode)
+        : ResizeArray<PropertyValue> =
+
+        let result = ResizeArray<PropertyValue>()
+        let seenPV = HashSet<string>()
+        let visitedEdges = HashSet<string>()
+
+        let rec walk (node: IONode) =
+            for proc: LabProcess in node.GetOutputOf() do
+                if inOptionalScope scope proc then
+                    let edgeKey = proc.Name + "<-" + node.Key()
+                    if visitedEdges.Add(edgeKey) then
+                        let includeProcess = processMatchesProtocolName protocolName proc
+                        for input in proc.GetInputsOfOutput(node) do
+                            walk input
+                            if includeProcess then addPropertyValuesFromNode result seenPV input
+                        if includeProcess then
+                            addProcessPropertyValues result seenPV proc
+                            addPropertyValuesFromNode result seenPV node
+
+        walk start
+        result
+
+    let collectDownstreamPropertyValues
+        (protocolName: string option)
+        (scope: ResizeArray<LabProcess> option)
+        (start: IONode)
+        : ResizeArray<PropertyValue> =
+
+        let result = ResizeArray<PropertyValue>()
+        let seenPV = HashSet<string>()
+        let visitedEdges = HashSet<string>()
+
+        let rec walk (node: IONode) =
+            for proc: LabProcess in node.GetInputOf() do
+                if inOptionalScope scope proc then
+                    let edgeKey = proc.Name + "->" + node.Key()
+                    if visitedEdges.Add(edgeKey) then
+                        let includeProcess = processMatchesProtocolName protocolName proc
+                        if includeProcess then
+                            addPropertyValuesFromNode result seenPV node
+                            addProcessPropertyValues result seenPV proc
+                        for output in proc.GetOutputsOfInput(node) do
+                            if includeProcess then addPropertyValuesFromNode result seenPV output
+                            walk output
+
+        walk start
+        result
 
     let rec walkUpstream (processes: ResizeArray<LabProcess>) (proc: LabProcess) (visited: HashSet<string>) : ResizeArray<ResizeArray<LabProcess>> =
         if not (visited.Add(proc.Name)) then
@@ -309,24 +396,12 @@ type IONode =
     /// All PropertyValues from all sources (parameters, input/output node properties, protocol components)
     /// connected to this node through the graph.
     member this.AllPropertyValues(?scope: ResizeArray<LabProcess>) : ResizeArray<PropertyValue> =
-        let seenPV = HashSet<string>()
         let result = ResizeArray<PropertyValue>()
-        let addPV (pv: PropertyValue) =
-            let key = pv.Name + "|" + (pv.Value |> Option.defaultValue "") + "|" + (pv.NameTAN |> Option.defaultValue "")
-            if seenPV.Add(key) then result.Add(pv)
-        for p: LabProcess in this.AllConnectedProcesses(?scope = scope) do
-            for pv: PropertyValue in p.ParameterValue do addPV pv
-            for n: IONode in p.Inputs do
-                match n with
-                | MaterialNode m -> for pv: PropertyValue in m.AdditionalProperty do addPV pv
-                | DataNode d     -> for pv: PropertyValue in d.AdditionalProperty do addPV pv
-            for n: IONode in p.Outputs do
-                match n with
-                | MaterialNode m -> for pv: PropertyValue in m.AdditionalProperty do addPV pv
-                | DataNode d     -> for pv: PropertyValue in d.AdditionalProperty do addPV pv
-            match p.ExecutesProtocol with
-            | Some (proto: LabProtocol) -> for pv: PropertyValue in proto.LabEquipment do addPV pv
-            | None -> ()
+        let seen = HashSet<string>()
+        for pv in collectUpstreamPropertyValues None scope this do
+            addPropertyValue result seen pv
+        for pv in collectDownstreamPropertyValues None scope this do
+            addPropertyValue result seen pv
         result
 
     /// All FormalParameters from protocols executed in processes connected to this node.
@@ -510,64 +585,12 @@ type IONode =
     /// PropertyValues from all sources in processes upstream of this node.
     /// Optional protocolName restricts to processes whose protocol name matches.
     member this.UpstreamPropertyValues(?protocolName: string, ?scope: ResizeArray<LabProcess>) : ResizeArray<PropertyValue> =
-        let seenPV = HashSet<string>()
-        let result = ResizeArray<PropertyValue>()
-        let addPV (pv: PropertyValue) =
-            let key = pv.Name + "|" + (pv.Value |> Option.defaultValue "") + "|" + (pv.NameTAN |> Option.defaultValue "")
-            if seenPV.Add(key) then result.Add(pv)
-        for p: LabProcess in this.UpstreamProcesses(?scope = scope) do
-            let include_ =
-                match protocolName with
-                | Some pn ->
-                    match p.ExecutesProtocol with
-                    | Some (proto: LabProtocol) -> proto.Name = Some pn
-                    | None -> false
-                | None -> true
-            if include_ then
-                for pv: PropertyValue in p.ParameterValue do addPV pv
-                for n: IONode in p.Inputs do
-                    match n with
-                    | MaterialNode m -> for pv: PropertyValue in m.AdditionalProperty do addPV pv
-                    | DataNode d     -> for pv: PropertyValue in d.AdditionalProperty do addPV pv
-                for n: IONode in p.Outputs do
-                    match n with
-                    | MaterialNode m -> for pv: PropertyValue in m.AdditionalProperty do addPV pv
-                    | DataNode d     -> for pv: PropertyValue in d.AdditionalProperty do addPV pv
-                match p.ExecutesProtocol with
-                | Some (proto: LabProtocol) -> for pv: PropertyValue in proto.LabEquipment do addPV pv
-                | None -> ()
-        result
+        collectUpstreamPropertyValues protocolName scope this
 
     /// PropertyValues from all sources in processes downstream of this node.
     /// Optional protocolName restricts to processes whose protocol name matches.
     member this.DownstreamPropertyValues(?protocolName: string, ?scope: ResizeArray<LabProcess>) : ResizeArray<PropertyValue> =
-        let seenPV = HashSet<string>()
-        let result = ResizeArray<PropertyValue>()
-        let addPV (pv: PropertyValue) =
-            let key = pv.Name + "|" + (pv.Value |> Option.defaultValue "") + "|" + (pv.NameTAN |> Option.defaultValue "")
-            if seenPV.Add(key) then result.Add(pv)
-        for p: LabProcess in this.DownstreamProcesses(?scope = scope) do
-            let include_ =
-                match protocolName with
-                | Some pn ->
-                    match p.ExecutesProtocol with
-                    | Some (proto: LabProtocol) -> proto.Name = Some pn
-                    | None -> false
-                | None -> true
-            if include_ then
-                for pv: PropertyValue in p.ParameterValue do addPV pv
-                for n: IONode in p.Inputs do
-                    match n with
-                    | MaterialNode m -> for pv: PropertyValue in m.AdditionalProperty do addPV pv
-                    | DataNode d     -> for pv: PropertyValue in d.AdditionalProperty do addPV pv
-                for n: IONode in p.Outputs do
-                    match n with
-                    | MaterialNode m -> for pv: PropertyValue in m.AdditionalProperty do addPV pv
-                    | DataNode d     -> for pv: PropertyValue in d.AdditionalProperty do addPV pv
-                match p.ExecutesProtocol with
-                | Some (proto: LabProtocol) -> for pv: PropertyValue in proto.LabEquipment do addPV pv
-                | None -> ()
-        result
+        collectDownstreamPropertyValues protocolName scope this
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Material
@@ -1437,33 +1460,8 @@ and [<AttachMembers>] Dataset(identifier: string, ?name: string, ?description: s
     /// Sources: process parameters, input/output node properties, protocol components.
     /// Optional protocolName restricts to processes whose protocol name matches.
     member this.AllPropertyValues(?protocolName: string) : ResizeArray<PropertyValue> =
-        let seenPV = HashSet<string>()
-        let result = ResizeArray<PropertyValue>()
-        let addPV (pv: PropertyValue) =
-            let key = pv.Name + "|" + (pv.Value |> Option.defaultValue "") + "|" + (pv.NameTAN |> Option.defaultValue "")
-            if seenPV.Add(key) then result.Add(pv)
-        for p: LabProcess in this.AllProcesses() do
-            let include_ =
-                match protocolName with
-                | Some pn ->
-                    match p.ExecutesProtocol with
-                    | Some (proto: LabProtocol) -> proto.Name = Some pn
-                    | None -> false
-                | None -> true
-            if include_ then
-                for pv: PropertyValue in p.ParameterValue do addPV pv
-                for n: IONode in p.Inputs do
-                    match n with
-                    | MaterialNode m -> for pv: PropertyValue in m.AdditionalProperty do addPV pv
-                    | DataNode d     -> for pv: PropertyValue in d.AdditionalProperty do addPV pv
-                for n: IONode in p.Outputs do
-                    match n with
-                    | MaterialNode m -> for pv: PropertyValue in m.AdditionalProperty do addPV pv
-                    | DataNode d     -> for pv: PropertyValue in d.AdditionalProperty do addPV pv
-                match p.ExecutesProtocol with
-                | Some (proto: LabProtocol) -> for pv: PropertyValue in proto.LabEquipment do addPV pv
-                | None -> ()
-        result
+        this.AllProcesses()
+        |> collectPropertyValuesFromProcessesWithProtocolName protocolName
 
     /// All PropertyValues from all sources connected to `node` (upstream + downstream) within this dataset.
     /// Optional protocolName restricts to processes whose protocol name matches.
@@ -1474,7 +1472,7 @@ and [<AttachMembers>] Dataset(identifier: string, ?name: string, ?description: s
         let seenPV = HashSet<string>()
         let result = ResizeArray<PropertyValue>()
         for pv: PropertyValue in Seq.append upstream downstream do
-            let key = pv.Name + "|" + (pv.Value |> Option.defaultValue "") + "|" + (pv.NameTAN |> Option.defaultValue "")
+            let key = propertyValueKey pv
             if seenPV.Add(key) then result.Add(pv)
         result
 

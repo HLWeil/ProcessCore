@@ -67,7 +67,7 @@ Querying methods are embedded directly on the entity objects (not in a separate 
 
 ### PropertyValue sources
 
-When retrieving property values from a process context, **all four sources** must be collected:
+When retrieving property values from a process context, four sources can contribute:
 
 1. `process.ParameterValue` — parameters attached directly to the process
 2. `process.Inputs[*].AdditionalProperty` — characteristics attached to input nodes
@@ -75,6 +75,10 @@ When retrieving property values from a process context, **all four sources** mus
 4. `process.ExecutesProtocol?.LabEquipment` — components (equipment, reagents, software) attached to the protocol via `labEquipment`
 
 All retrieval methods are named `*PropertyValues` (not `*ParameterValues`) to reflect this broad collection.
+
+For graph traversal queries from an `IONode`, node-attached values are collected on an input/output-pair basis. A reached `LabProcess` contributes its process-level `ParameterValue` and protocol `LabEquipment`, but only the `AdditionalProperty` values of nodes actually reached by the traversal are included. If two independent IO lanes share the same processes, querying from one lane must not collect `AdditionalProperty` values from the other lane.
+
+This applies equally when the member is called on `IONode`, `Material`, or `Data`, and through dataset-scoped wrappers such as `UpstreamPropertyValuesForNode` / `DownstreamPropertyValuesForNode` / `PropertyValuesForNode`. `Path.AllPropertyValues` operates on the explicit process sequence supplied to the `Path` value and therefore collects from all input/output nodes of those path processes.
 
 ### Traversal directions
 
@@ -106,9 +110,8 @@ All traversal methods accept an optional `scope: ResizeArray<LabProcess>` parame
 | `IONode` | Full traversal and PropertyValue retrieval; `IsRootNode`, `IsFinalNode` |
 | `Material`, `Data` | Delegate to `IONode` wrapper (`MaterialNode this` / `DataNode this`) |
 | `LabProcess` | `InputMaterials`, `InputData`, `OutputMaterials`, `OutputData`, `ProtocolParameters`, `PropertyValuesByName` |
-| `Dataset` | `AllNodes`, `RootNodes`, `FinalNodes`, `AllPropertyValues(?protocolName)`, `PropertyValuesForNode`, `UpstreamPropertyValuesForNode`, `DownstreamPropertyValuesForNode`, `FindProcessesByProtocolType`, `FindProcessesByPropertyValue`, `FindProcessesByPropertyName`, `MaterialsResultingFromCondition` |
+| `Dataset` | `AllNodes`, `RootNodes`, `FinalNodes`, `AllPropertyValues(?protocolName)`, `PropertyValuesForNode`, `UpstreamPropertyValuesForNode`, `DownstreamPropertyValuesForNode`, `ProcessesForNode`, `PathsThrough`, `NodesUpstreamOf`, `NodesDownstreamOf`, `ConnectedMaterialsForNode`, `ConnectedDataForNode`, `ProtocolParametersForNode`, `FindProcessesByProtocolType`, `FindProcessesByPropertyValue`, `FindProcessesByPropertyName`, `MaterialsResultingFromCondition` |
 | `Path` | `AllPropertyValues`, `PropertyValuesByName`, `ProtocolParameters`, `TerminalInputs`, `TerminalOutputs` |
-| `ProcessGraph` | Scoped versions of all traversal and finder methods; `PathsThrough` |
 
 ## Target folder
 
