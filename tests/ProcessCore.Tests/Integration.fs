@@ -120,7 +120,7 @@ let tests = testList "Integration" [
         Expect.isTrue  (keys.Contains("M:Source1"))       "Source1 in child1 scope"
         Expect.isFalse (keys.Contains("D:rawData1.csv"))  "rawData1.csv not in child1 scope"
 
-    // ─── ProcessGraph.PathsThrough — multi-path proteomics ───────────────────
+    // ─── Dataset.PathsThrough — multi-path proteomics ────────────────────────
     //
     // Build an investigation-level flat process list combining two parallel
     // experimental arms feeding the same final measurement step.
@@ -132,7 +132,7 @@ let tests = testList "Integration" [
     // PathsThrough(rawData.csv) should yield two distinct paths:
     //   [growth_a, measurement]  and  [growth_b, measurement]
 
-    testCase "ProcessGraph.PathsThrough — multi-path proteomics" <| fun _ ->
+    testCase "Dataset.PathsThrough — multi-path proteomics" <| fun _ ->
         let sourceA = Material("SourceA", additionalType = "Source")
         let sampleA = Material("SampleA", additionalType = "Sample")
         let sourceB = Material("SourceB", additionalType = "Source")
@@ -157,8 +157,7 @@ let tests = testList "Integration" [
         ds.AddProcess(growthB)
         ds.AddProcess(measurement)
 
-        let graph = ProcessGraph(ds.AllProcesses())
-        let paths = graph.PathsThrough(DataNode raw)
+        let paths = ds.PathsThrough(DataNode raw)
 
         // Each path should contain the measurement process and exactly one growth process
         let pathNames =

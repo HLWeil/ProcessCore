@@ -63,4 +63,4 @@ Some legacy/profile-shaped examples and upstream references use RO-Crate or Bios
 
 ## Querying
 
-The query use cases are described in [Querying](../spec/querying/use-cases.md). The implementation now contains `Path` and `ProcessGraph` in `src/ProcessCore/Path.fs`, so the querying document should be read as design context plus use-case motivation rather than a statement that those types are still missing.
+The query use cases are described in [Querying](../spec/querying/use-cases.md). The implementation exposes `Path` as a returned value object, while traversal and query operations are attached to the model types in `src/ProcessCore/Graph.fs`.

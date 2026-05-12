@@ -49,6 +49,23 @@ let tests = testList "Traversal" [
 
     ]
 
+    testList "Processes" [
+
+        testCase "direct processes for node" <| fun _ ->
+            let f = makeFixtureA()
+            let procs = (MaterialNode f.Sample1).Processes()
+            Expect.equal (setOfNames procs) (Set.ofList ["p1";"p2"])
+                "Sample1 is an output of p1 and an input of p2"
+
+        testCase "direct processes scoped to subset" <| fun _ ->
+            let f = makeFixtureA()
+            let scope = ResizeArray<LabProcess>([| f.P1 |])
+            let procs = (MaterialNode f.Sample1).Processes(scope)
+            Expect.equal (setOfNames procs) (Set.ofList ["p1"])
+                "Only p1 is visible in the explicit process scope"
+
+    ]
+
     testList "AllConnectedNodes" [
 
         testCase "from root excludes self" <| fun _ ->

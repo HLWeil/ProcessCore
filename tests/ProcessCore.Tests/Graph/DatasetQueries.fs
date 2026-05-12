@@ -213,4 +213,67 @@ let tests = testList "DatasetQueries" [
         Expect.equal names (Set.ofList ["SampleA";"SampleB"])
             "branching: both terminal output materials returned"
 
+    testCase "MaterialsResultingFromCondition — predicate overload" <| fun _ ->
+        let f = makeFixtureB()
+        let pred (pv: PropertyValue) = pv.Value = Some "37"
+        let mats = f.DS.MaterialsResultingFromCondition("cell growth", pred)
+        let names = mats |> Seq.map (fun m -> m.Name) |> Set.ofSeq
+        Expect.equal names (Set.ofList ["SampleA";"SampleB"])
+            "predicate overload returns both terminal branch materials"
+
+    // ── Dataset-scoped node/path queries ──────────────────────────────────────
+
+    testCase "ProcessesForNode" <| fun _ ->
+        let f = makeFixtureA()
+        let procs = f.DS.ProcessesForNode(MaterialNode f.Sample1)
+        let names = procs |> Seq.map (fun p -> p.Name) |> Set.ofSeq
+        Expect.equal names (Set.ofList ["p1";"p2"]) "Sample1 is in p1 and p2"
+
+    testCase "PathsThrough — linear graph" <| fun _ ->
+        let f = makeFixtureA()
+        let paths = f.DS.PathsThrough(MaterialNode f.Sample1)
+        Expect.equal paths.Count 2 "two seed processes each produce one maximal path"
+        for path in paths do
+            let names = path.Processes |> Seq.map (fun p -> p.Name) |> Set.ofSeq
+            Expect.equal names (Set.ofList ["p1";"p2";"p3"]) "each path covers all three processes"
+
+    testCase "PathsThrough — branching graph" <| fun _ ->
+        let f = makeFixtureB()
+        let paths = f.DS.PathsThrough(MaterialNode f.Sample1)
+        Expect.equal paths.Count 4 "branching: three seeds produce four paths"
+        let uniqueSets =
+            paths
+            |> Seq.map (fun p -> p.Processes |> Seq.map (fun x -> x.Name) |> Set.ofSeq)
+            |> Set.ofSeq
+        Expect.equal uniqueSets (Set.ofList [Set.ofList ["p1";"p2"]; Set.ofList ["p1";"p3"]])
+            "two distinct path shapes"
+
+    testCase "NodesDownstreamOf" <| fun _ ->
+        let f = makeFixtureA()
+        let nodes = f.DS.NodesDownstreamOf(MaterialNode f.Source1)
+        let keys = nodes |> Seq.map (fun n -> n.Key()) |> Set.ofSeq
+        Expect.equal keys (Set.ofList ["M:Sample1";"M:Sample2";"D:rawData1.csv"])
+            "downstream nodes exclude the query node itself"
+
+    testCase "NodesUpstreamOf" <| fun _ ->
+        let f = makeFixtureA()
+        let nodes = f.DS.NodesUpstreamOf(DataNode f.RawData1)
+        let keys = nodes |> Seq.map (fun n -> n.Key()) |> Set.ofSeq
+        Expect.equal keys (Set.ofList ["M:Source1";"M:Sample1";"M:Sample2"])
+            "all material nodes upstream from rawData1.csv"
+
+    testCase "ConnectedMaterialsForNode excludes query node" <| fun _ ->
+        let f = makeFixtureA()
+        let mats = f.DS.ConnectedMaterialsForNode(MaterialNode f.Sample1)
+        let names = mats |> Seq.map (fun m -> m.Name) |> Set.ofSeq
+        Expect.equal names (Set.ofList ["Source1";"Sample2"])
+            "IONode-owned connected-node contract excludes Sample1 itself"
+
+    testCase "ProtocolParametersForNode" <| fun _ ->
+        let f = makeFixtureA()
+        let fps = f.DS.ProtocolParametersForNode(MaterialNode f.Sample1)
+        let names = fps |> Seq.map (fun fp -> fp.Name) |> Set.ofSeq
+        Expect.isTrue (names.Contains "temperature") "temperature FP from p1"
+        Expect.isTrue (names.Contains "rpm") "rpm FP from p1"
+
 ]

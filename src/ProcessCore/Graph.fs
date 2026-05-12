@@ -15,6 +15,198 @@ module private Comparers =
             member _.GetHashCode(o) = System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(o) }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Path
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// A directed walk through the process graph: an ordered sequence of LabProcess
+/// instances connected through their shared I/O nodes.
+/// Read-only view – produced by graph-traversal queries; does not own its processes.
+[<AttachMembers>]
+type Path(processes: ResizeArray<LabProcess>) =
+
+    member _.Processes = processes
+
+    /// First process in the path
+    member _.Head = if processes.Count > 0 then Some processes.[0] else None
+
+    /// Last process in the path
+    member _.Last = if processes.Count > 0 then Some processes.[processes.Count - 1] else None
+
+    member _.Length = processes.Count
+
+    /// Whether this path contains the given IONode (as input or output of any process)
+    member _.ContainsNode(node: IONode) : bool =
+        let key = node.Key()
+        processes |> Seq.exists (fun (p: LabProcess) ->
+            p.Inputs  |> Seq.exists (fun (n: IONode) -> n.Key() = key) ||
+            p.Outputs |> Seq.exists (fun (n: IONode) -> n.Key() = key))
+
+    /// All distinct IONodes that appear anywhere in this path (inputs or outputs)
+    member _.Nodes() : ResizeArray<IONode> =
+        let acc  = ResizeArray<IONode>()
+        let seen = HashSet<string>()
+        for proc in processes do
+            for n in proc.Inputs  do if seen.Add(n.Key()) then acc.Add(n)
+            for n in proc.Outputs do if seen.Add(n.Key()) then acc.Add(n)
+        acc
+
+    /// All distinct Material nodes in this path
+    member this.Materials() : ResizeArray<Material> =
+        let acc = ResizeArray<Material>()
+        for node in this.Nodes() do
+            match node with
+            | MaterialNode m -> acc.Add(m)
+            | _ -> ()
+        acc
+
+    /// All distinct Data nodes in this path
+    member this.DataNodes() : ResizeArray<Data> =
+        let acc = ResizeArray<Data>()
+        for node in this.Nodes() do
+            match node with
+            | DataNode d -> acc.Add(d)
+            | _ -> ()
+        acc
+
+    /// Nodes that appear as inputs but never as outputs in this path (true sources)
+    member _.TerminalInputs() : ResizeArray<IONode> =
+        let outputKeys = HashSet<string>()
+        for proc in processes do
+            for n in proc.Outputs do outputKeys.Add(n.Key()) |> ignore
+        let acc  = ResizeArray<IONode>()
+        let seen = HashSet<string>()
+        for proc in processes do
+            for n in proc.Inputs do
+                let k = n.Key()
+                if not (outputKeys.Contains(k)) && seen.Add(k) then acc.Add(n)
+        acc
+
+    /// Nodes that appear as outputs but never as inputs in this path (true sinks)
+    member _.TerminalOutputs() : ResizeArray<IONode> =
+        let inputKeys = HashSet<string>()
+        for proc in processes do
+            for n in proc.Inputs do inputKeys.Add(n.Key()) |> ignore
+        let acc  = ResizeArray<IONode>()
+        let seen = HashSet<string>()
+        for proc in processes do
+            for n in proc.Outputs do
+                let k = n.Key()
+                if not (inputKeys.Contains(k)) && seen.Add(k) then acc.Add(n)
+        acc
+
+    /// All PropertyValues from all sources (parameters, input/output node properties, protocol components)
+    /// across all processes in this path
+    member _.AllPropertyValues() : ResizeArray<PropertyValue> =
+        let acc  = ResizeArray<PropertyValue>()
+        let seen = HashSet<string>()
+        let addPV (pv: PropertyValue) =
+            let key = pv.Name + "|" + (pv.Value |> Option.defaultValue "") + "|" + (pv.NameTAN |> Option.defaultValue "")
+            if seen.Add(key) then acc.Add(pv)
+        for proc in processes do
+            for pv: PropertyValue in proc.ParameterValue do addPV pv
+            for n: IONode in proc.Inputs do
+                match n with
+                | MaterialNode m -> for pv: PropertyValue in m.AdditionalProperty do addPV pv
+                | DataNode d     -> for pv: PropertyValue in d.AdditionalProperty do addPV pv
+            for n: IONode in proc.Outputs do
+                match n with
+                | MaterialNode m -> for pv: PropertyValue in m.AdditionalProperty do addPV pv
+                | DataNode d     -> for pv: PropertyValue in d.AdditionalProperty do addPV pv
+            match proc.ExecutesProtocol with
+            | Some (proto: LabProtocol) -> for pv: PropertyValue in proto.LabEquipment do addPV pv
+            | None -> ()
+        acc
+
+    /// All PropertyValues from all sources whose name matches the given string
+    member this.PropertyValuesByName(name: string) : ResizeArray<PropertyValue> =
+        this.AllPropertyValues() |> Seq.filter (fun pv -> pv.Name = name) |> ResizeArray
+
+    /// All FormalParameters defined on protocols executed by processes in this path
+    member _.ProtocolParameters() : ResizeArray<FormalParameter> =
+        let acc  = ResizeArray<FormalParameter>()
+        let seen = HashSet<string>()
+        for proc in processes do
+            match proc.ExecutesProtocol with
+            | Some (proto: LabProtocol) ->
+                for fp: FormalParameter in proto.Parameters do
+                    if seen.Add(fp.Name) then acc.Add(fp)
+            | None -> ()
+        acc
+
+[<AutoOpen>]
+module private PathTraversal =
+    let inScope (processes: ResizeArray<LabProcess>) (p: LabProcess) =
+        processes |> Seq.exists (fun q -> q = p)
+
+    let processesForNode (processes: ResizeArray<LabProcess>) (node: IONode) : ResizeArray<LabProcess> =
+        let acc = ResizeArray()
+        acc.AddRange(node.GetInputOf() |> Seq.filter (inScope processes))
+        acc.AddRange(node.GetOutputOf() |> Seq.filter (inScope processes))
+        acc |> Seq.distinct |> ResizeArray
+
+    let rec walkUpstream (processes: ResizeArray<LabProcess>) (proc: LabProcess) (visited: HashSet<string>) : ResizeArray<ResizeArray<LabProcess>> =
+        if not (visited.Add(proc.Name)) then
+            ResizeArray([ ResizeArray() ])
+        else
+            let preds =
+                proc.Inputs
+                |> Seq.collect (fun node -> node.GetOutputOf() :> seq<LabProcess>)
+                |> Seq.filter (inScope processes)
+                |> Seq.distinct
+                |> ResizeArray
+            if preds.Count = 0 then
+                ResizeArray([ ResizeArray() ])
+            else
+                let results = ResizeArray()
+                for pred in preds do
+                    for chain in walkUpstream processes pred (HashSet(visited)) do
+                        let ext = ResizeArray(chain)
+                        ext.Add(pred)
+                        results.Add(ext)
+                results
+
+    let rec walkDownstream (processes: ResizeArray<LabProcess>) (proc: LabProcess) (visited: HashSet<string>) : ResizeArray<ResizeArray<LabProcess>> =
+        if not (visited.Add(proc.Name)) then
+            ResizeArray([ ResizeArray() ])
+        else
+            let succs =
+                proc.Outputs
+                |> Seq.collect (fun node -> node.GetInputOf() :> seq<LabProcess>)
+                |> Seq.filter (inScope processes)
+                |> Seq.distinct
+                |> ResizeArray
+            if succs.Count = 0 then
+                ResizeArray([ ResizeArray() ])
+            else
+                let results = ResizeArray()
+                for succ in succs do
+                    for chain in walkDownstream processes succ (HashSet(visited)) do
+                        let ext = ResizeArray()
+                        ext.Add(succ)
+                        ext.AddRange(chain)
+                        results.Add(ext)
+                results
+
+    let extendToMaximalPaths (processes: ResizeArray<LabProcess>) (proc: LabProcess) : ResizeArray<Path> =
+        let upstream   = walkUpstream processes proc (HashSet())
+        let downstream = walkDownstream processes proc (HashSet())
+        let results = ResizeArray()
+        for pre in upstream do
+            for post in downstream do
+                let chain = ResizeArray()
+                chain.AddRange(pre)
+                chain.Add(proc)
+                chain.AddRange(post)
+                results.Add(Path(chain))
+        results
+
+    let pathsThrough (processes: ResizeArray<LabProcess>) (node: IONode) : ResizeArray<Path> =
+        let results = ResizeArray()
+        for seed in processesForNode processes node do
+            results.AddRange(extendToMaximalPaths processes seed)
+        results
+
+// ─────────────────────────────────────────────────────────────────────────────
 // IONode discriminated union (forward-declared via namespace rec)
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -73,6 +265,22 @@ type IONode =
                             if seenN.Add(n.Key()) then next.Add(n)
             frontier <- next
         result
+
+    /// All in-scope processes in which this node appears as an input or output.
+    member this.Processes(?scope: ResizeArray<LabProcess>) : ResizeArray<LabProcess> =
+        let scope =
+            match scope with
+            | Some s -> s
+            | None   -> this.AllConnectedProcesses()
+        processesForNode scope this
+
+    /// All maximal Paths that pass through this node within the given process scope.
+    member this.PathsThrough(?scope: ResizeArray<LabProcess>) : ResizeArray<Path> =
+        let scope =
+            match scope with
+            | Some s -> s
+            | None   -> this.AllConnectedProcesses()
+        pathsThrough scope this
 
     /// All IONodes connected to this node through the process graph
     /// (union of all upstream and downstream neighbours), excluding this node itself.
@@ -414,6 +622,14 @@ and [<AttachMembers>] Material(name: string, ?additionalType: string, ?additiona
     member this.AllConnectedProcesses(?scope: ResizeArray<LabProcess>) =
         (MaterialNode this).AllConnectedProcesses(?scope = scope)
 
+    /// All in-scope processes in which this material appears as an input or output.
+    member this.Processes(?scope: ResizeArray<LabProcess>) =
+        (MaterialNode this).Processes(?scope = scope)
+
+    /// All maximal Paths that pass through this material.
+    member this.PathsThrough(?scope: ResizeArray<LabProcess>) =
+        (MaterialNode this).PathsThrough(?scope = scope)
+
     /// All PropertyValues from all sources connected to this material through the graph.
     member this.AllPropertyValues(?scope: ResizeArray<LabProcess>) =
         (MaterialNode this).AllPropertyValues(?scope = scope)
@@ -552,6 +768,14 @@ and [<AttachMembers>] Data(path: string, ?selector: string, ?selectorFormat: str
     /// All processes connected to this data node through the graph.
     member this.AllConnectedProcesses(?scope: ResizeArray<LabProcess>) =
         (DataNode this).AllConnectedProcesses(?scope = scope)
+
+    /// All in-scope processes in which this data node appears as an input or output.
+    member this.Processes(?scope: ResizeArray<LabProcess>) =
+        (DataNode this).Processes(?scope = scope)
+
+    /// All maximal Paths that pass through this data node.
+    member this.PathsThrough(?scope: ResizeArray<LabProcess>) =
+        (DataNode this).PathsThrough(?scope = scope)
 
     /// All PropertyValues from all sources connected to this data node through the graph.
     member this.AllPropertyValues(?scope: ResizeArray<LabProcess>) =
@@ -1264,6 +1488,52 @@ and [<AttachMembers>] Dataset(identifier: string, ?name: string, ?description: s
 
     // ── Querying ──────────────────────────────────────────────────────────────
 
+    // ── Dataset-scoped node and path queries ──────────────────────────────────
+
+    /// All processes in this dataset in which `node` appears as an input or output.
+    member this.ProcessesForNode(node: IONode) : ResizeArray<LabProcess> =
+        node.Processes(scope = this.AllProcesses())
+
+    /// All maximal Paths through `node` within this dataset.
+    member this.PathsThrough(node: IONode) : ResizeArray<Path> =
+        node.PathsThrough(scope = this.AllProcesses())
+
+    /// All IONodes reachable upstream from `node` within this dataset.
+    member this.NodesUpstreamOf(node: IONode) : ResizeArray<IONode> =
+        node.UpstreamNodes(scope = this.AllProcesses())
+
+    /// All IONodes reachable downstream from `node` within this dataset.
+    member this.NodesDownstreamOf(node: IONode) : ResizeArray<IONode> =
+        node.DownstreamNodes(scope = this.AllProcesses())
+
+    member this.MaterialsUpstreamOf(node: IONode) : ResizeArray<Material> =
+        node.UpstreamMaterials(scope = this.AllProcesses())
+
+    member this.MaterialsDownstreamOf(node: IONode) : ResizeArray<Material> =
+        node.DownstreamMaterials(scope = this.AllProcesses())
+
+    member this.DataUpstreamOf(node: IONode) : ResizeArray<Data> =
+        node.UpstreamData(scope = this.AllProcesses())
+
+    member this.DataDownstreamOf(node: IONode) : ResizeArray<Data> =
+        node.DownstreamData(scope = this.AllProcesses())
+
+    /// All IONodes connected to `node` within this dataset, excluding `node` itself.
+    member this.AllConnectedNodes(node: IONode) : ResizeArray<IONode> =
+        node.AllConnectedNodes(scope = this.AllProcesses())
+
+    member this.ConnectedMaterialsForNode(node: IONode) : ResizeArray<Material> =
+        node.ConnectedMaterials(scope = this.AllProcesses())
+
+    member this.ConnectedDataForNode(node: IONode) : ResizeArray<Data> =
+        node.ConnectedData(scope = this.AllProcesses())
+
+    member this.AllPropertyValuesForNode(node: IONode) : ResizeArray<PropertyValue> =
+        node.AllPropertyValues(scope = this.AllProcesses())
+
+    member this.ProtocolParametersForNode(node: IONode) : ResizeArray<FormalParameter> =
+        node.ProtocolParameters(scope = this.AllProcesses())
+
     /// All processes whose executed protocol's intendedUse name matches.
     member this.FindProcessesByProtocolType(intendedUse: string) : ResizeArray<LabProcess> =
         this.AllProcesses()
@@ -1356,6 +1626,23 @@ and [<AttachMembers>] Dataset(identifier: string, ?name: string, ?description: s
                         match node with
                         | MaterialNode m when seen.Add(m.Name) -> result.Add(m)
                         | _ -> ()
+        result
+
+    /// Overload: find qualifying processes by protocol type, then filter their
+    /// ParameterValues with a caller-supplied predicate.
+    member this.MaterialsResultingFromCondition
+        (protocolType: string, paramPredicate: PropertyValue -> bool) : ResizeArray<Material> =
+        let qualifying =
+            this.FindProcessesByProtocolType(protocolType)
+            |> Seq.filter (fun p -> p.ParameterValue |> Seq.exists paramPredicate)
+        let seen   = HashSet<string>()
+        let result = ResizeArray<Material>()
+        for proc in qualifying do
+            for path in extendToMaximalPaths (this.AllProcesses()) proc do
+                for node in path.TerminalOutputs() do
+                    match node with
+                    | MaterialNode m when seen.Add(m.Name) -> result.Add(m)
+                    | _ -> ()
         result
 
     /// Identity: datasets with the same identifier are identical.

@@ -30,7 +30,6 @@ let all =
             Graph.PropertyValueSources.tests
             Graph.DatasetQueries.tests
             Graph.PathQueries.tests
-            Graph.ProcessGraphQueries.tests
             Table.CompositeTypes.tests
             Table.TableAux.tests
             Table.TableRead.tests

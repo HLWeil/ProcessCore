@@ -33,7 +33,7 @@ graph LR
 
 In addition to the core entities defined in the core specification and their properties, the implementation exposes an additional type: **Path**
 
-This type contains a collection of processes connected through their shared nodes (input and output entities). The current F# implementation lives in `src/ProcessCore/Path.fs` alongside `ProcessGraph`.
+This type contains a collection of processes connected through their shared nodes (input and output entities). Query operations live on the owning model types in `src/ProcessCore/Graph.fs`: node-centered traversal on `IONode`/`Material`/`Data`, and dataset-scoped convenience queries on `Dataset`.
 
 I.e. if we ask for a path of a specific sample, we want to get all paths (i.e. distinct sequences of processes) that lead through this sample (including it being the start or end of the path).
 
