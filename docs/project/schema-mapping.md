@@ -21,6 +21,7 @@ The ProcessCore is designed to be compatible with RO-Crate, and therefore it's m
 | `description` | Core | `schema:description` | - |
 | `processes` | Core | `schema:about` | Renaming |
 | `hasPart` | Core | `schema:hasPart` | - |
+| `person` | Core (Suggested) | `schema:creator`; `schema:maintainer` ; `schema:maintainer` | Complex mapping (schema.org property is chosen based on role filed inside person) |
 | `additionalProperty` | Core | `schema:additionalProperty` | Added Property |
 
 ## LabProcess   
@@ -110,3 +111,16 @@ The ProcessCore is designed to be compatible with RO-Crate, and therefore it's m
 | `TAN` | Core | `schema:termCode` | Renaming |
 | `inDefinedTermSet` | Core | `schema:inDefinedTermSet` | - |
 
+## Person
+
+| PC property | Location | Schema.org Property | Mapping |
+|---|---|---|---|
+| `Person` | ISA | schema:Person | - |
+|---|---|---|---|
+| `givenName` | ISA | schema:givenName | - |
+| `familyName` | ISA | schema:familyName | - |
+| `email` | ISA | schema:email | - |
+| `affiliation` | ISA | schema:affiliation | - |
+| `identifier` | ISA | schema:identifier | - |
+| `additionalProperty` | ISA | schema:additionalProperty | - |
+| `jobTitle` | ISA | schema:jobTitle | - |
