@@ -22,6 +22,7 @@ The ProcessCore is designed to be compatible with RO-Crate, and therefore it's m
 | `processes` | Core | `schema:about` | Renaming |
 | `hasPart` | Core | `schema:hasPart` | - |
 | `person` | Core (Suggested) | `schema:creator`; `schema:maintainer` ; `schema:maintainer` | Complex mapping (schema.org property is chosen based on role filed inside person) |
+| `dataContexts` | Datamap | `schema:variableMeasured` | Renaming |
 | `additionalProperty` | Core | `schema:additionalProperty` | Added Property |
 
 ## LabProcess   
@@ -124,3 +125,17 @@ The ProcessCore is designed to be compatible with RO-Crate, and therefore it's m
 | `identifier` | ISA | schema:identifier | - |
 | `additionalProperty` | ISA | schema:additionalProperty | - |
 | `jobTitle` | ISA | schema:jobTitle | - |
+
+## DataContext
+
+| PC property | Location | Schema.org Property | Mapping |
+|---|---|---|---|
+| `DataContext` | Datamap | schema:PropertyValue | - |
+|---|---|---|---|
+| `data` | Datamap | schema:subjectOf | Renaming |
+| `explication` | Datamap | schema:value + schema:valueReference | Renaming plus merging strings into object (DefinedTerm) |
+| `objectType` | Datamap | schema:pattern (on data) | Renaming plus moving into child |
+| `unit` | Datamap | schema:unit + schema:unitCode | Renaming plus merging strings into object (DefinedTerm) |
+| `label` | Datamap | schema:alternateName | Renaming |
+| `description` | Datamap | schema:description | - |
+| `generatedBy` | Datamap | schema:measurementMethod | Renaming |
