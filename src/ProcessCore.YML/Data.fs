@@ -44,7 +44,7 @@ module Data =
     let decoder (processCoreOnly: bool) (value: YAMLElement) : Data =
         decoderWithPropertyResolver processCoreOnly (fun _ -> None) value
 
-    let encoder (d: Data) : YAMLElement =
+    let encoder pvEncoder (d: Data) : YAMLElement =
         //let id =
         //    match d.Selector with
         //    | Some sel -> d.Path + "#" + sel
@@ -79,4 +79,4 @@ module Data =
         YAMLicious.Reader.read s |> decoder processCoreOnly
 
     let toYamlString (whitespace: int option) (d: Data) : string =
-        writeYaml whitespace (encoder d)
+        writeYaml whitespace (encoder PropertyValue.encoder d)

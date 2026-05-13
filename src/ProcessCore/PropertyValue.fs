@@ -56,6 +56,26 @@ type PropertyValue(name: string, ?value: string, ?unit: string, ?nameTAN: string
         with get() = _instanceOf
         and set(v) = _instanceOf <- v
 
+    member _.NameText = name
+
+    member _.ValueText = 
+        match _value with
+        | Some v -> v
+        | None -> ""
+
+    member _.UnitText = 
+        match _unit with
+        | Some v -> v
+        | None -> ""
+
+    member _.ValueWithUnitText = 
+        match _value, _unit with
+        | Some v, Some u -> sprintf "%s %s" v u
+        | Some v, None   -> v
+        | None, Some u   -> u
+        | None, None     -> ""
+
+
     /// Two PropertyValues are identical if name, value, unit, and nameTAN all match.
     override this.Equals(obj) =
         match obj with

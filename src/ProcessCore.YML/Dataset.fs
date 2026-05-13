@@ -1,5 +1,6 @@
 namespace ProcessCore.Yaml
 
+open System
 open System.Collections.Generic
 open YAMLicious.YAMLiciousTypes
 open ProcessCore
@@ -7,17 +8,18 @@ open Helpers
 
 module Dataset =
 
-    let private knownFields =
+    let knownFields =
         Set.ofList
             [ "type"; "additionalType"; "identifier"; "name"; "description"
               "processes"; "hasPart"; "additionalProperty" ]
 
-    let private knownPropertyNames =
+    let knownPropertyNames =
         Set.ofList
             [ "type"; "additionaltype"; "identifier"; "name"; "description"
-              "processes"; "haspart"; "additionalproperty"; "partof" ]
+              "processes"; "haspart"; "additionalproperty"; "partof"
+              "propertyvalues"; "labprotocols" ]
 
-    let private addIndexedValues fieldName decode value =
+    let addIndexedValues fieldName decode value =
         let registry = Dictionary<string, 'a>()
         tryGetField fieldName value
         |> Option.iter (fun values ->
@@ -27,7 +29,7 @@ module Dataset =
                 | None    -> ()) values)
         registry
 
-    let private tryFind (registry: Dictionary<string, 'a>) id =
+    let tryFind (registry: Dictionary<string, 'a>) id =
         match registry.TryGetValue(normalizeId id) with
         | true, value -> Some value
         | false, _    -> None
@@ -94,7 +96,63 @@ module Dataset =
         applyOverflow "Dataset" processCoreOnly knownFields ds value
         ds
 
-    let rec encoder (ds: Dataset) : YAMLElement =
+    // ── Encoders ───────────────────────────────────────────────────────────────
+
+    let rec encoder (useIndexedMode: bool) (pvEncoder : (PropertyValue -> YAMLElement) option) (protEncoder : (LabProtocol -> YAMLElement) option) (ds: Dataset) : YAMLElement =
+        
+        // Build PV index from ALL processes (including hasPart children)
+        let pvRegistry = Dictionary<string, PropertyValue>()
+        let encodePV (pv : PropertyValue) =
+            if useIndexedMode then
+                let id = PropertyValue.genID pv
+                pv.SetProperty("@id", id)
+                if not <| pvRegistry.ContainsKey(id) then                
+                    pvRegistry.[id] <- pv
+                encodeRef id
+            else 
+                (Option.defaultValue PropertyValue.encoder pvEncoder) pv
+
+        let protocolRegistry = Dictionary<string, LabProtocol>()
+        let encodeProtocol (proto: LabProtocol) =
+            if useIndexedMode then
+                let id = LabProtocol.genID proto
+                proto.SetProperty("@id", id)
+                if not <| protocolRegistry.ContainsKey(id) then
+                    protocolRegistry.[id] <- proto
+                encodeRef id
+            else
+                (Option.defaultValue (LabProtocol.encoder encodePV) protEncoder) proto
+
+        let processes =
+            if ds.Processes.Count > 0 then
+                ds.Processes
+                |> Seq.map (LabProcess.encoder encodePV encodeProtocol)
+                |> Seq.toList
+                |> yamlSeq
+                |> Some
+            else 
+                None
+
+        let hasParts =
+            if ds.HasPart.Count > 0 then
+                ds.HasPart
+                |> Seq.map (encoder false (Some encodePV) (Some encodeProtocol))
+                |> Seq.toList
+                |> yamlSeq
+                |> Some
+            else    
+                None
+
+        let additionalProperties =
+            if ds.AdditionalProperty.Count > 0 then
+                ds.AdditionalProperty
+                |> Seq.map encodePV
+                |> Seq.toList
+                |> yamlSeq
+                |> Some
+            else
+                None
+
         [
             yield "id",         yamlValue ds.Identifier
             yield "type",       yamlValue "Dataset"
@@ -108,24 +166,29 @@ module Dataset =
             match ds.Description with
             | Some d -> yield "description", yamlValue d
             | None   -> ()
-            if ds.Processes.Count > 0 then
-                yield "processes",
-                      ds.Processes
-                      |> Seq.map LabProcess.encoder
-                      |> Seq.toList
-                      |> yamlSeq
-            if ds.HasPart.Count > 0 then
-                yield "hasPart",
-                      ds.HasPart
-                      |> Seq.map encoder
-                      |> Seq.toList
-                      |> yamlSeq
-            if ds.AdditionalProperty.Count > 0 then
-                yield "additionalProperty",
-                      ds.AdditionalProperty
-                      |> Seq.map PropertyValue.encoder
-                      |> Seq.toList
-                      |> yamlSeq
+            // Top-level index sections
+            if protocolRegistry.Count > 0 then
+                yield "labProtocols",
+                    protocolRegistry.Values
+                    |> Seq.map (fun kv -> LabProtocol.encoder encodePV kv)
+                    |> Seq.toList
+                    |> yamlSeq
+            if pvRegistry.Count > 0 then
+                yield "propertyValues",
+                    pvRegistry.Values
+                    |> Seq.map (fun kv -> PropertyValue.encoder kv)
+                    |> Seq.toList
+                    |> yamlSeq
+            // Processes using references
+            if processes.IsSome then
+                yield "processes", processes.Value
+                    
+            // hasPart children use the same resolvers but don't emit their own index sections
+            if hasParts.IsSome then
+                yield "hasPart", hasParts.Value
+                    
+            if additionalProperties.IsSome then
+                yield "additionalProperty", additionalProperties.Value
             yield! emitOverflow knownPropertyNames ds
         ]
         |> yamlMap
@@ -134,4 +197,7 @@ module Dataset =
         YAMLicious.Reader.read s |> decoder processCoreOnly
 
     let toYamlString (whitespace: int option) (ds: Dataset) : string =
-        writeYaml whitespace (encoder ds)
+        writeYaml whitespace (encoder false None None ds)
+
+    let toYamlStringIndexed (whitespace: int option) (ds: Dataset) : string =
+        writeYaml whitespace (encoder true None None ds)

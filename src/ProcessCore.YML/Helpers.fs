@@ -120,11 +120,21 @@ module Helpers =
 
     let yamlMap (pairs: (string * YAMLElement) list) =
         pairs
-        |> List.map (fun (k, v) -> YAMLElement.Mapping (YAMLContent.create(k, style = ScalarStyle.Plain), v))
+        |> List.map (fun (k, v) -> 
+            let k = if k.StartsWith("@") then $"\"{k}\"" else k
+            YAMLElement.Mapping (YAMLContent.create(k, style = ScalarStyle.Plain), v))
         |> YAMLElement.Object
 
     let yamlSeq (items: YAMLElement list) =
         YAMLElement.Sequence items
+
+    // Replace non-alphanumeric characters with underscores to create a slug suitable for @id values.
+    let makeIdSlug (s: string) : string =
+        s |> String.map (fun c -> if Char.IsLetterOrDigit c || c = '-' then c else '_')
+
+    /// Encode an @id reference: { "@id": "<id>" }
+    let encodeRef (id: string) : YAMLElement =
+        [ "@id", yamlValue id ] |> yamlMap
 
     let objToScalarYaml (value: obj) =
         match value with

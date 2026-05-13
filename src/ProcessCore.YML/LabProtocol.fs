@@ -16,6 +16,14 @@ module LabProtocol =
             [ "id"; "type"; "additionaltype"; "name"; "description"; "version"
               "url"; "intendeduse"; "parameters"; "labequipment"; "additionalproperty" ]
 
+    let genID (proto: LabProtocol) : string =
+        match proto.Url with
+        | Some url -> url
+        | None ->
+            let name = proto.Name |> Option.map makeIdSlug |> Option.defaultValue "unnamed"
+            "#Protocol_" + name
+
+
     let decoderWithPropertyResolver (processCoreOnly: bool) (resolvePropertyValue: string -> PropertyValue option) (value: YAMLElement) : LabProtocol =
         checkType processCoreOnly "LabProtocol" value
         let name           = tryGetField "name"           value |> Option.map decodeString
@@ -58,7 +66,7 @@ module LabProtocol =
     let decoder (processCoreOnly: bool) (value: YAMLElement) : LabProtocol =
         decoderWithPropertyResolver processCoreOnly (fun _ -> None) value
 
-    let encoder (proto: LabProtocol) : YAMLElement =
+    let encoder (pvEncoder : PropertyValue -> YAMLElement) (proto: LabProtocol) : YAMLElement =
         let id =
             match proto.Url with
             | Some url  -> url
@@ -93,13 +101,13 @@ module LabProtocol =
             if proto.LabEquipment.Count > 0 then
                 yield "labEquipment",
                       proto.LabEquipment
-                      |> Seq.map PropertyValue.encoder
+                      |> Seq.map pvEncoder
                       |> Seq.toList
                       |> yamlSeq
             if proto.AdditionalProperty.Count > 0 then
                 yield "additionalProperty",
                       proto.AdditionalProperty
-                      |> Seq.map PropertyValue.encoder
+                      |> Seq.map pvEncoder
                       |> Seq.toList
                       |> yamlSeq
             yield! emitOverflow knownPropertyNames proto
@@ -110,4 +118,4 @@ module LabProtocol =
         YAMLicious.Reader.read s |> decoder processCoreOnly
 
     let toYamlString (whitespace: int option) (proto: LabProtocol) : string =
-        writeYaml whitespace (encoder proto)
+        writeYaml whitespace (encoder PropertyValue.encoder proto)

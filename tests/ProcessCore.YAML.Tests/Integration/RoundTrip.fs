@@ -152,8 +152,13 @@ let tests = testList "RoundTrip" [
 
     testCase "Encode.toYamlString entry point" <| fun _ ->
         let ds   = Dataset("DS-encode")
-        let yaml = Encode.toYamlString 2 (Yaml.Dataset.encoder ds)
+        let yaml = Encode.toYamlString 2 (Yaml.Dataset.encoder false None None ds)
         Expect.isTrue (yaml.Contains("identifier: DS-encode")) "identifier via Encode.toYamlString"
         Expect.isTrue (yaml.Contains("type: Dataset"))         "type via Encode.toYamlString"
+
+    testCase "assay example with indexed references" <| fun _ ->
+        let assay = Yaml.Dataset.fromYamlString false ProcessCore.Yaml.Tests.Fixtures.proteomicsAssayString
+        let output = Dataset.encoder true  None None assay |> Encode.toYamlString 2
+        Expect.equal output ProcessCore.Yaml.Tests.Fixtures.proteomicsAssayString "round-trip assay example"
 
 ]

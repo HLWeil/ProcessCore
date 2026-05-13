@@ -80,14 +80,13 @@ module LabProcess =
     let decoder (processCoreOnly: bool) (value: YAMLElement) : LabProcess =
         decoderWithResolvers processCoreOnly (fun _ -> None) (fun _ -> None) value
 
-    let private encodeIONode (node: IONode) : YAMLElement =
+    let private encodeIONode (pvEncoder : PropertyValue -> YAMLElement) (node: IONode) : YAMLElement =
         match node with
-        | MaterialNode m -> Material.encoder m
-        | DataNode d     -> Data.encoder d
+        | MaterialNode m -> Material.encoder pvEncoder m
+        | DataNode d     -> Data.encoder pvEncoder d
 
-    let encoder (proc: LabProcess) : YAMLElement =
+    let encoder (pvEncoder : PropertyValue -> YAMLElement) (protEncoder : LabProtocol -> YAMLElement) (proc: LabProcess) : YAMLElement =
         [
-            yield "id",   yamlValue proc.Name
             yield "type", yamlValue "LabProcess"
             yield "name", yamlValue proc.Name
             match proc.AdditionalType with
@@ -95,17 +94,17 @@ module LabProcess =
             | None    -> ()
             if proc.Inputs.Count > 0 then
                 yield "inputs",
-                      proc.Inputs |> Seq.map encodeIONode |> Seq.toList |> yamlSeq
+                      proc.Inputs |> Seq.map (encodeIONode pvEncoder) |> Seq.toList |> yamlSeq
             if proc.Outputs.Count > 0 then
                 yield "outputs",
-                      proc.Outputs |> Seq.map encodeIONode |> Seq.toList |> yamlSeq
+                      proc.Outputs |> Seq.map (encodeIONode pvEncoder) |> Seq.toList |> yamlSeq
             match proc.ExecutesProtocol with
-            | Some proto -> yield "executesProtocol", LabProtocol.encoder proto
+            | Some proto -> yield "executesProtocol", protEncoder proto
             | None       -> ()
             if proc.ParameterValue.Count > 0 then
                 yield "parameterValue",
                       proc.ParameterValue
-                      |> Seq.map PropertyValue.encoder
+                      |> Seq.map pvEncoder
                       |> Seq.toList
                       |> yamlSeq
             yield! emitOverflow knownPropertyNames proc
@@ -116,4 +115,4 @@ module LabProcess =
         YAMLicious.Reader.read s |> decoder processCoreOnly
 
     let toYamlString (whitespace: int option) (proc: LabProcess) : string =
-        writeYaml whitespace (encoder proc)
+        writeYaml whitespace (encoder PropertyValue.encoder (LabProtocol.encoder PropertyValue.encoder) proc)

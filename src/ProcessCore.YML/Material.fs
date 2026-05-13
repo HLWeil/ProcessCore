@@ -32,9 +32,8 @@ module Material =
     let decoder (processCoreOnly: bool) (value: YAMLElement) : Material =
         decoderWithPropertyResolver processCoreOnly (fun _ -> None) value
 
-    let encoder (m: Material) : YAMLElement =
+    let encoder (pvEncoder : PropertyValue -> YAMLElement) (m: Material) : YAMLElement =
         [
-            yield "id",   yamlValue m.Name
             yield "type", yamlValue "Material"
             yield "name", yamlValue m.Name
             match m.AdditionalType with
@@ -43,7 +42,7 @@ module Material =
             if m.AdditionalProperty.Count > 0 then
                 yield "additionalProperty",
                       m.AdditionalProperty
-                      |> Seq.map PropertyValue.encoder
+                      |> Seq.map pvEncoder
                       |> Seq.toList
                       |> yamlSeq
             yield! emitOverflow knownPropertyNames m
@@ -54,4 +53,4 @@ module Material =
         YAMLicious.Reader.read s |> decoder processCoreOnly
 
     let toYamlString (whitespace: int option) (m: Material) : string =
-        writeYaml whitespace (encoder m)
+        writeYaml whitespace (encoder PropertyValue.encoder m)
