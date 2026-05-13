@@ -50,7 +50,6 @@ module Data =
         //    | Some sel -> d.Path + "#" + sel
         //    | None     -> d.Path
         [
-            //yield "id",   yamlValue id
             yield "type", yamlValue "Data"
             yield "path", yamlValue d.Path
             match d.AdditionalType with
@@ -68,7 +67,7 @@ module Data =
             if d.AdditionalProperty.Count > 0 then
                 yield "additionalProperty",
                       d.AdditionalProperty
-                      |> Seq.map PropertyValue.encoder
+                      |> Seq.map pvEncoder
                       |> Seq.toList
                       |> yamlSeq
             yield! emitOverflow knownPropertyNames d

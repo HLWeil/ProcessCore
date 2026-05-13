@@ -7,15 +7,18 @@ open Helpers
 module PropertyValue =
 
     let genID (pv: PropertyValue) =
-        let prefix = pv.AdditionalType |> Option.defaultValue "PropertyValue" |> makeIdSlug
-        let name   = makeIdSlug pv.Name
-        let parts  = [
-            yield prefix
-            yield name
-            match pv.Value with Some v when v <> "" -> yield makeIdSlug v | _ -> ()
-            match pv.Unit  with Some u when u <> "" -> yield makeIdSlug u | _ -> ()
-        ]
-        "#" + String.concat "_" parts
+        match pv.TryGetPropertyValue("@id") with
+        | Some (:? string as id) -> id
+        | _ ->
+            let prefix = pv.AdditionalType |> Option.defaultValue "PropertyValue" |> makeIdSlug
+            let name   = makeIdSlug pv.Name
+            let parts  = [
+                yield prefix
+                yield name
+                match pv.Value with Some v when v <> "" -> yield makeIdSlug v | _ -> ()
+                match pv.Unit  with Some u when u <> "" -> yield makeIdSlug u | _ -> ()
+            ]
+            "#" + String.concat "_" parts
 
     let private knownFields =
         Set.ofList

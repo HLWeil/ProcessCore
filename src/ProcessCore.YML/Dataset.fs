@@ -154,7 +154,6 @@ module Dataset =
                 None
 
         [
-            yield "id",         yamlValue ds.Identifier
             yield "type",       yamlValue "Dataset"
             yield "identifier", yamlValue ds.Identifier
             match ds.AdditionalType with

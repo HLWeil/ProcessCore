@@ -17,11 +17,14 @@ module LabProtocol =
               "url"; "intendeduse"; "parameters"; "labequipment"; "additionalproperty" ]
 
     let genID (proto: LabProtocol) : string =
-        match proto.Url with
-        | Some url -> url
-        | None ->
-            let name = proto.Name |> Option.map makeIdSlug |> Option.defaultValue "unnamed"
-            "#Protocol_" + name
+        match proto.TryGetPropertyValue("@id") with
+        | Some (:? string as id) -> id
+        | _ ->
+            match proto.Url with
+            | Some url -> url
+            | None ->
+                let name = proto.Name |> Option.map makeIdSlug |> Option.defaultValue "unnamed"
+                "#Protocol_" + name
 
 
     let decoderWithPropertyResolver (processCoreOnly: bool) (resolvePropertyValue: string -> PropertyValue option) (value: YAMLElement) : LabProtocol =
@@ -67,12 +70,7 @@ module LabProtocol =
         decoderWithPropertyResolver processCoreOnly (fun _ -> None) value
 
     let encoder (pvEncoder : PropertyValue -> YAMLElement) (proto: LabProtocol) : YAMLElement =
-        let id =
-            match proto.Url with
-            | Some url  -> url
-            | None      -> proto.Name |> Option.defaultValue ""
         [
-            yield "id",   yamlValue id
             yield "type", yamlValue "LabProtocol"
             match proto.AdditionalType with
             | Some at -> yield "additionalType", yamlValue at
