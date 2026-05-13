@@ -12,7 +12,7 @@ module Material =
     let private knownPropertyNames =
         Set.ofList [ "id"; "type"; "additionaltype"; "name"; "additionalproperty"; "inputof"; "outputof" ]
 
-    let decoder (processCoreOnly: bool) (value: YAMLElement) : Material =
+    let decoderWithPropertyResolver (processCoreOnly: bool) (resolvePropertyValue: string -> PropertyValue option) (value: YAMLElement) : Material =
         checkType processCoreOnly "Material" value
         let name           = tryGetField "name"           value |> Option.map decodeString |> Option.defaultValue ""
         let additionalType = tryGetField "additionalType" value |> Option.map decodeString
@@ -21,16 +21,16 @@ module Material =
 
         tryGetField "additionalProperty" value
         |> Option.iter (fun v ->
-            match tryDecodeSequence v with
-            | Some elems ->
-                for elem in elems do
-                    match decodeRefOrInline (PropertyValue.decoder processCoreOnly) elem with
-                    | Choice2Of2 pv -> m.AddAdditionalProperty(pv)
-                    | Choice1Of2 _  -> ()   // id references left unresolved
-            | None -> ())
+            iterSequenceOrSingleton (fun elem ->
+                match decodeRefOrInline (PropertyValue.decoder processCoreOnly) elem with
+                | Choice2Of2 pv -> m.AddAdditionalProperty(pv)
+                | Choice1Of2 id -> resolvePropertyValue id |> Option.iter m.AddAdditionalProperty) v)
 
         applyOverflow "Material" processCoreOnly knownFields m value
         m
+
+    let decoder (processCoreOnly: bool) (value: YAMLElement) : Material =
+        decoderWithPropertyResolver processCoreOnly (fun _ -> None) value
 
     let encoder (m: Material) : YAMLElement =
         [

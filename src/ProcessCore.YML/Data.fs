@@ -17,7 +17,7 @@ module Data =
               "selectorformat"; "encodingformat"; "additionalproperty"
               "inputof"; "outputof" ]
 
-    let decoder (processCoreOnly: bool) (value: YAMLElement) : Data =
+    let decoderWithPropertyResolver (processCoreOnly: bool) (resolvePropertyValue: string -> PropertyValue option) (value: YAMLElement) : Data =
         checkType processCoreOnly "Data" value
         let path =
             tryGetField "path" value |> Option.bind tryDecodeString
@@ -33,16 +33,16 @@ module Data =
 
         tryGetField "additionalProperty" value
         |> Option.iter (fun v ->
-            match tryDecodeSequence v with
-            | Some elems ->
-                for elem in elems do
-                    match decodeRefOrInline (PropertyValue.decoder processCoreOnly) elem with
-                    | Choice2Of2 pv -> d.AddAdditionalProperty(pv)
-                    | Choice1Of2 _  -> ()
-            | None -> ())
+            iterSequenceOrSingleton (fun elem ->
+                match decodeRefOrInline (PropertyValue.decoder processCoreOnly) elem with
+                | Choice2Of2 pv -> d.AddAdditionalProperty(pv)
+                | Choice1Of2 id -> resolvePropertyValue id |> Option.iter d.AddAdditionalProperty) v)
 
         applyOverflow "Data" processCoreOnly knownFields d value
         d
+
+    let decoder (processCoreOnly: bool) (value: YAMLElement) : Data =
+        decoderWithPropertyResolver processCoreOnly (fun _ -> None) value
 
     let encoder (d: Data) : YAMLElement =
         //let id =

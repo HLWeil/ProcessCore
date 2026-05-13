@@ -16,7 +16,7 @@ module LabProtocol =
             [ "id"; "type"; "additionaltype"; "name"; "description"; "version"
               "url"; "intendeduse"; "parameters"; "labequipment"; "additionalproperty" ]
 
-    let decoder (processCoreOnly: bool) (value: YAMLElement) : LabProtocol =
+    let decoderWithPropertyResolver (processCoreOnly: bool) (resolvePropertyValue: string -> PropertyValue option) (value: YAMLElement) : LabProtocol =
         checkType processCoreOnly "LabProtocol" value
         let name           = tryGetField "name"           value |> Option.map decodeString
         let description    = tryGetField "description"    value |> Option.map decodeString
@@ -39,23 +39,24 @@ module LabProtocol =
                 ?additionalType = additionalType,
                 ?intendedUse    = intendedUse)
 
-        let decodeSeq fieldName (decoder: YAMLElement -> 'a) (add: 'a -> unit) =
+        let decodeSeq fieldName (decoder: YAMLElement -> 'a) (resolve: string -> 'a option) (add: 'a -> unit) =
             tryGetField fieldName value
             |> Option.iter (fun v ->
-                match tryDecodeSequence v with
-                | Some elems ->
-                    for elem in elems do
-                        match decodeRefOrInline decoder elem with
-                        | Choice2Of2 x -> add x
-                        | Choice1Of2 _ -> ()
-                | None -> ())
+                iterSequenceOrSingleton (fun elem ->
+                    match decodeRefOrInline decoder elem with
+                    | Choice2Of2 x -> add x
+                    | Choice1Of2 id -> resolve id |> Option.iter add) v)
 
-        decodeSeq "parameters"         (FormalParameter.decoder processCoreOnly) proto.AddParameter
-        decodeSeq "labEquipment"       (PropertyValue.decoder processCoreOnly)    proto.AddLabEquipment
-        decodeSeq "additionalProperty" (PropertyValue.decoder processCoreOnly)    proto.AddAdditionalProperty
+        decodeSeq "parameters"         (FormalParameter.decoder processCoreOnly) (fun _ -> None) proto.AddParameter
+        decodeSeq "labEquipment"       (PropertyValue.decoder processCoreOnly) resolvePropertyValue proto.AddLabEquipment
+        decodeSeq "labEquipments"      (PropertyValue.decoder processCoreOnly) resolvePropertyValue proto.AddLabEquipment
+        decodeSeq "additionalProperty" (PropertyValue.decoder processCoreOnly) resolvePropertyValue proto.AddAdditionalProperty
 
         applyOverflow "LabProtocol" processCoreOnly knownFields proto value
         proto
+
+    let decoder (processCoreOnly: bool) (value: YAMLElement) : LabProtocol =
+        decoderWithPropertyResolver processCoreOnly (fun _ -> None) value
 
     let encoder (proto: LabProtocol) : YAMLElement =
         let id =

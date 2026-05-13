@@ -1,5 +1,6 @@
 namespace ProcessCore.Yaml
 
+open System.Collections.Generic
 open YAMLicious.YAMLiciousTypes
 open ProcessCore
 open Helpers
@@ -16,6 +17,21 @@ module Dataset =
             [ "type"; "additionaltype"; "identifier"; "name"; "description"
               "processes"; "haspart"; "additionalproperty"; "partof" ]
 
+    let private addIndexedValues fieldName decode value =
+        let registry = Dictionary<string, 'a>()
+        tryGetField fieldName value
+        |> Option.iter (fun values ->
+            iterSequenceOrSingleton (fun elem ->
+                match tryGetField "@id" elem |> Option.bind tryDecodeString with
+                | Some id -> registry.[normalizeId id] <- decode elem
+                | None    -> ()) values)
+        registry
+
+    let private tryFind (registry: Dictionary<string, 'a>) id =
+        match registry.TryGetValue(normalizeId id) with
+        | true, value -> Some value
+        | false, _    -> None
+
     let rec decoder (processCoreOnly: bool) (value: YAMLElement) : Dataset =
         checkType processCoreOnly "Dataset" value
         let identifier =
@@ -28,13 +44,23 @@ module Dataset =
 
         let ds = Dataset(identifier, ?name = name, ?description = description, ?additionalType = additionalType)
 
+        let propertyValues =
+            addIndexedValues "propertyValues" (PropertyValue.decoder processCoreOnly) value
+
+        let resolvePropertyValue id = tryFind propertyValues id
+
+        let labProtocols =
+            addIndexedValues "labProtocols" (LabProtocol.decoderWithPropertyResolver processCoreOnly resolvePropertyValue) value
+
+        let resolveLabProtocol id = tryFind labProtocols id
+
         // processes
         tryGetField "processes" value
         |> Option.iter (fun v ->
             match tryDecodeSequence v with
             | Some elems ->
                 for elem in elems do
-                    match decodeRefOrInline (LabProcess.decoder processCoreOnly) elem with
+                    match decodeRefOrInline (LabProcess.decoderWithResolvers processCoreOnly resolvePropertyValue resolveLabProtocol) elem with
                     | Choice2Of2 proc -> ds.AddProcess(proc)
                     | Choice1Of2 _    -> ()
             | None -> ())
@@ -60,13 +86,10 @@ module Dataset =
         // additionalProperty
         tryGetField "additionalProperty" value
         |> Option.iter (fun v ->
-            match tryDecodeSequence v with
-            | Some elems ->
-                for elem in elems do
-                    match decodeRefOrInline (PropertyValue.decoder processCoreOnly) elem with
-                    | Choice2Of2 pv -> ds.AddAdditionalProperty(pv)
-                    | Choice1Of2 _  -> ()
-            | None -> ())
+            iterSequenceOrSingleton (fun elem ->
+                match decodeRefOrInline (PropertyValue.decoder processCoreOnly) elem with
+                | Choice2Of2 pv -> ds.AddAdditionalProperty(pv)
+                | Choice1Of2 id -> resolvePropertyValue id |> Option.iter ds.AddAdditionalProperty) v)
 
         applyOverflow "Dataset" processCoreOnly knownFields ds value
         ds
