@@ -157,6 +157,45 @@ Callers resolve `Choice1Of2 id` lazily (pass through, leave as string, or look u
 
 ---
 
+## Indexed Object Sections
+
+Reusable objects can be defined once in top-level index sections and referenced elsewhere by `@id`. This avoids repeating shared `PropertyValue` and `LabProtocol` objects in larger assay-style YAML files.
+
+References use the same compact mapping shape as indexed objects:
+
+```yaml
+labProtocols:
+  - "@id": "#Protocol_Cell_Lysis"
+    type: LabProtocol
+    labEquipment:
+      "@id": "#Component_centrifuge_Eppendorf_5420"
+
+propertyValues:
+  - "@id": "#ParameterValue_time_10_minute"
+    type: PropertyValue
+    additionalType: ParameterValue
+    name: time
+    value: 10
+    unit: minute
+
+processes:
+  - type: LabProcess
+    name: Cell Lysis
+    executesProtocol:
+      "@id": "#Protocol_Cell_Lysis"
+    parameterValue:
+      - "@id": "#ParameterValue_time_10_minute"
+```
+
+Indexed sections currently cover:
+
+- `propertyValues`: reusable `PropertyValue` objects, including parameter values, characteristics, factors, components, and additional properties.
+- `labProtocols`: reusable `LabProtocol` objects that processes can reference through `executesProtocol`.
+
+Inline objects remain valid wherever references are accepted. `@id` values should be stable within the document; fragment identifiers are preferred for local objects, while absolute URLs are suitable for externally identified objects.
+
+---
+
 ## Per-Type Codec Modules
 
 Each file follows the same structure:
