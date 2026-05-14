@@ -2,7 +2,7 @@
 title: Prior Art
 category: Project
 categoryindex: 2
-index: 6
+index: 7
 ---
 
 # Prior Art
