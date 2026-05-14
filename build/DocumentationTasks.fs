@@ -9,13 +9,13 @@ open BlackFox.Fake
 let buildDocs =
     BuildTask.create "BuildDocs" [ buildSolution ] {
         printfn "building docs with stable version %s" stableVersionTag
-        runDotNet (sprintf "fsdocs build --eval --clean --properties Configuration=%s --parameters fsdocs-package-version %s" configuration stableVersionTag) "./"
+        runDotNet (sprintf "fsdocs build --output docs/output --eval --clean --properties Configuration=%s --parameters fsdocs-package-version %s" configuration stableVersionTag) "./"
     }
 
 let buildDocsPrerelease =
     BuildTask.create "BuildDocsPrerelease" [ setPrereleaseTag; buildSolution ] {
         printfn "building docs with prerelease version %s" prereleaseTag
-        runDotNet (sprintf "fsdocs build --eval --clean --properties Configuration=%s --parameters fsdocs-package-version %s" configuration prereleaseTag) "./"
+        runDotNet (sprintf "fsdocs build --output docs/output --eval --clean --properties Configuration=%s --parameters fsdocs-package-version %s" configuration prereleaseTag) "./"
     }
 
 let watchDocs =

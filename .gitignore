@@ -11,3 +11,4 @@ npm-debug.log*
 build/out/
 .fsdocs/
 tmp/watch/
+docs/output
