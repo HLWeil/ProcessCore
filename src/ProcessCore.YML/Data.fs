@@ -17,7 +17,7 @@ module Data =
               "selectorformat"; "encodingformat"; "additionalproperty"
               "inputof"; "outputof" ]
 
-    let decoder (processCoreOnly: bool) (value: YAMLElement) : Data =
+    let decoderWithPropertyResolver (processCoreOnly: bool) (resolvePropertyValue: string -> PropertyValue option) (value: YAMLElement) : Data =
         checkType processCoreOnly "Data" value
         let path =
             tryGetField "path" value |> Option.bind tryDecodeString
@@ -33,24 +33,23 @@ module Data =
 
         tryGetField "additionalProperty" value
         |> Option.iter (fun v ->
-            match tryDecodeSequence v with
-            | Some elems ->
-                for elem in elems do
-                    match decodeRefOrInline (PropertyValue.decoder processCoreOnly) elem with
-                    | Choice2Of2 pv -> d.AddAdditionalProperty(pv)
-                    | Choice1Of2 _  -> ()
-            | None -> ())
+            iterSequenceOrSingleton (fun elem ->
+                match decodeRefOrInline (PropertyValue.decoder processCoreOnly) elem with
+                | Choice2Of2 pv -> d.AddAdditionalProperty(pv)
+                | Choice1Of2 id -> resolvePropertyValue id |> Option.iter d.AddAdditionalProperty) v)
 
         applyOverflow "Data" processCoreOnly knownFields d value
         d
 
-    let encoder (d: Data) : YAMLElement =
+    let decoder (processCoreOnly: bool) (value: YAMLElement) : Data =
+        decoderWithPropertyResolver processCoreOnly (fun _ -> None) value
+
+    let encoder pvEncoder (d: Data) : YAMLElement =
         //let id =
         //    match d.Selector with
         //    | Some sel -> d.Path + "#" + sel
         //    | None     -> d.Path
         [
-            //yield "id",   yamlValue id
             yield "type", yamlValue "Data"
             yield "path", yamlValue d.Path
             match d.AdditionalType with
@@ -68,7 +67,7 @@ module Data =
             if d.AdditionalProperty.Count > 0 then
                 yield "additionalProperty",
                       d.AdditionalProperty
-                      |> Seq.map PropertyValue.encoder
+                      |> Seq.map pvEncoder
                       |> Seq.toList
                       |> yamlSeq
             yield! emitOverflow knownPropertyNames d
@@ -79,4 +78,4 @@ module Data =
         YAMLicious.Reader.read s |> decoder processCoreOnly
 
     let toYamlString (whitespace: int option) (d: Data) : string =
-        writeYaml whitespace (encoder d)
+        writeYaml whitespace (encoder PropertyValue.encoder d)

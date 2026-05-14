@@ -14,6 +14,9 @@ module Helpers =
     let normalizeKey (key: string) =
         key.Trim().Trim('"').Trim('\'')
 
+    let normalizeId (id: string) =
+        id.Trim().Trim('"').Trim('\'')
+
     // ── Structural unwrapping ──────────────────────────────────────────────────
 
     let unwrapSingleObject = function
@@ -61,6 +64,14 @@ module Helpers =
         | Some s -> s
         | None   -> failwithf "Expected string-like YAML value but got %A" element
 
+    let tryDecodeIdReference value =
+        match tryDecodeString value with
+        | Some id -> Some (normalizeId id)
+        | None ->
+            match getMappings value with
+            | [key, idValue] when key = "@id" || key = "id" -> tryDecodeString idValue |> Option.map normalizeId
+            | _ -> None
+
     /// Verify the 'type' field, if present, equals the expected value.
     /// When processCoreOnly is false the check is skipped and the generic field-by-field
     /// decoding path is taken instead (lenient mode for decorated YAML).
@@ -83,6 +94,11 @@ module Helpers =
         | YAMLElement.Object [YAMLElement.Sequence elements] -> Some elements
         | _ -> None
 
+    let iterSequenceOrSingleton (handler: YAMLElement -> unit) value =
+        match tryDecodeSequence value with
+        | Some elems -> elems |> List.iter handler
+        | None       -> handler value
+
     let parseScalarToObj (value: string) : obj =
         let text = value.Trim()
         if text.Equals("null", StringComparison.OrdinalIgnoreCase) || text = "~" then
@@ -104,11 +120,21 @@ module Helpers =
 
     let yamlMap (pairs: (string * YAMLElement) list) =
         pairs
-        |> List.map (fun (k, v) -> YAMLElement.Mapping (YAMLContent.create(k, style = ScalarStyle.Plain), v))
+        |> List.map (fun (k, v) -> 
+            let k = if k.StartsWith("@") then $"\"{k}\"" else k
+            YAMLElement.Mapping (YAMLContent.create(k, style = ScalarStyle.Plain), v))
         |> YAMLElement.Object
 
     let yamlSeq (items: YAMLElement list) =
         YAMLElement.Sequence items
+
+    // Replace non-alphanumeric characters with underscores to create a slug suitable for @id values.
+    let makeIdSlug (s: string) : string =
+        s |> String.map (fun c -> if Char.IsLetterOrDigit c || c = '-' then c else '_')
+
+    /// Encode an @id reference: { "@id": "<id>" }
+    let encodeRef (id: string) : YAMLElement =
+        [ "@id", yamlValue id ] |> yamlMap
 
     let objToScalarYaml (value: obj) =
         match value with
@@ -166,7 +192,7 @@ module Helpers =
     /// Decode a field that is either a plain string id reference or a full inline object.
     /// Returns Choice1Of2(id) for references, Choice2Of2(decoded) for inline objects.
     let decodeRefOrInline (inlineDecoder: YAMLElement -> 'a) (value: YAMLElement) : Choice<string, 'a> =
-        match tryDecodeString value with
+        match tryDecodeIdReference value with
         | Some id -> Choice1Of2 id
         | None    -> Choice2Of2 (inlineDecoder value)
 

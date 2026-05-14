@@ -89,6 +89,21 @@ let tests = testList "Examples" [
         | MaterialNode m -> Expect.equal m.AdditionalType (Some "Source") "additionalType"
         | DataNode _     -> failwith "Expected MaterialNode"
 
+    testCase "assay resolves indexed protocol references" <| fun _ ->
+        let assay = loadAssay(false)
+        let proc = assay.Processes.[0]
+        Expect.isSome proc.ExecutesProtocol "executesProtocol resolved"
+        Expect.equal proc.ExecutesProtocol.Value.LabEquipment.Count 1 "protocol equipment resolved"
+        Expect.equal proc.ExecutesProtocol.Value.LabEquipment.[0].Name "growth environment" "equipment name"
+
+    testCase "assay resolves indexed property value references" <| fun _ ->
+        let assay = loadAssay(false)
+        let proc =
+            assay.Processes
+            |> Seq.find (fun p -> p.Name = "Cell Lysis" && p.Outputs.Count = 1)
+        Expect.equal proc.ParameterValue.Count 3 "parameter values resolved"
+        Expect.equal proc.ParameterValue.[0].Name "time" "first parameter value"
+
     testCase "assay MS Run output is Data" <| fun _ ->
         let assay = loadAssay(false)
         let msRun =

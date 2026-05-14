@@ -6,15 +6,29 @@ open Helpers
 
 module PropertyValue =
 
+    let genID (pv: PropertyValue) =
+        match pv.TryGetPropertyValue("@id") with
+        | Some (:? string as id) -> id
+        | _ ->
+            let prefix = pv.AdditionalType |> Option.defaultValue "PropertyValue" |> makeIdSlug
+            let name   = makeIdSlug pv.Name
+            let parts  = [
+                yield prefix
+                yield name
+                match pv.Value with Some v when v <> "" -> yield makeIdSlug v | _ -> ()
+                match pv.Unit  with Some u when u <> "" -> yield makeIdSlug u | _ -> ()
+            ]
+            "#" + String.concat "_" parts
+
     let private knownFields =
         Set.ofList
             [ "id"; "type"; "additionalType"; "name"; "value"; "unit"
-              "nameTAN"; "valueTAN"; "unitTAN"; "instanceOf" ]
+              "nameTAN"; "valueTAN"; "unitTAN"; "instanceOf"; "nameText"; "valueText"; "unitText"; "valueWithUnitText" ]
 
     let private knownPropertyNames =
         Set.ofList
             [ "id"; "type"; "additionaltype"; "name"; "value"; "unit"
-              "nametan"; "valuetan"; "unittan"; "instanceof" ]
+              "nametan"; "valuetan"; "unittan"; "instanceof"; "nametext"; "valuetext"; "unittext"; "valuewithunittext"]
 
     let decoder (processCoreOnly: bool) (value: YAMLElement) : PropertyValue =
         checkType processCoreOnly "PropertyValue" value
@@ -47,7 +61,6 @@ module PropertyValue =
 
     let encoder (pv: PropertyValue) : YAMLElement =
         [
-            yield "id",   yamlValue (pv.NameTAN |> Option.defaultValue pv.Name)
             yield "type", yamlValue "PropertyValue"
             yield "name", yamlValue pv.Name
             match pv.AdditionalType with
@@ -74,6 +87,8 @@ module PropertyValue =
             yield! emitOverflow knownPropertyNames pv
         ]
         |> yamlMap
+
+
 
     let fromYamlString (processCoreOnly: bool) (s: string) : PropertyValue =
         YAMLicious.Reader.read s |> decoder processCoreOnly

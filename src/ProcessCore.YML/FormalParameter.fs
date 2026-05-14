@@ -29,7 +29,6 @@ module FormalParameter =
 
     let encoder (fp: FormalParameter) : YAMLElement =
         [
-            yield "id",   yamlValue fp.Name
             yield "type", yamlValue "FormalParameter"
             yield "name", yamlValue fp.Name
             match fp.NameTAN with

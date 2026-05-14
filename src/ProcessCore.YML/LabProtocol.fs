@@ -16,7 +16,18 @@ module LabProtocol =
             [ "id"; "type"; "additionaltype"; "name"; "description"; "version"
               "url"; "intendeduse"; "parameters"; "labequipment"; "additionalproperty" ]
 
-    let decoder (processCoreOnly: bool) (value: YAMLElement) : LabProtocol =
+    let genID (proto: LabProtocol) : string =
+        match proto.TryGetPropertyValue("@id") with
+        | Some (:? string as id) -> id
+        | _ ->
+            match proto.Url with
+            | Some url -> url
+            | None ->
+                let name = proto.Name |> Option.map makeIdSlug |> Option.defaultValue "unnamed"
+                "#Protocol_" + name
+
+
+    let decoderWithPropertyResolver (processCoreOnly: bool) (resolvePropertyValue: string -> PropertyValue option) (value: YAMLElement) : LabProtocol =
         checkType processCoreOnly "LabProtocol" value
         let name           = tryGetField "name"           value |> Option.map decodeString
         let description    = tryGetField "description"    value |> Option.map decodeString
@@ -39,31 +50,27 @@ module LabProtocol =
                 ?additionalType = additionalType,
                 ?intendedUse    = intendedUse)
 
-        let decodeSeq fieldName (decoder: YAMLElement -> 'a) (add: 'a -> unit) =
+        let decodeSeq fieldName (decoder: YAMLElement -> 'a) (resolve: string -> 'a option) (add: 'a -> unit) =
             tryGetField fieldName value
             |> Option.iter (fun v ->
-                match tryDecodeSequence v with
-                | Some elems ->
-                    for elem in elems do
-                        match decodeRefOrInline decoder elem with
-                        | Choice2Of2 x -> add x
-                        | Choice1Of2 _ -> ()
-                | None -> ())
+                iterSequenceOrSingleton (fun elem ->
+                    match decodeRefOrInline decoder elem with
+                    | Choice2Of2 x -> add x
+                    | Choice1Of2 id -> resolve id |> Option.iter add) v)
 
-        decodeSeq "parameters"         (FormalParameter.decoder processCoreOnly) proto.AddParameter
-        decodeSeq "labEquipment"       (PropertyValue.decoder processCoreOnly)    proto.AddLabEquipment
-        decodeSeq "additionalProperty" (PropertyValue.decoder processCoreOnly)    proto.AddAdditionalProperty
+        decodeSeq "parameters"         (FormalParameter.decoder processCoreOnly) (fun _ -> None) proto.AddParameter
+        decodeSeq "labEquipment"       (PropertyValue.decoder processCoreOnly) resolvePropertyValue proto.AddLabEquipment
+        decodeSeq "labEquipments"      (PropertyValue.decoder processCoreOnly) resolvePropertyValue proto.AddLabEquipment
+        decodeSeq "additionalProperty" (PropertyValue.decoder processCoreOnly) resolvePropertyValue proto.AddAdditionalProperty
 
         applyOverflow "LabProtocol" processCoreOnly knownFields proto value
         proto
 
-    let encoder (proto: LabProtocol) : YAMLElement =
-        let id =
-            match proto.Url with
-            | Some url  -> url
-            | None      -> proto.Name |> Option.defaultValue ""
+    let decoder (processCoreOnly: bool) (value: YAMLElement) : LabProtocol =
+        decoderWithPropertyResolver processCoreOnly (fun _ -> None) value
+
+    let encoder (pvEncoder : PropertyValue -> YAMLElement) (proto: LabProtocol) : YAMLElement =
         [
-            yield "id",   yamlValue id
             yield "type", yamlValue "LabProtocol"
             match proto.AdditionalType with
             | Some at -> yield "additionalType", yamlValue at
@@ -92,13 +99,13 @@ module LabProtocol =
             if proto.LabEquipment.Count > 0 then
                 yield "labEquipment",
                       proto.LabEquipment
-                      |> Seq.map PropertyValue.encoder
+                      |> Seq.map pvEncoder
                       |> Seq.toList
                       |> yamlSeq
             if proto.AdditionalProperty.Count > 0 then
                 yield "additionalProperty",
                       proto.AdditionalProperty
-                      |> Seq.map PropertyValue.encoder
+                      |> Seq.map pvEncoder
                       |> Seq.toList
                       |> yamlSeq
             yield! emitOverflow knownPropertyNames proto
@@ -109,4 +116,4 @@ module LabProtocol =
         YAMLicious.Reader.read s |> decoder processCoreOnly
 
     let toYamlString (whitespace: int option) (proto: LabProtocol) : string =
-        writeYaml whitespace (encoder proto)
+        writeYaml whitespace (encoder PropertyValue.encoder proto)

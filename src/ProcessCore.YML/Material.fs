@@ -12,7 +12,7 @@ module Material =
     let private knownPropertyNames =
         Set.ofList [ "id"; "type"; "additionaltype"; "name"; "additionalproperty"; "inputof"; "outputof" ]
 
-    let decoder (processCoreOnly: bool) (value: YAMLElement) : Material =
+    let decoderWithPropertyResolver (processCoreOnly: bool) (resolvePropertyValue: string -> PropertyValue option) (value: YAMLElement) : Material =
         checkType processCoreOnly "Material" value
         let name           = tryGetField "name"           value |> Option.map decodeString |> Option.defaultValue ""
         let additionalType = tryGetField "additionalType" value |> Option.map decodeString
@@ -21,20 +21,19 @@ module Material =
 
         tryGetField "additionalProperty" value
         |> Option.iter (fun v ->
-            match tryDecodeSequence v with
-            | Some elems ->
-                for elem in elems do
-                    match decodeRefOrInline (PropertyValue.decoder processCoreOnly) elem with
-                    | Choice2Of2 pv -> m.AddAdditionalProperty(pv)
-                    | Choice1Of2 _  -> ()   // id references left unresolved
-            | None -> ())
+            iterSequenceOrSingleton (fun elem ->
+                match decodeRefOrInline (PropertyValue.decoder processCoreOnly) elem with
+                | Choice2Of2 pv -> m.AddAdditionalProperty(pv)
+                | Choice1Of2 id -> resolvePropertyValue id |> Option.iter m.AddAdditionalProperty) v)
 
         applyOverflow "Material" processCoreOnly knownFields m value
         m
 
-    let encoder (m: Material) : YAMLElement =
+    let decoder (processCoreOnly: bool) (value: YAMLElement) : Material =
+        decoderWithPropertyResolver processCoreOnly (fun _ -> None) value
+
+    let encoder (pvEncoder : PropertyValue -> YAMLElement) (m: Material) : YAMLElement =
         [
-            yield "id",   yamlValue m.Name
             yield "type", yamlValue "Material"
             yield "name", yamlValue m.Name
             match m.AdditionalType with
@@ -43,7 +42,7 @@ module Material =
             if m.AdditionalProperty.Count > 0 then
                 yield "additionalProperty",
                       m.AdditionalProperty
-                      |> Seq.map PropertyValue.encoder
+                      |> Seq.map pvEncoder
                       |> Seq.toList
                       |> yamlSeq
             yield! emitOverflow knownPropertyNames m
@@ -54,4 +53,4 @@ module Material =
         YAMLicious.Reader.read s |> decoder processCoreOnly
 
     let toYamlString (whitespace: int option) (m: Material) : string =
-        writeYaml whitespace (encoder m)
+        writeYaml whitespace (encoder PropertyValue.encoder m)

@@ -30,7 +30,6 @@ module DefinedTerm =
 
     let encoder (dt: DefinedTerm) : YAMLElement =
         [
-            yield "id",   yamlValue (dt.TAN |> Option.defaultValue dt.Name)
             yield "type", yamlValue "DefinedTerm"
             yield "name", yamlValue dt.Name
             match dt.TAN with
