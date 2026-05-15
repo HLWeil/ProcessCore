@@ -101,6 +101,8 @@ A node is a **final** if no in-scope process consumes it as input (`IsFinalNode`
 
 ### Data fragment selector support
 
+See [reference paper pdf](../references/Fragment_Level_FAIRness.pdf) or [reference paper tex](../references/Fragment_Level_FAIRness.tex) for the rationale and design notes on this feature.
+
 `Data` represents both whole data resources and selected fragments. Fragment-level addressing is expressed through `Path`, optional `Selector`, optional `SelectorFormat`, and optional `EncodingFormat`.
 
 The core datamodel should provide a generic, extensible fragment-selector resolution layer for graph traversal and dataset queries. The core must not define a closed selector vocabulary. Selector-specific behavior is supplied by resolver/spec implementations registered by users or higher-level packages.
