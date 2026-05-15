@@ -99,6 +99,25 @@ This mapping applies when a process has **equal numbers of inputs and outputs**.
 A node is a **root** if no in-scope process produces it as output (`IsRootNode`).  
 A node is a **final** if no in-scope process consumes it as input (`IsFinalNode`).
 
+### Data fragment selector support
+
+`Data` represents both whole data resources and selected fragments. Fragment-level addressing is expressed through `Path`, optional `Selector`, optional `SelectorFormat`, and optional `EncodingFormat`.
+
+The core datamodel should provide a generic, extensible fragment-selector resolution layer for graph traversal and dataset queries. The core must not define a closed selector vocabulary. Selector-specific behavior is supplied by resolver/spec implementations registered by users or higher-level packages.
+
+Fragment-aware behavior is opt-in by resolver availability, with one generic exception: if two `Data` nodes have the same `Path` and only one has a `Selector`, the whole-resource node is treated as containing the selected-fragment node. If no resolver is registered for a selector format, all other comparisons fall back to exact matching (`Path` plus `Selector`). Unsupported, unknown, or intentionally opaque selector formats therefore remain backwards-compatible.
+
+The first required semantic relations are:
+
+- exact: both data nodes identify the same resource or fragment
+- contains: one data node identifies a resource or fragment containing the other
+- unknown/disjoint: no traversal relationship beyond exact fallback
+
+Graph traversal should use these relations through resolver-aware query paths rather than by changing `Data` equality. `Data` equality and node registry keys should remain exact (`Path` plus `Selector`) so canonicalization stays deterministic.
+
+Specific selector implementations should sit on top of the generic core mechanism. The first concrete resolver should target RFC 7111 CSV selectors, because current examples use selectors such as `#col=1` and `#col=2-11`. Spreadsheet fragment selectors should be added as a separate resolver following the fragment-level FAIRness specification, not hard-coded into `Data`.
+
+
 ### Optional scope
 
 All traversal methods accept an optional `scope: ResizeArray<LabProcess>` parameter. When supplied, the BFS is restricted to processes within that set. This allows scoping queries to a single `Dataset` without creating a separate graph object.
