@@ -26,6 +26,16 @@ let tests = testList "IONode" [
         let m2 = Material("Sample1")
         Expect.isTrue (MaterialNode(m1).EqualTo(MaterialNode(m2))) "Same-valued MaterialNodes should be equal"
 
+    testCase "EqualTo same data" <| fun _ ->
+        let d1 = Data("results.csv", selector = "Sheet1")
+        let d2 = Data("results.csv", selector = "Sheet1")
+        Expect.isTrue (DataNode(d1).EqualTo(DataNode(d2))) "Same-valued DataNodes should be equal"
+
+    testCase "EqualTo different data" <| fun _ ->
+        let d1 = Data("results.csv", selector = "Sheet1")
+        let d2 = Data("results.csv", selector = "Sheet2")
+        Expect.isFalse (DataNode(d1).EqualTo(DataNode(d2))) "Different Data selectors should not be equal"
+
     testCase "EqualTo different types" <| fun _ ->
         let m = Material("Sample1")
         let d = Data("Sample1")
@@ -39,6 +49,14 @@ let tests = testList "IONode" [
         let inputOf = node.GetInputOf()
         Expect.isTrue (inputOf |> Seq.exists (fun x -> x = p)) "GetInputOf should return the process"
 
+    testCase "GetInputOf delegates to data" <| fun _ ->
+        let d    = Data("results.csv")
+        let p    = LabProcess("p1")
+        let node = DataNode d
+        p.AddInputData(d)
+        let inputOf = node.GetInputOf()
+        Expect.isTrue (inputOf |> Seq.exists (fun x -> x = p)) "GetInputOf should return the data-consuming process"
+
     testCase "GetOutputOf delegates to material" <| fun _ ->
         let m    = Material("Sample1")
         let p    = LabProcess("p1")
@@ -46,6 +64,14 @@ let tests = testList "IONode" [
         p.AddOutputMaterial(m)
         let outputOf = node.GetOutputOf()
         Expect.isTrue (outputOf |> Seq.exists (fun x -> x = p)) "GetOutputOf should return the process"
+
+    testCase "GetOutputOf delegates to data" <| fun _ ->
+        let d    = Data("results.csv")
+        let p    = LabProcess("p1")
+        let node = DataNode d
+        p.AddOutputData(d)
+        let outputOf = node.GetOutputOf()
+        Expect.isTrue (outputOf |> Seq.exists (fun x -> x = p)) "GetOutputOf should return the data-producing process"
 
     testCase "IsRootNode: no predecessor in graph" <| fun _ ->
         let f = Fixtures.makeFixtureA()

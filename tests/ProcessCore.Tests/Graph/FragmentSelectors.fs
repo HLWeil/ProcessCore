@@ -103,6 +103,37 @@ let tests = testList "Fragment selectors" [
             Expect.equal (relateWith ds a b) Unknown "formats must match"
     ]
 
+    testList "Provider lifecycle" [
+
+        testCase "register, list, try-get, and unregister provider" <| fun _ ->
+            let ds = Dataset("ds")
+            let provider = RangeSelectorProvider()
+            ds.RegisterFragmentSelectorProvider(provider)
+
+            Expect.equal (ds.TryGetFragmentSelectorProvider("test/range")) (Some (provider :> IFragmentSelectorProvider))
+                "registered provider should be returned by selectorFormat"
+            Expect.equal (ds.GetFragmentSelectorProviders() |> Seq.map (fun p -> p.SelectorFormat) |> Set.ofSeq) (Set.ofList ["test/range"])
+                "registered provider should appear in provider list"
+
+            ds.UnregisterFragmentSelectorProvider("test/range")
+            Expect.isNone (ds.TryGetFragmentSelectorProvider("test/range"))
+                "unregistered provider should not be returned"
+            Expect.equal (ds.GetFragmentSelectorProviders() |> Seq.length) 0
+                "provider list should be empty after unregister"
+
+        testCase "child provider is registered in parent root when part is added" <| fun _ ->
+            let parent = Dataset("parent")
+            let child = datasetWithFakeProvider ()
+
+            parent.AddPart(child)
+
+            Expect.isSome (parent.TryGetFragmentSelectorProvider("test/range"))
+                "parent root should expose providers from an added child dataset"
+            Expect.isSome (child.TryGetFragmentSelectorProvider("test/range"))
+                "child lookup should resolve through the shared root while attached"
+
+    ]
+
     testList "Traversal" [
 
         testCase "whole file reaches material through contained fragment" <| fun _ ->
