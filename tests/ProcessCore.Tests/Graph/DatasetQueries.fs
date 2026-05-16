@@ -323,4 +323,32 @@ let tests = testList "DatasetQueries" [
         Expect.isTrue (names.Contains "temperature") "temperature FP from p1"
         Expect.isTrue (names.Contains "rpm") "rpm FP from p1"
 
+    testCase "Collect Upstream PropertyValues From Material" <| fun _ ->
+        let f = makeFixtureFourSources()
+        let pvs = f.DownstreamNode.UpstreamPropertyValues()
+        Expect.hasLength pvs 6 "Should correctly collect all 6 property values across graph" 
+        Expect.isTrue (pvs.Contains(f.UpstreamOnlyPV)) "Should include PV from upstream process"
+        Expect.isTrue (pvs.Contains(f.InputPV)) "Should include PV from input node"
+        Expect.isTrue (pvs.Contains(f.ParamPV)) "Should include PV from process parameter"
+        Expect.isTrue (pvs.Contains(f.ComponentPV)) "Should include PV from protocol component"
+        Expect.isTrue (pvs.Contains(f.OutputPV)) "Should include PV from output node"
+        Expect.isTrue (pvs.Contains(f.DownstreamOnlyPV)) "Should include PV from downstream process"
+
+    testCase "Collect Upstream PropertyValues From Data" <| fun _ ->
+        let f = makeFixtureFourSources()
+
+        let d = Data("downstream.csv")
+        let newP = LabProcess("newP")
+        newP.AddInputMaterial f.DownstreamNode
+        newP.AddOutputData d
+        f.DS.AddProcess newP
+
+        let pvs = d.UpstreamPropertyValues()
+        Expect.hasLength pvs 6 "Should correctly collect all 6 property values across graph" 
+        Expect.isTrue (pvs.Contains(f.UpstreamOnlyPV)) "Should include PV from upstream process"
+        Expect.isTrue (pvs.Contains(f.InputPV)) "Should include PV from input node"
+        Expect.isTrue (pvs.Contains(f.ParamPV)) "Should include PV from process parameter"
+        Expect.isTrue (pvs.Contains(f.ComponentPV)) "Should include PV from protocol component"
+        Expect.isTrue (pvs.Contains(f.OutputPV)) "Should include PV from output node"
+        Expect.isTrue (pvs.Contains(f.DownstreamOnlyPV)) "Should include PV from downstream process"
 ]
