@@ -4,6 +4,32 @@ open Fable.Core
 open System.Collections.Generic
 open DynamicObj
 
+/// Generic Data-fragment relation helpers used by traversal and tests.
+module FragmentSelectorResolution =
+
+    let relateDataWithProvider (provider: IFragmentSelectorProvider) (container: Data) (candidate: Data) : FragmentRelation =
+        FragmentSelector.relate
+            container.Path
+            container.Selector
+            container.SelectorFormat
+            candidate.Path
+            candidate.Selector
+            candidate.SelectorFormat
+            (fun s -> if s = provider.SelectorFormat then Some provider else None)
+
+    let relateDataWith (tryGetProvider: string -> IFragmentSelectorProvider option) (container: Data) (candidate: Data): FragmentRelation =
+        FragmentSelector.relate
+            container.Path
+            container.Selector
+            container.SelectorFormat
+            candidate.Path
+            candidate.Selector
+            candidate.SelectorFormat
+            tryGetProvider
+
+    let relateData (container: Data) (candidate: Data) : FragmentRelation =
+        relateDataWith (fun _ -> None) (container) (candidate)
+
 [<AutoOpen>]
 module private Comparers =
     /// Reference-equality comparer for back-edge HashSets.
@@ -170,14 +196,82 @@ module private PathTraversal =
     let inScope (processes: ResizeArray<LabProcess>) (p: LabProcess) =
         processes |> Seq.exists (fun q -> q = p)
 
-    let processesForNode (processes: ResizeArray<LabProcess>) (node: IONode) : ResizeArray<LabProcess> =
-        let acc = ResizeArray()
-        acc.AddRange(node.GetInputOf() |> Seq.filter (inScope processes))
-        acc.AddRange(node.GetOutputOf() |> Seq.filter (inScope processes))
-        acc |> Seq.distinct |> ResizeArray
+    let processRefKey (proc: LabProcess) =
+        System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(proc).ToString()
 
     let inOptionalScope (scope: ResizeArray<LabProcess> option) (p: LabProcess) =
         scope |> Option.forall (fun s -> s |> Seq.exists (fun q -> q = p))
+
+    let dataRelatedForTraversal (tryGetProvider: string -> IFragmentSelectorProvider option) (a: Data) (b: Data) =
+        match FragmentSelectorResolution.relateDataWith tryGetProvider a b with
+        | Exact | Contains -> true
+        | Disjoint | Unknown ->
+            match FragmentSelectorResolution.relateDataWith tryGetProvider b a with
+            | Exact | Contains -> true
+            | Disjoint | Unknown -> false
+
+    let nodeRelatedForTraversal (tryGetProvider: string -> IFragmentSelectorProvider option) (a: IONode) (b: IONode) =
+        match a, b with
+        | MaterialNode ma, MaterialNode mb -> ma = mb
+        | DataNode da, DataNode db -> dataRelatedForTraversal tryGetProvider da db
+        | _ -> false
+
+    let processesFromExactBackEdges (node: IONode) =
+        let acc = ResizeArray<LabProcess>()
+        acc.AddRange(node.GetInputOf())
+        acc.AddRange(node.GetOutputOf())
+        acc
+
+    let processUniverse (scope: ResizeArray<LabProcess> option) (node: IONode) =
+        match scope with
+        | Some s -> s
+        | None -> processesFromExactBackEdges node
+
+    let providerLookupFromProcesses (processes: seq<LabProcess>) =
+        let dataset: Dataset option =
+            processes
+            |> Seq.tryPick (fun proc -> proc.ProcessOf)
+
+        fun selectorFormat ->
+            dataset
+            |> Option.bind (fun ds -> ds.TryGetFragmentSelectorProvider selectorFormat)
+
+    let distinctProcessEdges (edges: seq<LabProcess * IONode>) =
+        let seen = HashSet<string>()
+        let acc = ResizeArray<LabProcess * IONode>()
+        for proc, matchedNode in edges do
+            let key = processRefKey proc + "|" + matchedNode.Key()
+            if seen.Add(key) then acc.Add(proc, matchedNode)
+        acc
+
+    let relatedInputEdges (scope: ResizeArray<LabProcess> option) (node: IONode) =
+        let universe = processUniverse scope node
+        let tryGetProvider = providerLookupFromProcesses universe
+        universe
+        |> Seq.collect (fun proc ->
+            proc.Inputs
+            |> Seq.filter (nodeRelatedForTraversal tryGetProvider node)
+            |> Seq.map (fun matchedNode -> proc, matchedNode))
+        |> distinctProcessEdges
+
+    let relatedOutputEdges (scope: ResizeArray<LabProcess> option) (node: IONode) =
+        let universe = processUniverse scope node
+        let tryGetProvider = providerLookupFromProcesses universe
+        universe
+        |> Seq.collect (fun proc ->
+            proc.Outputs
+            |> Seq.filter (nodeRelatedForTraversal tryGetProvider node)
+            |> Seq.map (fun matchedNode -> proc, matchedNode))
+        |> distinctProcessEdges
+
+    let relatedNodeProcesses (scope: ResizeArray<LabProcess> option) (node: IONode) =
+        Seq.append (relatedInputEdges scope node) (relatedOutputEdges scope node)
+        |> Seq.map fst
+        |> Seq.distinct
+        |> ResizeArray
+
+    let processesForNode (processes: ResizeArray<LabProcess>) (node: IONode) : ResizeArray<LabProcess> =
+        relatedNodeProcesses (Some processes) node
 
     let collectUpstreamPropertyValues
         (protocolName: string option)
@@ -190,17 +284,17 @@ module private PathTraversal =
         let visitedEdges = HashSet<string>()
 
         let rec walk (node: IONode) =
-            for proc: LabProcess in node.GetOutputOf() do
+            for proc, matchedNode in relatedOutputEdges scope node do
                 if inOptionalScope scope proc then
-                    let edgeKey = proc.Name + "<-" + node.Key()
+                    let edgeKey = processRefKey proc + "<-" + matchedNode.Key()
                     if visitedEdges.Add(edgeKey) then
                         let includeProcess = processMatchesProtocolName protocolName proc
-                        for input in proc.GetInputsOfOutput(node) do
+                        for input in proc.GetInputsOfOutput(matchedNode) do
                             walk input
                             if includeProcess then addPropertyValuesFromNode result seenPV input
                         if includeProcess then
                             addProcessPropertyValues result seenPV proc
-                            addPropertyValuesFromNode result seenPV node
+                            addPropertyValuesFromNode result seenPV matchedNode
 
         walk start
         result
@@ -216,15 +310,15 @@ module private PathTraversal =
         let visitedEdges = HashSet<string>()
 
         let rec walk (node: IONode) =
-            for proc: LabProcess in node.GetInputOf() do
+            for proc, matchedNode in relatedInputEdges scope node do
                 if inOptionalScope scope proc then
-                    let edgeKey = proc.Name + "->" + node.Key()
+                    let edgeKey = processRefKey proc + "->" + matchedNode.Key()
                     if visitedEdges.Add(edgeKey) then
                         let includeProcess = processMatchesProtocolName protocolName proc
                         if includeProcess then
-                            addPropertyValuesFromNode result seenPV node
+                            addPropertyValuesFromNode result seenPV matchedNode
                             addProcessPropertyValues result seenPV proc
-                        for output in proc.GetOutputsOfInput(node) do
+                        for output in proc.GetOutputsOfInput(matchedNode) do
                             if includeProcess then addPropertyValuesFromNode result seenPV output
                             walk output
 
@@ -237,7 +331,7 @@ module private PathTraversal =
         else
             let preds =
                 proc.Inputs
-                |> Seq.collect (fun node -> node.GetOutputOf() :> seq<LabProcess>)
+                |> Seq.collect (fun node -> relatedOutputEdges (Some processes) node |> Seq.map fst)
                 |> Seq.filter (inScope processes)
                 |> Seq.distinct
                 |> ResizeArray
@@ -258,7 +352,7 @@ module private PathTraversal =
         else
             let succs =
                 proc.Outputs
-                |> Seq.collect (fun node -> node.GetInputOf() :> seq<LabProcess>)
+                |> Seq.collect (fun node -> relatedInputEdges (Some processes) node |> Seq.map fst)
                 |> Seq.filter (inScope processes)
                 |> Seq.distinct
                 |> ResizeArray
@@ -342,10 +436,7 @@ type IONode =
         while frontier.Count > 0 do
             let next = ResizeArray<IONode>()
             for node in frontier do
-                let nodeProcs = ResizeArray<LabProcess>()
-                nodeProcs.AddRange(node.GetOutputOf())
-                nodeProcs.AddRange(node.GetInputOf())
-                for p: LabProcess in nodeProcs do
+                for p: LabProcess in relatedNodeProcesses scope node do
                     if inScope p && seenP.Add(p.Name) then
                         result.Add(p)
                         for n: IONode in Seq.append p.Inputs p.Outputs do
@@ -381,10 +472,7 @@ type IONode =
         while frontier.Count > 0 do
             let next = ResizeArray<IONode>()
             for node in frontier do
-                let nodeProcs = ResizeArray<LabProcess>()
-                nodeProcs.AddRange(node.GetOutputOf())
-                nodeProcs.AddRange(node.GetInputOf())
-                for p: LabProcess in nodeProcs do
+                for p: LabProcess in relatedNodeProcesses scope node do
                     if inScope p then
                         for n: IONode in Seq.append p.Inputs p.Outputs do
                             if seenN.Add(n.Key()) then
@@ -438,15 +526,24 @@ type IONode =
 
     /// True if no in-scope process produces this node as output (no predecessors in scope).
     member this.IsRootNode(?scope: ResizeArray<LabProcess>) : bool =
-        let inScope (p: LabProcess) =
-            scope |> Option.forall (fun s -> s |> Seq.exists (fun q -> q = p))
-        this.GetOutputOf() |> Seq.exists (fun p -> inScope p) |> not
+        match scope with
+        | Some s  -> 
+
+            let inScope (p: LabProcess) =
+                scope |> Option.forall (fun s -> s |> Seq.exists (fun q -> q = p))
+            relatedOutputEdges scope this |> Seq.exists (fun (p, _) -> inScope p) |> not
+        | None ->
+            this.GetOutputOf().Count = 0
 
     /// True if no in-scope process consumes this node as input (no successors in scope).
     member this.IsFinalNode(?scope: ResizeArray<LabProcess>) : bool =
-        let inScope (p: LabProcess) =
-            scope |> Option.forall (fun s -> s |> Seq.exists (fun q -> q = p))
-        this.GetInputOf() |> Seq.exists (fun p -> inScope p) |> not
+        match scope with
+        | Some s  -> 
+            let inScope (p: LabProcess) =
+                scope |> Option.forall (fun s -> s |> Seq.exists (fun q -> q = p))
+            relatedInputEdges scope this |> Seq.exists (fun (p, _) -> inScope p) |> not
+        | None ->
+            this.GetInputOf().Count = 0
 
     /// All processes reachable by walking upstream (OutputOf edges → Inputs).
     member this.UpstreamProcesses(?scope: ResizeArray<LabProcess>) : ResizeArray<LabProcess> =
@@ -460,10 +557,10 @@ type IONode =
         while frontier.Count > 0 do
             let next = ResizeArray<IONode>()
             for node in frontier do
-                for p: LabProcess in node.GetOutputOf() do
+                for p, matchedNode in relatedOutputEdges scope node do
                     if inScope p && seenP.Add(p.Name) then
                         result.Add(p)
-                        for n: IONode in p.GetInputsOfOutput(node) do
+                        for n: IONode in p.GetInputsOfOutput(matchedNode) do
                             if seenN.Add(n.Key()) then next.Add(n)
             frontier <- next
         result
@@ -480,10 +577,10 @@ type IONode =
         while frontier.Count > 0 do
             let next = ResizeArray<IONode>()
             for node in frontier do
-                for p: LabProcess in node.GetInputOf() do
+                for p, matchedNode in relatedInputEdges scope node do
                     if inScope p && seenP.Add(p.Name) then
                         result.Add(p)
-                        for n: IONode in p.GetOutputsOfInput(node) do
+                        for n: IONode in p.GetOutputsOfInput(matchedNode) do
                             if seenN.Add(n.Key()) then next.Add(n)
             frontier <- next
         result
@@ -502,9 +599,9 @@ type IONode =
         while frontier.Count > 0 do
             let next = ResizeArray<IONode>()
             for node in frontier do
-                for p: LabProcess in node.GetOutputOf() do
+                for p, matchedNode in relatedOutputEdges scope node do
                     if inScope p then
-                        for n: IONode in p.GetInputsOfOutput(node) do
+                        for n: IONode in p.GetInputsOfOutput(matchedNode) do
                             if seenN.Add(n.Key()) then
                                 result.Add(n)
                                 next.Add(n)
@@ -525,9 +622,9 @@ type IONode =
         while frontier.Count > 0 do
             let next = ResizeArray<IONode>()
             for node in frontier do
-                for p: LabProcess in node.GetInputOf() do
+                for p, matchedNode in relatedInputEdges scope node do
                     if inScope p then
-                        for n: IONode in p.GetOutputsOfInput(node) do
+                        for n: IONode in p.GetOutputsOfInput(matchedNode) do
                             if seenN.Add(n.Key()) then
                                 result.Add(n)
                                 next.Add(n)
@@ -1229,6 +1326,7 @@ and [<AttachMembers>] Dataset(identifier: string, ?name: string, ?description: s
     let _additionalProperty: ResizeArray<PropertyValue> = ResizeArray()
     /// IONode registry — only meaningfully populated when this is the root dataset.
     let _nodeRegistry: Dictionary<string, IONode> = Dictionary<string, IONode>()
+    let _fragmentSelectorProviders: Dictionary<string, IFragmentSelectorProvider> = Dictionary<string, IFragmentSelectorProvider>()
 
     do
         processes          |> Option.iter (fun ps  -> for p  in ps  do this.AddProcess(p))
@@ -1240,11 +1338,31 @@ and [<AttachMembers>] Dataset(identifier: string, ?name: string, ?description: s
     // Direct access to the backing dictionary of this dataset instance.
     member private _.NodeRegistryDirect = _nodeRegistry
 
+    member private _.FragmentSelectorProvidersDirect = _fragmentSelectorProviders
+
     /// Walk PartOf until reaching the root dataset of this hierarchy.
     member private this.RootDataset() : Dataset =
         match _partOf with
         | None   -> this
         | Some p -> p.RootDataset()
+
+    /// Register a fragment selector provider in the root dataset of this hierarchy.
+    member this.RegisterFragmentSelectorProvider(provider: IFragmentSelectorProvider) =
+        this.RootDataset().FragmentSelectorProvidersDirect.[provider.SelectorFormat] <- provider
+
+    /// Returns a fragment selector provider from the root dataset, if registered.
+    member this.TryGetFragmentSelectorProvider(selectorFormat: string) : IFragmentSelectorProvider option =
+        let providers = this.RootDataset().FragmentSelectorProvidersDirect
+        match providers.TryGetValue selectorFormat with
+        | true, provider -> Some provider
+        | false, _ -> None
+
+    /// Remove a fragment selector provider from the root dataset.
+    member this.UnregisterFragmentSelectorProvider(selectorFormat: string) =
+        this.RootDataset().FragmentSelectorProvidersDirect.Remove(selectorFormat) |> ignore
+
+    member this.GetFragmentSelectorProviders() : seq<IFragmentSelectorProvider> =
+        this.RootDataset().FragmentSelectorProvidersDirect.Values :> seq<IFragmentSelectorProvider>
 
     /// Returns the canonical IONode for `node` from the root registry.
     /// Registers and returns `node` itself if its key is not yet present.
@@ -1327,6 +1445,8 @@ and [<AttachMembers>] Dataset(identifier: string, ?name: string, ?description: s
         if not (_hasPart |> Seq.exists (fun d -> d = child)) then
             _hasPart.Add(child)
             child.PartOf <- Some this
+            for provider in child.FragmentSelectorProvidersDirect.Values do
+                this.RegisterFragmentSelectorProvider(provider)
             // Canonicalize every node in the child's subtree against the new root.
             for proc in child.AllProcesses() do
                 proc.CanonicalizeAllNodes(this)

@@ -27,6 +27,7 @@ let all =
             Graph.BackEdges.tests
             Graph.Deduplication.tests
             Graph.Traversal.tests
+            Graph.FragmentSelectors.tests
             Graph.PropertyValueSources.tests
             Graph.DatasetQueries.tests
             Graph.PathQueries.tests

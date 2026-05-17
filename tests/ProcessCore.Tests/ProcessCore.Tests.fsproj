@@ -19,6 +19,7 @@
     <Compile Include="Graph/BackEdges.fs" />
     <Compile Include="Graph/Deduplication.fs" />
     <Compile Include="Graph/Traversal.fs" />
+    <Compile Include="Graph/FragmentSelectors.fs" />
     <Compile Include="Graph/PropertyValueSources.fs" />
     <Compile Include="Graph/DatasetQueries.fs" />
     <Compile Include="Graph/PathQueries.fs" />

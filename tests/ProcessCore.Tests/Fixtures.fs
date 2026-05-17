@@ -333,19 +333,22 @@ let makeFixtureE () : FixtureE =
 // ─────────────────────────────────────────────────────────────────────────────
 
 type FixtureFourSources =
-    { Process          : LabProcess
-      UpstreamProc     : LabProcess
-      DownstreamProc   : LabProcess
-      UpstreamNode     : Material
-      InputNode        : Material
-      OutputNode       : Material
-      DownstreamNode   : Material
-      ParamPV          : PropertyValue   // from ParameterValue
-      InputPV          : PropertyValue   // from input node AdditionalProperty
-      OutputPV         : PropertyValue   // from output node AdditionalProperty
-      ComponentPV      : PropertyValue   // from protocol LabEquipment
-      UpstreamOnlyPV   : PropertyValue   // only on UpstreamProc
-      DownstreamOnlyPV : PropertyValue } // only on DownstreamProc
+    { 
+        DS               : Dataset
+        Process          : LabProcess
+        UpstreamProc     : LabProcess
+        DownstreamProc   : LabProcess
+        UpstreamNode     : Material
+        InputNode        : Material
+        OutputNode       : Material
+        DownstreamNode   : Material
+        ParamPV          : PropertyValue // from ParameterValue
+        InputPV          : PropertyValue // from input node AdditionalProperty
+        OutputPV         : PropertyValue // from output node AdditionalProperty
+        ComponentPV      : PropertyValue // from protocol LabEquipment
+        UpstreamOnlyPV   : PropertyValue // only on UpstreamProc
+        DownstreamOnlyPV : PropertyValue // only on DownstreamProc
+    } 
 
 let makeFixtureFourSources () : FixtureFourSources =
     let upstreamNode   = Material("FS_UpstreamNode",   additionalType = "Source")
@@ -385,7 +388,14 @@ let makeFixtureFourSources () : FixtureFourSources =
     downstreamProc.AddInputMaterial(outputNode)
     downstreamProc.AddOutputMaterial(downstreamNode)
 
-    { Process          = proc
+    let ds = Dataset("DS-FourSources")
+    ds.AddProcess(upstreamProc)
+    ds.AddProcess(proc)
+    ds.AddProcess(downstreamProc)
+
+    { 
+      DS               = ds  
+      Process          = proc
       UpstreamProc     = upstreamProc
       DownstreamProc   = downstreamProc
       UpstreamNode     = upstreamNode

@@ -10,6 +10,7 @@
     <Compile Include="DefinedTerm.fs" />
     <Compile Include="FormalParameter.fs" />
     <Compile Include="PropertyValue.fs" />
+    <Compile Include="FragmentSelector.fs" />
     <Compile Include="Graph.fs" />
     <Compile Include="Table.fs" />
   </ItemGroup>

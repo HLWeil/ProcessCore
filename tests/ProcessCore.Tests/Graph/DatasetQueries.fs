@@ -262,12 +262,59 @@ let tests = testList "DatasetQueries" [
         Expect.equal keys (Set.ofList ["M:Source1";"M:Sample1";"M:Sample2"])
             "all material nodes upstream from rawData1.csv"
 
+    testCase "MaterialsUpstreamOf and MaterialsDownstreamOf" <| fun _ ->
+        let f = makeFixtureA()
+        let upstream = f.DS.MaterialsUpstreamOf(DataNode f.RawData1) |> Seq.map (fun m -> m.Name) |> Set.ofSeq
+        let downstream = f.DS.MaterialsDownstreamOf(MaterialNode f.Source1) |> Seq.map (fun m -> m.Name) |> Set.ofSeq
+
+        Expect.equal upstream (Set.ofList ["Source1";"Sample1";"Sample2"])
+            "typed upstream material wrapper returns only materials"
+        Expect.equal downstream (Set.ofList ["Sample1";"Sample2"])
+            "typed downstream material wrapper excludes the query material and data nodes"
+
+    testCase "DataUpstreamOf and DataDownstreamOf" <| fun _ ->
+        let sourceData = Data("source.csv")
+        let sample = Material("Sample")
+        let outputData = Data("output.csv")
+        let p1 = LabProcess("consume-data")
+        p1.AddInputData(sourceData)
+        p1.AddOutputMaterial(sample)
+        let p2 = LabProcess("produce-data")
+        p2.AddInputMaterial(sample)
+        p2.AddOutputData(outputData)
+        let ds = Dataset("DS-data-wrapper")
+        ds.AddProcess(p1)
+        ds.AddProcess(p2)
+
+        let upstream = ds.DataUpstreamOf(MaterialNode sample) |> Seq.map (fun d -> d.Path) |> Set.ofSeq
+        let downstream = ds.DataDownstreamOf(DataNode sourceData) |> Seq.map (fun d -> d.Path) |> Set.ofSeq
+
+        Expect.equal upstream (Set.ofList ["source.csv"])
+            "typed upstream data wrapper returns only upstream data"
+        Expect.equal downstream (Set.ofList ["output.csv"])
+            "typed downstream data wrapper returns only downstream data and excludes the query data"
+
     testCase "ConnectedMaterialsForNode excludes query node" <| fun _ ->
         let f = makeFixtureA()
         let mats = f.DS.ConnectedMaterialsForNode(MaterialNode f.Sample1)
         let names = mats |> Seq.map (fun m -> m.Name) |> Set.ofSeq
         Expect.equal names (Set.ofList ["Source1";"Sample2"])
             "IONode-owned connected-node contract excludes Sample1 itself"
+
+    testCase "ConnectedDataForNode excludes query node" <| fun _ ->
+        let f = makeFixtureA()
+        let data = f.DS.ConnectedDataForNode(MaterialNode f.Source1)
+        let paths = data |> Seq.map (fun d -> d.Path) |> Set.ofSeq
+        Expect.equal paths (Set.ofList ["rawData1.csv"])
+            "typed connected data wrapper returns downstream data connected to the material"
+
+    testCase "AllPropertyValuesForNode" <| fun _ ->
+        let f = makeFixtureA()
+        let pvs = f.DS.AllPropertyValuesForNode(MaterialNode f.Sample1)
+        let names = pvs |> Seq.map (fun pv -> pv.Name) |> Set.ofSeq
+        Expect.isTrue (names.Contains "temperature") "upstream p1 parameter is included"
+        Expect.isTrue (names.Contains "rpm") "upstream p1 parameter is included"
+        Expect.isTrue (names.Contains "enzyme") "downstream p2 parameter is included"
 
     testCase "ProtocolParametersForNode" <| fun _ ->
         let f = makeFixtureA()
@@ -276,4 +323,32 @@ let tests = testList "DatasetQueries" [
         Expect.isTrue (names.Contains "temperature") "temperature FP from p1"
         Expect.isTrue (names.Contains "rpm") "rpm FP from p1"
 
+    testCase "Collect Upstream PropertyValues From Material" <| fun _ ->
+        let f = makeFixtureFourSources()
+        let pvs = f.DownstreamNode.UpstreamPropertyValues()
+        Expect.hasLength pvs 6 "Should correctly collect all 6 property values across graph" 
+        Expect.isTrue (pvs.Contains(f.UpstreamOnlyPV)) "Should include PV from upstream process"
+        Expect.isTrue (pvs.Contains(f.InputPV)) "Should include PV from input node"
+        Expect.isTrue (pvs.Contains(f.ParamPV)) "Should include PV from process parameter"
+        Expect.isTrue (pvs.Contains(f.ComponentPV)) "Should include PV from protocol component"
+        Expect.isTrue (pvs.Contains(f.OutputPV)) "Should include PV from output node"
+        Expect.isTrue (pvs.Contains(f.DownstreamOnlyPV)) "Should include PV from downstream process"
+
+    testCase "Collect Upstream PropertyValues From Data" <| fun _ ->
+        let f = makeFixtureFourSources()
+
+        let d = Data("downstream.csv")
+        let newP = LabProcess("newP")
+        newP.AddInputMaterial f.DownstreamNode
+        newP.AddOutputData d
+        f.DS.AddProcess newP
+
+        let pvs = d.UpstreamPropertyValues()
+        Expect.hasLength pvs 6 "Should correctly collect all 6 property values across graph" 
+        Expect.isTrue (pvs.Contains(f.UpstreamOnlyPV)) "Should include PV from upstream process"
+        Expect.isTrue (pvs.Contains(f.InputPV)) "Should include PV from input node"
+        Expect.isTrue (pvs.Contains(f.ParamPV)) "Should include PV from process parameter"
+        Expect.isTrue (pvs.Contains(f.ComponentPV)) "Should include PV from protocol component"
+        Expect.isTrue (pvs.Contains(f.OutputPV)) "Should include PV from output node"
+        Expect.isTrue (pvs.Contains(f.DownstreamOnlyPV)) "Should include PV from downstream process"
 ]

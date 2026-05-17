@@ -3,13 +3,19 @@
 #r "nuget: YAMLicious"
 #r @"..\src\ProcessCore\bin\Release\netstandard2.0\ProcessCore.dll"
 #r @"..\src\ProcessCore.YML\bin\Release\netstandard2.0\ProcessCore.YML.dll"
+#r @"..\tests\ProcessCore.Tests\bin\Release\net10.0\ProcessCore.Tests.dll"
 
 open ProcessCore
 open ProcessCore.Table
 open ProcessCore.Yaml
 
-DefinedTerm("dawdwa")
+open ProcessCore.Tests.Graph.DatasetQueries
+open ProcessCore.Tests.Fixtures
 
+let f = makeFixtureFourSources()
+let pvs = f.DownstreamNode.UpstreamPropertyValues()
+
+pvs.Count
 
 let childD1 = Dataset("ChildDataset1")
 let childD2 = Dataset("ChildDataset2")

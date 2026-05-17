@@ -89,6 +89,14 @@ let tests = testList "Examples" [
         | MaterialNode m -> Expect.equal m.AdditionalType (Some "Source") "additionalType"
         | DataNode _     -> failwith "Expected MaterialNode"
 
+    testCase "assay cell lycis process correctly resolved parameter values" <| fun _ ->
+        let assay = loadAssay(false)
+        let p = assay.GetProcess("Cell Lysis")
+        Expect.hasLength p.ParameterValue 3 "three parameter values"
+        Expect.equal p.ParameterValue.[0].Name "time" "first parameter value name"
+        Expect.equal p.ParameterValue.[1].Name "sonicator" "second parameter value name"
+        Expect.equal p.ParameterValue.[2].Name "technical replicate group" "third parameter value name"
+
     testCase "assay resolves indexed protocol references" <| fun _ ->
         let assay = loadAssay(false)
         let proc = assay.Processes.[0]
