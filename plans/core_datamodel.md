@@ -119,7 +119,7 @@ The first required semantic relations are:
 
 Graph traversal should use these relations through resolver-aware query paths rather than by changing `Data` equality. `Data` equality and node registry keys should remain exact (`Path` plus `Selector`) so canonicalization stays deterministic. The API to the traversal methods should not be altered, but instead should always make use of the resolver layer when comparing `Data` nodes, if available.
 
-Specific selector implementations should sit on top of the generic core mechanism. The first concrete resolver should target RFC 7111 CSV selectors, because current examples use selectors such as `#col=1` and `#col=2-11`. Spreadsheet fragment selectors should be added as a separate resolver following the fragment-level FAIRness specification, not hard-coded into `Data`.
+Specific selector implementations should sit on top of the generic core mechanism. The first concrete resolver should target [RFC 7111 CSV selectors](https://datatracker.ietf.org/doc/html/rfc7111), because current examples use selectors such as `#col=1` and `#col=2-11`. Spreadsheet fragment selectors should be added as a separate resolver following the fragment-level FAIRness specification, not hard-coded into `Data`.
 
 
 ### Optional scope

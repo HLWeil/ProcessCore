@@ -46,6 +46,11 @@ let datasetWithFakeProvider () =
     ds.RegisterFragmentSelectorProvider(RangeSelectorProvider())
     ds
 
+let datasetWithCsvProvider () =
+    let ds = Dataset("ds")
+    ds.RegisterFragmentSelectorProvider(CsvFragmentSelectorProvider())
+    ds
+
 let relateWith (ds: Dataset) (container: Data) (candidate: Data) =
     FragmentSelectorResolution.relateDataWith ds.TryGetFragmentSelectorProvider (container) (candidate)
 
@@ -132,6 +137,167 @@ let tests = testList "Fragment selectors" [
             Expect.isSome (child.TryGetFragmentSelectorProvider("test/range"))
                 "child lookup should resolve through the shared root while attached"
 
+    ]
+
+    testList "RFC 7111 CSV provider" [
+
+        testList "parsing" [
+
+            let provider = CsvFragmentSelectorProvider()
+
+            let parse text =
+                provider.TryParse text
+
+            let roundtrip text =
+                parse text
+                |> Option.map provider.ToSelectorString
+
+            testCase "parses row selector" <| fun _ ->
+                Expect.equal
+                    (parse "row=4")
+                    (Some (RowSelector [{ First = Index 4; Last = Index 4 }]))
+                    "single row selector"
+
+            testCase "parses row range with last position" <| fun _ ->
+                Expect.equal
+                    (parse "#row=5-*")
+                    (Some (RowSelector [{ First = Index 5; Last = Last }]))
+                    "row range to last row"
+
+            testCase "parses column selector and column range" <| fun _ ->
+                Expect.equal
+                    (parse "col=2;4-6")
+                    (Some (ColumnSelector [
+                        { First = Index 2; Last = Index 2 }
+                        { First = Index 4; Last = Index 6 }
+                    ]))
+                    "column multi-selection"
+
+            testCase "parses single cell selector" <| fun _ ->
+                Expect.equal
+                    (parse "cell=4,1")
+                    (Some (CellSelector [
+                        {
+                            Rows = { First = Index 4; Last = Index 4 }
+                            Columns = { First = Index 1; Last = Index 1 }
+                        }
+                    ]))
+                    "single cell selector"
+
+            testCase "parses cell rectangle selector" <| fun _ ->
+                Expect.equal
+                    (parse "cell=4,1-6,2")
+                    (Some (CellSelector [
+                        {
+                            Rows = { First = Index 4; Last = Index 6 }
+                            Columns = { First = Index 1; Last = Index 2 }
+                        }
+                    ]))
+                    "cell rectangle selector"
+
+            testCase "parses cell selector with last row and column" <| fun _ ->
+                Expect.equal
+                    (parse "cell=5,2-*,*")
+                    (Some (CellSelector [
+                        {
+                            Rows = { First = Index 5; Last = Last }
+                            Columns = { First = Index 2; Last = Last }
+                        }
+                    ]))
+                    "cell rectangle ending at the last row and column"
+
+            testCase "rejects invalid selector syntax" <| fun _ ->
+                Expect.isNone (parse "col=0") "positions are one-based"
+                Expect.isNone (parse "row=10-5") "inverse row range"
+                Expect.isNone (parse "cell=10,10-5,5") "inverse cell range"
+                Expect.isNone (parse "col=2-") "missing range end"
+                Expect.isNone (parse "row=1;;3") "empty multi-selection item"
+                Expect.isNone (parse "ROW=1") "scheme is lowercase"
+
+            testCase "roundtrips normalized row selectors" <| fun _ ->
+                Expect.equal (roundtrip "#row=4") (Some "row=4") "single row drops leading #"
+                Expect.equal (roundtrip "row=5-*") (Some "row=5-*") "row range to last row"
+                Expect.equal (roundtrip "row=3;6") (Some "row=3;6") "row multi-selection"
+
+            testCase "roundtrips normalized column selectors" <| fun _ ->
+                Expect.equal (roundtrip "#col=2") (Some "col=2") "single column drops leading #"
+                Expect.equal (roundtrip "col=1-2") (Some "col=1-2") "column range"
+                Expect.equal (roundtrip "col=2;4-6;*") (Some "col=2;4-6;*") "column multi-selection with last column"
+
+            testCase "roundtrips normalized cell selectors" <| fun _ ->
+                Expect.equal (roundtrip "#cell=4,1") (Some "cell=4,1") "single cell drops leading #"
+                Expect.equal (roundtrip "cell=4,1-6,2") (Some "cell=4,1-6,2") "cell rectangle"
+                Expect.equal (roundtrip "cell=5,2-*,*") (Some "cell=5,2-*,*") "cell rectangle to last row and column"
+
+            testCase "roundtrip normalizes position whitespace" <| fun _ ->
+                Expect.equal (roundtrip " row= 5 - * ") (Some "row=5-*") "row range whitespace"
+                Expect.equal (roundtrip "cell= 4 , 1 - 6 , 2") (Some "cell=4,1-6,2") "cell coordinate whitespace"
+        ]
+
+        testCase "uses the RFC 7111 selectorFormat URI" <| fun _ ->
+            let provider = CsvFragmentSelectorProvider()
+            Expect.equal provider.SelectorFormat CsvFragmentSelectorProvider.SelectorFormatUri
+                "CSV provider should advertise the RFC 7111 selector format URI"
+
+        testCase "parses selectors with or without leading fragment marker" <| fun _ ->
+            let ds = datasetWithCsvProvider ()
+            let a = Data("file.csv", selector = "col=2-11", selectorFormat = CsvFragmentSelectorProvider.SelectorFormatUri)
+            let b = Data("file.csv", selector = "#col=2-11", selectorFormat = CsvFragmentSelectorProvider.SelectorFormatUri)
+            Expect.equal (relateWith ds a b) Exact "leading # is accepted but not semantically significant"
+
+        testCase "column range contains column member" <| fun _ ->
+            let ds = datasetWithCsvProvider ()
+            let columns = Data("file.csv", selector = "col=2-11", selectorFormat = CsvFragmentSelectorProvider.SelectorFormatUri)
+            let column = Data("file.csv", selector = "col=4", selectorFormat = CsvFragmentSelectorProvider.SelectorFormatUri)
+            Expect.equal (relateWith ds columns column) Contains "column ranges contain inner columns"
+
+        testCase "row range contains cell selection by row" <| fun _ ->
+            let ds = datasetWithCsvProvider ()
+            let rows = Data("file.csv", selector = "row=2-4", selectorFormat = CsvFragmentSelectorProvider.SelectorFormatUri)
+            let cell = Data("file.csv", selector = "cell=3,8", selectorFormat = CsvFragmentSelectorProvider.SelectorFormatUri)
+            Expect.equal (relateWith ds rows cell) Contains "row ranges contain cells in selected rows"
+
+        testCase "column range contains cell selection by column" <| fun _ ->
+            let ds = datasetWithCsvProvider ()
+            let columns = Data("file.csv", selector = "col=2-4", selectorFormat = CsvFragmentSelectorProvider.SelectorFormatUri)
+            let cell = Data("file.csv", selector = "cell=10,3", selectorFormat = CsvFragmentSelectorProvider.SelectorFormatUri)
+            Expect.equal (relateWith ds columns cell) Contains "column ranges contain cells in selected columns"
+
+        testCase "cell rectangle contains inner cell rectangle" <| fun _ ->
+            let ds = datasetWithCsvProvider ()
+            let outer = Data("file.csv", selector = "cell=4,1-6,2", selectorFormat = CsvFragmentSelectorProvider.SelectorFormatUri)
+            let inner = Data("file.csv", selector = "cell=5,2", selectorFormat = CsvFragmentSelectorProvider.SelectorFormatUri)
+            Expect.equal (relateWith ds outer inner) Contains "cell rectangles contain inner cells"
+
+        testCase "semicolon multi-selection contains selected member" <| fun _ ->
+            let ds = datasetWithCsvProvider ()
+            let rows = Data("file.csv", selector = "row=3;6", selectorFormat = CsvFragmentSelectorProvider.SelectorFormatUri)
+            let row = Data("file.csv", selector = "row=6", selectorFormat = CsvFragmentSelectorProvider.SelectorFormatUri)
+            Expect.equal (relateWith ds rows row) Contains "multi-selections are treated as a union"
+
+        testCase "disjoint CSV fragments do not connect" <| fun _ ->
+            let ds = datasetWithCsvProvider ()
+            let left = Data("file.csv", selector = "col=1-2", selectorFormat = CsvFragmentSelectorProvider.SelectorFormatUri)
+            let right = Data("file.csv", selector = "col=4-5", selectorFormat = CsvFragmentSelectorProvider.SelectorFormatUri)
+            Expect.equal (relateWith ds left right) Disjoint "non-overlapping column ranges are disjoint"
+
+        testCase "overlapping CSV fragments are unknown without containment" <| fun _ ->
+            let ds = datasetWithCsvProvider ()
+            let left = Data("file.csv", selector = "col=1-3", selectorFormat = CsvFragmentSelectorProvider.SelectorFormatUri)
+            let right = Data("file.csv", selector = "col=3-5", selectorFormat = CsvFragmentSelectorProvider.SelectorFormatUri)
+            Expect.equal (relateWith ds left right) Unknown "overlap without containment remains opaque to traversal"
+
+        testCase "star range contains later concrete selector" <| fun _ ->
+            let ds = datasetWithCsvProvider ()
+            let tail = Data("file.csv", selector = "row=5-*", selectorFormat = CsvFragmentSelectorProvider.SelectorFormatUri)
+            let row = Data("file.csv", selector = "row=10", selectorFormat = CsvFragmentSelectorProvider.SelectorFormatUri)
+            Expect.equal (relateWith ds tail row) Contains "star is treated as an open-ended last-position bound"
+
+        testCase "syntax errors remain opaque" <| fun _ ->
+            let ds = datasetWithCsvProvider ()
+            let bad = Data("file.csv", selector = "col=2-", selectorFormat = CsvFragmentSelectorProvider.SelectorFormatUri)
+            let good = Data("file.csv", selector = "col=2", selectorFormat = CsvFragmentSelectorProvider.SelectorFormatUri)
+            Expect.equal (relateWith ds bad good) Unknown "invalid RFC 7111 syntax does not guess a relation"
     ]
 
     testList "Traversal" [
@@ -341,6 +507,19 @@ let tests = testList "Fragment selectors" [
             Expect.isFalse (scoped.Contains("M:Source1")) "out-of-scope related edge excluded"
             Expect.isTrue (scoped.Contains("M:Source2")) "in-scope related edge included"
 
+
+        testCase "registered CSV provider enables traversal through RFC 7111 column containment" <| fun _ ->
+            let source = Material("Source")
+            let columns = Data("file.csv", selector = "#col=2-11", selectorFormat = CsvFragmentSelectorProvider.SelectorFormatUri)
+            let p = LabProcess("produce-columns")
+            p.AddInputMaterial(source)
+            p.AddOutputData(columns)
+            let ds = datasetWithCsvProvider ()
+            ds.AddProcess(p)
+
+            let column = Data("file.csv", selector = "#col=4", selectorFormat = CsvFragmentSelectorProvider.SelectorFormatUri)
+            let upstream = ds.NodesUpstreamOf(DataNode column) |> keys
+            Expect.isTrue (upstream.Contains("M:Source")) "CSV resolver connects contained RFC 7111 fragments"
 
     ]
 ]
