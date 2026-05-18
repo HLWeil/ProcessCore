@@ -9,7 +9,252 @@
     height: auto;
     max-width: 100%;
   }
+
+  /* Sidebar helpers for the DOM transform below. fsdocs emits a flat list of
+     category headers and items; we regroup selected sections after render. */
+  #fsdocs-main-menu .nav-category,
+  #fsdocs-main-menu .nav-category-group,
+  #menu-toggle .nav-category,
+  #menu-toggle .nav-category-group {
+    list-style: none;
+  }
+
+  #fsdocs-main-menu .nav-category-details > summary.nav-category-summary,
+  #menu-toggle .nav-category-details > summary.nav-category-summary {
+    align-items: center;
+    color: var(--menu-color);
+    cursor: pointer;
+    display: flex;
+    font-size: var(--font-200);
+    justify-content: space-between;
+    list-style: none;
+    overflow-x: hidden;
+    padding: var(--spacing-100);
+    text-decoration: none;
+    text-overflow: ellipsis;
+  }
+
+  #fsdocs-main-menu .nav-category-details > summary.nav-category-summary::-webkit-details-marker,
+  #menu-toggle .nav-category-details > summary.nav-category-summary::-webkit-details-marker {
+    display: none;
+  }
+
+  #fsdocs-main-menu .nav-category-details > summary.nav-category-summary:hover,
+  #menu-toggle .nav-category-details > summary.nav-category-summary:hover {
+    background-color: var(--menu-item-hover-background);
+    color: var(--menu-item-hover-color);
+  }
+
+  #fsdocs-main-menu .nav-category-details > summary.nav-category-summary::after,
+  #menu-toggle .nav-category-details > summary.nav-category-summary::after {
+    border-bottom: 2px solid currentColor;
+    border-right: 2px solid currentColor;
+    content: "";
+    flex: 0 0 auto;
+    height: 0.45rem;
+    margin-left: 0.75rem;
+    transform: rotate(45deg);
+    transition: transform 0.15s ease;
+    width: 0.45rem;
+  }
+
+  #fsdocs-main-menu .nav-category-details:not([open]) > summary.nav-category-summary::after,
+  #menu-toggle .nav-category-details:not([open]) > summary.nav-category-summary::after {
+    transform: rotate(-45deg);
+  }
+
+  #fsdocs-main-menu .nav-category-items,
+  #menu-toggle .nav-category-items {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  #fsdocs-main-menu .nav-subcategory .nav-category-items,
+  #menu-toggle .nav-subcategory .nav-category-items {
+    margin-left: 0.75rem;
+  }
 </style>
+<script>
+  (() => {
+    // Declarative sidebar groups. Keep this list small and limited to cases
+    // where the generated fsdocs category list needs a clearer hierarchy.
+    const groupedCategories = [
+      {
+        label: "Decorations",
+        overviewPathSuffix: "/spec/decorations/overview",
+        categories: ["ISA Decoration", "Workflow Run Decoration", "Datamap Decoration"],
+      },
+    ];
+
+    const normalizeLabel = (value) =>
+      (value || "").replace(/\s+/g, " ").trim();
+
+    // Compare links independent of .html suffixes and index pages, so this
+    // works in both generated docs and watch mode.
+    const normalizePath = (value) => {
+      try {
+        const url = new URL(value, window.location.href);
+        return url.pathname
+          .replace(/\/index\.html$/i, "/")
+          .replace(/\.html$/i, "")
+          .toLowerCase();
+      } catch {
+        return "";
+      }
+    };
+
+    // A category block is the header plus all nav items until the next header.
+    const collectCategoryItems = (categoryItem) => {
+      const items = [];
+      let sibling = categoryItem.nextElementSibling;
+
+      while (sibling && !sibling.classList.contains("nav-header")) {
+        const next = sibling.nextElementSibling;
+        items.push(sibling);
+        sibling = next;
+      }
+
+      return items;
+    };
+
+    const categoryContainsCurrentPage = (items, currentPath) =>
+      items.some((item) =>
+        Array.from(item.querySelectorAll("a.nav-link[href]"))
+          .some((link) => normalizePath(link.getAttribute("href")) === currentPath)
+      );
+
+    const findCategoryHeader = (menu, category) =>
+      Array.from(menu.children)
+        .find((item) =>
+          item.classList.contains("nav-header") &&
+          normalizeLabel(item.textContent) === category
+        );
+
+    // The Decorations overview is authored under the Specification category
+    // but should appear as the first item of the synthesized Decorations group.
+    const findNavItemByPathSuffix = (menu, pathSuffix) =>
+      Array.from(menu.children)
+        .find((item) =>
+          item.classList.contains("nav-item") &&
+          Array.from(item.querySelectorAll("a.nav-link[href]"))
+            .some((link) => normalizePath(link.getAttribute("href")).endsWith(pathSuffix))
+        );
+
+    const findPreviousHeader = (item) => {
+      let sibling = item.previousElementSibling;
+
+      while (sibling && !sibling.classList.contains("nav-header")) {
+        sibling = sibling.previousElementSibling;
+      }
+
+      return sibling;
+    };
+
+    const removeHeaderIfEmpty = (header) => {
+      const next = header.nextElementSibling;
+
+      if (!next || next.classList.contains("nav-header")) {
+        header.remove();
+      }
+    };
+
+    const createCollapsibleCategory = (category, items, currentPath) => {
+      const containsCurrentPage = categoryContainsCurrentPage(items, currentPath);
+      const categoryItem = document.createElement("li");
+      const details = document.createElement("details");
+      const summary = document.createElement("summary");
+      const itemList = document.createElement("ul");
+
+      categoryItem.className = "nav-category nav-subcategory nav-item";
+      details.className = "nav-category-details";
+      details.open = containsCurrentPage;
+      summary.className = "nav-link nav-category-summary";
+      summary.textContent = category;
+      itemList.className = "nav-category-items";
+
+      details.append(summary, itemList);
+      categoryItem.appendChild(details);
+      items.forEach((item) => itemList.appendChild(item));
+
+      return { item: categoryItem, containsCurrentPage };
+    };
+
+    const groupDecorationCategories = (menu, group, currentPath) => {
+      // Locate the original fsdocs category blocks before moving any nodes.
+      const categoryBlocks = group.categories
+        .map((category) => {
+          const header = findCategoryHeader(menu, category);
+
+          if (!header) {
+            return null;
+          }
+
+          return {
+            category,
+            header,
+            items: collectCategoryItems(header),
+            index: Array.from(menu.children).indexOf(header),
+          };
+        })
+        .filter(Boolean)
+        .sort((left, right) => left.index - right.index);
+
+      if (categoryBlocks.length === 0) {
+        return;
+      }
+
+      const groupHeader = document.createElement("li");
+      groupHeader.className = "nav-header nav-category-group";
+      groupHeader.textContent = group.label;
+
+      const overviewItem = findNavItemByPathSuffix(menu, group.overviewPathSuffix);
+      const overviewSourceHeader = overviewItem ? findPreviousHeader(overviewItem) : null;
+      let insertionPoint = groupHeader;
+
+      categoryBlocks[0].header.replaceWith(groupHeader);
+
+      // Insert the overview before the nested decoration categories.
+      if (overviewItem) {
+        insertionPoint.after(overviewItem);
+        insertionPoint = overviewItem;
+
+        if (overviewSourceHeader && overviewSourceHeader.isConnected) {
+          removeHeaderIfEmpty(overviewSourceHeader);
+        }
+      }
+
+      categoryBlocks.forEach((block) => {
+        const { item } = createCollapsibleCategory(block.category, block.items, currentPath);
+        insertionPoint.after(item);
+        insertionPoint = item;
+
+        if (block.header.isConnected) {
+          block.header.remove();
+        }
+      });
+    };
+
+    const configureSidebarCategories = () => {
+      const currentPath = normalizePath(window.location.href);
+
+      // Apply the same grouping to the desktop sidebar and mobile menu.
+      document.querySelectorAll("#fsdocs-main-menu > ul.menu, #menu-toggle > ul.menu").forEach((menu) => {
+        groupedCategories.forEach((group) =>
+          groupDecorationCategories(menu, group, currentPath)
+        );
+      });
+    };
+
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", configureSidebarCategories);
+    } else {
+      configureSidebarCategories();
+    }
+  })();
+</script>
+<!-- Render Mermaid code fences as diagrams. fsdocs leaves them as code blocks,
+     so this small adapter swaps them to <pre class="mermaid"> before Mermaid runs. -->
 <script type="module">
   import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
 

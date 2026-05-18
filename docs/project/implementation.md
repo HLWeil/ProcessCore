@@ -20,6 +20,10 @@ The repository now includes F# implementation projects in addition to the markdo
 | `src/ProcessCore.SQL.Python` | SQLite adapter for Fable Python output backed by stdlib `sqlite3` | Python |
 | `tests/ProcessCore.SQL.Tests` | Shared Pyxpecto tests | .NET, JavaScript, Python |
 
+## ProcessCore User Documentation
+
+The F# object model, YAML codec, graph traversal helpers, fragment selector providers, and table views are documented in the [ProcessCore user guide](ProcessCore/index.md).
+
 ## SQL Profile
 
 The SQL profile artifacts live in `schemas/sql/`:
