@@ -1,3 +1,4 @@
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.11.1/build/styles/github.min.css">
 <style>
   .mermaid {
     margin: 1rem 0;
@@ -73,6 +74,35 @@
   #fsdocs-main-menu .nav-subcategory .nav-category-items,
   #menu-toggle .nav-subcategory .nav-category-items {
     margin-left: 0.75rem;
+  }
+
+  /* Highlight.js decorates generated YAML blocks in-place. */
+  pre code.hljs {
+    background: transparent;
+    padding: 0;
+  }
+
+  pre code.hljs .hljs-attr {
+    color: #0969da !important;
+  }
+
+  pre code.hljs .hljs-string {
+    color: #7a3e00 !important;
+  }
+
+  pre code.hljs .hljs-number,
+  pre code.hljs .hljs-literal {
+    color: #1a7f37 !important;
+  }
+
+  pre code.hljs .hljs-meta,
+  pre code.hljs .hljs-comment {
+    color: #6e7781 !important;
+    font-style: italic;
+  }
+
+  pre code.hljs .hljs-bullet {
+    color: #9a6700 !important;
   }
 </style>
 <script>
@@ -252,6 +282,33 @@
       configureSidebarCategories();
     }
   })();
+</script>
+<!-- Highlight generated YAML blocks. Raw include-it output bypasses fsdocs'
+     Markdown code-fence formatting, so this adapter mirrors the Mermaid one:
+     find language-marked blocks after render and enhance them in place. -->
+<script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.11.1/build/highlight.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.11.1/build/languages/yaml.min.js"></script>
+<script>
+  const highlightYamlBlocks = () => {
+    if (!window.hljs) {
+      return;
+    }
+
+    document.querySelectorAll("pre > code[lang='yaml'], pre > code[lang='yml'], pre > code.language-yaml, pre > code.language-yml").forEach((code) => {
+      if (code.dataset.highlighted === "yes") {
+        return;
+      }
+
+      code.classList.add("language-yaml");
+      window.hljs.highlightElement(code);
+    });
+  };
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", highlightYamlBlocks);
+  } else {
+    highlightYamlBlocks();
+  }
 </script>
 <!-- Render Mermaid code fences as diagrams. fsdocs leaves them as code blocks,
      so this small adapter swaps them to <pre class="mermaid"> before Mermaid runs. -->

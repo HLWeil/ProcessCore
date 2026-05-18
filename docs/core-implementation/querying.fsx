@@ -20,14 +20,14 @@ This walkthrough loads the proteomics assay example and follows provenance from 
 open ProcessCore
 
 let ymlString =
-    System.IO.Path.Combine(__SOURCE_DIRECTORY__, "../../../examples/isa/assay_proteomics.yml")
+    System.IO.Path.Combine(__SOURCE_DIRECTORY__, "../../examples/isa/assay_proteomics.yml")
     |> System.IO.File.ReadAllText
 
 (*** hide ***)
 let ymlCodeBlock =
     ymlString
     |> System.Net.WebUtility.HtmlEncode
-    |> sprintf "<pre class=\"fssnip\"><code lang=\"yaml\" class=\"language-yaml\">%s</code></pre>"
+    |> sprintf "<pre><code lang=\"yaml\" class=\"language-yaml\">%s</code></pre>"
 
 (**
 <details>

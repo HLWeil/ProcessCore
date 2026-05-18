@@ -40,7 +40,7 @@ let pvSummary (pv: PropertyValue) =
 let yamlCodeBlock summary (text: string) =
     text
     |> System.Net.WebUtility.HtmlEncode
-    |> sprintf "<details><summary>%s</summary><pre class=\"fssnip\"><code lang=\"yaml\" class=\"language-yaml\">%s</code></pre></details>" summary
+    |> sprintf "<details><summary>%s</summary><pre><code lang=\"yaml\" class=\"language-yaml\">%s</code></pre></details>" summary
 
 (**
 ## Typed Decorations

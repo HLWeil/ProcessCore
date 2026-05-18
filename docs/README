@@ -41,10 +41,12 @@ library usage.
 
 ## `_head.html` Customization
 
-`_head.html` currently adds two site-wide behaviors:
+`_head.html` currently adds three site-wide behaviors:
 
 - Mermaid support: code fences marked as Mermaid are converted to Mermaid
   diagram blocks before Mermaid renders them.
+- YAML highlighting: raw generated YAML blocks marked with `language-yaml` or
+  `lang="yaml"` are highlighted in the browser with Highlight.js.
 - Sidebar regrouping: fsdocs emits a flat list of category headers and links.
   A small DOM transform groups `ISA Decoration`, `Workflow Run Decoration`, and
   `Datamap Decoration` under a synthetic `Decorations` heading. It also moves

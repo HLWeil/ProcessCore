@@ -22,7 +22,7 @@ open ProcessCore
 let yamlCodeBlock summary (text: string) =
     text
     |> System.Net.WebUtility.HtmlEncode
-    |> sprintf "<details><summary>%s</summary><pre class=\"fssnip\"><code lang=\"yaml\" class=\"language-yaml\">%s</code></pre></details>" summary
+    |> sprintf "<details><summary>%s</summary><pre><code lang=\"yaml\" class=\"language-yaml\">%s</code></pre></details>" summary
 
 let firstLine (text: string) =
     text.Split([| '\r'; '\n' |], StringSplitOptions.RemoveEmptyEntries)
@@ -34,7 +34,7 @@ Load a profile-shaped assay example. Passing `false` means lenient mode: type de
 *)
 
 let assayYaml =
-    System.IO.Path.Combine(__SOURCE_DIRECTORY__, "../../../examples/isa/assay_proteomics.yml")
+    System.IO.Path.Combine(__SOURCE_DIRECTORY__, "../../examples/isa/assay_proteomics.yml")
     |> System.IO.File.ReadAllText
 
 (*** hide ***)
