@@ -16,17 +16,16 @@ This walkthrough builds a small process graph from F# objects. The goal is to sh
 #r "nuget: DynamicObj"
 open ProcessCore
 
-let pv name value additionalType =
-    let p = PropertyValue(name)
-    p.Value <- Some value
-    p.AdditionalType <- Some additionalType
-    p
-
-let nodeLabel = function
-    | MaterialNode m -> "Material: " + m.Name
-    | DataNode d -> "Data: " + d.Path + (d.Selector |> Option.defaultValue "")
+(*** hide ***)
+let mermaidBlock (text: string) =
+    text.Trim()
+    |> System.Net.WebUtility.HtmlEncode
+    |> sprintf "<pre class=\"mermaid\">%s</pre>"
 
 (**
+
+#### Dataset
+
 Start with a dataset. Administrative metadata is optional, but an identifier is the stable handle for the dataset.
 *)
 
@@ -35,76 +34,76 @@ dataset.Name <- Some "Minimal ProcessCore example"
 dataset.Description <- Some "One extraction process with nested quality control."
 
 (**
-A protocol describes the method. Formal parameters define expected knobs; process parameter values record what happened in a concrete process.
+#### LabProtocol
+
+A protocol describes the method. Formal parameters define expected knobs, for which values should be provided when the protocol is executed. 
 *)
 
 let protocol = LabProtocol()
+let temperature = FormalParameter("temperature")
 protocol.Name <- Some "Extraction"
 protocol.IntendedUse <- Some (DefinedTerm("sample extraction"))
-protocol.AddParameter(FormalParameter("buffer"))
-protocol.AddLabEquipment(pv "centrifuge" "Eppendorf 5420" "Component")
-
-let buffer = pv "buffer" "PBS" "ParameterValue"
+protocol.AddParameter(temperature)
 
 (**
-Inputs and outputs are `Material` or `Data` nodes. Node-level property values are useful for characteristics and factors.
+Components are non-transformed entities in a protocol, such as machines or reagents. 
+*)
+
+let centrifuge = PropertyValue(name = "centrifuge", value = "Eppendorf 5420")
+let buffer = PropertyValue(name = "buffer", value = "PBS")
+
+protocol.AddLabEquipment(centrifuge)
+protocol.AddLabEquipment(buffer)
+
+(**
+#### LabProcess
+
+LabProcesses are the core of the process graph. They are concrete executions of a protocol, with specific parameter values, and input and output entities.
+
+First, we define input and output, i.e. `Material` or `Data` nodes. 
 *)
 
 let leaf = Material("Leaf tissue")
-leaf.AdditionalType <- Some "Source"
-leaf.AddAdditionalProperty(pv "organism" "Arabidopsis thaliana" "CharacteristicValue")
 
-let extract = Data("raw/extract.tsv")
-extract.EncodingFormat <- Some "text/tab-separated-values"
+let extractData = Data("raw/extract.csv")
+extractData.EncodingFormat <- Some "text/csv"
 
 (**
-A `LabProcess` connects inputs to outputs. Adding the process to the dataset also sets the `ProcessOf` back-edge and canonicalizes its nodes against the dataset registry.
+A `LabProcess` connects those inputs to outputs. We also attach parameter values to the process, which should correspond to the protocol's formal parameters.
 *)
 
 let extraction = LabProcess("Extraction")
+let degrees25 = PropertyValue(name = "temperature", value = "25", unit = "degree Celsius", instanceOf = temperature)
 extraction.ExecutesProtocol <- Some protocol
 extraction.AddInputMaterial(leaf)
-extraction.AddOutputData(extract)
-extraction.AddParameterValue(buffer)
+extraction.AddOutputData(extractData)
+extraction.AddParameterValue(degrees25)
 
 dataset.AddProcess(extraction)
 
-let firstShape =
-    [ "processes", dataset.Processes.Count
-      "materials", dataset.AllMaterials().Count
-      "data", dataset.AllData().Count
-      "parameters on process", extraction.ParameterValue.Count
-      "protocol components", protocol.LabEquipment.Count ]
 
-firstShape
-(*** include-it ***)
 
 (**
+
+#### Nested Datasets
+
 Datasets can contain child datasets. When a child dataset is added, its process nodes are re-canonicalized against the root dataset.
 *)
 
 let child = Dataset("qc-dataset")
 child.Name <- Some "Quality control"
 
-let qcInput = Data("raw/extract.tsv")
 let qcReport = Data("qc/extract-report.tsv")
 
 let qc = LabProcess("Quality Control")
-qc.AddInputData(qcInput)
+qc.AddInputData(extractData)
 qc.AddOutputData(qcReport)
-qc.AddParameterValue(pv "threshold" "0.95" "ParameterValue")
+let threshold = FormalParameter("threshold")
+let threshold95 = PropertyValue(name = "threshold", value = "0.95", instanceOf = threshold)
+qc.AddParameterValue(threshold95)
 
 child.AddProcess(qc)
 dataset.AddPart(child)
-
-let nestedShape =
-    [ "direct processes", dataset.Processes.Count
-      "child datasets", dataset.HasPart.Count
-      "all processes", dataset.AllProcesses().Count
-      "all data nodes", dataset.AllData().Count ]
-
-nestedShape
-(*** include-it ***)
 
 (**
 The parent process output and the child process input are the same logical `Data` node: same path, no selector. After `AddPart`, they are also the same object instance in the root dataset.
@@ -116,7 +115,7 @@ let qcInputAfterAttach =
     | MaterialNode _ -> failwith "Expected data input"
 
 let sharedDataIdentity =
-    obj.ReferenceEquals(extract, qcInputAfterAttach)
+    obj.ReferenceEquals(extractData, qcInputAfterAttach)
 
 sharedDataIdentity
 (*** include-it ***)
@@ -127,7 +126,7 @@ The graph is now queryable from either the dataset or any node.
 
 let finalNodes =
     dataset.FinalNodes()
-    |> Seq.map nodeLabel
+    |> Seq.map (fun n -> n.Key())
     |> Seq.toList
 
 finalNodes

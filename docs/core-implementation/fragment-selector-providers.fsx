@@ -3,7 +3,7 @@
 title: Fragment Selector Providers
 category: Core Implementation
 categoryindex: 3
-index: 5
+index: 6
 ---
 
 # Fragment Selector Providers
@@ -16,33 +16,44 @@ index: 5
 #r "nuget: DynamicObj"
 open ProcessCore
 
-let csvSelectorFormat = CsvFragmentSelectorProvider.SelectorFormatUri
-
-let data path selector =
-    let d = Data(path)
-    d.Selector <- Some selector
-    d.SelectorFormat <- Some csvSelectorFormat
-    d.EncodingFormat <- Some "text/csv"
-    d
-
-let materialNames (materials: seq<Material>) =
-    materials |> Seq.map (fun m -> m.Name) |> Seq.toList
-
 (**
-The built-in CSV provider understands RFC 7111 row, column, and cell selectors.
+
+### CSV Fragment Selector
+
+The built-in CSV provider understands [RFC 7111](https://tools.ietf.org/html/rfc7111) row, column, and cell selectors.
+
+With the provider, we can read and write textual selectors into their typed representation.
 *)
 
 let provider = CsvFragmentSelectorProvider()
-let resolver = provider :> IFragmentSelectorProvider
+
+let columnSelector = provider.TryParse "col=1-3"
+
+(*** include-value: columnSelector ***)
+
+let cellSelector = provider.TryParse "cell=2,2"
+
+(*** include-value: cellSelector ***)
+
+(** 
+
+The provider can also relate two selectors. The relation can be either `Exact`, `Contains`, or `Disjunct`.
+In this case, `col=1-3` contains `cell=2,2`. 
+
+*)
 
 
-let selectorRelations =
-    [ "same selector", provider.Relate (ColumnSelector [{ First = Index 1; Last = Index 3 }]) (ColumnSelector [{ First = Index 1; Last = Index 3 }])
-      "column contains cell", resolver.TryRelate "col=1-3" "cell=2,2" |> Option.defaultValue Unknown
-      "disjoint columns", resolver.TryRelate "col=1" "col=4" |> Option.defaultValue Unknown
-      "overlap without containment", resolver.TryRelate "col=1-3" "col=3-5" |> Option.defaultValue Unknown ]
 
-selectorRelations
+// same selector is exact match
+provider.Relate (columnSelector.Value) (columnSelector.Value)
+(*** include-it ***)
+
+// column contains cell
+provider.Relate (columnSelector.Value) (cellSelector.Value)
+(*** include-it ***)
+
+// disjoint columns
+provider.Relate (columnSelector.Value) ((provider.TryParse "col=4-6").Value)
 (*** include-it ***)
 
 (**
@@ -51,8 +62,8 @@ Providers matter when both data nodes have selectors. Without a registered provi
 
 let dataset = Dataset("fragment-demo")
 
-let exportedColumns = data "measurements.csv" "col=1-3"
-let measuredCell = data "measurements.csv" "cell=2,2"
+let exportedColumns = Data(path = "measurements.csv", selector = "col=1-3", selectorFormat = CsvFragmentSelectorProvider.SelectorFormatUri, encodingFormat = "text/csv")
+let measuredCell = Data(path = "measurements.csv", selector = "cell=2,2", selectorFormat = CsvFragmentSelectorProvider.SelectorFormatUri, encodingFormat = "text/csv")
 let interpretedSample = Material("Interpreted sample", additionalType = "Sample")
 
 let export = LabProcess("Export CSV")
@@ -67,7 +78,7 @@ dataset.AddProcess(interpret)
 
 let beforeRegistration =
     exportedColumns.DownstreamMaterials(scope = dataset.AllProcesses())
-    |> materialNames
+    |> Seq.map (fun m -> m.Name)
 
 beforeRegistration
 (*** include-it ***)
@@ -77,9 +88,10 @@ Register the provider on the dataset. Registration is stored on the root dataset
 *)
 
 dataset.RegisterFragmentSelectorProvider(provider)
+// dataset.RegisterFragmentSelectorProvider(provider :> IFragmentSelectorProvider) // also works when upcast to interface
 
 let registeredProvider =
-    dataset.TryGetFragmentSelectorProvider(csvSelectorFormat)
+    dataset.TryGetFragmentSelectorProvider(CsvFragmentSelectorProvider.SelectorFormatUri)
     |> Option.map (fun p -> p.SelectorFormat)
 
 registeredProvider
@@ -87,13 +99,19 @@ registeredProvider
 
 let afterRegistration =
     exportedColumns.DownstreamMaterials(scope = dataset.AllProcesses())
-    |> materialNames
+    |> Seq.map (fun m -> m.Name)
 
 afterRegistration
 (*** include-it ***)
 
 (**
-Custom selector languages implement `FragmentSelectorProviderBase<'Selector>`. The provider parses strings into a typed selector and returns a semantic relation.
+### Custom Fragment Selector Providers
+
+The idea behind the inclusion of generic fragment selectors syntax into the ProcessCore is so that any kind of fragment can be defined given a proper fragment selector specification.
+In the datamodel, this corresponds to an implementation of the `IFragmentSelectorProvider` interface, which can be registered on a dataset and will be used to relate any two selectors with the same `SelectorFormat`.
+
+Usually, you should inherit from `FragmentSelectorProviderBase<'Selector>`, which implements `IFragmentSelectorProvider` and requires parsers and typed comparers. 
+The provider parses strings into a typed selector and returns a semantic relation.
 *)
 
 type PrefixSelectorProvider() =

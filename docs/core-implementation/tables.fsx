@@ -3,7 +3,7 @@
 title: Tabular Views
 category: Core Implementation
 categoryindex: 3
-index: 6
+index: 7
 ---
 
 # Tabular Views Over Process Graphs

@@ -3,7 +3,7 @@
 title: Reading And Writing YAML
 category: Core Implementation
 categoryindex: 3
-index: 3
+index: 4
 ---
 
 # Reading And Writing YAML
