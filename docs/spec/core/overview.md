@@ -30,7 +30,7 @@ flowchart LR
     Dataset --hasPart--> Data
     Dataset --hasPart--> Dataset
     LabProcess --inputs--> Material
-    LabProcess --outputs--> Data
+    LabProcess --"outputs"--> Data
     LabProcess --executesProtocol--> LabProtocol
     LabProcess --parameterValue--> PropertyValue
     LabProtocol --parameters--> FormalParameter

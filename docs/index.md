@@ -15,6 +15,7 @@ Specification and implementation workspace for the ARC process data model. The p
 - [Normative specification](spec/index.md)
 - [Specification guide](project/specification.md)
 - [Implementation guide](project/implementation.md)
+- [Core Implementation guide](project/core_implementation/index.md)
 - [Examples and schemas](project/examples-and-schemas.md)
 - [Reference material](project/references.md)
 - [Prior art notes](project/prior-art.md)
