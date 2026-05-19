@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "transpile:js-tests": "dotnet fable tests/ProcessCore.SQL.Tests/ProcessCore.SQL.Tests.fsproj -o build/out/js-tests --lang JavaScript",
+    "transpile:js-tests": "dotnet fable tests/ProcessCore.Tests/ProcessCore.Tests.fsproj -o build/out/js-tests --lang JavaScript",
     "test:js": "npm run transpile:js-tests && node build/out/js-tests/Main.js --fail-on-focused-tests"
   },
   "devDependencies": {

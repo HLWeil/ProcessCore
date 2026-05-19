@@ -13,12 +13,8 @@ The repository now includes F# implementation projects in addition to the markdo
 
 | Project | Role | Runtime |
 |---------|------|---------|
-| `src/ProcessCore` | In-memory ProcessCore model, graph traversal, and table projection helpers | `netstandard2.0` |
-| `src/ProcessCore.SQL` | Shared SQL profile rows, row codecs, table descriptors, and CRUD facades | `net10.0`, Fable-friendly |
-| `src/ProcessCore.SQL.DotNet` | SQLite adapter backed by `Microsoft.Data.Sqlite` | .NET |
-| `src/ProcessCore.SQL.JavaScript` | SQLite adapter for Fable JavaScript output backed by `better-sqlite3` | Node.js |
-| `src/ProcessCore.SQL.Python` | SQLite adapter for Fable Python output backed by stdlib `sqlite3` | Python |
-| `tests/ProcessCore.SQL.Tests` | Shared Pyxpecto tests | .NET, JavaScript, Python |
+| `src/ProcessCore` | In-memory ProcessCore model, YAML codecs, SQL profile, graph traversal, and table projection helpers | .NET, JavaScript, Python |
+| `tests/ProcessCore.Tests` | Shared Pyxpecto tests for core, YAML, and SQL behavior | .NET, JavaScript, Python |
 
 ## ProcessCore User Documentation
 
@@ -33,7 +29,7 @@ The SQL profile artifacts live in `schemas/sql/`:
 - `seeded_core.sqlite` is the generated SQLite database.
 - `design.md` explains the relational design.
 
-`ProcessCore.SQL` mirrors the SQL profile:
+`ProcessCore.SQL` inside the consolidated `ProcessCore` project mirrors the SQL profile:
 
 - `Tables.fs` defines row types for tables and views.
 - `RowCodecs.fs` converts between `SqlRow` values and row types.
@@ -43,7 +39,7 @@ The SQL profile artifacts live in `schemas/sql/`:
 
 ## Runtime Adapters
 
-The shared SQL project does not own a concrete SQLite package. Runtime-specific packages live in adapter projects:
+Runtime-specific SQL drivers live in target-specific files under `src/ProcessCore/SQL/`:
 
 - .NET uses `Microsoft.Data.Sqlite`.
 - JavaScript uses `better-sqlite3` after Fable transpilation.

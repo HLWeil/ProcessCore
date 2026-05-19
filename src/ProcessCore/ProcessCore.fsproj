@@ -36,6 +36,7 @@
     <PackageReference Include="Fable.Core" />
     <PackageReference Include="YAMLicious" />
     <PackageReference Include="DynamicObj" />
+    <PackageReference Include="Microsoft.Data.Sqlite" />
   </ItemGroup>
 
 </Project>

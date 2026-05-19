@@ -29,11 +29,35 @@
     <Compile Include="Table/TableWrite.fs" />
     <Compile Include="Table/TablesApi.fs" />
     <Compile Include="Integration.fs" />
+    <Compile Include="YAML/Fixtures.fs" />
+    <Compile Include="YAML/Codecs/DefinedTerm.fs" />
+    <Compile Include="YAML/Codecs/FormalParameter.fs" />
+    <Compile Include="YAML/Codecs/PropertyValue.fs" />
+    <Compile Include="YAML/Codecs/Material.fs" />
+    <Compile Include="YAML/Codecs/Data.fs" />
+    <Compile Include="YAML/Codecs/LabProtocol.fs" />
+    <Compile Include="YAML/Codecs/LabProcess.fs" />
+    <Compile Include="YAML/Codecs/Dataset.fs" />
+    <Compile Include="YAML/Integration/RoundTrip.fs" />
+    <Compile Include="YAML/Integration/Overflow.fs" />
+    <Compile Include="YAML/Mode/StrictMode.fs" />
+    <Compile Include="YAML/Mode/LenientMode.fs" />
+    <Compile Include="YAML/Integration/Examples.fs" />
+    <Compile Include="YAML/Tests.fs" />
+    <Compile Include="SQL/Fixtures.fs" />
+    <Compile Include="SQL/TableModelTests.fs" />
+    <Compile Include="SQL/RowCodecTests.fs" />
+    <Compile Include="SQL/DotNetDriverTests.fs" />
+    <Compile Include="SQL/RepositoryCrudTests.fs" />
+    <Compile Include="SQL/Tests.fs" />
     <Compile Include="Main.fs" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\ProcessCore\ProcessCore.fsproj" />
+    <ProjectReference Condition="'$(FABLE_COMPILER)' != 'true'" Include="..\..\src\ProcessCore\ProcessCore.fsproj" />
+    <ProjectReference Condition="'$(FABLE_COMPILER_JAVASCRIPT)' == 'true'" Include="..\..\src\ProcessCore\ProcessCore.Javascript.fsproj" />
+    <ProjectReference Condition="'$(FABLE_COMPILER_TYPESCRIPT)' == 'true'" Include="..\..\src\ProcessCore\ProcessCore.Javascript.fsproj" />
+    <ProjectReference Condition="'$(FABLE_COMPILER_PYTHON)' == 'true'" Include="..\..\src\ProcessCore\ProcessCore.Python.fsproj" />
     <PackageReference Include="Fable.Pyxpecto" />
   </ItemGroup>
 </Project>

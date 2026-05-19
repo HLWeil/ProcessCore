@@ -48,7 +48,7 @@ let tests = testList "Dataset" [
         let yaml = "type: Dataset\nidentifier: DS-1\nid: some-other-id\n"
         let ds   = Yaml.Dataset.fromYamlString false yaml
         Expect.equal ds.Identifier "DS-1" "identifier not overridden by id"
-        let overflowId = ds.TryGetTypedPropertyValue<string>("id")
+        let overflowId = ds.TryGetPropertyValue("id") |> Option.map string
         Expect.isSome overflowId "id stored in overflow"
         Expect.equal overflowId (Some "some-other-id") "id overflow value"
 

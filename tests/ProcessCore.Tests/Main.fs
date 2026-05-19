@@ -36,6 +36,8 @@ let all =
             Table.TableRead.tests
             Table.TableWrite.tests
             Table.TablesApi.tests
+            ProcessCore.Yaml.Tests.All.all
+            ProcessCore.SQL.Tests.All.all
         ]
 
 [<EntryPoint>]

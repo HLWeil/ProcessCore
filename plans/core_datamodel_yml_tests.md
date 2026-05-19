@@ -1,7 +1,7 @@
 # ProcessCore.YAML Test Plan
 
 This document describes the test suite for the YAML support built into the `src/ProcessCore` library.
-Tests live in `tests/ProcessCore.YAML.Tests/` and use [Fable.Pyxpecto](https://github.com/Freymaurer/Fable.Pyxpecto), matching the pattern of `tests/ProcessCore.Tests/`.
+Tests live in `tests/ProcessCore.Tests/YAML/` and use [Fable.Pyxpecto](https://github.com/Freymaurer/Fable.Pyxpecto), matching the pattern of `tests/ProcessCore.Tests/`.
 
 ## Goals
 
@@ -17,33 +17,34 @@ Tests live in `tests/ProcessCore.YAML.Tests/` and use [Fable.Pyxpecto](https://g
 ## Running the Tests
 
 ```
-dotnet .\tests\ProcessCore.YAML.Tests\bin\Debug\net10.0\ProcessCore.YAML.Tests.dll
+dotnet run --project .\tests\ProcessCore.Tests\ProcessCore.Tests.fsproj
 ```
 
 ## Test Structure
 
 ```
-tests/ProcessCore.YAML.Tests/
-    Main.fs                        ← entry point, collects all test lists
-    Fixtures.fs                    ← shared YAML strings and pre-built objects
-    Codecs/
-        DefinedTerm.fs
-        FormalParameter.fs
-        PropertyValue.fs
-        Material.fs
-        Data.fs
-        LabProtocol.fs
-        LabProcess.fs
-        Dataset.fs
-    Integration/
-        RoundTrip.fs               ← full graph encode → decode
-        Examples.fs                ← parses files from examples/isa/
-        Overflow.fs                ← DynamicObj extension field tests
-    Mode/
-        StrictMode.fs              ← processCoreOnly = true rejection tests
-        LenientMode.fs             ← processCoreOnly = false acceptance tests
+tests/ProcessCore.Tests/
+    Main.fs                        <- entry point, collects core, YAML, and SQL test lists
+    YAML/
+        Tests.fs                   <- YAML test list
+        Fixtures.fs                <- shared YAML strings and pre-built objects
+        Codecs/
+            DefinedTerm.fs
+            FormalParameter.fs
+            PropertyValue.fs
+            Material.fs
+            Data.fs
+            LabProtocol.fs
+            LabProcess.fs
+            Dataset.fs
+        Integration/
+            RoundTrip.fs           <- full graph encode -> decode
+            Examples.fs            <- parses files from examples/isa/
+            Overflow.fs            <- DynamicObj extension field tests
+        Mode/
+            StrictMode.fs          <- processCoreOnly = true rejection tests
+            LenientMode.fs         <- processCoreOnly = false acceptance tests
 ```
-
 ---
 
 ## Test Fixtures (`Fixtures.fs`)

@@ -7,15 +7,13 @@ let project = "ProcessCore"
 let pyxpectoTestProjects =
     [
         "tests/ProcessCore.Tests/ProcessCore.Tests.fsproj"
-        "tests/ProcessCore.YAML.Tests/ProcessCore.YAML.Tests.fsproj"
-        "tests/ProcessCore.SQL.Tests/ProcessCore.SQL.Tests.fsproj"
     ]
 
-let jsPyxpectoTestProject = "tests/ProcessCore.SQL.Tests/ProcessCore.SQL.Tests.fsproj"
+let jsPyxpectoTestProject = "tests/ProcessCore.Tests/ProcessCore.Tests.fsproj"
 
 let jsTestOutputDir = "build/out/js-tests"
 
-let pyPyxpectoTestProject = "tests/ProcessCore.SQL.Tests/ProcessCore.SQL.Tests.fsproj"
+let pyPyxpectoTestProject = "tests/ProcessCore.Tests/ProcessCore.Tests.fsproj"
 
 let pyTestOutputDir = "build/out/py-tests"
 

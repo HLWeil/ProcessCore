@@ -25,12 +25,10 @@ ARC-Data-Model/
 │   └── workflow-run/              placeholder for future Workflow Run examples
 ├── references/                   upstream profiles and preserved prior implementation notes
 ├── src/                          F# implementation projects
-│   ├── ProcessCore/
-│   ├── ProcessCore.SQL/
-│   ├── ProcessCore.SQL.DotNet/
-│   ├── ProcessCore.SQL.JavaScript/
-│   └── ProcessCore.SQL.Python/
+│   └── ProcessCore/              consolidated core, YAML, SQL, and Fable projects
 ├── tests/                        Pyxpecto tests
+│   ├── ProcessCore.Tests/        consolidated core, YAML, and SQL tests
+│   └── SpeedTest/
 └── build/                        FAKE build project and task modules
 ```
 
@@ -45,7 +43,7 @@ ARC-Data-Model/
 
 ## Tech Stack
 
-- F# / .NET projects in `src/`, currently targeting `netstandard2.0` for `ProcessCore` and `net10.0` for SQL projects.
+- F# / .NET projects in `src/`, currently centered on consolidated `ProcessCore` with Fable-specific project files beside it.
 - FAKE build project under `build/`.
 - fsdocs for generated documentation.
 - Pyxpecto tests, with Fable transpilation paths for JavaScript and Python.
