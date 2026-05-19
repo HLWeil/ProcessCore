@@ -1,6 +1,6 @@
 # ProcessCore.YAML Test Plan
 
-This document describes the test suite for the `src/ProcessCore.YAML` library.
+This document describes the test suite for the YAML support built into the `src/ProcessCore` library.
 Tests live in `tests/ProcessCore.YAML.Tests/` and use [Fable.Pyxpecto](https://github.com/Freymaurer/Fable.Pyxpecto), matching the pattern of `tests/ProcessCore.Tests/`.
 
 ## Goals

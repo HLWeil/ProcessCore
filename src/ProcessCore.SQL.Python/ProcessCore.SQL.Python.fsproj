@@ -12,6 +12,5 @@
 
   <ItemGroup>
     <ProjectReference Include="..\ProcessCore.SQL\ProcessCore.SQL.fsproj" />
-    <PackageReference Include="Fable.Core" Version="5.0.0" />
   </ItemGroup>
 </Project>

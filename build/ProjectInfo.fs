@@ -2,7 +2,7 @@ module ProjectInfo
 
 open Fake.Core
 
-let project = "ARC-Data-Model"
+let project = "ProcessCore"
 
 let pyxpectoTestProjects =
     [

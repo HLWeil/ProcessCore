@@ -16,6 +16,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Fable.Core" Version="5.0.0" />
+    <PackageReference Include="Fable.Core" />
+    <PackageReference Include="FSharp.Core" />
   </ItemGroup>
 </Project>

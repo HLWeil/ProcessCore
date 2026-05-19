@@ -1,4 +1,4 @@
-# YAML Parser Plan — ProcessCore.YML
+# YAML Parser Plan — ProcessCore.Yaml
 
 Encoder and decoder for all `ProcessCore` types to and from YAML, following the schemas defined in [`schemas/yml/`](../schemas/yml/).
 
@@ -17,7 +17,7 @@ Encoder and decoder for all `ProcessCore` types to and from YAML, following the 
 
 ## Overview
 
-The goal is a dedicated project `src/ProcessCore.YML/` that provides:
+The YAML implementation now lives inside `src/ProcessCore/` and provides:
 
 1. A **Helpers** module if necessary — low-level primitives like `references/YAMLParser/ROCrate/Helpers.fs`.
 2. Per-type **codec modules** (encoder + decoder pair), one module per `ProcessCore` type (Might be overuled by namespace level recursion requirements)
@@ -30,7 +30,7 @@ The parser targets Fable compatibility (JS, Python, .NET) and uses [YAMLicious](
 
 ## Project Setup
 
-**File:** `src/ProcessCore.YML/ProcessCore.YML.fsproj`
+**File:** `src/ProcessCore/ProcessCore.fsproj`
 
 ```xml
 <Project Sdk="Microsoft.NET.Sdk">
@@ -40,26 +40,28 @@ The parser targets Fable compatibility (JS, Python, .NET) and uses [YAMLicious](
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- Compilation order matters in F# -->
-    <Compile Include="Helpers.fs" />
+    <!-- Core model files first, then YAML codec files. Compilation order matters in F#. -->
     <Compile Include="DefinedTerm.fs" />
     <Compile Include="FormalParameter.fs" />
     <Compile Include="PropertyValue.fs" />
-    <Compile Include="Material.fs" />
-    <Compile Include="Data.fs" />
-    <Compile Include="LabProtocol.fs" />
-    <Compile Include="LabProcess.fs" />
-    <Compile Include="Dataset.fs" />
-    <Compile Include="Encode.fs" />
-    <Compile Include="Decode.fs" />
+    <Compile Include="FragmentSelector.fs" />
+    <Compile Include="Graph.fs" />
+    <Compile Include="YML\Helpers.fs" />
+    <Compile Include="YML\Decode.fs" />
+    <Compile Include="YML\Encode.fs" />
+    <Compile Include="YML\DefinedTerm.fs" />
+    <Compile Include="YML\FormalParameter.fs" />
+    <Compile Include="YML\PropertyValue.fs" />
+    <Compile Include="YML\Material.fs" />
+    <Compile Include="YML\Data.fs" />
+    <Compile Include="YML\LabProtocol.fs" />
+    <Compile Include="YML\LabProcess.fs" />
+    <Compile Include="YML\Dataset.fs" />
+    <Compile Include="Table.fs" />
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="YAMLicious" Version="*" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="../ProcessCore/ProcessCore.fsproj" />
+    <PackageReference Include="YAMLicious" />
   </ItemGroup>
 </Project>
 ```
@@ -68,7 +70,7 @@ The parser targets Fable compatibility (JS, Python, .NET) and uses [YAMLicious](
 
 ## Generic Overflow Decoder
 
-**File:** `src/ProcessCore.YML/Helpers.fs` (or a dedicated `GenericOverflow.fs` section)
+**File:** `src/ProcessCore/YML/Helpers.fs` (or a dedicated `GenericOverflow.fs` section)
 
 Any YAML fields that do not match a known property name for a given type are captured and stored on the object via its `DynamicObj` base class. This preserves round-trip fidelity for decoration-specific fields (e.g. `ISA` or `WorkflowRun` fields written by another tool) without the core parser needing to know about them.
 

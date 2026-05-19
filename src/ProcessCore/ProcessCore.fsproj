@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
@@ -12,12 +12,24 @@
     <Compile Include="PropertyValue.fs" />
     <Compile Include="FragmentSelector.fs" />
     <Compile Include="Graph.fs" />
+    <Compile Include="YML\Helpers.fs" />
+    <Compile Include="YML\Decode.fs" />
+    <Compile Include="YML\Encode.fs" />
+    <Compile Include="YML\DefinedTerm.fs" />
+    <Compile Include="YML\FormalParameter.fs" />
+    <Compile Include="YML\PropertyValue.fs" />
+    <Compile Include="YML\Material.fs" />
+    <Compile Include="YML\Data.fs" />
+    <Compile Include="YML\LabProtocol.fs" />
+    <Compile Include="YML\LabProcess.fs" />
+    <Compile Include="YML\Dataset.fs" />
     <Compile Include="Table.fs" />
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Fable.Core" Version="5.0.0-beta.4" />
-    <PackageReference Include="DynamicObj" Version="7.1.0" />
+    <PackageReference Include="Fable.Core" />
+    <PackageReference Include="YAMLicious" />
+    <PackageReference Include="DynamicObj" />
   </ItemGroup>
 
 </Project>

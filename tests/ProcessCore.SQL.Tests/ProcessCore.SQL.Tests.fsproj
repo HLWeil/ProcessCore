@@ -19,7 +19,7 @@
     <ProjectReference Include="..\..\src\ProcessCore.SQL.DotNet\ProcessCore.SQL.DotNet.fsproj" Condition="'$(FABLE_COMPILER)' != 'True'" />
     <ProjectReference Include="..\..\src\ProcessCore.SQL.JavaScript\ProcessCore.SQL.JavaScript.fsproj" />
     <ProjectReference Include="..\..\src\ProcessCore.SQL.Python\ProcessCore.SQL.Python.fsproj" />
-    <PackageReference Include="Fable.Core" Version="5.0.0" />
-    <PackageReference Include="Fable.Pyxpecto" Version="2.0.0" />
+    <PackageReference Include="Fable.Core"/>
+    <PackageReference Include="Fable.Pyxpecto"/>
   </ItemGroup>
 </Project>
