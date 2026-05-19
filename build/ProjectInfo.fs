@@ -4,18 +4,7 @@ open Fake.Core
 
 let project = "ProcessCore"
 
-let pyxpectoTestProjects =
-    [
-        "tests/ProcessCore.Tests/ProcessCore.Tests.fsproj"
-    ]
-
-let jsPyxpectoTestProject = "tests/ProcessCore.Tests/ProcessCore.Tests.fsproj"
-
-let jsTestOutputDir = "build/out/js-tests"
-
-let pyPyxpectoTestProject = "tests/ProcessCore.Tests/ProcessCore.Tests.fsproj"
-
-let pyTestOutputDir = "build/out/py-tests"
+let testProject = "tests/ProcessCore.Tests"
 
 let solutionFile = $"{project}.sln"
 
@@ -27,7 +16,9 @@ let gitHome = $"https://github.com/{gitOwner}"
 
 let projectRepo = $"https://github.com/{gitOwner}/{project}"
 
-let pkgDir = "pkg"
+let netPkgDir = "./dist/net"
+let npmPkgDir = "./dist/ts"
+let pyPkgDir = "./dist/py"
 
 // Create RELEASE_NOTES.md if not existing. Or "release" would throw an error.
 Fake.Extensions.Release.ReleaseNotes.ensure()

@@ -73,8 +73,6 @@ type CompositeCell =
 [<AttachMembers>]
 type CompositeColumn(header: CompositeHeader, cells: ResizeArray<CompositeCell>) =
 
-    new(header: CompositeHeader) = CompositeColumn(header, ResizeArray())
-
     member _.Header = header
     member _.Cells  = cells
 

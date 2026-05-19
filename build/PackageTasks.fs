@@ -36,7 +36,7 @@ let pack =
 
                 { p with
                     MSBuildParams = msBuildParams
-                    OutputPath = Some pkgDir }
+                    OutputPath = Some netPkgDir }
                 |> DotNet.Options.withCustomParams (Some "-tl")))
         else
             failwith "aborted"
@@ -60,7 +60,7 @@ let packPrerelease =
 
                 { p with
                     VersionSuffix = Some prereleaseSuffix
-                    OutputPath = Some pkgDir
+                    OutputPath = Some netPkgDir
                     MSBuildParams = msBuildParams }
                 |> DotNet.Options.withCustomParams (Some "-tl")))
         else

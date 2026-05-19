@@ -45,7 +45,7 @@ let tests = testList "Integration" [
         // p1 protocol IntendedUse="cell growth", parameter temperature=37°C
         // SampleA and SampleB are terminal → both should appear
         let f = makeFixtureB()
-        let results = f.DS.MaterialsResultingFromCondition("cell growth", "temperature", "37")
+        let results = f.DS.MaterialsResultingFromConditionBy("cell growth", fun pv -> pv.Name = "temperature" && pv.Value = Some "37")
         let names = results |> Seq.map (fun m -> m.Name) |> Set.ofSeq
         Expect.isTrue  (names.Contains("SampleA")) "SampleA downstream of 37°C growth"
         Expect.isTrue  (names.Contains("SampleB")) "SampleB downstream of 37°C growth"
@@ -53,7 +53,7 @@ let tests = testList "Integration" [
 
     testCase "use-case 1 — wrong temperature returns empty" <| fun _ ->
         let f = makeFixtureB()
-        let results = f.DS.MaterialsResultingFromCondition("cell growth", "temperature", "4")
+        let results = f.DS.MaterialsResultingFromConditionBy("cell growth", fun pv -> pv.Name = "temperature" && pv.Value = Some "4")
         Expect.equal results.Count 0 "no results for non-matching temperature"
 
     // ─── Use-case 2: all parameters for a sample ─────────────────────────────

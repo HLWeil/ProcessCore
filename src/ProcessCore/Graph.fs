@@ -1698,57 +1698,10 @@ and [<AttachMembers>] Dataset(identifier: string, ?name: string, ?description: s
              | None -> false))
         |> ResizeArray
 
-    /// Use-case 1: Materials that are terminal outputs of paths containing a process
-    /// whose protocolType = `protocolType` AND paramName = `paramValue`.
-    /// Terminal output = an output node of the downstream subgraph not consumed by
-    /// any other process within that subgraph.
-    member this.MaterialsResultingFromCondition
-        (protocolType: string, paramName: string, paramValue: string) : ResizeArray<Material> =
-        let scope = this.AllProcesses()
-        let inScope (p: LabProcess) = scope |> Seq.exists (fun q -> q = p)
-        let qualifying =
-            this.FindProcessesByProtocolType(protocolType)
-            |> Seq.filter (fun p ->
-                p.ParameterValue
-                |> Seq.exists (fun pv -> pv.Name = paramName && pv.Value = Some paramValue))
-            |> ResizeArray
-        let seen   = HashSet<string>()
-        let result = ResizeArray<Material>()
-        for proc in qualifying do
-            // BFS downstream from proc to collect the subgraph
-            let subgraphNames = HashSet<string>()
-            let subgraphProcs = ResizeArray<LabProcess>()
-            let mutable frontier = ResizeArray<LabProcess>([| proc |])
-            while frontier.Count > 0 do
-                let next = ResizeArray<LabProcess>()
-                for p in frontier do
-                    if subgraphNames.Add(p.Name) then
-                        subgraphProcs.Add(p)
-                        for node in p.Outputs do
-                            let succs =
-                                match node with
-                                | MaterialNode m -> m.InputOf :> seq<LabProcess>
-                                | DataNode d     -> d.InputOf :> seq<LabProcess>
-                            for succ in succs do
-                                if inScope succ && not (subgraphNames.Contains(succ.Name)) then
-                                    next.Add(succ)
-                frontier <- next
-            // Collect outputs not consumed within the subgraph
-            for p in subgraphProcs do
-                for node in p.Outputs do
-                    let isConsumedInSubgraph =
-                        match node with
-                        | MaterialNode m -> m.InputOf |> Seq.exists (fun q -> subgraphNames.Contains(q.Name))
-                        | DataNode d     -> d.InputOf |> Seq.exists (fun q -> subgraphNames.Contains(q.Name))
-                    if not isConsumedInSubgraph then
-                        match node with
-                        | MaterialNode m when seen.Add(m.Name) -> result.Add(m)
-                        | _ -> ()
-        result
-
-    /// Overload: find qualifying processes by protocol type, then filter their
+    /// Find qualifying processes by protocol type, then filter their
     /// ParameterValues with a caller-supplied predicate.
-    member this.MaterialsResultingFromCondition
+    /// Returns all terminal-output Materials of the downstream subgraphs of qualifying processes.
+    member this.MaterialsResultingFromConditionBy
         (protocolType: string, paramPredicate: PropertyValue -> bool) : ResizeArray<Material> =
         let qualifying =
             this.FindProcessesByProtocolType(protocolType)

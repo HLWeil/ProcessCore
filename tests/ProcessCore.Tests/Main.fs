@@ -1,12 +1,14 @@
 module ProcessCore.Tests.Main
 
 open Fable.Pyxpecto
+open Fable.Core
 
 #if !FABLE_COMPILER_JAVASCRIPT && !FABLE_COMPILER_TYPESCRIPT
 let inline (!!) value = value
 #endif
 
 #if FABLE_COMPILER_JAVASCRIPT || FABLE_COMPILER_TYPESCRIPT
+open Fable.Core.JS
 open Fable.Core.JsInterop
 #endif
 
@@ -40,6 +42,25 @@ let all =
             ProcessCore.SQL.Tests.All.all
         ]
 
+#if FABLE_COMPILER_JAVASCRIPT || FABLE_COMPILER_TYPESCRIPT
+
+[<Emit("$1.then($0)")>]
+let map (a: 'T1 -> 'T2) (pr: JS.Promise<'T1>): JS.Promise<'T2> = jsNative
+
+[<Import("it", from = "vitest")>]
+let itAsync(name: string, test: unit -> Promise<unit>) = jsNative
+
+[<Import("describe", from = "vitest")>]
+let describe(name: string, testSuit: unit -> unit) = jsNative 
+
+describe("index", fun () -> 
+    itAsync ("add", fun () ->
+        Pyxpecto.runTestsAsync [| ConfigArg.DoNotExitWithCode|] all
+        |> Async.StartAsPromise
+        |> map (fun (exitCode : int) -> Expect.equal exitCode 0 "Tests failed")
+    )
+)
+#else
 [<EntryPoint>]
-let main _ =
-    !!Pyxpecto.runTests [||] all
+let main argv = Pyxpecto.runTests [||] all
+#endif

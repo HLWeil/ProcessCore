@@ -134,13 +134,13 @@ let tests = testList "CompositeTypes" [
             Expect.equal col.ColumnCount 2 "ColumnCount = 2"
 
         testCase "Header is accessible" <| fun _ ->
-            let col = CompositeColumn(CompositeHeader.ProtocolREF)
+            let col = CompositeColumn(CompositeHeader.ProtocolREF, ResizeArray())
             match col.Header with
             | CompositeHeader.ProtocolREF -> ()
             | _ -> failwith "Expected ProtocolREF header"
 
         testCase "Empty column has ColumnCount 0" <| fun _ ->
-            let col = CompositeColumn(CompositeHeader.Parameter("x", None))
+            let col = CompositeColumn(CompositeHeader.Parameter("x", None), ResizeArray())
             Expect.equal col.ColumnCount 0 "empty column"
 
     ]

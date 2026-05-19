@@ -35,7 +35,7 @@ let createPrereleaseTag =
 
 let publishNuget =
     BuildTask.create "PublishNuget" [ clean; buildSolution; runTests; pack ] {
-        let targets = !! (sprintf "%s/*.*pkg" pkgDir)
+        let targets = !! (sprintf "%s/*.*pkg" netPkgDir)
 
         for target in targets do
             printfn "%A" target
@@ -57,7 +57,7 @@ let publishNuget =
 
 let publishNugetPrerelease =
     BuildTask.create "PublishNugetPrerelease" [ clean; buildSolution; runTests; packPrerelease ] {
-        let targets = !! (sprintf "%s/*.*pkg" pkgDir)
+        let targets = !! (sprintf "%s/*.*pkg" netPkgDir)
 
         for target in targets do
             printfn "%A" target

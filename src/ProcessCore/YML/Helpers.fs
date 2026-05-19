@@ -213,7 +213,10 @@ module Helpers =
     let emitOverflow (knownPropertyNames: Set<string>) (obj: DynamicObj) : (string * YAMLElement) list =
         obj.GetProperties(true)
         |> Seq.choose (fun kv ->
-            if not (knownPropertyNames |> Set.contains (kv.Key.ToLowerInvariant())) then
+            let isKnown = knownPropertyNames |> Set.contains (kv.Key.ToLowerInvariant())
+            let preceedingUnderscore = kv.Key.StartsWith("_")
+            let isFableInternal = kv.Key.Length > 4 && kv.Key.StartsWith("init@")
+            if not (isKnown || preceedingUnderscore || isFableInternal) then
                 Some (kv.Key, genericEncodeFromObj kv.Value)
             else
                 None)
