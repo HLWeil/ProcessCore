@@ -28,7 +28,7 @@
     <Compile Include="SQL\RowCodecs.fs" />
     <Compile Include="SQL\Repository.fs" />
     <Compile Include="SQL\Platform\Driver.fs" />
-    <Compile Include="SQL\SqliteDriver.fs" />
+    <Compile Include="SQL\PythonSqliteDriver.fs" />
     <Compile Include="Table.fs" />
   </ItemGroup>
 

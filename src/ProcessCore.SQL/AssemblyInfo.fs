@@ -1,3 +1,0 @@
-namespace ProcessCore.SQL
-
-do ()
