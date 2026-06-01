@@ -394,12 +394,51 @@ module Table =
         | err -> failwithf "Could not parse table with name \"%s\":\n%s" sheet.Name err.Message
 
 
-let assayPath = @"C:\Users\HLWei\source\repos\ARCs\Ru_ChlamyHeatstress\assays\Proteomics\isa.assay.xlsx"
+let datasetFromTables (name : string) (wb : FsWorkbook) = 
 
+    let d = Dataset(name)
+
+    wb.GetWorksheets()
+    |> Seq.iter (fun ws ->
+        let childDataset = Dataset(ws.Name)
+        match Table.tryFromFsWorksheet childDataset ws with
+        | Some t -> d.HasPart.Add(childDataset) |> ignore
+        | None -> () // No annotation table, so we skip this sheet
+    )
+    d
+
+let datasetFromPath (name : string) (path : string) =
+    let wb = FsWorkbook.fromXlsxFile(path)
+    datasetFromTables name wb
+
+
+let assayPath = @"C:\Users\HLWei\source\repos\Ru_ChlamyHeatstress\assays\Proteomics\isa.assay.xlsx"
+
+let assay1 = datasetFromPath "Assay 1" assayPath
+
+let myARC = Dataset("Ru Chlamy Heatstress")
+
+myARC.AddPart(assay1) |> ignore
+
+assay1.FinalData().[0]
+
+
+assay1.FinalData().[0].OutputOf
+|> Seq.item (0)
+|> fun s -> s.ProcessOf
 
 let wb = FsWorkbook.fromXlsxFile(assayPath)
 
+
+
+let d = datasetFromTables "My Dataset" wb
+
+
+d.HasPart
+|> Seq.map (fun ds -> ds.Identifier)
+
 let ws = wb.GetWorksheets().[2]
+
 let t = Table.tryAnnotationTable ws |> Option.get
 
 let d = Dataset("My Dataset")
