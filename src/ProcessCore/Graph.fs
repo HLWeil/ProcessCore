@@ -818,6 +818,12 @@ and [<AttachMembers>] Material(name: string, ?additionalType: string, ?additiona
 
     override this.GetHashCode() = hash this.Name
 
+    #if FABLE_COMPILER_PYTHON
+    // Python calls these dunder methods for native `hash(x)` and `x == y`.
+    member this.``__hash__``() =
+        Fable.Core.PyInterop.emitPyExpr (this) "int($0.GetHashCode())"
+    #endif
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Data
 // ─────────────────────────────────────────────────────────────────────────────
@@ -965,6 +971,11 @@ and [<AttachMembers>] Data(path: string, ?selector: string, ?selectorFormat: str
 
     override this.GetHashCode() = hash (this.Path, this.Selector)
 
+    #if FABLE_COMPILER_PYTHON
+    // Python calls these dunder methods for native `hash(x)` and `x == y`.
+    member this.``__hash__``() =
+        Fable.Core.PyInterop.emitPyExpr (this) "int($0.GetHashCode())"
+    #endif
 // ─────────────────────────────────────────────────────────────────────────────
 // LabProtocol
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1052,6 +1063,11 @@ and [<AttachMembers>] LabProtocol(?name: string, ?description: string, ?version:
 
     override this.GetHashCode() = hash (this.Name, this.Version)
 
+    #if FABLE_COMPILER_PYTHON
+    // Python calls these dunder methods for native `hash(x)` and `x == y`.
+    member this.``__hash__``() =
+        Fable.Core.PyInterop.emitPyExpr (this) "int($0.GetHashCode())"
+    #endif
 // ─────────────────────────────────────────────────────────────────────────────
 // LabProcess
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1305,6 +1321,12 @@ and [<AttachMembers>] LabProcess(name: string, ?executesProtocol: LabProtocol, ?
         | _ -> false
 
     override this.GetHashCode() = hash this.Name
+
+    #if FABLE_COMPILER_PYTHON
+    // Python calls these dunder methods for native `hash(x)` and `x == y`.
+    member this.``__hash__``() =
+        Fable.Core.PyInterop.emitPyExpr (this) "int($0.GetHashCode())"
+    #endif
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Dataset
@@ -1723,3 +1745,9 @@ and [<AttachMembers>] Dataset(identifier: string, ?name: string, ?description: s
         | _ -> false
 
     override this.GetHashCode() = hash this.Identifier
+
+    #if FABLE_COMPILER_PYTHON
+    // Python calls these dunder methods for native `hash(x)` and `x == y`.
+    member this.``__hash__``() =
+        Fable.Core.PyInterop.emitPyExpr (this) "int($0.GetHashCode())"
+    #endif

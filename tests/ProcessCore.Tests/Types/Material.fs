@@ -5,6 +5,11 @@ open ProcessCore
 
 let tests = testList "Material" [
 
+    testCase "hashCode by name" <| fun _ ->
+        let m1 = Material("Sample1", additionalType = "Sample")
+        let m2 = Material("Sample1", additionalType = "Source")
+        Expect.equal (hash m1) (hash m2) "Same name → same hash code regardless of other fields"
+
     testCase "equality by name" <| fun _ ->
         let m1 = Material("Sample1", additionalType = "Sample")
         let m2 = Material("Sample1", additionalType = "Source")
