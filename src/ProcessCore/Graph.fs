@@ -123,7 +123,7 @@ type Path(processes: ResizeArray<LabProcess>) =
     /// All PropertyValues from all sources (parameters, input/output node properties, protocol components)
     /// across all processes in this path
     member _.AllPropertyValues() : ResizeArray<PropertyValue> =
-        collectPropertyValuesFromProcesses processes
+        PathTraversal.collectPropertyValuesFromProcesses processes
 
     /// All PropertyValues from all sources whose name matches the given string
     member this.PropertyValuesByName(name: string) : ResizeArray<PropertyValue> =
@@ -141,8 +141,7 @@ type Path(processes: ResizeArray<LabProcess>) =
             | None -> ()
         acc
 
-[<AutoOpen>]
-module private PathTraversal =
+module PathTraversal =
     let propertyValueKey (pv: PropertyValue) =
         pv.Name + "|" + (pv.Value |> Option.defaultValue "") + "|" + (pv.NameTAN |> Option.defaultValue "")
 
@@ -204,11 +203,20 @@ module private PathTraversal =
 
     let dataRelatedForTraversal (tryGetProvider: string -> IFragmentSelectorProvider option) (a: Data) (b: Data) =
         match FragmentSelectorResolution.relateDataWith tryGetProvider a b with
-        | Exact | Contains -> true
-        | Disjoint | Unknown ->
+        | Exact -> true // to-do: These should be an OR match case when https://github.com/fable-compiler/Fable/issues/4649 is fixed
+        | Contains -> true
+        | Disjoint -> 
             match FragmentSelectorResolution.relateDataWith tryGetProvider b a with
-            | Exact | Contains -> true
-            | Disjoint | Unknown -> false
+            | Exact -> true 
+            | Contains -> true
+            | Disjoint -> false
+            | Unknown -> false
+        | Unknown ->
+            match FragmentSelectorResolution.relateDataWith tryGetProvider b a with
+            | Exact -> true
+            | Contains -> true
+            | Disjoint -> false
+            | Unknown -> false
 
     let nodeRelatedForTraversal (tryGetProvider: string -> IFragmentSelectorProvider option) (a: IONode) (b: IONode) =
         match a, b with
@@ -392,6 +400,7 @@ module private PathTraversal =
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// An IONode is either a Material or a Data node.
+[<AttachMembers>]
 type IONode =
     | MaterialNode of Material
     | DataNode of Data
@@ -436,7 +445,7 @@ type IONode =
         while frontier.Count > 0 do
             let next = ResizeArray<IONode>()
             for node in frontier do
-                for p: LabProcess in relatedNodeProcesses scope node do
+                for p: LabProcess in PathTraversal.relatedNodeProcesses scope node do
                     if inScope p && seenP.Add(p.Name) then
                         result.Add(p)
                         for n: IONode in Seq.append p.Inputs p.Outputs do
@@ -450,7 +459,7 @@ type IONode =
             match scope with
             | Some s -> s
             | None   -> this.AllConnectedProcesses()
-        processesForNode scope this
+        PathTraversal.processesForNode scope this
 
     /// All maximal Paths that pass through this node within the given process scope.
     member this.PathsThrough(?scope: ResizeArray<LabProcess>) : ResizeArray<Path> =
@@ -458,7 +467,7 @@ type IONode =
             match scope with
             | Some s -> s
             | None   -> this.AllConnectedProcesses()
-        pathsThrough scope this
+        PathTraversal.pathsThrough scope this
 
     /// All IONodes connected to this node through the process graph
     /// (union of all upstream and downstream neighbours), excluding this node itself.
@@ -472,7 +481,7 @@ type IONode =
         while frontier.Count > 0 do
             let next = ResizeArray<IONode>()
             for node in frontier do
-                for p: LabProcess in relatedNodeProcesses scope node do
+                for p: LabProcess in PathTraversal.relatedNodeProcesses scope node do
                     if inScope p then
                         for n: IONode in Seq.append p.Inputs p.Outputs do
                             if seenN.Add(n.Key()) then
@@ -486,10 +495,10 @@ type IONode =
     member this.AllPropertyValues(?scope: ResizeArray<LabProcess>) : ResizeArray<PropertyValue> =
         let result = ResizeArray<PropertyValue>()
         let seen = HashSet<string>()
-        for pv in collectUpstreamPropertyValues None scope this do
-            addPropertyValue result seen pv
-        for pv in collectDownstreamPropertyValues None scope this do
-            addPropertyValue result seen pv
+        for pv in PathTraversal.collectUpstreamPropertyValues None scope this do
+            PathTraversal.addPropertyValue result seen pv
+        for pv in PathTraversal.collectDownstreamPropertyValues None scope this do
+            PathTraversal.addPropertyValue result seen pv
         result
 
     /// All FormalParameters from protocols executed in processes connected to this node.
@@ -531,7 +540,7 @@ type IONode =
 
             let inScope (p: LabProcess) =
                 scope |> Option.forall (fun s -> s |> Seq.exists (fun q -> q = p))
-            relatedOutputEdges scope this |> Seq.exists (fun (p, _) -> inScope p) |> not
+            PathTraversal.relatedOutputEdges scope this |> Seq.exists (fun (p, _) -> inScope p) |> not
         | None ->
             this.GetOutputOf().Count = 0
 
@@ -541,7 +550,7 @@ type IONode =
         | Some s  -> 
             let inScope (p: LabProcess) =
                 scope |> Option.forall (fun s -> s |> Seq.exists (fun q -> q = p))
-            relatedInputEdges scope this |> Seq.exists (fun (p, _) -> inScope p) |> not
+            PathTraversal.relatedInputEdges scope this |> Seq.exists (fun (p, _) -> inScope p) |> not
         | None ->
             this.GetInputOf().Count = 0
 
@@ -557,7 +566,7 @@ type IONode =
         while frontier.Count > 0 do
             let next = ResizeArray<IONode>()
             for node in frontier do
-                for p, matchedNode in relatedOutputEdges scope node do
+                for p, matchedNode in PathTraversal.relatedOutputEdges scope node do
                     if inScope p && seenP.Add(p.Name) then
                         result.Add(p)
                         for n: IONode in p.GetInputsOfOutput(matchedNode) do
@@ -577,7 +586,7 @@ type IONode =
         while frontier.Count > 0 do
             let next = ResizeArray<IONode>()
             for node in frontier do
-                for p, matchedNode in relatedInputEdges scope node do
+                for p, matchedNode in PathTraversal.relatedInputEdges scope node do
                     if inScope p && seenP.Add(p.Name) then
                         result.Add(p)
                         for n: IONode in p.GetOutputsOfInput(matchedNode) do
@@ -599,7 +608,7 @@ type IONode =
         while frontier.Count > 0 do
             let next = ResizeArray<IONode>()
             for node in frontier do
-                for p, matchedNode in relatedOutputEdges scope node do
+                for p, matchedNode in PathTraversal.relatedOutputEdges scope node do
                     if inScope p then
                         for n: IONode in p.GetInputsOfOutput(matchedNode) do
                             if seenN.Add(n.Key()) then
@@ -622,7 +631,7 @@ type IONode =
         while frontier.Count > 0 do
             let next = ResizeArray<IONode>()
             for node in frontier do
-                for p, matchedNode in relatedInputEdges scope node do
+                for p, matchedNode in PathTraversal.relatedInputEdges scope node do
                     if inScope p then
                         for n: IONode in p.GetOutputsOfInput(matchedNode) do
                             if seenN.Add(n.Key()) then
@@ -682,12 +691,12 @@ type IONode =
     /// PropertyValues from all sources in processes upstream of this node.
     /// Optional protocolName restricts to processes whose protocol name matches.
     member this.UpstreamPropertyValues(?protocolName: string, ?scope: ResizeArray<LabProcess>) : ResizeArray<PropertyValue> =
-        collectUpstreamPropertyValues protocolName scope this
+        PathTraversal.collectUpstreamPropertyValues protocolName scope this
 
     /// PropertyValues from all sources in processes downstream of this node.
     /// Optional protocolName restricts to processes whose protocol name matches.
     member this.DownstreamPropertyValues(?protocolName: string, ?scope: ResizeArray<LabProcess>) : ResizeArray<PropertyValue> =
-        collectDownstreamPropertyValues protocolName scope this
+        PathTraversal.collectDownstreamPropertyValues protocolName scope this
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Material
@@ -1603,7 +1612,7 @@ and [<AttachMembers>] Dataset(identifier: string, ?name: string, ?description: s
     /// Optional protocolName restricts to processes whose protocol name matches.
     member this.AllPropertyValues(?protocolName: string) : ResizeArray<PropertyValue> =
         this.AllProcesses()
-        |> collectPropertyValuesFromProcessesWithProtocolName protocolName
+        |> PathTraversal.collectPropertyValuesFromProcessesWithProtocolName protocolName
 
     /// All PropertyValues from all sources connected to `node` (upstream + downstream) within this dataset.
     /// Optional protocolName restricts to processes whose protocol name matches.
@@ -1614,7 +1623,7 @@ and [<AttachMembers>] Dataset(identifier: string, ?name: string, ?description: s
         let seenPV = HashSet<string>()
         let result = ResizeArray<PropertyValue>()
         for pv: PropertyValue in Seq.append upstream downstream do
-            let key = propertyValueKey pv
+            let key = PathTraversal.propertyValueKey pv
             if seenPV.Add(key) then result.Add(pv)
         result
 
@@ -1731,7 +1740,7 @@ and [<AttachMembers>] Dataset(identifier: string, ?name: string, ?description: s
         let seen   = HashSet<string>()
         let result = ResizeArray<Material>()
         for proc in qualifying do
-            for path in extendToMaximalPaths (this.AllProcesses()) proc do
+            for path in PathTraversal.extendToMaximalPaths (this.AllProcesses()) proc do
                 for node in path.TerminalOutputs() do
                     match node with
                     | MaterialNode m when seen.Add(m.Name) -> result.Add(m)
