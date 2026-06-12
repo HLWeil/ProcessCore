@@ -14,3 +14,5 @@ tmp/watch/
 docs/output
 tests/**/ts
 tests/**/py
+src/**/ts
+src/**/py
