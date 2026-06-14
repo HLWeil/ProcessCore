@@ -15,6 +15,7 @@ initializeContext()
 open BasicTasks
 open TestTasks
 open PackageTasks
+open DocumentationTasks
 open ReleaseTasks
 
 /// Full release of nuget package for the prerelease version.
@@ -23,6 +24,7 @@ let _release =
         "Release" 
         [clean; buildSolution; runTests; pack; createTag; publishNuget; publishNPM; publishPyPi]
 
+let _docs = [buildDocs; watchDocs] |> ignore
 
 ReleaseNotesTasks.updateReleaseNotes |> ignore
 // PerformanceTasks.perforanceReport |> ignore
