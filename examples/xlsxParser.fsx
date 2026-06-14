@@ -1,10 +1,9 @@
-#r "nuget: Fable.Core, 4.3.0"
-#r "nuget: DynamicObj"
-//#r "nuget: FsSpreadsheet.Net"
+// #r "nuget: Fable.Core, 4.3.0"
+// #r "nuget: DynamicObj"
+// #r @"..\src\ProcessCore\bin\Release\netstandard2.0\ProcessCore.dll"
 
-#r @"..\src\ProcessCore\bin\Release\netstandard2.0\ProcessCore.dll"
+#r "nuget: ProcessCore, 0.0.1"
 #r "nuget: ARCtrl"
-
 
 
 open ProcessCore
@@ -411,6 +410,124 @@ let datasetFromPath (name : string) (path : string) =
     let wb = FsWorkbook.fromXlsxFile(path)
     datasetFromTables name wb
 
+module Assay = 
+
+    open ARCtrl.Spreadsheet.ArcAssay
+
+    let fromFsWorkbook (wb : FsWorkbook) =
+        let mdSheet = wb.GetWorksheetByName(metadataSheetName)
+        let arcAssay = fromMetadataSheet mdSheet
+        let assay = datasetFromTables arcAssay.Identifier wb
+        assay.AdditionalType <- Some "Assay"
+        assay.Description <- arcAssay.Description
+        assay.Name <- arcAssay.Title
+        assay
+    
+module Study = 
+
+    open ARCtrl.Spreadsheet.ArcStudy
+
+    let fromFsWorkbook (wb : FsWorkbook) =
+        let mdSheet = wb.GetWorksheetByName(metadataSheetName)
+        let arcStudy = fromMetadataSheet mdSheet |> fst
+        let study = datasetFromTables arcStudy.Identifier wb
+        study.AdditionalType <- Some "Study"
+        study.Description <- arcStudy.Description
+        study.Name <- arcStudy.Title
+        study
+        
+module Run = 
+
+    open ARCtrl.Spreadsheet.ArcRun
+
+    let fromFsWorkbook (wb : FsWorkbook) =
+        let mdSheet = wb.GetWorksheetByName(metadataSheetName)
+        let arcRun = fromMetadataSheet mdSheet
+        let run = datasetFromTables arcRun.Identifier wb
+        run.AdditionalType <- Some "Run"
+        run.Description <- arcRun.Description
+        run.Name <- arcRun.Title
+        run
+
+module Workflow = 
+   
+    open ARCtrl.Spreadsheet.ArcWorkflow
+
+    let fromFsWorkbook (wb : FsWorkbook) =
+        let mdSheet = wb.GetWorksheetByName(metadataSheetName)
+        let arcWorkflow = fromMetadataSheet mdSheet
+        let workflow = datasetFromTables arcWorkflow.Identifier wb
+        workflow.AdditionalType <- Some "Workflow"
+        workflow.Description <- arcWorkflow.Description
+        workflow.Name <- arcWorkflow.Title
+        workflow
+
+module Investigation = 
+ 
+    open ARCtrl.Spreadsheet.ArcInvestigationExtensions
+    open ARCtrl
+   
+    let fromFsWorkbook (wb : FsWorkbook) =
+        let arcInvestigation = ArcInvestigation.fromFsWorkbook wb
+        Dataset(
+                arcInvestigation.Identifier, 
+                ?name = arcInvestigation.Title,
+                ?description = arcInvestigation.Description,
+                additionalType = "Investigation"
+            )
+
+module ARC = 
+
+    open ARCtrl
+    open ARCtrl.Contract
+
+    let readWorkbook (arcPath : string) (wbPath : string) =
+        let path = ArcPathHelper.combine arcPath wbPath
+        FsWorkbook.fromXlsxFile(path)
+
+    let load (path : string) =
+        let filePaths = FileSystemHelper.getAllFilePathsAsync path |> Async.RunSynchronously
+        let topLevelDataset = 
+            filePaths
+            |> Seq.pick (fun p ->
+                match ARCtrl.ArcPathHelper.split p with
+                | InvestigationPath _ -> 
+                    let wb = readWorkbook path p
+                    Investigation.fromFsWorkbook wb |> Some
+                | _ -> None        
+            )
+        filePaths
+        |> Seq.choose (fun p -> 
+            match ARCtrl.ArcPathHelper.split p with
+            | AssayPath _ -> 
+                readWorkbook path p |> Assay.fromFsWorkbook |> Some
+            | StudyPath _ ->
+                readWorkbook path p |> Study.fromFsWorkbook |> Some
+            | WorkflowPath _ ->
+                readWorkbook path p |> Workflow.fromFsWorkbook |> Some
+            | RunPath _ ->
+                readWorkbook path p |> Run.fromFsWorkbook |> Some
+            | _ -> None
+        )
+        |> Seq.iter (fun ds -> topLevelDataset.AddPart(ds) |> ignore)
+        topLevelDataset
+
+
+let arcPath = @"C:\Users\HLWei\source\repos\Ru_ChlamyHeatstress"
+
+let dataset = ARC.load arcPath
+
+dataset.RegisterFragmentSelectorProvider (ProcessCore.CsvFragmentSelectorProvider())
+
+dataset.HasPart.Count
+
+dataset.FinalData().[0].UpstreamMaterials()
+
+let p = 
+    dataset.FinalData().[0].OutputOf
+    |> Seq.item 0
+
+p.ProcessOf
 
 let assayPath = @"C:\Users\HLWei\source\repos\Ru_ChlamyHeatstress\assays\Proteomics\isa.assay.xlsx"
 
