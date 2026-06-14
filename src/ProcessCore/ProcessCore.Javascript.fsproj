@@ -1,17 +1,12 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <PackageTags>ARC;F#;FSharp;dotnet;.Net;bioinformatics;biology;fable-library;datascience;dataplant;nfdi;metadata;fable-dotnet</PackageTags>
-    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
 
-  <Import Project="ProcessCore.Common.props" />
-
   <ItemGroup>
-    <None Include="index.ts" />
-    <None Include="__init__.py" />
-    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
-    <Content Include="ProcessCore.Common.props" Pack="true" PackagePath="fable/" />
     <Compile Include="DefinedTerm.fs" />
     <Compile Include="FormalParameter.fs" />
     <Compile Include="PropertyValue.fs" />
@@ -33,7 +28,7 @@
     <Compile Include="SQL\RowCodecs.fs" />
     <Compile Include="SQL\Repository.fs" />
     <Compile Include="SQL\Platform\Driver.fs" />
-    <Compile Include="SQL\SqliteDriver.fs" />
+    <Compile Include="SQL\BetterSqliteDriver.fs" />
     <Compile Include="Table.fs" />
   </ItemGroup>
 
@@ -41,14 +36,6 @@
     <PackageReference Include="Fable.Core" />
     <PackageReference Include="YAMLicious" />
     <PackageReference Include="DynamicObj" />
-    <PackageReference Include="Microsoft.Data.Sqlite" />
   </ItemGroup>
-
-    <ItemGroup>
-        <PackageReference Include="Fable.Package.SDK">
-            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-            <PrivateAssets>all</PrivateAssets>
-        </PackageReference>
-    </ItemGroup>
 
 </Project>

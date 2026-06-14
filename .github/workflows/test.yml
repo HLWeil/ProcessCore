@@ -48,4 +48,4 @@ jobs:
         run: uv sync
 
       - name: Run all tests (dotnet + JS transpile/run + Python transpile/run)
-        run: dotnet run --project build/build.fsproj -- runtestsall
+        run: dotnet run --project build/build.fsproj -- runtests

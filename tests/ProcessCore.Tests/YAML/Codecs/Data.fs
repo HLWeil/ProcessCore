@@ -50,7 +50,7 @@ let tests = testList "Data" [
         let d    = Yaml.Data.fromYamlString false yaml
         Expect.equal d.Path "results.csv" "path not overridden by id"
         // 'id' should be stored as overflow
-        let overflowId = d.TryGetTypedPropertyValue<string>("id")
+        let overflowId = d.TryGetPropertyValue("id") |> Option.map string
         Expect.isSome overflowId "id stored in overflow"
         Expect.equal overflowId (Some "some-override-id") "id overflow value"
 

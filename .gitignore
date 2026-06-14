@@ -12,3 +12,8 @@ build/out/
 .fsdocs/
 tmp/watch/
 docs/output
+tests/**/ts
+tests/**/py
+src/**/ts
+src/**/py
+dist/

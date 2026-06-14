@@ -21,9 +21,4 @@ let tests = testList "DefinedTerm" [
         let dt2 = DefinedTerm("cell growth")
         Expect.notEqual dt1 dt2 "One with TAN, one without → not equal"
 
-    testCase "default constructor" <| fun _ ->
-        let dt = DefinedTerm()
-        Expect.equal dt.Name "" "Default Name should be empty string"
-        Expect.isNone dt.TAN  "Default TAN should be None"
-
 ]

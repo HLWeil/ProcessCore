@@ -11,7 +11,7 @@ let tests = testList "Overflow" [
         let yaml = "type: DefinedTerm\nname: foo\nmyCustomField: bar\n"
         let dt   = Yaml.DefinedTerm.fromYamlString false yaml
         // accessible via DynamicObj overflow
-        let v = dt.TryGetTypedPropertyValue<string>("myCustomField")
+        let v = dt.TryGetPropertyValue("myCustomField") |> Option.map string
         Expect.equal v (Some "bar") "overflow value accessible after decode"
         // survives re-encoding
         let yaml2 = Yaml.DefinedTerm.toYamlString None dt
@@ -21,7 +21,7 @@ let tests = testList "Overflow" [
     testCase "unknown field on Material survives round-trip" <| fun _ ->
         let yaml = "type: Material\nname: S1\nextraAnnotation: some-value\n"
         let m    = Yaml.Material.fromYamlString false yaml
-        let v = m.TryGetTypedPropertyValue<string>("extraAnnotation")
+        let v = m.TryGetPropertyValue("extraAnnotation") |> Option.map string
         Expect.equal v (Some "some-value") "overflow value accessible"
         let yaml2 = Yaml.Material.toYamlString None m
         Expect.isTrue (yaml2.Contains("extraAnnotation")) "overflow key re-emitted"
@@ -34,7 +34,7 @@ let tests = testList "Overflow" [
     testCase "unknown field on Dataset survives round-trip" <| fun _ ->
         let yaml = "type: Dataset\nidentifier: DS-1\ncustomMeta: my-value\n"
         let ds   = Yaml.Dataset.fromYamlString false yaml
-        let v = ds.TryGetTypedPropertyValue<string>("customMeta")
+        let v = ds.TryGetPropertyValue("customMeta") |> Option.map string
         Expect.equal v (Some "my-value") "overflow value accessible"
         let yaml2 = Yaml.Dataset.toYamlString None ds
         Expect.isTrue (yaml2.Contains("customMeta")) "overflow key re-emitted"
@@ -43,10 +43,10 @@ let tests = testList "Overflow" [
         let yaml = "type: DefinedTerm\nname: foo\nnested:\n  key: value\n  count: 42\n"
         let dt   = Yaml.DefinedTerm.fromYamlString false yaml
         // nested object stored as DynamicObj
-        let v = dt.TryGetTypedPropertyValue<DynamicObj>("nested")
+        let v = dt.TryGetPropertyValue("nested") |> Option.map unbox<DynamicObj>
         Expect.isSome v "nested object in overflow"
         let nested = v.Value
-        let count = nested.TryGetTypedPropertyValue<int>("count")
+        let count = nested.TryGetPropertyValue("count") |> Option.map unbox<int>
         Expect.equal count (Some 42) "nested integer value preserved"
         // survives re-encoding
         let yaml2 = Yaml.DefinedTerm.toYamlString None dt

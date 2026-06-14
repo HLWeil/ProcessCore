@@ -1,6 +1,7 @@
 namespace ProcessCore
 
 open System
+open Fable.Core
 
 /// Semantic relation between two fragment selectors.
 type FragmentRelation =
@@ -18,14 +19,25 @@ type IFragmentSelectorProvider =
     abstract TryRelate: container: string -> candidate: string -> FragmentRelation option
 
 /// Typed selector-provider contract for implementations of a selector language.
+[<AttachMembers>]
+#if !FABLE_COMPILER_PYTHON
 [<AbstractClass>]
+#endif
 type FragmentSelectorProviderBase<'Selector>() =    
+
 
     abstract SelectorFormat: string
     abstract TryParse: string -> 'Selector option
     abstract ToSelectorString: 'Selector -> string
     abstract Relate: container: 'Selector -> candidate: 'Selector -> FragmentRelation
 
+    #if FABLE_COMPILER_PYTHON
+
+    default this.SelectorFormat: string = failwith "Not implemented in inheriting class"
+    default this.TryParse(text: string): 'Selector option = failwith "Not implemented in inheriting class"
+    default this.ToSelectorString(selector: 'Selector): string = failwith "Not implemented in inheriting class"
+    default this.Relate(container: 'Selector) (candidate: 'Selector): FragmentRelation = failwith "Not implemented in inheriting class"
+    #endif 
     interface IFragmentSelectorProvider with
 
         member this.SelectorFormat =
@@ -284,6 +296,7 @@ module CsvFragmentSelectorRelation =
             |> List.forall (fun candidateRect -> rectangleDisjoint containerRect candidateRect))
 
 /// RFC 7111 fragment selector provider for text/csv row, column, and cell fragments.
+[<AttachMembers>]
 type CsvFragmentSelectorProvider() =
 
     inherit FragmentSelectorProviderBase<CsvFragmentSelector>()

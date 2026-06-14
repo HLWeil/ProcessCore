@@ -522,4 +522,45 @@ let tests = testList "Fragment selectors" [
             Expect.isTrue (upstream.Contains("M:Source")) "CSV resolver connects contained RFC 7111 fragments"
 
     ]
+
+    testList "dataRelatedForTraversal_Helper" [
+
+        testCase "noProvider same file" <| fun _ ->
+            let f = fun _ -> None
+            let a = Data("file.csv")
+            let b = Data("file.csv")
+            Expect.isTrue (PathTraversal.dataRelatedForTraversal f a b) "same file"
+
+        testCase "noProvider different files" <| fun _ ->
+            let f = fun _ -> None
+            let a = Data("file.csv")
+            let b = Data("other.csv")
+            Expect.isFalse (PathTraversal.dataRelatedForTraversal f a b) "different files are not related without a provider"
+
+        //testCase "missing selectorFormat does not invoke providers" <| fun _ ->
+        //    let f = fun _ -> RangeSelectorProvider() :> IFragmentSelectorProvider |> Some 
+        //    let a = Data("file.csv", selector = "range=1-10")
+        //    let b = Data("file.csv", selector = "range=2-3")
+        //    Expect.isFalse (PathTraversal.dataRelatedForTraversal f a b) "no selectorFormat means opaque"
+
+        //testCase "provider is selected by selectorFormat" <| fun _ ->
+        //    let f = fun _ -> RangeSelectorProvider() :> IFragmentSelectorProvider |> Some
+        //    let a = Data("file.csv", selector = "range=1-10", selectorFormat = "test/range")
+        //    let b = Data("file.csv", selector = "range=2-3", selectorFormat = "test/range")
+        //    Expect.isTrue (PathTraversal.dataRelatedForTraversal f a b) "registered provider resolves containment"
+
+        //testCase "provider parse failure yields unknown" <| fun _ ->
+        //    let ds = datasetWithFakeProvider ()
+        //    let a = Data("file.csv", selector = "not-a-range", selectorFormat = "test/range")
+        //    let b = Data("file.csv", selector = "range=2-3", selectorFormat = "test/range")
+        //    Expect.equal (relateWith ds a b) Unknown "unparseable selectors are opaque"
+
+        //testCase "different selectorFormat values do not cross-resolve" <| fun _ ->
+        //    let ds = datasetWithFakeProvider ()
+        //    let a = Data("file.csv", selector = "range=1-10", selectorFormat = "test/range")
+        //    let b = Data("file.csv", selector = "range=2-3", selectorFormat = "other/range")
+        //    Expect.equal (relateWith ds a b) Unknown "formats must match"
+
+
+    ]
 ]

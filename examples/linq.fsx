@@ -1,10 +1,7 @@
 #r "nuget: Fable.Core, 4.3.0"
 #r "nuget: DynamicObj"
+#r "nuget: YAMLicious"
 #r @"..\src\ProcessCore\bin\Release\netstandard2.0\ProcessCore.dll"
-#r @"..\src\ProcessCore.YML\bin\Release\netstandard2.0\ProcessCore.YML.dll"
-
-#r @"..\tests\ProcessCore.YAML.Tests\bin\Release\net10.0\ProcessCore.YAML.Tests.dll"
-#r @"..\tests\ProcessCore.YAML.Tests\bin\Release\net10.0\YAMLicious.dll"
 
 
 open ProcessCore

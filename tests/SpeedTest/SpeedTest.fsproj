@@ -10,8 +10,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\ProcessCore.SQL\ProcessCore.SQL.fsproj" />
-    <ProjectReference Include="..\..\src\ProcessCore.YML\ProcessCore.YML.fsproj" />
     <ProjectReference Include="..\..\src\ProcessCore\ProcessCore.fsproj" />
   </ItemGroup>
 

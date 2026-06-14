@@ -1,0 +1,15 @@
+<Project>
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <FablePackageType>library</FablePackageType>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <Authors>nfdi4plants, Lukas Weil, Kevin Schneider</Authors>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+  </PropertyGroup>
+
+</Project>

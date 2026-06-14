@@ -65,8 +65,8 @@ let tests = testList "Deduplication" [
         
         let d = Dataset("MyDataset")
 
-        let process1 = LabProcess("MyProcess")
-        let process2 = LabProcess("MyProcess")
+        let process1 = LabProcess("Process1")
+        let process2 = LabProcess("Process2")
 
         d.AddProcess(process1)
         d.AddProcess(process2)

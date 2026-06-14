@@ -4,7 +4,7 @@ open System
 open Fable.Core
 open ProcessCore.SQL
 
-#if FABLE_COMPILER_JAVASCRIPT
+#if FABLE_COMPILER_JAVASCRIPT || FABLE_COMPILER_TYPESCRIPT || FABLE_COMPILER_TYPESCRIPT
 open Fable.Core.JsInterop
 
 /// <summary>Erased binding for a prepared statement of the <c>better-sqlite3</c> npm package.</summary>

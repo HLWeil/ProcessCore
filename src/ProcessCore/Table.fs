@@ -27,10 +27,17 @@ type IOType =
 [<RequireQualifiedAccess>]
 type CompositeHeader =
     // Annotation columns — each carries a (name, TAN) pair
+    #if FABLE_COMPILER_PYTHON
+    | Parameter         of string * string option
+    | Characteristic    of string * string option
+    | Factor            of string * string option
+    | Component         of string * string option
+    #else
     | Parameter         of name: string * tan: string option
     | Characteristic    of name: string * tan: string option
     | Factor            of name: string * tan: string option
     | Component         of name: string * tan: string option
+    #endif
     // Protocol metadata columns
     | ProtocolREF
     | ProtocolType
@@ -58,9 +65,17 @@ type CompositeCell =
     /// Plain string (e.g. I/O name, protocol field, comment)
     | FreeText  of string
     /// Ontology term reference: display name + optional TAN
+    #if FABLE_COMPILER_PYTHON
+    | Term      of string * string option
+    #else
     | Term      of name: string * tan: string option
+    #endif
     /// Numeric value with unit term
+    #if FABLE_COMPILER_PYTHON
+    | Unitized  of string * string * string option
+    #else
     | Unitized  of value: string * unitName: string * unitTAN: string option
+    #endif
     /// Data file entity — used in Input/Output columns typed as IOType.Data;
     /// carries structured file metadata (path, selector, format, etc.)
     | Data      of ProcessCore.Data
@@ -72,8 +87,6 @@ type CompositeCell =
 /// A column: one header paired with an ordered list of cells (one per row).
 [<AttachMembers>]
 type CompositeColumn(header: CompositeHeader, cells: ResizeArray<CompositeCell>) =
-
-    new(header: CompositeHeader) = CompositeColumn(header, ResizeArray())
 
     member _.Header = header
     member _.Cells  = cells

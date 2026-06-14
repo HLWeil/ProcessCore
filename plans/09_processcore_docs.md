@@ -2,7 +2,7 @@
 
 ## Summary
 
-Create a hybrid fsdocs documentation set for F# users of `ProcessCore` and `ProcessCore.YML`.
+Create a hybrid fsdocs documentation set for F# users of `ProcessCore`.
 The docs live under `docs/project/ProcessCore/`.
 
 Use literate `.fsx` pages for executable walkthroughs with compiled code and evaluated output.

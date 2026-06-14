@@ -9,12 +9,10 @@ open DynamicObj
 type DefinedTerm(name: string, ?tan: string, ?inDefinedTermSet: string) =
 
     inherit DynamicObj()
-
     let mutable _name: string = name
     let mutable _tan: string option = tan
     let mutable _inDefinedTermSet: string option = inDefinedTermSet
 
-    new() = DefinedTerm("")
 
     member _.Name
         with get() = _name

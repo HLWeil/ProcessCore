@@ -186,40 +186,40 @@ let tests = testList "DatasetQueries" [
         let names = procs |> Seq.map (fun p -> p.Name) |> Set.ofSeq
         Expect.equal names (Set.ofList ["p1"]) "p1 has temperature (by name only)"
 
-    // ── MaterialsResultingFromCondition ───────────────────────────────────────
+    // ── MaterialsResultingFromConditionBy ─────────────────────────────────────
 
-    testCase "MaterialsResultingFromCondition — use-case 1" <| fun _ ->
+    testCase "MaterialsResultingFromConditionBy — use-case 1" <| fun _ ->
         let f    = makeFixtureA()
         // Protocol type = "cell growth", param temperature = 37
         // Qualifying process = p1. p1's downstream subgraph: p1→p2→p3.
         // Terminal output of subgraph = rawData1.csv (DataNode) → excluded from Material results.
         // NOTE: expected is [] — the terminal output is a DataNode, not a Material.
-        let mats = f.DS.MaterialsResultingFromCondition("cell growth", "temperature", "37")
+        let mats = f.DS.MaterialsResultingFromConditionBy("cell growth", fun pv -> pv.Name = "temperature" && pv.Value = Some "37")
         Expect.equal mats.Count 0
             "terminal output is rawData1.csv (DataNode), no Material terminal outputs"
 
-    testCase "MaterialsResultingFromCondition — no qualifying process" <| fun _ ->
+    testCase "MaterialsResultingFromConditionBy — no qualifying process" <| fun _ ->
         let f    = makeFixtureA()
-        let mats = f.DS.MaterialsResultingFromCondition("unknown-type", "temperature", "37")
+        let mats = f.DS.MaterialsResultingFromConditionBy("unknown-type", fun pv -> pv.Name = "temperature" && pv.Value = Some "37")
         Expect.equal mats.Count 0 "no qualifying processes → empty"
 
-    testCase "MaterialsResultingFromCondition — branching downstream" <| fun _ ->
+    testCase "MaterialsResultingFromConditionBy — branching downstream" <| fun _ ->
         let f    = makeFixtureB()
         // p1 is qualifying: protocol type "cell growth", temperature=37
         // p1's downstream subgraph: p1→p2 and p1→p3
         // Terminal outputs: SampleA (output of p2, no successor) and SampleB (output of p3, no successor)
-        let mats = f.DS.MaterialsResultingFromCondition("cell growth", "temperature", "37")
+        let mats = f.DS.MaterialsResultingFromConditionBy("cell growth", fun pv -> pv.Name = "temperature" && pv.Value = Some "37")
         let names = mats |> Seq.map (fun m -> m.Name) |> Set.ofSeq
         Expect.equal names (Set.ofList ["SampleA";"SampleB"])
             "branching: both terminal output materials returned"
 
-    testCase "MaterialsResultingFromCondition — predicate overload" <| fun _ ->
+    testCase "MaterialsResultingFromConditionBy — predicate" <| fun _ ->
         let f = makeFixtureB()
         let pred (pv: PropertyValue) = pv.Value = Some "37"
-        let mats = f.DS.MaterialsResultingFromCondition("cell growth", pred)
+        let mats = f.DS.MaterialsResultingFromConditionBy("cell growth", pred)
         let names = mats |> Seq.map (fun m -> m.Name) |> Set.ofSeq
         Expect.equal names (Set.ofList ["SampleA";"SampleB"])
-            "predicate overload returns both terminal branch materials"
+            "predicate returns both terminal branch materials"
 
     // ── Dataset-scoped node/path queries ──────────────────────────────────────
 

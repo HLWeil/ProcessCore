@@ -4,10 +4,17 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "transpile:js-tests": "dotnet fable tests/ProcessCore.SQL.Tests/ProcessCore.SQL.Tests.fsproj -o build/out/js-tests --lang JavaScript",
+    "transpile:js-tests": "dotnet fable tests/ProcessCore.Tests/ProcessCore.Tests.fsproj -o build/out/js-tests --lang JavaScript",
     "test:js": "npm run transpile:js-tests && node build/out/js-tests/Main.js --fail-on-focused-tests"
   },
-  "devDependencies": {
+  "dependencies": {
     "better-sqlite3": "^12.9.0"
+  },
+  "devDependencies": {
+    "typescript": "~5.8.3",
+    "vite": "^7.0.0",
+    "path": "^0.12.7",
+    "vite-plugin-dts": "^4.5.4",
+    "vitest": "^3.1.1"
   }
 }

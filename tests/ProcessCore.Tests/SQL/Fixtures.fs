@@ -2,7 +2,7 @@ module ProcessCore.SQL.Tests.Fixtures
 
 open ProcessCore.SQL
 
-#if FABLE_COMPILER_JAVASCRIPT
+#if FABLE_COMPILER_JAVASCRIPT || FABLE_COMPILER_TYPESCRIPT
 open Fable.Core
 open ProcessCore.SQL.JavaScript
 

@@ -17,7 +17,9 @@ module Dataset =
         Set.ofList
             [ "type"; "additionaltype"; "identifier"; "name"; "description"
               "processes"; "haspart"; "additionalproperty"; "partof"
-              "propertyvalues"; "labprotocols" ]
+              "propertyvalues"; "labprotocols"
+              // Fable-compiled read-only instance properties — must not be re-emitted as overflow
+              "noderegistrydirect"; "fragmentselectorprovidersdirect" ]
 
     let addIndexedValues fieldName decode value =
         let registry = Dictionary<string, 'a>()

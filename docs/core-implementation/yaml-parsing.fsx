@@ -8,12 +8,11 @@ index: 4
 
 # Reading And Writing YAML
 
-`ProcessCore.YML` turns YAML documents into the same in-memory graph objects used by `ProcessCore`.
+`ProcessCore.Yaml` turns YAML documents into the same in-memory graph objects provided by `ProcessCore`.
 *)
 
 (*** hide ***)
 #r "../../src/ProcessCore/bin/Release/netstandard2.0/ProcessCore.dll"
-#r "../../src/ProcessCore.YML/bin/Release/netstandard2.0/ProcessCore.YML.dll"
 #r "nuget: DynamicObj"
 #r "nuget: YAMLicious, 1.0.0-alpha.10"
 open System

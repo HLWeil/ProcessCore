@@ -1,14 +1,6 @@
-module ProcessCore.Yaml.Tests.Main
+module ProcessCore.Yaml.Tests.All
 
 open Fable.Pyxpecto
-
-#if !FABLE_COMPILER_JAVASCRIPT && !FABLE_COMPILER_TYPESCRIPT
-let inline (!!) value = value
-#endif
-
-#if FABLE_COMPILER_JAVASCRIPT || FABLE_COMPILER_TYPESCRIPT
-open Fable.Core.JsInterop
-#endif
 
 let all =
     testList "ProcessCore.YAML" [
@@ -26,7 +18,3 @@ let all =
         Mode.LenientMode.tests
         Integration.Examples.tests
     ]
-
-[<EntryPoint>]
-let main _ =
-    !!Pyxpecto.runTests [||] all

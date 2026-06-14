@@ -24,32 +24,29 @@ Proposed repository layout:
 
 ```text
 src/
-  ProcessCore.SQL/
-    ProcessCore.SQL.fsproj
-    Tables.fs
-    RowCodecs.fs
-    Commands.fs
-    Repository.fs
-  ProcessCore.SQL.DotNet/
-    ProcessCore.SQL.DotNet.fsproj
-    SqliteDriver.fs
-  ProcessCore.SQL.JavaScript/
-    ProcessCore.SQL.JavaScript.fsproj
-    BetterSqliteDriver.fs
-  ProcessCore.SQL.TypeScript/
-    ProcessCore.SQL.TypeScript.fsproj
-  ProcessCore.SQL.Python/
-    ProcessCore.SQL.Python.fsproj
+  ProcessCore/
+    ProcessCore.fsproj
+    ProcessCore.Javascript.fsproj
+    ProcessCore.Python.fsproj
+    SQL/
+      Tables.fs
+      RowCodecs.fs
+      Repository.fs
+      Sql.fs
+      SqliteDriver.fs
+      BetterSqliteDriver.fs
+      PythonSqliteDriver.fs
 
 tests/
-  ProcessCore.SQL.Tests/                  # single Pyxpecto project, transpiled to JS/Python
-    ProcessCore.SQL.Tests.fsproj          # conditional ProjectReferences per Fable target
-    Fixtures.fs                           # conditional driver helpers (.NET / JS / Python)
+  ProcessCore.Tests/                      # single Pyxpecto project, transpiled to JS/Python
+    ProcessCore.Tests.fsproj              # conditional ProjectReferences per Fable target
+    SQL/
+      Fixtures.fs                         # conditional driver helpers (.NET / JS / Python)
     TableModelTests.fs
     RowCodecTests.fs
     DotNetDriverTests.fs                  # driver-agnostic; named for historical reasons
     RepositoryCrudTests.fs
-    Main.fs                               # shared testList run by every target
+    Tests.fs                              # SQL testList collected by ../Main.fs
 
 build/
   Build.fs
@@ -62,7 +59,7 @@ Directory.Packages.props
 Notes:
 
 - `ProcessCore.SQL` contains the shared Fable-compatible code.
-- All projects under `src/ProcessCore.SQL*` consume `Fable.Core` and apply Fable attributes. The shared `ProcessCore.SQL` project is consumed unchanged by every adapter; only the platform binding files differ per runtime.
+- The consolidated `src/ProcessCore` project consumes `Fable.Core` and applies Fable attributes. Runtime-specific project variants select only the platform binding file needed for .NET, JavaScript, or Python.
 - Runtime adapter projects are the only layer allowed to bind to concrete SQLite connectors.
 - Package boundaries are intentional: publish `ProcessCore.SQL` as the shared package, then publish adapter packages per ecosystem/runtime (`ProcessCore.SQL.DotNet` on NuGet, JavaScript/TypeScript output to npm, Python output to PyPI).
 - Tests compile against the public API, not private helper functions.
@@ -315,7 +312,7 @@ Repeat the per-table CRUD pattern for all 17 tables. Avoid clever generic metapr
 
 The metadata holder `Table<'row>` is internal to the implementation. It currently uses an F# record; convert to an `[<AttachMembers>]` class only if it ever appears on a public signature.
 
-Current status: not implemented. `src/ProcessCore.SQL/Repository.fs` currently contains `Table<'row>` metadata for the 17 tables only. It does not yet expose `insert`, `update`, `delete`, `get`, `list`, view readers, or transaction helpers.
+Current status: not implemented. `src/ProcessCore/SQL/Repository.fs` currently contains `Table<'row>` metadata for the 17 tables only. It does not yet expose `insert`, `update`, `delete`, `get`, `list`, view readers, or transaction helpers.
 
 Views:
 
@@ -337,7 +334,7 @@ Use the existing seeded artifacts as fixtures:
 
 For tests, prefer creating a fresh temporary database from `001_core.sql` and `seed_example.sql` per test suite. The committed `seeded_core.sqlite` is useful for smoke tests and manual inspection, but tests should not mutate it.
 
-Fixture helpers (live in `tests/ProcessCore.SQL.Tests/Fixtures.fs`, one set per target via `#if FABLE_COMPILER_*`):
+Fixture helpers (live in `tests/ProcessCore.Tests/SQL/Fixtures.fs`, one set per target via `#if FABLE_COMPILER_*`):
 
 - `readFixture relativePath` — returns the schema/seed file content as a string. Each target uses its native filesystem API (`System.IO.File.ReadAllText` for .NET, `node:fs.readFileSync` for JS, Python `open(...).read()` via `[<Emit>]` for Python).
 - `createEmptyDriver ()` — opens an in-memory database (`Sqlite.openInMemory` / `BetterSqlite.openInMemory` / `PythonSqliteDriver.createInMemory`) and applies `001_core.sql`. Returns an `ISqliteDriver`.
@@ -347,15 +344,15 @@ These three helpers are the entire test surface — every test module receives a
 
 ## Tests
 
-A **single transpilable test project** at `tests/ProcessCore.SQL.Tests` runs the same Pyxpecto suite against every target. Test modules know nothing about which driver is in use — they take an `ISqliteDriver` from `Fixtures.fs` and exercise the public shared API. Target selection happens in two places only:
+A **single transpilable test project** at `tests/ProcessCore.Tests` runs the same Pyxpecto suite against every target. SQL test modules know nothing about which driver is in use — they take an `ISqliteDriver` from `SQL/Fixtures.fs` and exercise the public shared API. Target selection happens in two places only:
 
 1. `Fixtures.fs` — `#if FABLE_COMPILER_JAVASCRIPT` / `FABLE_COMPILER_PYTHON` / else, picking the matching adapter and filesystem helper.
-2. `ProcessCore.SQL.Tests.fsproj` — `ProjectReference`s gated by the same Fable compiler symbols, so each transpilation pulls in only its adapter project:
+2. `ProcessCore.Tests.fsproj` — `ProjectReference`s gated by the same Fable compiler symbols, so each transpilation pulls in the matching ProcessCore project variant:
 
    ```xml
-   <ProjectReference Include="..\..\src\ProcessCore.SQL.DotNet\..."     Condition="'$(FABLE_COMPILER)' != 'True'" />
-   <ProjectReference Include="..\..\src\ProcessCore.SQL.JavaScript\..." Condition="'$(FABLE_COMPILER_JAVASCRIPT)' == 'True' Or '$(FABLE_COMPILER_TYPESCRIPT)' == 'True'" />
-   <ProjectReference Include="..\..\src\ProcessCore.SQL.Python\..."     Condition="'$(FABLE_COMPILER_PYTHON)' == 'True'" />
+   <ProjectReference Include="..\..\src\ProcessCore\ProcessCore.fsproj"            Condition="'$(FABLE_COMPILER)' != 'true'" />
+   <ProjectReference Include="..\..\src\ProcessCore\ProcessCore.Javascript.fsproj" Condition="'$(FABLE_COMPILER_JAVASCRIPT)' == 'true' Or '$(FABLE_COMPILER_TYPESCRIPT)' == 'true'" />
+   <ProjectReference Include="..\..\src\ProcessCore\ProcessCore.Python.fsproj"     Condition="'$(FABLE_COMPILER_PYTHON)' == 'true'" />
    ```
 
 `Main.fs` builds one `testList "ProcessCore.SQL"` from all module-level `tests` values and runs it via `Pyxpecto.runTests`. The `!!` operator from `Fable.Core.JsInterop` only opens under JS/TS targets so the same `Main.fs` compiles unchanged everywhere.
@@ -363,7 +360,7 @@ A **single transpilable test project** at `tests/ProcessCore.SQL.Tests` runs the
 Adding a new test:
 
 - Add a new `*Tests.fs` module exposing a `let tests = testList "..." [ ... ]`.
-- Append it to `ProcessCore.SQL.Tests.fsproj` *before* `Main.fs` (compile order matters).
+- Append it to `ProcessCore.Tests.fsproj` *before* `Main.fs` (compile order matters).
 - Append the module's `tests` to the `all` list in `Main.fs`.
 - The test runs under .NET, JS, and Python without further changes — provided it only uses public types and the fixture helpers.
 
@@ -420,10 +417,10 @@ Expected package categories:
 ### Phase 1 — Scaffold
 
 - Status: complete for the initial skeleton.
-- Added a compileable `src/ProcessCore.SQL` project targeting `net10.0`.
+- Added SQL support under the consolidated `src/ProcessCore` project.
 - Added shared SQL primitives, one-to-one table row records, row codec modules, table metadata, and explicit runtime connector planning stubs.
 - Added a BuildProject-template-based FAKE build project under `build/` with wrapper scripts and the planned target names.
-- Added a `ProcessCore.SQL.Tests` executable using Fable.Pyxpecto.
+- Added SQL coverage to the unified `ProcessCore.Tests` executable using Fable.Pyxpecto.
 - JavaScript Fable transpilation/test targets are wired. TypeScript and Python targets still exist as explicit pending targets.
 
 ### Phase 2 — Shared Table Model
@@ -451,15 +448,15 @@ Expected package categories:
 - Done: added .NET tests that create an in-memory database from `001_core.sql` and `seed_example.sql`, check FK health, bind parameters, and read seeded rows through shared codecs.
 - Done: implemented table-shaped CRUD classes for all 17 tables (`insert`, `update`, `delete`, `get`, `list`), with composite-key accessors for association tables.
 - Done: added view readers for `process_edges` and `property_value_orphans`.
-- Done: moved the driver and CRUD tests into the shared `tests/ProcessCore.SQL.Tests` project with target-specific driver fixtures for .NET, JavaScript, and Python.
+- Done: moved the driver and CRUD tests into the shared `tests/ProcessCore.Tests` project with target-specific driver fixtures for .NET, JavaScript, and Python.
 - Pending: add transaction helpers or document explicit `BEGIN` / `COMMIT` / `ROLLBACK` usage.
 
 ### Phase 4 — Python Driver
 
 - Status: started; Python adapter, uv-based runtime dependency, and `TranspilePy` / `TestPy` build targets are wired against the shared SQL test project.
-- Done: added `src/ProcessCore.SQL.Python/ProcessCore.SQL.Python.fsproj`.
+- Done: added the Python driver to `src/ProcessCore/SQL/` and the `ProcessCore.Python.fsproj` target variant.
 - Done: implemented `PythonSqliteDriver` over Python stdlib `sqlite3` via Fable Python interop.
-- Done: Python now reuses `tests/ProcessCore.SQL.Tests` via Fable Python; only the fixture selects `PythonSqliteDriver`.
+- Done: Python now reuses `tests/ProcessCore.Tests/SQL` via Fable Python; only the fixture selects `PythonSqliteDriver`.
 - Done: added root `pyproject.toml` and `uv.lock` for Python tooling; `fable-library==5.0.0` provides the Python Fable runtime.
 - Done: wired `TranspilePy` and `TestPy`; `TestPy` runs `uv run python build/out/py-tests/main.py --fail-on-focused-tests`.
 - Done: added `RunTestsAll` to run .NET, JavaScript, then Python test execution in sequence.
@@ -473,15 +470,17 @@ The Phase 2 Fable-compat migration must complete first. Without `[<AttachMembers
 #### Project layout additions
 
 ```text
-src/ProcessCore.SQL.Python/
-  ProcessCore.SQL.Python.fsproj          # Fable F# project compiled to Python
-  PythonSqliteDriver.fs                  # ISqliteDriver impl using Python stdlib sqlite3
-  PythonInterop.fs                       # Fable [<Import>]/[<Emit>] bindings for sqlite3
+src/ProcessCore/
+  ProcessCore.Python.fsproj              # Fable F# project compiled to Python
+  SQL/
+    PythonSqliteDriver.fs                # ISqliteDriver impl using Python stdlib sqlite3
+    PythonInterop.fs                     # Fable [<Import>]/[<Emit>] bindings for sqlite3
 
-tests/ProcessCore.SQL.Tests/
-  ProcessCore.SQL.Tests.fsproj           # Shared Pyxpecto test project for .NET / JS / Python
+tests/ProcessCore.Tests/
+  ProcessCore.Tests.fsproj               # Shared Pyxpecto test project for .NET / JS / Python
   Main.fs
-  Fixtures.fs                            # Conditional driver fixture selected by Fable target
+  SQL/
+    Fixtures.fs                          # Conditional driver fixture selected by Fable target
 
 build/output/python/                     # Fable transpilation output (gitignored)
   process_core_sql/                      # transpiled shared lib
@@ -491,7 +490,7 @@ build/output/python/                     # Fable transpilation output (gitignore
 pyproject.toml                           # at repo root for Python tooling/deps
 ```
 
-Current implementation note: JavaScript and Python both transpile `tests/ProcessCore.SQL.Tests/ProcessCore.SQL.Tests.fsproj`; Fable output still goes to `build/out/js-tests/` and `build/out/py-tests/`.
+Current implementation note: JavaScript and Python both transpile `tests/ProcessCore.Tests/ProcessCore.Tests.fsproj`; Fable output still goes to `build/out/js-tests/` and `build/out/py-tests/`.
 
 #### Tooling decisions
 
@@ -573,7 +572,7 @@ Notes:
 
 Add to `build/Build.fs`:
 
-- `TranspilePy` target — runs Fable against `tests/ProcessCore.SQL.Tests/ProcessCore.SQL.Tests.fsproj`; conditional project references bring in the shared library and Python adapter output.
+- `TranspilePy` target — runs Fable against `tests/ProcessCore.Tests/ProcessCore.Tests.fsproj`; conditional project references bring in the shared library and Python adapter output.
 - `TestPy` target — runs `uv run python build/out/py-tests/main.py --fail-on-focused-tests`; depends on `TranspilePy`.
 - `RunTestsAll` aggregate — runs .NET Pyxpecto tests, JavaScript transpile/test, and Python transpile/test sequentially.
 - `RunTests` aggregate — append `TestPy` once green on a developer machine, or keep `RunTestsAll` as the explicit cross-runtime target.
@@ -589,12 +588,12 @@ Reuse shared test modules unchanged — they're written against the public `ISql
 - Python uses `PythonSqliteDriver.createInMemory`.
 - All three read `001_core.sql` and `seed_example.sql` from the repo root and expose `createEmptyDriver` / `createSeededDriver`.
 
-The shared test list from `tests/ProcessCore.SQL.Tests/` compiles under Python without test-body changes once the fixture selects the Python adapter.
+The shared test list from `tests/ProcessCore.Tests/SQL/` compiles under Python without test-body changes once the fixture selects the Python adapter.
 
 #### Verification
 
 1. `.\build.cmd TranspilePy` runs cleanly and produces `build/out/py-tests/`.
-2. Spot-check one transpiled file under `build/out/py-tests/src/ProcessCore.SQL/` to confirm `DefinedTermRow` is a regular Python class with kw-only `create`, no boxed DU helpers around `SqlValue`, and `Array` parameters lower to `list[T]`.
+2. Spot-check one transpiled file under `build/out/py-tests/src/ProcessCore/SQL/` to confirm `DefinedTermRow` is a regular Python class with kw-only `create`, no boxed DU helpers around `SqlValue`, and `Array` parameters lower to `list[T]`.
 3. `.\build.cmd TestPy` exits 0 on the shared SQL suite.
 4. Manual smoke: `python -c "from process_core_sql_python.python_sqlite_driver import PythonSqliteDriver; d = PythonSqliteDriver.create_in_memory(); ..."` confirms the named-arg `create` and mutable members carry into Python.
 
@@ -604,7 +603,7 @@ The shared test list from `tests/ProcessCore.SQL.Tests/` compiles under Python w
 - Done: chose `better-sqlite3` as the Node SQLite connector for the synchronous driver boundary.
 - Done: introduced Node tooling with `package.json`, `package-lock.json`, npm scripts, generated output ignores, and `better-sqlite3` dependency management.
 - Done: wired Fable JavaScript transpilation and `TestJs` into the BuildProject pipeline.
-- Done: JavaScript now reuses `tests/ProcessCore.SQL.Tests` via Fable JavaScript; only the fixture selects `BetterSqlite`.
+- Done: JavaScript now reuses `tests/ProcessCore.Tests/SQL` via Fable JavaScript; only the fixture selects `BetterSqlite`.
 - Pending: verify the expanded shared JavaScript suite after the fixture consolidation.
 - Pending: decide whether TypeScript gets a distinct binding or reuses the JavaScript binding output.
 - Pending: wire TypeScript transpilation and tests.
