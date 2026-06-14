@@ -65,31 +65,31 @@ let tests = testList "TableAux" [
     testCase "PVToHeader — ParameterValue" <| fun _ ->
         let pv = PropertyValue("temperature", additionalType = "ParameterValue")
         match TableAux.PVToHeader pv with
-        | CompositeHeader.Parameter("temperature", _) -> ()
+        | CompositeHeader.Parameter(dt) when dt.Name = "temperature" -> ()
         | _ -> failwith "Expected Parameter"
 
     testCase "PVToHeader — FactorValue" <| fun _ ->
         let pv = PropertyValue("growth_phase", additionalType = "FactorValue")
         match TableAux.PVToHeader pv with
-        | CompositeHeader.Factor("growth_phase", _) -> ()
+        | CompositeHeader.Factor(dt) when dt.Name = "growth_phase" -> ()
         | _ -> failwith "Expected Factor"
 
     testCase "PVToHeader — CharacteristicValue" <| fun _ ->
         let pv = PropertyValue("organism", additionalType = "CharacteristicValue")
         match TableAux.PVToHeader pv with
-        | CompositeHeader.Characteristic("organism", _) -> ()
+        | CompositeHeader.Characteristic(dt) when dt.Name = "organism" -> ()
         | _ -> failwith "Expected Characteristic"
 
     testCase "PVToHeader — Component" <| fun _ ->
         let pv = PropertyValue("instrument", additionalType = "Component")
         match TableAux.PVToHeader pv with
-        | CompositeHeader.Component("instrument", _) -> ()
+        | CompositeHeader.Component(dt) when dt.Name = "instrument" -> ()
         | _ -> failwith "Expected Component"
 
     testCase "PVToHeader — no AdditionalType defaults to Parameter" <| fun _ ->
         let pv = PropertyValue("whatever")
         match TableAux.PVToHeader pv with
-        | CompositeHeader.Parameter("whatever", _) -> ()
+        | CompositeHeader.Parameter(dt) when dt.Name = "whatever" -> ()
         | _ -> failwith "Expected Parameter default"
 
     // ── ApplyCellToPV ─────────────────────────────────────────────────────────
@@ -125,7 +125,8 @@ let tests = testList "TableAux" [
     // ── MakePV roundtrip ──────────────────────────────────────────────────────
 
     testCase "MakePV roundtrip — Parameter + Unitized" <| fun _ ->
-        let header = CompositeHeader.Parameter("temperature", Some "PATO:0000146")
+        let temp = DefinedTerm("temperature", "PATO:0000146")
+        let header = CompositeHeader.Parameter(temp)
         let cell   = CompositeCell.Unitized("37", "°C", Some "UO:0000027")
         let pv     = TableAux.MakePV(header, cell)
         Expect.equal pv.Name           "temperature"        "name"
@@ -135,7 +136,8 @@ let tests = testList "TableAux" [
         Expect.equal pv.Unit           (Some "°C")           "unit"
 
     testCase "MakePV roundtrip — Characteristic + Term" <| fun _ ->
-        let header = CompositeHeader.Characteristic("organism", None)
+        let organism = DefinedTerm("organism")
+        let header = CompositeHeader.Characteristic(organism)
         let cell   = CompositeCell.Term("E. coli", Some "NCBITAXON:562")
         let pv     = TableAux.MakePV(header, cell)
         Expect.equal pv.AdditionalType (Some "CharacteristicValue") "additionalType"

@@ -17,6 +17,22 @@ type IOType =
     | Data
     | FreeText of string
 
+    /// Used to match only(!) IOType string to IOType (without Input/Output). This matching is case sensitive.
+    ///
+    /// Exmp. 1: "Source" --> Source
+    ///
+    /// Exmp. 2: "Raw Data File" | "RawDataFile" -> RawDataFile
+    static member ofString (str: string) =  
+        match str with
+        | "Source" | "Source Name"                  -> Source
+        | "Sample" | "Sample Name"                  -> Sample
+        | "RawDataFile" | "Raw Data File"           
+        | "DerivedDataFile" | "Derived Data File"  
+        | "ImageFile" | "Image File"                
+        | "Data"                                    -> Data
+        | "Material"                                -> Material
+        | _                                         -> FreeText str // use str to not store `str.ToLower()`
+
 // ─────────────────────────────────────────────────────────────────────────────
 // CompositeHeader
 // ─────────────────────────────────────────────────────────────────────────────
@@ -27,17 +43,10 @@ type IOType =
 [<RequireQualifiedAccess>]
 type CompositeHeader =
     // Annotation columns — each carries a (name, TAN) pair
-    #if FABLE_COMPILER_PYTHON
-    | Parameter         of string * string option
-    | Characteristic    of string * string option
-    | Factor            of string * string option
-    | Component         of string * string option
-    #else
-    | Parameter         of name: string * tan: string option
-    | Characteristic    of name: string * tan: string option
-    | Factor            of name: string * tan: string option
-    | Component         of name: string * tan: string option
-    #endif
+    | Parameter         of DefinedTerm
+    | Characteristic    of DefinedTerm
+    | Factor            of DefinedTerm
+    | Component         of DefinedTerm
     // Protocol metadata columns
     | ProtocolREF
     | ProtocolType
@@ -53,7 +62,188 @@ type CompositeHeader =
     // Fallback
     | FreeText          of string
     | Comment           of string
+    member this.IsCvParamColumn =
+        match this with 
+        | Parameter _ | Factor _| Characteristic _| Component _ -> true
+        | anythingElse -> false
 
+    /// <summary>
+    /// Is true if this Building Block type is a TermColumn.
+    ///
+    /// The name "TermColumn" refers to all columns with the syntax "Parameter/Factor/etc [TERM-NAME]" and featured columns
+    /// such as Protocol Type as these are also represented as a triplet of MainColumn-TSR-TAN.
+    /// </summary>
+    member this.IsTermColumn =
+        match this with 
+        | Parameter _ | Factor _| Characteristic _| Component _
+        | ProtocolType -> true 
+        | anythingElse -> false
+
+    member this.IsDataColumn =
+        match this with 
+        | Input IOType.Data | Output IOType.Data -> true 
+        | anythingElse -> false
+
+    /// <summary>
+    /// Is true if the Building Block type is a FeaturedColumn. 
+    ///
+    /// A FeaturedColumn can be abstracted by Parameter/Factor/Characteristic and describes one common usecase of either.
+    /// Such a block will contain TSR and TAN and can be used for directed Term search.
+    /// </summary>
+    member this.IsFeaturedColumn =
+        match this with | ProtocolType -> true | anythingElse -> false
+
+    /// <summary>
+    /// This function gets the associated term accession for featured columns. 
+    /// 
+    /// It contains the hardcoded term accessions.
+    /// </summary>
+    member this.GetFeaturedColumnAccession =
+        match this with
+        | ProtocolType -> "DPBO:1000161"
+        | anyelse -> failwith $"Tried matching {anyelse} in getFeaturedColumnAccession, but is not a featured column."
+
+    /// <summary>
+    /// This function gets the associated term accession for term columns. 
+    /// </summary>
+    member this.GetColumnAccessionShort =
+        match this with
+        | ProtocolType -> this.GetFeaturedColumnAccession
+        | Parameter dt -> dt.TermAccessionShort()
+        | Factor dt -> dt.TermAccessionShort()
+        | Characteristic dt -> dt.TermAccessionShort()
+        | Component dt -> dt.TermAccessionShort()
+        | anyelse -> failwith $"Tried matching {anyelse}, but is not a column with an accession."
+
+    /// <summary>
+    /// Is true if the Building Block type is parsed to a single column. 
+    ///
+    /// This can be any input, output column, as well as for example: `ProtocolREF` and `Performer` with FreeText body cells.
+    /// </summary>
+    member this.IsSingleColumn =
+        match this with 
+        | FreeText _
+        | Input _ | Output _ 
+        | Comment _ 
+        | ProtocolREF | ProtocolDescription | ProtocolUri | ProtocolVersion | Performer | Date -> true 
+        | anythingElse -> false
+
+    ///
+    member this.IsIOType =
+        match this with 
+        | Input io | Output io -> true 
+        | anythingElse -> false
+
+    // lower case "i" because of clashing naming: 
+    // Issue: https://github.com/dotnet/fsharp/issues/10359
+    // Proposed design: https://github.com/fsharp/fslang-design/blob/main/RFCs/FS-1079-union-properties-visible.md
+    member this.isInput =
+        match this with 
+        | Input io -> true 
+        | anythingElse -> false
+
+    member this.isOutput =
+        match this with 
+        | Output io -> true 
+        | anythingElse -> false
+
+    member this.isParameter =
+        match this with 
+        | Parameter _ -> true 
+        | anythingElse -> false
+
+    member this.isFactor =
+        match this with 
+        | Factor _ -> true 
+        | anythingElse -> false
+
+    member this.isCharacteristic =
+        match this with 
+        | Characteristic _ -> true 
+        | anythingElse -> false
+
+    member this.isComponent =
+        match this with
+        | Component _ -> true
+        | anythingElse -> false
+
+    member this.isProtocolType =
+        match this with
+        | ProtocolType -> true
+        | anythingElse -> false
+
+    member this.isProtocolREF =
+        match this with
+        | ProtocolREF -> true
+        | anythingElse -> false
+
+    member this.isProtocolDescription =
+        match this with
+        | ProtocolDescription -> true
+        | anythingElse -> false
+
+    member this.isProtocolUri =
+        match this with
+        | ProtocolUri -> true
+        | anythingElse -> false
+
+    member this.isProtocolVersion =
+        match this with
+        | ProtocolVersion -> true
+        | anythingElse -> false
+
+    member this.isProtocolColumn =
+        match this with
+        | ProtocolREF | ProtocolDescription | ProtocolUri | ProtocolVersion | ProtocolType -> true
+        | anythingElse -> false
+
+    member this.isPerformer =
+        match this with
+        | Performer -> true
+        | anythingElse -> false
+
+    member this.isDate =
+        match this with
+        | Date -> true
+        | anythingElse -> false
+
+    member this.isComment =
+        match this with
+        | Comment _ -> true
+        | anythingElse -> false
+
+    member this.isFreeText =
+        match this with
+        | FreeText _ -> true
+        | anythingElse -> false
+
+    member this.TryInput() =
+        match this with
+        | Input io -> Some io
+        | _ -> None
+
+    member this.TryOutput() =
+        match this with
+        | Output io -> Some io
+        | _ -> None
+
+    member this.TryIOType() =
+        match this with
+        | Output io | Input io -> Some io
+        | _ -> None
+
+    member this.IsUnique =
+        match this with
+        | ProtocolType | ProtocolREF | ProtocolDescription | ProtocolUri | ProtocolVersion | Performer | Date | Input _ | Output _ -> true
+        | _ -> false
+
+    // member this.Copy() =
+    //     match this with
+    //     | Parameter oa -> Parameter (oa.Copy())
+    //     | Factor oa -> Factor (oa.Copy())
+    //     | Characteristic oa -> Characteristic (oa.Copy())
+    //     | Component oa -> Component (oa.Copy())
+    //     | _ -> this
 // ─────────────────────────────────────────────────────────────────────────────
 // CompositeCell
 // ─────────────────────────────────────────────────────────────────────────────
@@ -100,6 +290,30 @@ type CompositeColumn(header: CompositeHeader, cells: ResizeArray<CompositeCell>)
 /// Auxiliary functions for composing and decomposing Table ↔ process graph.
 module TableAux =
 
+    [<Literal>]
+    let ColumnIndexKey = "ColumnIndex"
+
+    /// Annotation-column position stored as extensible PropertyValue metadata.
+    let TryGetColumnIndex (pv: PropertyValue) =
+        match pv.TryGetPropertyValue(ColumnIndexKey) with
+        | Some index -> Some index
+        | None -> pv.TryGetPropertyValue("columnIndex")
+        |> Option.bind (fun ci -> 
+            match ci with
+            | :? int as i -> Some i
+            | :? string as s ->
+                match System.Int32.TryParse(s) with
+                | true, i -> Some i
+                | _ -> None
+            | _ -> None
+        )
+
+    /// Store annotation-column position as extensible PropertyValue metadata.
+    let SetColumnIndex (pv: PropertyValue) (index: int option) =
+        match index with
+        | Some index -> pv.SetProperty(ColumnIndexKey, index)
+        | None -> ()
+
     /// IOType for a material node based on its AdditionalType tag.
     let MaterialIOType (m: Material) : IOType =
         match m.AdditionalType with
@@ -131,7 +345,7 @@ module TableAux =
 
     /// Build a CompositeHeader from a PropertyValue.
     let PVToHeader (pv: PropertyValue) : CompositeHeader =
-        let pair = (pv.Name, pv.NameTAN)
+        let pair = DefinedTerm(pv.Name, ?tan = pv.NameTAN)
         match pv.AdditionalType with
         | Some "ParameterValue"      -> CompositeHeader.Parameter pair
         | Some "FactorValue"         -> CompositeHeader.Factor pair
@@ -163,11 +377,11 @@ module TableAux =
     let MakePV (header: CompositeHeader, cell: CompositeCell) : PropertyValue =
         let pv =
             match header with
-            | CompositeHeader.Parameter(n, tan)      -> PropertyValue(n, NameTAN = tan, AdditionalType = Some "ParameterValue")
-            | CompositeHeader.Characteristic(n, tan) -> PropertyValue(n, NameTAN = tan, AdditionalType = Some "CharacteristicValue")
-            | CompositeHeader.Factor(n, tan)         -> PropertyValue(n, NameTAN = tan, AdditionalType = Some "FactorValue")
-            | CompositeHeader.Component(n, tan)      -> PropertyValue(n, NameTAN = tan, AdditionalType = Some "Component")
-            | _                                      -> PropertyValue("")
+            | CompositeHeader.Parameter(dt)      -> PropertyValue(dt.Name, NameTAN = dt.TAN, AdditionalType = Some "ParameterValue")
+            | CompositeHeader.Characteristic(dt) -> PropertyValue(dt.Name, NameTAN = dt.TAN, AdditionalType = Some "CharacteristicValue")
+            | CompositeHeader.Factor(dt)         -> PropertyValue(dt.Name, NameTAN = dt.TAN, AdditionalType = Some "FactorValue")
+            | CompositeHeader.Component(dt)      -> PropertyValue(dt.Name, NameTAN = dt.TAN, AdditionalType = Some "Component")
+            | _                                  -> PropertyValue("")
         ApplyCellToPV(pv, cell)
         pv
 
@@ -181,11 +395,214 @@ module TableAux =
 [<AttachMembers>]
 type Table(name: string, processes: ResizeArray<LabProcess>, dataset: Dataset) =
 
+    member private _.ClonePV(pv: PropertyValue) =
+        let clone = PropertyValue(
+            pv.Name,
+            ?value = pv.Value,
+            ?unit = pv.Unit,
+            ?nameTAN = pv.NameTAN,
+            ?valueTAN = pv.ValueTAN,
+            ?unitTAN = pv.UnitTAN,
+            ?additionalType = pv.AdditionalType,
+            ?instanceOf = pv.InstanceOf
+        )
+        TableAux.SetColumnIndex clone (TableAux.TryGetColumnIndex pv)
+        clone
+
+    member private this.CloneNode(node: IONode) =
+        match node with
+        | MaterialNode m ->
+            let clone = Material(m.Name, ?additionalType = m.AdditionalType)
+            for pv in m.AdditionalProperty do
+                clone.AddAdditionalProperty(this.ClonePV(pv))
+            MaterialNode clone
+        | DataNode d ->
+            let clone =
+                Data(
+                    d.Path,
+                    ?selector = d.Selector,
+                    ?selectorFormat = d.SelectorFormat,
+                    ?encodingFormat = d.EncodingFormat,
+                    ?additionalType = d.AdditionalType
+                )
+            for pv in d.AdditionalProperty do
+                clone.AddAdditionalProperty(this.ClonePV(pv))
+            DataNode clone
+
+    member private this.CloneProtocol(proto: LabProtocol) =
+        let clone = LabProtocol()
+        clone.Name <- proto.Name
+        clone.Description <- proto.Description
+        clone.Version <- proto.Version
+        clone.Url <- proto.Url
+        clone.IntendedUse <- proto.IntendedUse
+        clone.AdditionalType <- proto.AdditionalType
+        for fp in proto.Parameters do clone.AddParameter(fp)
+        for pv in proto.LabEquipment do clone.AddLabEquipment(this.ClonePV(pv))
+        for pv in proto.AdditionalProperty do clone.AddAdditionalProperty(this.ClonePV(pv))
+        clone
+
+    member private this.EnsureProtocol(p: LabProcess) =
+        match p.ExecutesProtocol with
+        | Some proto -> proto
+        | None ->
+            let proto = LabProtocol()
+            p.ExecutesProtocol <- Some proto
+            proto
+
+    member private _.SetMaterialType(m: Material, ioType: IOType) =
+        match ioType with
+        | IOType.Source -> m.AdditionalType <- Some "Source"
+        | IOType.Sample -> m.AdditionalType <- Some "Sample"
+        | IOType.Material -> m.AdditionalType <- Some "Material"
+        | IOType.FreeText t -> m.AdditionalType <- Some t
+        | IOType.Data -> ()
+
+    member private this.NodeFromCell(ioType: IOType, cell: CompositeCell, fallbackName: string) =
+        match cell, ioType with
+        | CompositeCell.Data d, _ -> this.CloneNode(DataNode d)
+        | CompositeCell.FreeText path, IOType.Data -> DataNode(Data(path))
+        | CompositeCell.FreeText value, _ ->
+            let m = Material(value)
+            this.SetMaterialType(m, ioType)
+            MaterialNode m
+        | _, IOType.Data -> DataNode(Data(fallbackName))
+        | _, _ ->
+            let m = Material(fallbackName)
+            this.SetMaterialType(m, ioType)
+            MaterialNode m
+
+    member private _.NodeCell(node: IONode) =
+        match node with
+        | MaterialNode m -> TableAux.MaterialCell m
+        | DataNode d -> TableAux.DataCell d
+
+    member private this.ProjectedRows() =
+        let rows = ResizeArray<LabProcess * int option * int option>()
+        for p in processes do
+            let rowCount = max 1 (max p.Inputs.Count p.Outputs.Count)
+            for i in 0 .. rowCount - 1 do
+                let inputIndex = if i < p.Inputs.Count then Some i else None
+                let outputIndex = if i < p.Outputs.Count then Some i else None
+                rows.Add((p, inputIndex, outputIndex))
+        rows
+
+    member private _.NodeAt(nodes: ResizeArray<IONode>, index: int option) =
+        match index with
+        | Some i when i >= 0 && i < nodes.Count -> Some nodes.[i]
+        | _ -> None
+
+    member private this.SelectedInput(p: LabProcess, index: int option) =
+        this.NodeAt(p.Inputs, index)
+
+    member private this.SelectedOutput(p: LabProcess, index: int option) =
+        this.NodeAt(p.Outputs, index)
+
+    member private this.EnsureInput(p: LabProcess, index: int option, ioType: IOType, cell: CompositeCell) =
+        match this.SelectedInput(p, index) with
+        | Some node -> node
+        | None ->
+            let rowName =
+                match index with
+                | Some i -> sprintf "%s_%d" name i
+                | None -> sprintf "%s_%d" name p.Inputs.Count
+            let node = this.NodeFromCell(ioType, cell, rowName)
+            p.AddInput(node)
+            node
+
+    member private this.EnsureOutput(p: LabProcess, index: int option, ioType: IOType, cell: CompositeCell) =
+        match this.SelectedOutput(p, index) with
+        | Some node -> node
+        | None ->
+            let rowName =
+                match index with
+                | Some i -> sprintf "%s_%d_out" name i
+                | None -> sprintf "%s_%d_out" name p.Outputs.Count
+            let node = this.NodeFromCell(ioType, cell, rowName)
+            p.AddOutput(node)
+            node
+
+    member private this.ReplaceInput(p: LabProcess, existing: IONode option, ioType: IOType, cell: CompositeCell) =
+        existing |> Option.iter p.RemoveInput
+        p.AddInput(this.NodeFromCell(ioType, cell, ""))
+
+    member private this.ReplaceOutput(p: LabProcess, existing: IONode option, ioType: IOType, cell: CompositeCell) =
+        existing |> Option.iter p.RemoveOutput
+        p.AddOutput(this.NodeFromCell(ioType, cell, ""))
+
+    member private this.ApplyCellToNode(node: IONode, ioType: IOType, cell: CompositeCell, isInput: bool, p: LabProcess) =
+        match node, cell, ioType with
+        | DataNode d, CompositeCell.Data d2, _ ->
+            d.Path <- d2.Path
+            d.Selector <- d2.Selector
+            d.SelectorFormat <- d2.SelectorFormat
+            d.EncodingFormat <- d2.EncodingFormat
+            d.AdditionalType <- d2.AdditionalType
+        | DataNode d, CompositeCell.FreeText path, IOType.Data ->
+            d.Path <- path
+        | MaterialNode _, CompositeCell.FreeText _, IOType.Data
+        | MaterialNode _, CompositeCell.Data _, _
+        | DataNode _, CompositeCell.FreeText _, _ ->
+            if isInput then this.ReplaceInput(p, Some node, ioType, cell)
+            else this.ReplaceOutput(p, Some node, ioType, cell)
+        | MaterialNode m, CompositeCell.FreeText value, _ ->
+            m.Name <- value
+            this.SetMaterialType(m, ioType)
+        | _, _, _ -> ()
+
+    member private this.CloneProcessForRow(p: LabProcess, inputIndex: int option, outputIndex: int option) =
+        let clone = LabProcess(p.Name, ?additionalType = p.AdditionalType)
+        match p.ExecutesProtocol with
+        | Some proto -> clone.ExecutesProtocol <- Some(this.CloneProtocol(proto))
+        | None -> ()
+        match this.SelectedInput(p, inputIndex) with
+        | Some node -> clone.AddInput(this.CloneNode(node))
+        | None -> ()
+        match this.SelectedOutput(p, outputIndex) with
+        | Some node -> clone.AddOutput(this.CloneNode(node))
+        | None -> ()
+        for pv in p.ParameterValue do
+            clone.AddParameterValue(this.ClonePV(pv))
+        clone
+
+    member private this.MaterializeProjectedRows() =
+        let replacements = ResizeArray<LabProcess * ResizeArray<LabProcess>>()
+        for p in processes |> Seq.toArray do
+            let rowCount = max 1 (max p.Inputs.Count p.Outputs.Count)
+            if rowCount > 1 then
+                let clones = ResizeArray<LabProcess>()
+                for i in 0 .. rowCount - 1 do
+                    let inputIndex = if i < p.Inputs.Count then Some i else None
+                    let outputIndex = if i < p.Outputs.Count then Some i else None
+                    clones.Add(this.CloneProcessForRow(p, inputIndex, outputIndex))
+                replacements.Add((p, clones))
+        for oldProc, clones in replacements do
+            let idx = processes.IndexOf(oldProc)
+            if idx >= 0 then processes.RemoveAt(idx)
+            dataset.RemoveProcess(oldProc)
+            let mutable insertAt = if idx >= 0 then idx else processes.Count
+            for clone in clones do
+                processes.Insert(insertAt, clone)
+                insertAt <- insertAt + 1
+                dataset.AddProcess(clone)
+
+    member private _.CellAt(cells: ResizeArray<CompositeCell>, rowIndex: int) =
+        if rowIndex < cells.Count then cells.[rowIndex] else CompositeCell.FreeText ""
+
+    member private _.FindPV(pvs: seq<PropertyValue>, additionalType: string, name: string) =
+        pvs |> Seq.tryFind (fun pv -> pv.AdditionalType = Some additionalType && pv.Name = name)
+
+    member private this.AnnotationColumnIndex() =
+        this.Decompose()
+        |> Seq.filter (fun c -> c.Header.IsCvParamColumn)
+        |> Seq.length
+
     /// Derive the ordered list of CompositeColumns from the current process list.
     /// Column order: Input → ProtocolREF → ProtocolType → ProtocolDesc → ProtocolUri →
     ///   ProtocolVersion → Characteristics → Components → Parameters → Factors → Output
     member this.Decompose() : ResizeArray<CompositeColumn> =
         let cols = ResizeArray<CompositeColumn>()
+        this.MaterializeProjectedRows()
         if processes.Count = 0 then cols
         else
 
@@ -199,7 +616,7 @@ type Table(name: string, processes: ResizeArray<LabProcess>, dataset: Dataset) =
                 for pv: PropertyValue in getPVs p do
                     if pv.AdditionalType = Some additionalType then
                         if not (seen.ContainsKey(pv.Name)) then
-                            let idx = System.Int32.MaxValue
+                            let idx = TableAux.TryGetColumnIndex pv |> Option.defaultValue System.Int32.MaxValue
                             seen.[pv.Name] <- idx
             seen |> Seq.sortBy (fun kv -> kv.Value) |> Seq.map (fun kv -> kv.Key) |> ResizeArray
 
@@ -274,7 +691,7 @@ type Table(name: string, processes: ResizeArray<LabProcess>, dataset: Dataset) =
             for p in processes do
                 for pv: PropertyValue in getPVs p do
                     if pv.AdditionalType = Some additionalType && not (seen.ContainsKey(pv.Name)) then
-                        seen.[pv.Name] <- System.Int32.MaxValue
+                        seen.[pv.Name] <- TableAux.TryGetColumnIndex pv |> Option.defaultValue System.Int32.MaxValue
             let orderedNames = seen |> Seq.sortBy (fun kv -> kv.Value) |> Seq.map (fun kv -> kv.Key) |> ResizeArray
             for pvName in orderedNames do
                 // representative PV for header
@@ -348,8 +765,9 @@ type Table(name: string, processes: ResizeArray<LabProcess>, dataset: Dataset) =
     /// The parent dataset.
     member _.Dataset = dataset
 
-    /// Number of rows (one per process node).
-    member _.RowCount = processes.Count
+    /// Number of visible rows in the table projection.
+    member this.RowCount =
+        this.ProjectedRows().Count
 
     /// Derive headers from the current process state.
     member this.Headers : ResizeArray<CompositeHeader> =
@@ -404,37 +822,116 @@ type Table(name: string, processes: ResizeArray<LabProcess>, dataset: Dataset) =
     /// Appends the corresponding PropertyValue to the right slot of every process node.
     /// Non-annotation headers (Input, Output, ProtocolREF, etc.) are ignored here —
     /// use the row API for I/O and protocol fields.
-    member _.AddColumn(header: CompositeHeader, ?cells: ResizeArray<CompositeCell>) =
+    member this.AddColumn(header: CompositeHeader, ?cells: ResizeArray<CompositeCell>) =
         let cells = cells |> Option.defaultValue (ResizeArray())
-        let addPV (p: LabProcess) (rowIdx: int) (getList: unit -> ResizeArray<PropertyValue>) =
-            let cell = if rowIdx < cells.Count then cells.[rowIdx] else CompositeCell.FreeText ""
-            let pv   = TableAux.MakePV(header, cell)
+        let annotationIndex = this.AnnotationColumnIndex()
+        let addPV rowIdx (getList: unit -> ResizeArray<PropertyValue>) =
+            let pv = TableAux.MakePV(header, this.CellAt(cells, rowIdx))
+            TableAux.SetColumnIndex pv (Some annotationIndex)
             getList().Add(pv)
+        let ensureOneProcess () =
+            if processes.Count = 0 then
+                let p = LabProcess(name)
+                processes.Add(p)
+                dataset.AddProcess(p)
         match header with
+        | CompositeHeader.Input ioType ->
+            if processes.Count = 0 then
+                let p = LabProcess(name)
+                let cellCount = if cells.Count = 0 then 1 else cells.Count
+                for i in 0 .. cellCount - 1 do
+                    p.AddInput(this.NodeFromCell(ioType, this.CellAt(cells, i), sprintf "%s_%d" name i))
+                processes.Add(p)
+                dataset.AddProcess(p)
+            else
+                this.MaterializeProjectedRows()
+                for i in 0 .. processes.Count - 1 do
+                    processes.[i].AddInput(this.NodeFromCell(ioType, this.CellAt(cells, i), sprintf "%s_%d" name i))
+        | CompositeHeader.Output ioType ->
+            if processes.Count = 0 then
+                let p = LabProcess(name)
+                let cellCount = if cells.Count = 0 then 1 else cells.Count
+                for i in 0 .. cellCount - 1 do
+                    p.AddOutput(this.NodeFromCell(ioType, this.CellAt(cells, i), sprintf "%s_%d_out" name i))
+                processes.Add(p)
+                dataset.AddProcess(p)
+            else
+                this.MaterializeProjectedRows()
+                for i in 0 .. processes.Count - 1 do
+                    processes.[i].AddOutput(this.NodeFromCell(ioType, this.CellAt(cells, i), sprintf "%s_%d_out" name i))
         | CompositeHeader.Parameter _ ->
+            ensureOneProcess()
+            this.MaterializeProjectedRows()
             for i in 0 .. processes.Count - 1 do
-                addPV processes.[i] i (fun () -> processes.[i].ParameterValue)
+                addPV i (fun () -> processes.[i].ParameterValue)
         | CompositeHeader.Characteristic _ ->
+            ensureOneProcess()
+            this.MaterializeProjectedRows()
             for i in 0 .. processes.Count - 1 do
                 let p = processes.[i]
-                match p.Inputs |> Seq.tryHead with
-                | Some (MaterialNode m) -> addPV p i (fun () -> m.AdditionalProperty)
-                | Some (DataNode d)     -> addPV p i (fun () -> d.AdditionalProperty)
-                | None                  -> ()
+                match this.EnsureInput(p, Some 0, IOType.Sample, CompositeCell.FreeText(sprintf "%s_%d" name i)) with
+                | MaterialNode m -> addPV i (fun () -> m.AdditionalProperty)
+                | DataNode d -> addPV i (fun () -> d.AdditionalProperty)
         | CompositeHeader.Factor _ ->
+            ensureOneProcess()
+            this.MaterializeProjectedRows()
             for i in 0 .. processes.Count - 1 do
                 let p = processes.[i]
-                match p.Outputs |> Seq.tryHead with
-                | Some (MaterialNode m) -> addPV p i (fun () -> m.AdditionalProperty)
-                | Some (DataNode d)     -> addPV p i (fun () -> d.AdditionalProperty)
-                | None                  -> ()
+                match this.EnsureOutput(p, Some 0, IOType.Sample, CompositeCell.FreeText(sprintf "%s_%d_out" name i)) with
+                | MaterialNode m -> addPV i (fun () -> m.AdditionalProperty)
+                | DataNode d -> addPV i (fun () -> d.AdditionalProperty)
         | CompositeHeader.Component _ ->
+            ensureOneProcess()
+            this.MaterializeProjectedRows()
             for i in 0 .. processes.Count - 1 do
-                let p = processes.[i]
-                match p.ExecutesProtocol with
-                | Some proto -> addPV p i (fun () -> proto.LabEquipment)
-                | None       -> ()
-        | _ -> ()  // non-annotation columns handled elsewhere
+                let proto = this.EnsureProtocol(processes.[i])
+                addPV i (fun () -> proto.LabEquipment)
+        | CompositeHeader.ProtocolREF ->
+            if cells.Count > 0 then
+                ensureOneProcess()
+                this.MaterializeProjectedRows()
+                for i in 0 .. processes.Count - 1 do
+                    match this.CellAt(cells, i) with
+                    | CompositeCell.FreeText v -> (this.EnsureProtocol(processes.[i])).Name <- Some v
+                    | _ -> ()
+        | CompositeHeader.ProtocolType ->
+            if cells.Count > 0 then
+                ensureOneProcess()
+                this.MaterializeProjectedRows()
+                for i in 0 .. processes.Count - 1 do
+                    match this.CellAt(cells, i) with
+                    | CompositeCell.Term(n, tan) ->
+                        let dt = DefinedTerm(n)
+                        dt.TAN <- tan
+                        (this.EnsureProtocol(processes.[i])).IntendedUse <- Some dt
+                    | CompositeCell.FreeText n ->
+                        (this.EnsureProtocol(processes.[i])).IntendedUse <- Some(DefinedTerm(n))
+                    | _ -> ()
+        | CompositeHeader.ProtocolDescription ->
+            if cells.Count > 0 then
+                ensureOneProcess()
+                this.MaterializeProjectedRows()
+                for i in 0 .. processes.Count - 1 do
+                    match this.CellAt(cells, i) with
+                    | CompositeCell.FreeText v -> (this.EnsureProtocol(processes.[i])).Description <- Some v
+                    | _ -> ()
+        | CompositeHeader.ProtocolUri ->
+            if cells.Count > 0 then
+                ensureOneProcess()
+                this.MaterializeProjectedRows()
+                for i in 0 .. processes.Count - 1 do
+                    match this.CellAt(cells, i) with
+                    | CompositeCell.FreeText v -> (this.EnsureProtocol(processes.[i])).Url <- Some v
+                    | _ -> ()
+        | CompositeHeader.ProtocolVersion ->
+            if cells.Count > 0 then
+                ensureOneProcess()
+                this.MaterializeProjectedRows()
+                for i in 0 .. processes.Count - 1 do
+                    match this.CellAt(cells, i) with
+                    | CompositeCell.FreeText v -> (this.EnsureProtocol(processes.[i])).Version <- Some v
+                    | _ -> ()
+        | _ -> ()
 
     /// Remove the first annotation column matching the given header from every process node.
     member _.RemoveColumn(header: CompositeHeader) =
@@ -444,24 +941,32 @@ type Table(name: string, processes: ResizeArray<LabProcess>, dataset: Dataset) =
             | Some i -> pvList.RemoveAt(i)
             | None   -> ()
         match header with
-        | CompositeHeader.Parameter(n, _) ->
-            for p in processes do removeFirst p.ParameterValue "ParameterValue" n
-        | CompositeHeader.Characteristic(n, _) ->
+        | CompositeHeader.Input _ ->
+            for p in processes do
+                while p.Inputs.Count > 0 do
+                    p.RemoveInput(p.Inputs.[0])
+        | CompositeHeader.Output _ ->
+            for p in processes do
+                while p.Outputs.Count > 0 do
+                    p.RemoveOutput(p.Outputs.[0])
+        | CompositeHeader.Parameter(dt) ->
+            for p in processes do removeFirst p.ParameterValue "ParameterValue" dt.Name
+        | CompositeHeader.Characteristic(dt) ->
             for p in processes do
                 match p.Inputs |> Seq.tryHead with
-                | Some (MaterialNode m) -> removeFirst m.AdditionalProperty "CharacteristicValue" n
-                | Some (DataNode d)     -> removeFirst d.AdditionalProperty "CharacteristicValue" n
+                | Some (MaterialNode m) -> removeFirst m.AdditionalProperty "CharacteristicValue" dt.Name
+                | Some (DataNode d)     -> removeFirst d.AdditionalProperty "CharacteristicValue" dt.Name
                 | None -> ()
-        | CompositeHeader.Factor(n, _) ->
+        | CompositeHeader.Factor(dt) ->
             for p in processes do
                 match p.Outputs |> Seq.tryHead with
-                | Some (MaterialNode m) -> removeFirst m.AdditionalProperty "FactorValue" n
-                | Some (DataNode d)     -> removeFirst d.AdditionalProperty "FactorValue" n
+                | Some (MaterialNode m) -> removeFirst m.AdditionalProperty "FactorValue" dt.Name
+                | Some (DataNode d)     -> removeFirst d.AdditionalProperty "FactorValue" dt.Name
                 | None -> ()
-        | CompositeHeader.Component(n, _) ->
+        | CompositeHeader.Component(dt) ->
             for p in processes do
                 match p.ExecutesProtocol with
-                | Some proto -> removeFirst proto.LabEquipment "Component" n
+                | Some proto -> removeFirst proto.LabEquipment "Component" dt.Name
                 | None -> ()
         | _ -> ()
 
@@ -533,33 +1038,33 @@ type Table(name: string, processes: ResizeArray<LabProcess>, dataset: Dataset) =
                         IONode.MaterialNode m
                     | _, _ -> IONode.MaterialNode(Material(sprintf "%s_%d_out" name rowIdx))
                 proc.AddOutput(node)
-            | CompositeHeader.Parameter(n, tan) ->
-                let pv = PropertyValue(n)
-                pv.NameTAN        <- tan
+            | CompositeHeader.Parameter(dt) ->
+                let pv = PropertyValue(dt.Name)
+                pv.NameTAN        <- dt.TAN
                 pv.AdditionalType <- Some "ParameterValue"
                 TableAux.ApplyCellToPV(pv, cell)
                 proc.AddParameterValue(pv)
-            | CompositeHeader.Characteristic(n, tan) ->
-                let pv = PropertyValue(n)
-                pv.NameTAN        <- tan
+            | CompositeHeader.Characteristic(dt) ->
+                let pv = PropertyValue(dt.Name)
+                pv.NameTAN        <- dt.TAN
                 pv.AdditionalType <- Some "CharacteristicValue"
                 TableAux.ApplyCellToPV(pv, cell)
                 match proc.Inputs |> Seq.tryHead with
                 | Some (MaterialNode m) -> m.AddAdditionalProperty(pv)
                 | Some (DataNode d)     -> d.AddAdditionalProperty(pv)
                 | None -> ()
-            | CompositeHeader.Factor(n, tan) ->
-                let pv = PropertyValue(n)
-                pv.NameTAN        <- tan
+            | CompositeHeader.Factor(dt) ->
+                let pv = PropertyValue(dt.Name)
+                pv.NameTAN        <- dt.TAN
                 pv.AdditionalType <- Some "FactorValue"
                 TableAux.ApplyCellToPV(pv, cell)
                 match proc.Outputs |> Seq.tryHead with
                 | Some (MaterialNode m) -> m.AddAdditionalProperty(pv)
                 | Some (DataNode d)     -> d.AddAdditionalProperty(pv)
                 | None -> ()
-            | CompositeHeader.Component(n, tan) ->
-                let pv = PropertyValue(n)
-                pv.NameTAN        <- tan
+            | CompositeHeader.Component(dt) ->
+                let pv = PropertyValue(dt.Name)
+                pv.NameTAN        <- dt.TAN
                 pv.AdditionalType <- Some "Component"
                 TableAux.ApplyCellToPV(pv, cell)
                 match proc.ExecutesProtocol with
@@ -630,6 +1135,7 @@ type Table(name: string, processes: ResizeArray<LabProcess>, dataset: Dataset) =
 
     /// Replace all cells in the row at `rowIndex` by updating the underlying process node.
     member this.UpdateRow(rowIndex: int, cells: ResizeArray<CompositeCell>) =
+        this.MaterializeProjectedRows()
         if rowIndex >= 0 && rowIndex < processes.Count then
             let headers = this.CurrentHeaders()
             let p       = processes.[rowIndex]
@@ -637,35 +1143,23 @@ type Table(name: string, processes: ResizeArray<LabProcess>, dataset: Dataset) =
                 let header = headers.[colIdx]
                 let cell   = if colIdx < cells.Count then cells.[colIdx] else CompositeCell.FreeText ""
                 match header with
-                | CompositeHeader.Parameter(n, _) ->
-                    match p.TryGetParameterValue(n) with
+                | CompositeHeader.Parameter(dt) ->
+                    match p.TryGetParameterValue(dt.Name) with
                     | Some pv -> TableAux.ApplyCellToPV(pv, cell)
                     | None    ->
-                        let pv = PropertyValue(n)
+                        let pv = PropertyValue(dt.Name)
                         pv.AdditionalType <- Some "ParameterValue"
                         TableAux.ApplyCellToPV(pv, cell)
                         p.AddParameterValue(pv)
-                | CompositeHeader.Input _ ->
-                    match cell, p.Inputs |> Seq.tryHead with
-                    | CompositeCell.FreeText n, Some (MaterialNode m) -> m.Name <- n
-                    | CompositeCell.FreeText n, Some (DataNode d)     -> d.Path <- n
-                    | CompositeCell.Data d2,    Some (DataNode d)     ->
-                        d.Path           <- d2.Path
-                        d.Selector       <- d2.Selector
-                        d.SelectorFormat <- d2.SelectorFormat
-                        d.EncodingFormat <- d2.EncodingFormat
-                    | _ -> ()
-                | CompositeHeader.Output _ ->
-                    match cell, p.Outputs |> Seq.tryHead with
-                    | CompositeCell.FreeText n, Some (MaterialNode m) -> m.Name <- n
-                    | CompositeCell.FreeText n, Some (DataNode d)     -> d.Path <- n
-                    | CompositeCell.Data d2,    Some (DataNode d)     ->
-                        d.Path           <- d2.Path
-                        d.Selector       <- d2.Selector
-                        d.SelectorFormat <- d2.SelectorFormat
-                        d.EncodingFormat <- d2.EncodingFormat
-                    | _ -> ()
-                | CompositeHeader.Characteristic(n, _) ->
+                | CompositeHeader.Input ioType ->
+                    match p.Inputs |> Seq.tryHead with
+                    | Some node -> this.ApplyCellToNode(node, ioType, cell, true, p)
+                    | None -> p.AddInput(this.NodeFromCell(ioType, cell, sprintf "%s_%d" name rowIndex))
+                | CompositeHeader.Output ioType ->
+                    match p.Outputs |> Seq.tryHead with
+                    | Some node -> this.ApplyCellToNode(node, ioType, cell, false, p)
+                    | None -> p.AddOutput(this.NodeFromCell(ioType, cell, sprintf "%s_%d_out" name rowIndex))
+                | CompositeHeader.Characteristic(dt) ->
                     let pvList =
                         match p.Inputs |> Seq.tryHead with
                         | Some (MaterialNode m) -> Some m.AdditionalProperty
@@ -673,15 +1167,15 @@ type Table(name: string, processes: ResizeArray<LabProcess>, dataset: Dataset) =
                         | None                  -> None
                     match pvList with
                     | Some lst ->
-                        match lst |> Seq.tryFind (fun pv -> pv.AdditionalType = Some "CharacteristicValue" && pv.Name = n) with
+                        match lst |> Seq.tryFind (fun pv -> pv.AdditionalType = Some "CharacteristicValue" && pv.Name = dt.Name) with
                         | Some pv -> TableAux.ApplyCellToPV(pv, cell)
                         | None    ->
-                            let pv = PropertyValue(n)
+                            let pv = PropertyValue(dt.Name)
                             pv.AdditionalType <- Some "CharacteristicValue"
                             TableAux.ApplyCellToPV(pv, cell)
                             lst.Add(pv)
                     | None -> ()
-                | CompositeHeader.Factor(n, _) ->
+                | CompositeHeader.Factor(dt) ->
                     let pvList =
                         match p.Outputs |> Seq.tryHead with
                         | Some (MaterialNode m) -> Some m.AdditionalProperty
@@ -689,25 +1183,48 @@ type Table(name: string, processes: ResizeArray<LabProcess>, dataset: Dataset) =
                         | None                  -> None
                     match pvList with
                     | Some lst ->
-                        match lst |> Seq.tryFind (fun pv -> pv.AdditionalType = Some "FactorValue" && pv.Name = n) with
+                        match lst |> Seq.tryFind (fun pv -> pv.AdditionalType = Some "FactorValue" && pv.Name = dt.Name) with
                         | Some pv -> TableAux.ApplyCellToPV(pv, cell)
                         | None    ->
-                            let pv = PropertyValue(n)
+                            let pv = PropertyValue(dt.Name)
                             pv.AdditionalType <- Some "FactorValue"
                             TableAux.ApplyCellToPV(pv, cell)
                             lst.Add(pv)
                     | None -> ()
-                | CompositeHeader.Component(n, _) ->
-                    match p.ExecutesProtocol with
-                    | Some proto ->
-                        match proto.LabEquipment |> Seq.tryFind (fun pv -> pv.Name = n) with
-                        | Some pv -> TableAux.ApplyCellToPV(pv, cell)
-                        | None    ->
-                            let pv = PropertyValue(n)
-                            pv.AdditionalType <- Some "Component"
-                            TableAux.ApplyCellToPV(pv, cell)
-                            proto.AddLabEquipment(pv)
-                    | None -> ()
+                | CompositeHeader.Component(dt) ->
+                    let proto = this.EnsureProtocol(p)
+                    match proto.LabEquipment |> Seq.tryFind (fun pv -> pv.Name = dt.Name) with
+                    | Some pv -> TableAux.ApplyCellToPV(pv, cell)
+                    | None    ->
+                        let pv = PropertyValue(dt.Name)
+                        pv.AdditionalType <- Some "Component"
+                        TableAux.ApplyCellToPV(pv, cell)
+                        proto.AddLabEquipment(pv)
+                | CompositeHeader.ProtocolREF ->
+                    match cell with
+                    | CompositeCell.FreeText v -> (this.EnsureProtocol(p)).Name <- Some v
+                    | _ -> ()
+                | CompositeHeader.ProtocolType ->
+                    match cell with
+                    | CompositeCell.Term(n, tan) ->
+                        let dt = DefinedTerm(n)
+                        dt.TAN <- tan
+                        (this.EnsureProtocol(p)).IntendedUse <- Some dt
+                    | CompositeCell.FreeText n ->
+                        (this.EnsureProtocol(p)).IntendedUse <- Some(DefinedTerm(n))
+                    | _ -> ()
+                | CompositeHeader.ProtocolDescription ->
+                    match cell with
+                    | CompositeCell.FreeText v -> (this.EnsureProtocol(p)).Description <- Some v
+                    | _ -> ()
+                | CompositeHeader.ProtocolUri ->
+                    match cell with
+                    | CompositeCell.FreeText v -> (this.EnsureProtocol(p)).Url <- Some v
+                    | _ -> ()
+                | CompositeHeader.ProtocolVersion ->
+                    match cell with
+                    | CompositeCell.FreeText v -> (this.EnsureProtocol(p)).Version <- Some v
+                    | _ -> ()
                 | _ -> ()
 
 // ─────────────────────────────────────────────────────────────────────────────
