@@ -5,7 +5,7 @@ open Fake.Core
 open Fake.IO
 open Fake.DotNet
 open Fake.IO.Globbing.Operators
-
+open Helpers
 open ProjectInfo
 
 
@@ -149,14 +149,13 @@ let clean =
         |> Shell.cleanDirs
     }
 
-let setPrereleaseTag =
-    BuildTask.create "SetPrereleaseTag" [] {
-        printfn "Please enter pre-release package suffix"
-        let suffix = System.Console.ReadLine()
-        prereleaseSuffix <- suffix
-        prereleaseTag <- sprintf "%s-%s" release.NugetVersion suffix
-        isPrerelease <- true
-    }
+let setPrereleaseTag() = 
+    printfn "Please enter pre-release package suffix option: (a/b/rc)"
+    let suffixTag = System.Console.ReadLine() |> PreReleaseFlag.fromInput
+    printfn "Please enter pre-release package version number"
+    let suffixNumber = System.Console.ReadLine() |> int
+    suffixTag, suffixNumber
+
 
 /// Builds the solution file (dotnet build solution.sln).
 let buildSolution =
