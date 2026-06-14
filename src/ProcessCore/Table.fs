@@ -295,9 +295,18 @@ module TableAux =
 
     /// Annotation-column position stored as extensible PropertyValue metadata.
     let TryGetColumnIndex (pv: PropertyValue) =
-        match pv.TryGetTypedPropertyValue<int>(ColumnIndexKey) with
+        match pv.TryGetPropertyValue(ColumnIndexKey) with
         | Some index -> Some index
-        | None -> pv.TryGetTypedPropertyValue<int>("columnIndex")
+        | None -> pv.TryGetPropertyValue("columnIndex")
+        |> Option.bind (fun ci -> 
+            match ci with
+            | :? int as i -> Some i
+            | :? string as s ->
+                match System.Int32.TryParse(s) with
+                | true, i -> Some i
+                | _ -> None
+            | _ -> None
+        )
 
     /// Store annotation-column position as extensible PropertyValue metadata.
     let SetColumnIndex (pv: PropertyValue) (index: int option) =
