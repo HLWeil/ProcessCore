@@ -1,12 +1,17 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>netstandard2.0</TargetFramework>
-    <Nullable>enable</Nullable>
-    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <PackageTags>ARC;F#;FSharp;dotnet;.Net;bioinformatics;biology;fable-library;datascience;dataplant;nfdi;metadata;fable-dotnet</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
 
+  <Import Project="ProcessCore.Common.props" />
+
   <ItemGroup>
+    <None Include="index.ts" />
+    <None Include="__init__.py" />
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+    <Content Include="ProcessCore.Common.props" Pack="true" PackagePath="fable/" />
     <Compile Include="DefinedTerm.fs" />
     <Compile Include="FormalParameter.fs" />
     <Compile Include="PropertyValue.fs" />
@@ -38,5 +43,12 @@
     <PackageReference Include="DynamicObj" />
     <PackageReference Include="Microsoft.Data.Sqlite" />
   </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Fable.Package.SDK">
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+            <PrivateAssets>all</PrivateAssets>
+        </PackageReference>
+    </ItemGroup>
 
 </Project>

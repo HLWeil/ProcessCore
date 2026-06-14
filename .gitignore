@@ -16,3 +16,4 @@ tests/**/ts
 tests/**/py
 src/**/ts
 src/**/py
+dist/
