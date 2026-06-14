@@ -12,7 +12,7 @@ ARC Data Model is the workspace for the ARC process data model. It contains the 
 ## Repository Shape
 
 ```text
-ARC-Data-Model/
+ProcessCore/
 ├── docs/                 fsdocs documentation pages
 │   └── spec/             normative model specification
 ├── schemas/              derived SQL and YAML schema representations

@@ -2,7 +2,7 @@
 
 ProcessCore is the F# implementation package for the ARC process data model. It provides a mutable in-memory model for process graphs, YAML codecs, SQLite profile helpers, graph traversal queries, and live table views over process data.
 
-Documentation: https://hlweil.github.io/ARC-Data-Model/
+Documentation: https://hlweil.github.io/ProcessCore/
 
 
 ## Repository Docs
