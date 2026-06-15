@@ -1153,6 +1153,16 @@ and [<AttachMembers>] LabProcess(name: string, ?executesProtocol: LabProtocol, ?
         outputs        |> Option.iter (fun ns  -> for n  in ns  do this.AddOutput(n))
         parameterValue |> Option.iter (fun pvs -> for pv in pvs do this.AddParameterValue(pv))
 
+    let indexOfNodeByKey (nodes: ResizeArray<IONode>) (node: IONode) =
+        let key = node.Key()
+        let mutable index = -1
+        let mutable i = 0
+        while index < 0 && i < nodes.Count do
+            if nodes.[i].Key() = key then
+                index <- i
+            i <- i + 1
+        index
+
     member _.Name
         with get() = _name
         and set v = _name <- v
@@ -1180,7 +1190,7 @@ and [<AttachMembers>] LabProcess(name: string, ?executesProtocol: LabProtocol, ?
     /// or when the node is not found in Outputs.
     member this.GetInputsOfOutput(output: IONode) : IONode seq =
         if _inputs.Count = _outputs.Count then
-            let idx = _outputs.IndexOf(output)
+            let idx = indexOfNodeByKey _outputs output
             if idx >= 0 then Seq.singleton _inputs.[idx]
             else _inputs :> seq<IONode>
         else _inputs :> seq<IONode>
@@ -1191,7 +1201,7 @@ and [<AttachMembers>] LabProcess(name: string, ?executesProtocol: LabProtocol, ?
     /// or when the node is not found in Inputs.
     member this.GetOutputsOfInput(input: IONode) : IONode seq =
         if _inputs.Count = _outputs.Count then
-            let idx = _inputs.IndexOf(input)
+            let idx = indexOfNodeByKey _inputs input
             if idx >= 0 then Seq.singleton _outputs.[idx]
             else _outputs :> seq<IONode>
         else _outputs :> seq<IONode>
@@ -1379,6 +1389,96 @@ and [<AttachMembers>] Dataset(identifier: string, ?name: string, ?description: s
     let _nodeRegistry: Dictionary<string, IONode> = Dictionary<string, IONode>()
     let _fragmentSelectorProviders: Dictionary<string, IFragmentSelectorProvider> = Dictionary<string, IFragmentSelectorProvider>()
 
+    let valueKey (value: string) =
+        string value.Length + ":" + value
+
+    let optionKey (value: string option) =
+        match value with
+        | Some v -> "S" + valueKey v
+        | None -> "N"
+
+    let seqKey (values: seq<string>) =
+        values
+        |> Seq.sort
+        |> Seq.map valueKey
+        |> String.concat ""
+
+    let fieldsKey (values: seq<string>) =
+        values
+        |> Seq.map valueKey
+        |> String.concat ""
+
+    let definedTermKey (dt: DefinedTerm) =
+        fieldsKey [
+            dt.Name
+            optionKey dt.TAN
+            optionKey dt.InDefinedTermSet
+        ]
+
+    let formalParameterKey (fp: FormalParameter) =
+        fieldsKey [
+            fp.Name
+            optionKey fp.NameTAN
+            match fp.DefaultValue with
+            | Some dt -> "D" + definedTermKey dt
+            | None -> "N"
+        ]
+
+    let propertyValueKey (pv: PropertyValue) =
+        fieldsKey [
+            pv.Name
+            optionKey pv.Value
+            optionKey pv.Unit
+            optionKey pv.NameTAN
+            optionKey pv.ValueTAN
+            optionKey pv.UnitTAN
+            optionKey pv.AdditionalType
+            match pv.InstanceOf with
+            | Some fp -> "F" + formalParameterKey fp
+            | None -> "N"
+        ]
+
+    let protocolKey (proto: LabProtocol) =
+        fieldsKey [
+            optionKey proto.Name
+            optionKey proto.Description
+            optionKey proto.Version
+            optionKey proto.Url
+            optionKey proto.AdditionalType
+            match proto.IntendedUse with
+            | Some dt -> "D" + definedTermKey dt
+            | None -> "N"
+            seqKey (proto.Parameters |> Seq.map formalParameterKey)
+            seqKey (proto.LabEquipment |> Seq.map propertyValueKey)
+            seqKey (proto.AdditionalProperty |> Seq.map propertyValueKey)
+        ]
+
+    let processCollapseKey (proc: LabProcess) =
+        let ioShape =
+            match proc.Inputs.Count > 0, proc.Outputs.Count > 0 with
+            | true, true -> "IO"
+            | true, false -> "I"
+            | false, true -> "O"
+            | false, false -> "E"
+        fieldsKey [
+            proc.Name
+            ioShape
+            optionKey proc.AdditionalType
+            match proc.ExecutesProtocol with
+            | Some proto -> "P" + protocolKey proto
+            | None -> "N"
+            seqKey (proc.ParameterValue |> Seq.map propertyValueKey)
+        ]
+
+    let indexOfProcessByReference (proc: LabProcess) =
+        let mutable index = -1
+        let mutable i = 0
+        while index < 0 && i < _processes.Count do
+            if obj.ReferenceEquals(_processes.[i], proc) then
+                index <- i
+            i <- i + 1
+        index
+
     do
         processes          |> Option.iter (fun ps  -> for p  in ps  do this.AddProcess(p))
         hasPart            |> Option.iter (fun ds  -> for d  in ds  do this.AddPart(d))
@@ -1483,6 +1583,45 @@ and [<AttachMembers>] Dataset(identifier: string, ?name: string, ?description: s
             proc.ProcessOf <- None
             for node in Seq.append proc.Inputs proc.Outputs do
                 this.TryEvictNode(node)
+
+    member private this.MoveProcessLanes(target: LabProcess, source: LabProcess) =
+        let inputs = source.Inputs |> Seq.toArray
+        let outputs = source.Outputs |> Seq.toArray
+        for node in inputs do
+            target.AddInput(node)
+        for node in outputs do
+            target.AddOutput(node)
+        while source.Inputs.Count > 0 do
+            source.RemoveInput(source.Inputs.[0])
+        while source.Outputs.Count > 0 do
+            source.RemoveOutput(source.Outputs.[0])
+
+    member private this.RemoveProcessByReference(proc: LabProcess) =
+        let index = indexOfProcessByReference proc
+        if index >= 0 then
+            _processes.RemoveAt(index)
+            if proc.ProcessOf = Some this then
+                proc.ProcessOf <- None
+
+    /// Collapse same-named process rows with equal non-I/O state and compatible
+    /// I/O shape into positional N-to-N lanes on a single representative process.
+    member this.CollapseProcesses() =
+        let groups = Dictionary<string, ResizeArray<LabProcess>>()
+        let order = ResizeArray<string>()
+        for proc in _processes do
+            let key = processCollapseKey proc
+            if not (groups.ContainsKey(key)) then
+                groups.[key] <- ResizeArray()
+                order.Add(key)
+            groups.[key].Add(proc)
+        for key in order do
+            let group = groups.[key]
+            if group.Count > 1 then
+                let target = group.[0]
+                for i in 1 .. group.Count - 1 do
+                    let source = group.[i]
+                    this.MoveProcessLanes(target, source)
+                    this.RemoveProcessByReference(source)
 
     member _.TryGetProcess(name: string) =
         _processes |> Seq.tryFind (fun p -> p.Name = name)
