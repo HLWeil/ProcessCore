@@ -2,7 +2,7 @@
 // #r "nuget: DynamicObj"
 // #r @"..\src\ProcessCore\bin\Release\netstandard2.0\ProcessCore.dll"
 
-#r "nuget: ProcessCore, 0.0.1"
+#r "nuget: ProcessCore, 0.0.2"
 #r "nuget: ARCtrl"
 
 
@@ -399,12 +399,17 @@ let datasetFromTables (name : string) (wb : FsWorkbook) =
 
     wb.GetWorksheets()
     |> Seq.iter (fun ws ->
-        let childDataset = Dataset(ws.Name)
-        match Table.tryFromFsWorksheet childDataset ws with
-        | Some t -> d.HasPart.Add(childDataset) |> ignore
+        match Table.tryFromFsWorksheet d ws with
+        | Some t -> d.HasPart.Add(d) |> ignore
         | None -> () // No annotation table, so we skip this sheet
     )
-    d
+    d.CollapseProcesses()
+    let newD = Dataset(name)
+    let processes = d.Processes |> Seq.toList
+    for p in processes do
+        d.RemoveProcess(p)
+        newD.AddProcess(p) |> ignore
+    newD
 
 let datasetFromPath (name : string) (path : string) =
     let wb = FsWorkbook.fromXlsxFile(path)
@@ -513,58 +518,10 @@ module ARC =
         topLevelDataset
 
 
-let arcPath = @"C:\Users\HLWei\source\repos\Ru_ChlamyHeatstress"
+let arcPath = @"C:\Users\HLWei\source\repos\ARCs\Ru_ChlamyHeatstress"
 
 let dataset = ARC.load arcPath
 
-dataset.RegisterFragmentSelectorProvider (ProcessCore.CsvFragmentSelectorProvider())
-
-dataset.HasPart.Count
+dataset.RegisterFragmentSelectorProvider (CsvFragmentSelectorProvider())
 
 dataset.FinalData().[0].UpstreamMaterials()
-
-let p = 
-    dataset.FinalData().[0].OutputOf
-    |> Seq.item 0
-
-p.ProcessOf
-
-let assayPath = @"C:\Users\HLWei\source\repos\Ru_ChlamyHeatstress\assays\Proteomics\isa.assay.xlsx"
-
-let assay1 = datasetFromPath "Assay 1" assayPath
-
-let myARC = Dataset("Ru Chlamy Heatstress")
-
-myARC.AddPart(assay1) |> ignore
-
-assay1.FinalData().[0]
-
-
-assay1.FinalData().[0].OutputOf
-|> Seq.item (0)
-|> fun s -> s.ProcessOf
-
-let wb = FsWorkbook.fromXlsxFile(assayPath)
-
-
-
-let d = datasetFromTables "My Dataset" wb
-
-
-d.HasPart
-|> Seq.map (fun ds -> ds.Identifier)
-
-let ws = wb.GetWorksheets().[2]
-
-let t = Table.tryAnnotationTable ws |> Option.get
-
-let d = Dataset("My Dataset")
-
-Table.tryFromFsWorksheet d ws
-
-let at = d.Tables.GetTable("Harvesting")
-
-
-at.ColumnCount
-at.Headers
-|> Seq.toArray

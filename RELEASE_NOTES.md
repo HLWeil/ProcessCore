@@ -1,5 +1,10 @@
 # Release Notes
 
+
+## 0.0.2
+
+- Add Dataset.CollapseProcesses() method to collapse linear chains of processes into single processes with the same overall inputs, outputs, and protocol.
+
 ## 0.0.1
 
 - Added the ProcessCore F# implementation with mutable core types for `Dataset`, `LabProcess`, `LabProtocol`, `Material`, `Data`, `PropertyValue`, `FormalParameter`, and `DefinedTerm`.
