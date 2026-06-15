@@ -94,6 +94,8 @@ Within a single `LabProcess` the I/O slots are positionally paired: the **Nth in
 
 This mapping applies when a process has **equal numbers of inputs and outputs**. When the counts differ (e.g. a merge or split step) the traversal falls back to considering all inputs or all outputs.
 
+`Dataset.CollapseProcesses()` folds same-named processes with equal non-I/O state into these positional lanes.
+
 ### Root and final nodes
 
 A node is a **root** if no in-scope process produces it as output (`IsRootNode`).  
