@@ -34,5 +34,5 @@ flowchart TD
     Investigation --hasPart--> Study
     Study -.assays.-> Assay
     Study --additionalType--> at
-    Study --processes--> LabProcess
+    Study --processes--> Process
 ```

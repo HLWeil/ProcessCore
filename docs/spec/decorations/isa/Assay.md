@@ -18,7 +18,7 @@ Reference: [ISA RO-Crate Profile — Assay](../../../../references/isa_ro_crate.
 | Property | Type | Required | Description |
 |----------|------|----------|-------------|
 | `additionalType` | string | MUST | `Assay` |
-| `processes` | [LabProcess](../../core/LabProcess.md) | SHOULD | Experimental processes in this assay |
+| `processes` | [Process](../../core/Process.md) | SHOULD | Experimental processes in this assay |
 | `performers` | [Person](Person.md) | COULD | Assay performers and contributors |
 
 ## Relationships
@@ -30,7 +30,7 @@ flowchart TD
 
     Investigation --hasPart--> Assay
     Study -.assays.-> Assay
-    Assay --processes--> LabProcess
+    Assay --processes--> Process
     Assay --performers--> Person
     Assay --additionalType--> at
 
@@ -40,10 +40,10 @@ flowchart TD
 
 The `additionalProperty` property can be used to add some isa specific properties for the assay dataset.
 
-TODO: Find ontology terms for these properties and add them as refinements of `PropertyValue`:
+TODO: Find ontology terms for these properties and add them as refinements of `Annotation`:
 
 | Property | Type | Required | Description |
 |----------|------|----------|-------------|
 | `measurementMethod` | DefinedTerm | COULD | Measurement type (e.g., Proteomics) |
 | `measurementTechnique` | DefinedTerm | COULD | Technology used (e.g., mass spectrometry) |
-| `variableMeasured` | PropertyValue | COULD | Target variable being measured |
+| `variableMeasured` | Annotation | COULD | Target variable being measured |

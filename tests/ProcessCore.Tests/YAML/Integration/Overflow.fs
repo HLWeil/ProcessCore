@@ -18,15 +18,15 @@ let tests = testList "Overflow" [
         Expect.isTrue (yaml2.Contains("myCustomField")) "overflow key re-emitted"
         Expect.isTrue (yaml2.Contains("bar"))           "overflow value re-emitted"
 
-    testCase "unknown field on Material survives round-trip" <| fun _ ->
-        let yaml = "type: Material\nname: S1\nextraAnnotation: some-value\n"
-        let m    = Yaml.Material.fromYamlString false yaml
+    testCase "unknown field on Sample survives round-trip" <| fun _ ->
+        let yaml = "type: Sample\nname: S1\nextraAnnotation: some-value\n"
+        let m    = Yaml.Sample.fromYamlString false yaml
         let v = m.TryGetPropertyValue("extraAnnotation") |> Option.map string
         Expect.equal v (Some "some-value") "overflow value accessible"
-        let yaml2 = Yaml.Material.toYamlString None m
+        let yaml2 = Yaml.Sample.toYamlString None m
         Expect.isTrue (yaml2.Contains("extraAnnotation")) "overflow key re-emitted"
 
-    testCase "unknown field on Material throws on round-trip for processcore only" <| fun _ ->
+    testCase "unknown field on Sample throws on round-trip for processcore only" <| fun _ ->
         let yaml = "type: Data\npath: data.csv\nunexpectedField: surprise\n"
         let f ()  = Yaml.Data.fromYamlString true yaml |> ignore
         Expect.throws f "unexpected field should raise in processCoreOnly mode"
@@ -54,12 +54,12 @@ let tests = testList "Overflow" [
         Expect.isTrue (yaml2.Contains("key"))     "nested contents re-emitted"
 
     testCase "unknown sequence survives round-trip" <| fun _ ->
-        let yaml = "type: Material\nname: S1\nmyList:\n  - alpha\n  - beta\n  - gamma\n"
-        let m    = Yaml.Material.fromYamlString false yaml
+        let yaml = "type: Sample\nname: S1\nmyList:\n  - alpha\n  - beta\n  - gamma\n"
+        let m    = Yaml.Sample.fromYamlString false yaml
         // sequence stored as ResizeArray<obj>
         let exists = m.GetProperties(true) |> Seq.exists (fun kv -> kv.Key = "myList")
         Expect.isTrue exists "sequence present in overflow"
-        let yaml2 = Yaml.Material.toYamlString None m
+        let yaml2 = Yaml.Sample.toYamlString None m
         Expect.isTrue (yaml2.Contains("myList")) "sequence key re-emitted"
         Expect.isTrue (yaml2.Contains("alpha"))  "sequence content re-emitted"
         Expect.isTrue (yaml2.Contains("beta"))   "sequence item re-emitted"

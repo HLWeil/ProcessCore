@@ -25,7 +25,7 @@ properties:
     type: string
     description: Identifying descriptor for the dataset (MUST)
 
-  name:
+  title:
     type: string
     description: Human-readable title (SHOULD)
 
@@ -39,8 +39,8 @@ properties:
     items:
       oneOf:
         - type: string
-          description: "@id reference to a LabProcess"
-        - $ref: "LabProcess.yml"
+          description: "@id reference to a Process"
+        - $ref: "Process.yml"
 
   hasPart:
     type: array
@@ -58,8 +58,8 @@ properties:
     items:
       oneOf:
         - type: string
-          description: "@id reference to a PropertyValue"
-        - $ref: "PropertyValue.yml"
+          description: "@id reference to a Annotation"
+        - $ref: "Annotation.yml"
 
 required:
   - id

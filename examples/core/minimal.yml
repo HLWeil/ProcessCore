@@ -1,14 +1,14 @@
 id: dataset:demo
 type: schema:Dataset
 identifier: demo
-name: Minimal ProcessCore example
+title: Minimal ProcessCore example
 description: A small schema-shaped example using the current core YAML vocabulary.
 processes:
   - id: process:extraction
     type: bioschemas:LabProcess
     name: Extraction
     inputs:
-      - id: material:leaf
+      - id: sample:leaf
         type: bioschemas:Sample
         additionalType: Source
         name: Leaf tissue

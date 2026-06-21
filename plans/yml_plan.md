@@ -6,12 +6,12 @@ The first version of the yml schema should contain schema files for the followin
 - Dataset
 - DefinedTerm
 - FormalParameter
-- LabProtocol
-- LabProcess
-- Material
-- PropertyValue
+- Plan
+- Process
+- Sample
+- Annotation
 
-The schema files should be then placed in [schemas/yml](schemas/yml) and referenced in the documentation. 
+The schema files should be then placed in [schemas/yml](schemas/yml) and referenced in the documentation.
 
 ---
 
@@ -36,14 +36,14 @@ The schema files should be then placed in [schemas/yml](schemas/yml) and referen
 
 - **Follow core specification**: The schema will be designed to directly reflect the core entities and relationships defined in the ARC Data Model specification, ensuring that all required fields and constraints are represented.
 
-- One file for each core entity (Data, Dataset, DefinedTerm, Material, Process, PropertyValue, Protocol) to keep things organized and modular.
+- One file for each core entity (Data, Dataset, DefinedTerm, Sample, Process, Annotation, Protocol) to keep things organized and modular.
 
 - **References between schema files**: Use `$ref` to reference other schema files where entities are related (e.g. Process references Protocol, Dataset references Process).
 
-- **Allow cross-referencing mechanism**: Use `id`(or `@id`) fields to allow entities to reference each other without embedding full objects, supporting a more relational structure. 
-  - Need to decide on whether we allow `id` only in specific types or for all. Also 
+- **Allow cross-referencing mechanism**: Use `id`(or `@id`) fields to allow entities to reference each other without embedding full objects, supporting a more relational structure.
+  - Need to decide on whether we allow `id` only in specific types or for all. Also
   - Need to decide whether we define a generic mechanism to place collections of cross-referenced entities (e.g. a `registry` section) or allow them to be defined inline in the main document.
 
 - **Allow extension**: Yes, as we need this for decorations. We can allow for additional properties using `additionalProperties: true` or a similar mechanism, while still enforcing the core structure.
 
-- **Type value**: The value for the `type` field MUST be a string that corresponds to the name of the entity (e.g. "Data", "Dataset", "LabProcess").
+- **Type value**: The value for the `type` field MUST be a string that corresponds to the name of the entity (e.g. "Data", "Dataset", "Process").

@@ -1,6 +1,6 @@
 $schema: "https://json-schema.org/draft/2020-12/schema"
-$id: "LabProtocol.yml"
-title: LabProtocol
+$id: "Plan.yml"
+title: Plan
 description: >
   Description of a planned procedure. Protocols define what a Process executes,
   including intended use, equipment, reagents, and software.
@@ -13,12 +13,12 @@ properties:
 
   type:
     type: string
-    const: "LabProtocol"
+    const: "Plan"
     description: Fixed type discriminator
 
   additionalType:
     type: string
-    description: Decoration discriminator (e.g. LabProtocol, ComputationalWorkflow)
+    description: Decoration discriminator (e.g. Plan, ComputationalWorkflow)
 
   name:
     type: string
@@ -61,8 +61,8 @@ properties:
     items:
       oneOf:
         - type: string
-          description: "@id reference to a PropertyValue"
-        - $ref: "PropertyValue.yml"
+          description: "@id reference to a Annotation"
+        - $ref: "Annotation.yml"
 
 required:
   - type

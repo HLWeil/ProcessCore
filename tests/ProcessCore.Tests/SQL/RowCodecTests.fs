@@ -18,7 +18,7 @@ let tests =
         "row codecs"
         [
             testCase "roundtrips dataset rows through SQL parameters" (fun _ ->
-                let row = DatasetRow("dataset-1", "Dataset", "DS-001", AdditionalType = "Study", Name = "Seed dataset")
+                let row = DatasetRow("dataset-1", "Dataset", "DS-001", AdditionalType = "Study", Title = "Seed dataset")
 
                 let parameters = row.ToParameters()
                 let actual = DatasetRow.ofRow (parametersToRow parameters)
@@ -29,11 +29,11 @@ let tests =
                 Expect.equal actual.Type row.Type "Dataset type should roundtrip."
                 Expect.equal actual.Identifier row.Identifier "Dataset identifier should roundtrip."
                 Expect.equal actual.AdditionalType row.AdditionalType "Dataset additional_type should roundtrip."
-                Expect.equal actual.Name row.Name "Dataset name should roundtrip."
+                Expect.equal actual.Title row.Title "Dataset title should roundtrip."
                 Expect.equal actual.Description row.Description "Dataset description should roundtrip.")
 
             testCase "roundtrips process IO rows with direction literals" (fun _ ->
-                let row = ProcessIoRow("process-1", ProcessIoDirection.Input, 0, MaterialId = "material-1")
+                let row = ProcessIoRow("process-1", ProcessIoDirection.Input, 0, SampleId = "sample-1")
 
                 let parameters = row.ToParameters()
                 let actual = ProcessIoRow.ofRow (parametersToRow parameters)
@@ -43,7 +43,7 @@ let tests =
                 Expect.equal actual.ProcessId row.ProcessId "Process id should roundtrip."
                 Expect.equal actual.Direction row.Direction "Direction should roundtrip."
                 Expect.equal actual.Position row.Position "Position should roundtrip."
-                Expect.equal actual.MaterialId row.MaterialId "Material target should roundtrip."
+                Expect.equal actual.SampleId row.SampleId "Sample target should roundtrip."
                 Expect.equal actual.DataId row.DataId "Data target should roundtrip.")
 
             testCase "reads nullable text columns" (fun _ ->

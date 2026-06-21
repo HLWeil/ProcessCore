@@ -27,7 +27,7 @@ let tests =
                             "process_id", SqlValue.Text "process-1"
                             "direction", SqlValue.Text "input"
                             "position", SqlValue.Int 0
-                            "material_id", SqlValue.Null
+                            "sample_id", SqlValue.Null
                             "data_id", SqlValue.Text "data-1"
                         ]
                     |> ProcessIoRow.ofRow
@@ -38,7 +38,7 @@ let tests =
                             "process_id", SqlValue.Text "process-1"
                             "direction", SqlValue.Text "output"
                             "position", SqlValue.Int 1
-                            "material_id", SqlValue.Null
+                            "sample_id", SqlValue.Null
                             "data_id", SqlValue.Text "data-2"
                         ]
                     |> ProcessIoRow.ofRow

@@ -2,7 +2,7 @@ module ProcessCore.Tests.Fixtures
 
 open ProcessCore
 
-module Utils = 
+module Utils =
 
     let firstDiff s1 s2 =
         let s1 = Seq.append (Seq.map Some s1) (Seq.initInfinite (fun _ -> None))
@@ -11,7 +11,7 @@ module Utils =
         |> Seq.find (function |_,Some s,Some p when s=p -> false |_-> true)
 
 
-module Expect = 
+module Expect =
 
     open Utils
 
@@ -44,49 +44,49 @@ module Expect =
 
 type FixtureA =
     { DS       : Dataset
-      P1       : LabProcess
-      P2       : LabProcess
-      P3       : LabProcess
-      Source1  : Material
-      Sample1  : Material
-      Sample2  : Material
+      P1       : Process
+      P2       : Process
+      P3       : Process
+      Source1  : Sample
+      Sample1  : Sample
+      Sample2  : Sample
       RawData1 : Data }
 
 let makeFixtureA () : FixtureA =
-    let source1  = Material("Source1",  additionalType = "Source")
-    let sample1  = Material("Sample1",  additionalType = "Sample")
-    let sample2  = Material("Sample2",  additionalType = "Sample")
+    let source1  = Sample("Source1",  additionalType = "Source")
+    let sample1  = Sample("Sample1",  additionalType = "Sample")
+    let sample2  = Sample("Sample2",  additionalType = "Sample")
     let rawData1 = Data("rawData1.csv")
 
     // p1 — extraction / cell growth
-    let proto1 = LabProtocol("extraction")
+    let proto1 = Plan("extraction")
     proto1.IntendedUse <- Some (DefinedTerm("cell growth"))
     proto1.AddParameter(FormalParameter("temperature"))
     proto1.AddParameter(FormalParameter("rpm"))
 
-    let p1 = LabProcess("p1")
+    let p1 = Process("p1")
     p1.ExecutesProtocol <- Some proto1
-    p1.AddParameterValue(PropertyValue("temperature", value = "37",  unit = "°C",  additionalType = "ParameterValue"))
-    p1.AddParameterValue(PropertyValue("rpm",         value = "200", unit = "rpm", additionalType = "ParameterValue"))
-    p1.AddInputMaterial(source1)
-    p1.AddOutputMaterial(sample1)
+    p1.AddParameterValue(Annotation("temperature", value = "37",  unit = "°C",  additionalType = "ParameterValue"))
+    p1.AddParameterValue(Annotation("rpm",         value = "200", unit = "rpm", additionalType = "ParameterValue"))
+    p1.AddInputSample(source1)
+    p1.AddOutputSample(sample1)
 
     // p2 — digestion
-    let proto2 = LabProtocol("digestion")
+    let proto2 = Plan("digestion")
 
-    let p2 = LabProcess("p2")
+    let p2 = Process("p2")
     p2.ExecutesProtocol <- Some proto2
     p2.AddParameterValue(
-        PropertyValue("enzyme",
+        Annotation("enzyme",
                       value    = "Trypsin",
                       valueTAN = "http://purl.obolibrary.org/obo/NCIT_C17077",
                       additionalType = "ParameterValue"))
-    p2.AddInputMaterial(sample1)
-    p2.AddOutputMaterial(sample2)
+    p2.AddInputSample(sample1)
+    p2.AddOutputSample(sample2)
 
     // p3 — no protocol
-    let p3 = LabProcess("p3")
-    p3.AddInputMaterial(sample2)
+    let p3 = Process("p3")
+    p3.AddInputSample(sample2)
     p3.AddOutputData(rawData1)
 
     let ds = Dataset("DS-A")
@@ -109,36 +109,36 @@ let makeFixtureA () : FixtureA =
 
 type FixtureB =
     { DS      : Dataset
-      P1      : LabProcess
-      P2      : LabProcess
-      P3      : LabProcess
-      Source1 : Material
-      Sample1 : Material
-      SampleA : Material
-      SampleB : Material }
+      P1      : Process
+      P2      : Process
+      P3      : Process
+      Source1 : Sample
+      Sample1 : Sample
+      SampleA : Sample
+      SampleB : Sample }
 
 let makeFixtureB () : FixtureB =
-    let source1 = Material("Source1", additionalType = "Source")
-    let sample1 = Material("Sample1", additionalType = "Sample")
-    let sampleA = Material("SampleA", additionalType = "Sample")
-    let sampleB = Material("SampleB", additionalType = "Sample")
+    let source1 = Sample("Source1", additionalType = "Source")
+    let sample1 = Sample("Sample1", additionalType = "Sample")
+    let sampleA = Sample("SampleA", additionalType = "Sample")
+    let sampleB = Sample("SampleB", additionalType = "Sample")
 
-    let proto1 = LabProtocol("extraction")
+    let proto1 = Plan("extraction")
     proto1.IntendedUse <- Some (DefinedTerm("cell growth"))
 
-    let p1 = LabProcess("p1")
+    let p1 = Process("p1")
     p1.ExecutesProtocol <- Some proto1
-    p1.AddParameterValue(PropertyValue("temperature", value = "37", unit = "°C", additionalType = "ParameterValue"))
-    p1.AddInputMaterial(source1)
-    p1.AddOutputMaterial(sample1)
+    p1.AddParameterValue(Annotation("temperature", value = "37", unit = "°C", additionalType = "ParameterValue"))
+    p1.AddInputSample(source1)
+    p1.AddOutputSample(sample1)
 
-    let p2 = LabProcess("p2")
-    p2.AddInputMaterial(sample1)
-    p2.AddOutputMaterial(sampleA)
+    let p2 = Process("p2")
+    p2.AddInputSample(sample1)
+    p2.AddOutputSample(sampleA)
 
-    let p3 = LabProcess("p3")
-    p3.AddInputMaterial(sample1)
-    p3.AddOutputMaterial(sampleB)
+    let p3 = Process("p3")
+    p3.AddInputSample(sample1)
+    p3.AddOutputSample(sampleB)
 
     let ds = Dataset("DS-B")
     ds.AddProcess(p1)
@@ -158,34 +158,34 @@ let makeFixtureB () : FixtureB =
 
 type FixtureC =
     { DS          : Dataset
-      P1          : LabProcess
-      P2          : LabProcess
-      P3          : LabProcess
-      Source1     : Material
-      Source2     : Material
-      Sample1     : Material
-      Sample2     : Material
-      FinalSample : Material }
+      P1          : Process
+      P2          : Process
+      P3          : Process
+      Source1     : Sample
+      Source2     : Sample
+      Sample1     : Sample
+      Sample2     : Sample
+      FinalSample : Sample }
 
 let makeFixtureC () : FixtureC =
-    let source1     = Material("Source1",     additionalType = "Source")
-    let source2     = Material("Source2",     additionalType = "Source")
-    let sample1     = Material("Sample1",     additionalType = "Sample")
-    let sample2     = Material("Sample2",     additionalType = "Sample")
-    let finalSample = Material("FinalSample", additionalType = "Sample")
+    let source1     = Sample("Source1",     additionalType = "Source")
+    let source2     = Sample("Source2",     additionalType = "Source")
+    let sample1     = Sample("Sample1",     additionalType = "Sample")
+    let sample2     = Sample("Sample2",     additionalType = "Sample")
+    let finalSample = Sample("FinalSample", additionalType = "Sample")
 
-    let p1 = LabProcess("p1")
-    p1.AddInputMaterial(source1)
-    p1.AddOutputMaterial(sample1)
+    let p1 = Process("p1")
+    p1.AddInputSample(source1)
+    p1.AddOutputSample(sample1)
 
-    let p2 = LabProcess("p2")
-    p2.AddInputMaterial(source2)
-    p2.AddOutputMaterial(sample2)
+    let p2 = Process("p2")
+    p2.AddInputSample(source2)
+    p2.AddOutputSample(sample2)
 
-    let p3 = LabProcess("p3")
-    p3.AddInputMaterial(sample1)
-    p3.AddInputMaterial(sample2)
-    p3.AddOutputMaterial(finalSample)
+    let p3 = Process("p3")
+    p3.AddInputSample(sample1)
+    p3.AddInputSample(sample2)
+    p3.AddOutputSample(finalSample)
 
     let ds = Dataset("DS-C")
     ds.AddProcess(p1)
@@ -210,23 +210,23 @@ type FixtureD =
     { Parent   : Dataset
       Child1   : Dataset
       Child2   : Dataset
-      P1       : LabProcess
-      P2       : LabProcess
-      Source1  : Material
-      Sample1  : Material   // shared — same object instance in both children
+      P1       : Process
+      P2       : Process
+      Source1  : Sample
+      Sample1  : Sample   // shared — same object instance in both children
       RawData1 : Data }
 
 let makeFixtureD () : FixtureD =
-    let source1  = Material("Source1",      additionalType = "Source")
-    let sample1  = Material("Sample1",      additionalType = "Sample")  // shared
+    let source1  = Sample("Source1",      additionalType = "Source")
+    let sample1  = Sample("Sample1",      additionalType = "Sample")  // shared
     let rawData1 = Data("rawData1.csv")
 
-    let p1 = LabProcess("p1")
-    p1.AddInputMaterial(source1)
-    p1.AddOutputMaterial(sample1)
+    let p1 = Process("p1")
+    p1.AddInputSample(source1)
+    p1.AddOutputSample(sample1)
 
-    let p2 = LabProcess("p2")
-    p2.AddInputMaterial(sample1)   // same object as p1's output
+    let p2 = Process("p2")
+    p2.AddInputSample(sample1)   // same object as p1's output
     p2.AddOutputData(rawData1)
 
     let child1 = Dataset("child1")
@@ -255,53 +255,53 @@ let makeFixtureD () : FixtureD =
 
 type FixtureE =
     { DS        : Dataset
-      P1        : LabProcess
-      P1PV      : PropertyValue
-      P2        : LabProcess
-      P2PV      : PropertyValue
-      Source1   : Material
-      Source1PV : PropertyValue
-      Source2   : Material
-      Source2PV : PropertyValue
-      Sample1   : Material
-      Sample1PV : PropertyValue
-      Sample2   : Material
-      Sample2PV : PropertyValue
+      P1        : Process
+      P1PV      : Annotation
+      P2        : Process
+      P2PV      : Annotation
+      Source1   : Sample
+      Source1PV : Annotation
+      Source2   : Sample
+      Source2PV : Annotation
+      Sample1   : Sample
+      Sample1PV : Annotation
+      Sample2   : Sample
+      Sample2PV : Annotation
       Data1     : Data
-      Data1PV   : PropertyValue
-      Data2     : Data 
-      Data2PV   : PropertyValue }
+      Data1PV   : Annotation
+      Data2     : Data
+      Data2PV   : Annotation }
 
 let makeFixtureE () : FixtureE =
-    
-    let source1PV = PropertyValue("source1_characteristic", value = "source1_val", additionalType = "Characteristic")
-    let source2PV = PropertyValue("source2_characteristic", value = "source2_val", additionalType = "Characteristic")
-    let sample1PV = PropertyValue("sample1_characteristic", value = "sample1_val", additionalType = "Characteristic")
-    let sample2PV = PropertyValue("sample2_characteristic", value = "sample2_val", additionalType = "Characteristic")
-    let p1PV      = PropertyValue("p1_parameter", value = "p1_val", additionalType = "ParameterValue")
-    let p2PV      = PropertyValue("p2_parameter", value = "p2_val", additionalType = "ParameterValue")
-    let data1PV   = PropertyValue("data1_characteristic", value = "data1_val", additionalType = "Characteristic")
-    let data2PV   = PropertyValue("data2_characteristic", value = "data2_val", additionalType = "Characteristic")
 
-    let source1 = Material("Source1", additionalType = "Source", additionalProperty = [source1PV])
-    let source2 = Material("Source2", additionalType = "Source", additionalProperty = [source2PV])
-    let sample1 = Material("Sample1", additionalType = "Sample", additionalProperty = [sample1PV])
-    let sample2 = Material("Sample2", additionalType = "Sample", additionalProperty = [sample2PV])
+    let source1PV = Annotation("source1_characteristic", value = "source1_val", additionalType = "Characteristic")
+    let source2PV = Annotation("source2_characteristic", value = "source2_val", additionalType = "Characteristic")
+    let sample1PV = Annotation("sample1_characteristic", value = "sample1_val", additionalType = "Characteristic")
+    let sample2PV = Annotation("sample2_characteristic", value = "sample2_val", additionalType = "Characteristic")
+    let p1PV      = Annotation("p1_parameter", value = "p1_val", additionalType = "ParameterValue")
+    let p2PV      = Annotation("p2_parameter", value = "p2_val", additionalType = "ParameterValue")
+    let data1PV   = Annotation("data1_characteristic", value = "data1_val", additionalType = "Characteristic")
+    let data2PV   = Annotation("data2_characteristic", value = "data2_val", additionalType = "Characteristic")
+
+    let source1 = Sample("Source1", additionalType = "Source", additionalProperty = [source1PV])
+    let source2 = Sample("Source2", additionalType = "Source", additionalProperty = [source2PV])
+    let sample1 = Sample("Sample1", additionalType = "Sample", additionalProperty = [sample1PV])
+    let sample2 = Sample("Sample2", additionalType = "Sample", additionalProperty = [sample2PV])
     let data1   = Data("Data1", additionalProperty = [data1PV])
     let data2   = Data("Data2", additionalProperty = [data2PV])
 
-    let p1 = LabProcess("p1")
-    let p2 = LabProcess("p2")
+    let p1 = Process("p1")
+    let p2 = Process("p2")
 
     p1.AddParameterValue(p1PV)
     p2.AddParameterValue(p2PV)
 
-    p1.AddInputMaterial(source1)
-    p1.AddInputMaterial(source2)
-    p1.AddOutputMaterial(sample1)
-    p1.AddOutputMaterial(sample2)
-    p2.AddInputMaterial(sample1)
-    p2.AddInputMaterial(sample2)
+    p1.AddInputSample(source1)
+    p1.AddInputSample(source2)
+    p1.AddOutputSample(sample1)
+    p1.AddOutputSample(sample2)
+    p2.AddInputSample(sample1)
+    p2.AddInputSample(sample2)
     p2.AddOutputData(data1)
     p2.AddOutputData(data2)
 
@@ -320,9 +320,9 @@ let makeFixtureE () : FixtureE =
 // ─────────────────────────────────────────────────────────────────────────────
 // Fixture FourSources
 //
-// A chain with a central process that has PropertyValues in all four source
+// A chain with a central process that has Annotations in all four source
 // locations simultaneously, flanked by upstream and downstream processes each
-// carrying a unique PV. Used by section 6 (PropertyValue Sources) tests.
+// carrying a unique PV. Used by section 6 (Annotation Sources) tests.
 //
 //   UpstreamNode --[UpstreamProc]--> InputNode --[Process]--> OutputNode --[DownstreamProc]--> DownstreamNode
 //
@@ -333,68 +333,68 @@ let makeFixtureE () : FixtureE =
 // ─────────────────────────────────────────────────────────────────────────────
 
 type FixtureFourSources =
-    { 
+    {
         DS               : Dataset
-        Process          : LabProcess
-        UpstreamProc     : LabProcess
-        DownstreamProc   : LabProcess
-        UpstreamNode     : Material
-        InputNode        : Material
-        OutputNode       : Material
-        DownstreamNode   : Material
-        ParamPV          : PropertyValue // from ParameterValue
-        InputPV          : PropertyValue // from input node AdditionalProperty
-        OutputPV         : PropertyValue // from output node AdditionalProperty
-        ComponentPV      : PropertyValue // from protocol LabEquipment
-        UpstreamOnlyPV   : PropertyValue // only on UpstreamProc
-        DownstreamOnlyPV : PropertyValue // only on DownstreamProc
-    } 
+        Process          : Process
+        UpstreamProc     : Process
+        DownstreamProc   : Process
+        UpstreamNode     : Sample
+        InputNode        : Sample
+        OutputNode       : Sample
+        DownstreamNode   : Sample
+        ParamPV          : Annotation // from ParameterValue
+        InputPV          : Annotation // from input node AdditionalProperty
+        OutputPV         : Annotation // from output node AdditionalProperty
+        ComponentPV      : Annotation // from protocol LabEquipment
+        UpstreamOnlyPV   : Annotation // only on UpstreamProc
+        DownstreamOnlyPV : Annotation // only on DownstreamProc
+    }
 
 let makeFixtureFourSources () : FixtureFourSources =
-    let upstreamNode   = Material("FS_UpstreamNode",   additionalType = "Source")
-    let inputNode      = Material("FS_InputNode",      additionalType = "Sample")
-    let outputNode     = Material("FS_OutputNode",     additionalType = "Sample")
-    let downstreamNode = Material("FS_DownstreamNode", additionalType = "Sample")
+    let upstreamNode   = Sample("FS_UpstreamNode",   additionalType = "Source")
+    let inputNode      = Sample("FS_InputNode",      additionalType = "Sample")
+    let outputNode     = Sample("FS_OutputNode",     additionalType = "Sample")
+    let downstreamNode = Sample("FS_DownstreamNode", additionalType = "Sample")
 
     // upstream process
-    let upstreamProc   = LabProcess("fs-upstream-process")
-    let upstreamOnlyPV = PropertyValue("upstream_param", value = "upstream_val", additionalType = "ParameterValue")
+    let upstreamProc   = Process("fs-upstream-process")
+    let upstreamOnlyPV = Annotation("upstream_param", value = "upstream_val", additionalType = "ParameterValue")
     upstreamProc.AddParameterValue(upstreamOnlyPV)
-    upstreamProc.AddInputMaterial(upstreamNode)
-    upstreamProc.AddOutputMaterial(inputNode)
+    upstreamProc.AddInputSample(upstreamNode)
+    upstreamProc.AddOutputSample(inputNode)
 
     // central process — all four sources
-    let proto   = LabProtocol("four-source-protocol")
-    let compPV  = PropertyValue("instrument",    value = "Orbitrap",  additionalType = "Component")
+    let proto   = Plan("four-source-protocol")
+    let compPV  = Annotation("instrument",    value = "Orbitrap",  additionalType = "Component")
     proto.AddLabEquipment(compPV)
 
-    let proc    = LabProcess("fs-four-source-process")
+    let proc    = Process("fs-four-source-process")
     proc.ExecutesProtocol <- Some proto
 
-    let paramPV  = PropertyValue("temperature",  value = "25",      additionalType = "ParameterValue")
-    let inputPV  = PropertyValue("organism",     value = "E. coli", additionalType = "CharacteristicValue")
-    let outputPV = PropertyValue("growth_phase", value = "log",     additionalType = "FactorValue")
+    let paramPV  = Annotation("temperature",  value = "25",      additionalType = "ParameterValue")
+    let inputPV  = Annotation("organism",     value = "E. coli", additionalType = "CharacteristicValue")
+    let outputPV = Annotation("growth_phase", value = "log",     additionalType = "FactorValue")
 
     proc.AddParameterValue(paramPV)
     inputNode.AddAdditionalProperty(inputPV)
     outputNode.AddAdditionalProperty(outputPV)
-    proc.AddInputMaterial(inputNode)
-    proc.AddOutputMaterial(outputNode)
+    proc.AddInputSample(inputNode)
+    proc.AddOutputSample(outputNode)
 
     // downstream process
-    let downstreamProc   = LabProcess("fs-downstream-process")
-    let downstreamOnlyPV = PropertyValue("downstream_param", value = "downstream_val", additionalType = "ParameterValue")
+    let downstreamProc   = Process("fs-downstream-process")
+    let downstreamOnlyPV = Annotation("downstream_param", value = "downstream_val", additionalType = "ParameterValue")
     downstreamProc.AddParameterValue(downstreamOnlyPV)
-    downstreamProc.AddInputMaterial(outputNode)
-    downstreamProc.AddOutputMaterial(downstreamNode)
+    downstreamProc.AddInputSample(outputNode)
+    downstreamProc.AddOutputSample(downstreamNode)
 
     let ds = Dataset("DS-FourSources")
     ds.AddProcess(upstreamProc)
     ds.AddProcess(proc)
     ds.AddProcess(downstreamProc)
 
-    { 
-      DS               = ds  
+    {
+      DS               = ds
       Process          = proc
       UpstreamProc     = upstreamProc
       DownstreamProc   = downstreamProc

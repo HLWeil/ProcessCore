@@ -51,7 +51,7 @@ CREATE INDEX idx_data_additional_type ON Data(additional_type);
 
 ```sql
 CREATE VIEW NodeRef AS
-SELECT 'Material' AS node_type, id AS node_id, name AS node_name FROM Material
+SELECT 'Sample' AS node_type, id AS node_id, name AS node_name FROM Sample
 UNION ALL
 SELECT 'Data', id,
        CASE WHEN selector IS NOT NULL

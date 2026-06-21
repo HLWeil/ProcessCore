@@ -31,11 +31,11 @@ tests/ProcessCore.Tests/
         Codecs/
             DefinedTerm.fs
             FormalParameter.fs
-            PropertyValue.fs
-            Material.fs
+            Annotation.fs
+            Sample.fs
             Data.fs
-            LabProtocol.fs
-            LabProcess.fs
+            Plan.fs
+            Process.fs
             Dataset.fs
         Integration/
             RoundTrip.fs           <- full graph encode -> decode
@@ -51,9 +51,9 @@ tests/ProcessCore.Tests/
 
 ### Object fixtures — reuse the same graph shapes as ProcessCore.Tests where possible
 
-**Fixture PV** — a `PropertyValue` with all optional fields populated:
+**Fixture PV** — a `Annotation` with all optional fields populated:
 ```fsharp
-PropertyValue("Temperature", value = "37", unit = "°C",
+Annotation("Temperature", value = "37", unit = "°C",
               nameTAN = "PATO:0000146", valueTAN = "...", unitTAN = "UO:0000027",
               additionalType = "Parameter")
 ```
@@ -68,15 +68,15 @@ DefinedTerm("cell growth", tan = "GO:0016049", inDefinedTermSet = "http://purl.o
 FormalParameter("temperature", nameTAN = "PATO:0000146", defaultValue = DefinedTerm("37°C"))
 ```
 
-**Fixture Material** — `Material("Sample1", additionalType = "Sample")` with two `additionalProperty` entries.
+**Fixture Sample** — `Sample("Sample1", additionalType = "Sample")` with two `additionalProperty` entries.
 
 **Fixture Data** — `Data("rawData1.csv", selector = "Sheet1", selectorFormat = "excel", encodingFormat = "text/csv")` with one `additionalProperty`.
 
-**Fixture LabProtocol** — protocol with `name`, `description`, `version`, `url`, `intendedUse`, one parameter, one labEquipment, one additionalProperty.
+**Fixture Plan** — protocol with `name`, `description`, `version`, `url`, `intendedUse`, one parameter, one labEquipment, one additionalProperty.
 
-**Fixture LabProcess** — process with `name`, one material input, one data output, `executesProtocol`, two `parameterValue` entries.
+**Fixture Process** — process with `name`, one sample input, one data output, `executesProtocol`, two `parameterValue` entries.
 
-**Fixture Dataset** — `Dataset("DS-1")` containing the fixture LabProcess and one nested child `Dataset("DS-1/assay")`.
+**Fixture Dataset** — `Dataset("DS-1")` containing the fixture Process and one nested child `Dataset("DS-1/assay")`.
 
 ### YAML string fixtures
 
@@ -118,11 +118,11 @@ These should match what the encoder produces so they can also serve as encoder r
 
 ---
 
-## 3 — PropertyValue Codec (`Codecs/PropertyValue.fs`)
+## 3 — Annotation Codec (`Codecs/Annotation.fs`)
 
 | Test | Description |
 |------|-------------|
-| `encode name only` | `id = name`, `type = "PropertyValue"`, no optional keys |
+| `encode name only` | `id = name`, `type = "Annotation"`, no optional keys |
 | `encode all fields` | All 8 optional keys present |
 | `encode instanceOf as inline FormalParameter` | Nested FP object |
 | `decode name only` | All optionals `None` |
@@ -133,12 +133,12 @@ These should match what the encoder produces so they can also serve as encoder r
 
 ---
 
-## 4 — Material Codec (`Codecs/Material.fs`)
+## 4 — Sample Codec (`Codecs/Sample.fs`)
 
 | Test | Description |
 |------|-------------|
-| `encode name only` | `id = name`, `type = "Material"`, no `additionalProperty` key |
-| `encode with additionalProperty` | Sequence of PropertyValue objects |
+| `encode name only` | `id = name`, `type = "Sample"`, no `additionalProperty` key |
+| `encode with additionalProperty` | Sequence of Annotation objects |
 | `encode with additionalType` | `additionalType` key present |
 | `decode name only` | `additionalProperty` empty, back-edges empty |
 | `decode with additionalProperty` | PVs decoded and added |
@@ -166,11 +166,11 @@ These should match what the encoder produces so they can also serve as encoder r
 
 ---
 
-## 6 — LabProtocol Codec (`Codecs/LabProtocol.fs`)
+## 6 — Plan Codec (`Codecs/Plan.fs`)
 
 | Test | Description |
 |------|-------------|
-| `encode minimal` | No name → `id = ""`, `type = "LabProtocol"` |
+| `encode minimal` | No name → `id = ""`, `type = "Plan"` |
 | `encode with name and url` | `id = url`, all provided fields present |
 | `encode with parameters sequence` | Nested FP objects in `parameters` array |
 | `encode with labEquipment sequence` | Nested PV objects |
@@ -185,21 +185,21 @@ These should match what the encoder produces so they can also serve as encoder r
 
 ---
 
-## 7 — LabProcess Codec (`Codecs/LabProcess.fs`)
+## 7 — Process Codec (`Codecs/Process.fs`)
 
 | Test | Description |
 |------|-------------|
-| `encode name only` | `id = name`, `type = "LabProcess"`, no inputs/outputs/protocol |
-| `encode with material input` | Material inline in `inputs` array |
+| `encode name only` | `id = name`, `type = "Process"`, no inputs/outputs/protocol |
+| `encode with sample input` | Sample inline in `inputs` array |
 | `encode with data output` | Data inline in `outputs` array |
-| `encode with executesProtocol` | Nested LabProtocol inline |
+| `encode with executesProtocol` | Nested Plan inline |
 | `encode with parameterValues` | Sequence of PV objects |
 | `decode name only` | Inputs/outputs empty, protocol `None` |
-| `decode material input` | Material decoded and added to inputs |
+| `decode sample input` | Sample decoded and added to inputs |
 | `decode data output` | Data decoded and added to outputs |
 | `decode data by "File" legacy type alias` | `type: File` → decoded as `Data` |
 | `decode io as id-references` | String refs produce no IONode entries |
-| `decode executesProtocol as inline object` | LabProtocol decoded |
+| `decode executesProtocol as inline object` | Plan decoded |
 | `decode executesProtocol as id-reference` | Ref → `executesProtocol = None` |
 | `decode parameterValues` | PVs decoded |
 | `back-edges not in output` | No `processOf` key |
@@ -214,7 +214,7 @@ These should match what the encoder produces so they can also serve as encoder r
 | Test | Description |
 |------|-------------|
 | `encode minimal` | `id = identifier`, `type = "Dataset"`, no sequences |
-| `encode with processes` | Nested LabProcess objects in `processes` array |
+| `encode with processes` | Nested Process objects in `processes` array |
 | `encode with hasPart` | Nested child Dataset in `hasPart` array |
 | `encode with additionalProperty` | PV sequence |
 | `decode minimal` | Identifier decoded, all sequences empty |
@@ -242,7 +242,7 @@ These tests encode a fully-wired graph, decode it, and compare structure rather 
 | `linear graph round-trip` | Fixture graph from ProcessCore.Tests Fixture A: encode `DS-A` → YAML string → decode → same process names, same input/output names |
 | `nested dataset round-trip` | Fixture D: parent with two child datasets → encode → decode → child identifier and process names intact |
 | `parameterValues round-trip` | PVs with all optional fields survive encoding and decoding |
-| `protocol round-trip` | LabProtocol with parameters, labEquipment, intendedUse all survive |
+| `protocol round-trip` | Plan with parameters, labEquipment, intendedUse all survive |
 | `whitespace option` | `toYamlString (Some 4)` produces YAML with 4-space indentation that `fromYamlString` can parse back |
 | `Decode.fromYamlString entry point` | Top-level `Decode.fromYamlString Dataset.decoder` works equivalently to `Dataset.fromYamlString` |
 | `Encode.toYamlString entry point` | Top-level `Encode.toYamlString` works equivalently to per-module helper |
@@ -254,7 +254,7 @@ These tests encode a fully-wired graph, decode it, and compare structure rather 
 | Test | Description |
 |------|-------------|
 | `unknown field on DefinedTerm survives round-trip` | Set `dt.SetProperty("customTag", "value")` → encode → decode → `GetProperty("customTag") = "value"` |
-| `unknown field on Material survives round-trip` | Same for `Material` |
+| `unknown field on Sample survives round-trip` | Same for `Sample` |
 | `unknown field on Dataset survives round-trip` | Same for `Dataset` |
 | `unknown nested object survives round-trip` | Overflow value is a nested YAML object → decoded as `DynamicObj` |
 | `unknown sequence survives round-trip` | Overflow value is a YAML sequence → decoded as `ResizeArray<obj>` |
@@ -270,10 +270,10 @@ These tests call `decoder true` (i.e. `processCoreOnly = true`) directly.
 |------|-------------|
 | `correct type passes` | YAML with `type: DefinedTerm` → no exception |
 | `wrong type on DefinedTerm raises` | `type: WrongType` → `failwithf` message contains both expected and actual type names |
-| `wrong type on Material raises` | Same |
+| `wrong type on Sample raises` | Same |
 | `wrong type on Data raises` | Same |
-| `wrong type on LabProtocol raises` | Same |
-| `wrong type on LabProcess raises` | Same |
+| `wrong type on Plan raises` | Same |
+| `wrong type on Process raises` | Same |
 | `wrong type on Dataset raises` | Same |
 | `missing type field passes` | YAML without a `type` key → no exception (absent is allowed) |
 
@@ -286,10 +286,10 @@ These tests call `decoder false` (i.e. `processCoreOnly = false`).
 | Test | Description |
 |------|-------------|
 | `decorated type on DefinedTerm accepted` | `type: schema:DefinedTerm` → decodes normally without error |
-| `decorated type on Material accepted` | `type: bioschemas:Sample` → decodes as `Material` |
+| `decorated type on Sample accepted` | `type: bioschemas:Sample` → decodes as `Sample` |
 | `decorated type on Data accepted` | `type: schema:MediaObject` → decodes as `Data` |
-| `decorated type on LabProtocol accepted` | `type: bioschemas:LabProtocol` |
-| `decorated type on LabProcess accepted` | `type: bioschemas:LabProcess` |
+| `decorated type on Plan accepted` | `type: bioschemas:LabProtocol` |
+| `decorated type on Process accepted` | `type: bioschemas:LabProcess` |
 | `decorated type on Dataset accepted` | `type: schema:Dataset` |
 | `completely absent type accepted` | YAML with no `type` field → decodes normally |
 | `unknown arbitrary type accepted` | `type: custom:Foo` → decodes, field goes into overflow |
@@ -314,7 +314,7 @@ The three example files were reviewed against the YML schemas in `schemas/yml/`.
 | `name` | Schema field | present | ✅ |
 | `additionalProperty` (singular) | Schema uses `additionalProperty` | present | ✅ PVs decoded into typed list |
 | `creators` | Not in core Dataset schema | present | ❌ Overflow |
-| PropertyValue `type` values | `const: "PropertyValue"` | `"PropertyValue"` | ✅ |
+| Annotation `type` values | `const: "Annotation"` | `"Annotation"` | ✅ |
 
 #### `examples/isa/assay_proteomics.yml`
 
@@ -326,13 +326,13 @@ The three example files were reviewed against the YML schemas in `schemas/yml/`.
 | `identifier` | Required | `"measurement1"` | ✅ |
 | `creators` | Not in core schema | present | ❌ Overflow |
 | `labProtocols` | Not in schema (no top-level protocol list) | present | ❌ Overflow |
-| `propertyValues` | Not in schema (no top-level propertyValues) | present | ❌ Overflow |
+| `annotations` | Not in schema (no top-level annotations) | present | ❌ Overflow |
 | `processes[*].inputs` | Schema uses `inputs` | `inputs` | ✅ |
 | `processes[*].outputs` | Schema uses `outputs` | `outputs` | ✅ |
 | `processes[*].executesProtocol` | Schema uses `executesProtocol` | `executesProtocol` | ✅ |
 | `processes[*].parameterValue` (singular) | Schema uses `parameterValue` | `parameterValue` | ✅ |
-| `Material.additionalProperty` (singular) | Schema uses `additionalProperty` | `additionalProperty` | ✅ |
-| `type: Material` + `additionalType: Source` | Schema uses `type: Material` with `additionalType` | `type: Material`, `additionalType: Source` | ✅ |
+| `Sample.additionalProperty` (singular) | Schema uses `additionalProperty` | `additionalProperty` | ✅ |
+| `type: Sample` + `additionalType: Source` | Schema uses `type: Sample` with `additionalType` | `type: Sample`, `additionalType: Source` | ✅ |
 | `type: Data` on data outputs | Schema uses `type: Data` | `"Data"` | ✅ |
 | Data `path` field | Schema uses `path` | `path: sample1.raw` | ✅ |
 
@@ -363,15 +363,15 @@ These fixtures are intended for use as **inline string literals** in the test pr
 | `parse investigation fixture (spec-conformant)` | Inline fixture string → `Dataset.fromYamlString` succeeds; `Identifier = "ara_prot_2023"` |
 | `investigation name field` | `Name = Some "Validation of Proteins in Arabidopsis thaliana"` |
 | `investigation additionalType` | `AdditionalType = Some "Investigation"` |
-| `investigation additionalProperty count` | Three `PropertyValue` entries decoded |
+| `investigation additionalProperty count` | Three `Annotation` entries decoded |
 | `investigation PV names` | Names are `"latitude"`, `"longitude"`, `"aim"` |
 | `parse assay fixture (spec-conformant)` | Inline fixture string → `Dataset.fromYamlString` succeeds; `Identifier = "measurement1"` |
-| `assay process count` | One `LabProcess` decoded |
+| `assay process count` | One `Process` decoded |
 | `assay process name` | `"Growth"` |
 | `assay process input name` | `"Base Culture"` with `AdditionalType = Some "Source"` |
 | `assay process output name` | `"Cultivation Flask RT"` |
 | `assay output additionalProperty` | One PV with `Name = "temperature"`, `Value = Some "25"` |
-| `original investigation.yml lenient parse` | Load file content; parse with `Dataset.decoder false`; no exception; `identifier = "ara_prot_2023"`, `name` and `additionalProperty` decoded; `creators` in overflow |
-| `original assay_proteomics.yml lenient parse` | Load file content; parse with `Dataset.decoder false`; no exception; `identifier = "measurement1"`; all 20 processes decoded with typed inputs/outputs; `creators`, `labProtocols`, `propertyValues` in overflow |
+| `original investigation.yml lenient parse` | Load file content; parse with `Dataset.decoder false`; no exception; `identifier = "ara_prot_2023"`, `title` and `additionalProperty` decoded; `creators` in overflow |
+| `original assay_proteomics.yml lenient parse` | Load file content; parse with `Dataset.decoder false`; no exception; `identifier = "measurement1"`; all 20 processes decoded with typed inputs/outputs; `creators`, `labProtocols`, `annotations` in overflow |
 | `original datamap_proteomics.yml raw YAML load` | File can be read by `YAMLicious.Reader.read` without exception; top-level key `datacontexts` accessible as overflow on a bare `DynamicObj` |
 

@@ -26,11 +26,11 @@ let tests = testList "RoundTrip" [
         Expect.equal p1.Inputs.Count  1 "p1 one input"
         Expect.equal p1.Outputs.Count 1 "p1 one output"
         match p1.Inputs.[0] with
-        | MaterialNode m -> Expect.equal m.Name "Source1" "p1 input name"
-        | DataNode _     -> failwith "Expected MaterialNode for p1 input"
+        | SampleNode m -> Expect.equal m.Name "Source1" "p1 input name"
+        | DataNode _     -> failwith "Expected SampleNode for p1 input"
         match p1.Outputs.[0] with
-        | MaterialNode m -> Expect.equal m.Name "Sample1" "p1 output name"
-        | DataNode _     -> failwith "Expected MaterialNode for p1 output"
+        | SampleNode m -> Expect.equal m.Name "Sample1" "p1 output name"
+        | DataNode _     -> failwith "Expected SampleNode for p1 output"
 
         // p1 parameter values
         Expect.equal p1.ParameterValue.Count 2 "p1 two parameter values"
@@ -43,7 +43,7 @@ let tests = testList "RoundTrip" [
         Expect.equal p3.Outputs.Count 1 "p3 one output"
         match p3.Outputs.[0] with
         | DataNode d -> Expect.equal d.Path "rawData1.csv" "p3 data path"
-        | MaterialNode _ -> failwith "Expected DataNode for p3 output"
+        | SampleNode _ -> failwith "Expected DataNode for p3 output"
 
     testCase "nested dataset round-trip" <| fun _ ->
         let original = makeNestedDataset()
@@ -68,10 +68,10 @@ let tests = testList "RoundTrip" [
 
     testCase "parameterValues round-trip" <| fun _ ->
         let ds  = Dataset("DS-PV")
-        let proc = LabProcess("p-pv")
-        proc.AddParameterValue(PropertyValue("temperature", value = "37",  unit = "°C",  nameTAN = "PATO:0000146"))
-        proc.AddParameterValue(PropertyValue("rpm",         value = "200", unit = "rpm", nameTAN = "NCIT:C43060"))
-        proc.AddParameterValue(PropertyValue("enzyme",      value = "Trypsin"))
+        let proc = Process("p-pv")
+        proc.AddParameterValue(Annotation("temperature", value = "37",  unit = "°C",  nameTAN = "PATO:0000146"))
+        proc.AddParameterValue(Annotation("rpm",         value = "200", unit = "rpm", nameTAN = "NCIT:C43060"))
+        proc.AddParameterValue(Annotation("enzyme",      value = "Trypsin"))
         ds.AddProcess(proc)
 
         let yaml    = Yaml.Dataset.toYamlString None ds
@@ -89,7 +89,7 @@ let tests = testList "RoundTrip" [
         Expect.equal pvs.[2].Value   (Some "Trypsin")     "pv2 value"
 
     testCase "protocol round-trip" <| fun _ ->
-        let proto = LabProtocol(
+        let proto = Plan(
                         name        = "extraction",
                         description = "Standard extraction",
                         version     = "1.0",
@@ -97,10 +97,10 @@ let tests = testList "RoundTrip" [
         proto.IntendedUse <- Some (DefinedTerm("cell growth", tan = "GO:0016049"))
         proto.AddParameter(FormalParameter("temperature", nameTAN = "PATO:0000146"))
         proto.AddParameter(FormalParameter("rpm"))
-        proto.AddLabEquipment(PropertyValue("centrifuge", value = "Eppendorf 5420"))
-        proto.AddAdditionalProperty(PropertyValue("notes", value = "Keep on ice"))
+        proto.AddLabEquipment(Annotation("centrifuge", value = "Eppendorf 5420"))
+        proto.AddAdditionalProperty(Annotation("notes", value = "Keep on ice"))
 
-        let proc = LabProcess("p1")
+        let proc = Process("p1")
         proc.ExecutesProtocol <- Some proto
         let ds = Dataset("DS-proto")
         ds.AddProcess(proc)
@@ -126,8 +126,8 @@ let tests = testList "RoundTrip" [
 
     testCase "whitespace option" <| fun _ ->
         let ds = Dataset("DS-ws")
-        let proc = LabProcess("p1")
-        proc.AddParameterValue(PropertyValue("temperature", value = "37"))
+        let proc = Process("p1")
+        proc.AddParameterValue(Annotation("temperature", value = "37"))
         ds.AddProcess(proc)
 
         let yaml2 = Yaml.Dataset.toYamlString (Some 2) ds

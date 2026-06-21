@@ -13,12 +13,12 @@ Resolve the 13 original issues identified in design.md, plus the framing issue *
 | 0 | meta | design.md blurs "faithful YAML representation" with "stricter SQL profile"; framing must come first | done |
 | 1 | high | "Round-trip" claim is overstated; `type` column policy understates which tables actually have a `const` type in YAML | done |
 | 2 | high | `oneOf [string @id, inline object]` resolution rule is implicit; mixed-target lists need multi-table lookup policy; inline objects can lack `id` | done |
-| 3 | high | `LabProtocol.intendedUse` string is ambiguous (free text vs `@id`) | done |
+| 3 | high | `Plan.intendedUse` string is ambiguous (free text vs `@id`) | done |
 | 4 | high | `process_io` symmetry policy contradicts the spec; design.md prose ("spec does not require") is factually wrong | done |
 | 5 | high | No index strategy for documented graph-traversal queries; composites and `process_parameter_value` lookup are missing | done |
 | 6 | medium | `Data.id` vs `Data.path` relationship unspecified; naive `id := path` collides on fragment-level data | done |
-| 7 | medium | Orphan `PropertyValue` policy undefined | done |
-| 8 | medium | Numeric `PropertyValue.value` has no canonical text format | done |
+| 7 | medium | Orphan `Annotation` policy undefined | done |
+| 8 | medium | Numeric `Annotation.value` has no canonical text format | done |
 | 9 | medium | FK `ON DELETE` semantics unspecified | done |
 | 10 | low | Stale `core/ERD.md` link | done |
 | 11 | low | `Dataset.hasPart` type column gap in spec MD | done |
@@ -39,11 +39,11 @@ Resolve the 13 original issues identified in design.md, plus the framing issue *
 | # | Choice | Notes |
 |---|---|---|
 | D0 | **(a) Profile** | Rename design.md as "SQL Import Profile of the ProcessCore model." Round-trip is to/from the profile; SQL ↔ in-memory model mapping handles deviations. |
-| D1 | **add `type TEXT` for now** | Add `type TEXT` (no CHECK, no canonicalization) to `dataset`, `lab_process`, `lab_protocol`, `material`, `property_value`, `formal_parameter`, `defined_term`. Drop the "type omitted when constant" Design Decisions bullet. External issue filed: rename `LabProcess` → `Process`, `LabProtocol` → `Protocol`. |
+| D1 | **add `type TEXT` for now** | Add `type TEXT` (no CHECK, no canonicalization) to `dataset`, `process`, `plan`, `sample`, `annotation`, `formal_parameter`, `defined_term`. Drop the "type omitted when constant" Design Decisions bullet. External issue filed: rename `Process` → `Process`, `Plan` → `Protocol`. |
 | D2 | **keep symmetry non-mandatory** | No CHECK or import validation on `inputs.length == outputs.length`. Fix the false prose at [design.md:444](../schemas/sql/design.md#L444) to acknowledge spec SHOULD. External issue filed: future enforcement. |
 | D3 | **(a) closed-document invariant** | At end of import transaction: every PV must be referenced by ≥1 row in the five owner association tables. `instance_of_id` does not count. |
-| D4 | **(a) CASCADE owner→assoc, RESTRICT on entity refs** | Deleting a `property_value` is *blocked* if any association row still references it. Deleting an owner (e.g. `dataset`) cascades to its association rows. Forces explicit cleanup; surfaces accidents. |
-| D5 | **values as pure strings** | Remove `property_value.value_type` column and its CHECKs. `value` stays TEXT nullable. Numeric/text validation moves to the in-memory model layer, driven by ontology context. |
+| D4 | **(a) CASCADE owner→assoc, RESTRICT on entity refs** | Deleting a `annotation` is *blocked* if any association row still references it. Deleting an owner (e.g. `dataset`) cascades to its association rows. Forces explicit cleanup; surfaces accidents. |
+| D5 | **values as pure strings** | Remove `annotation.value_type` column and its CHECKs. `value` stays TEXT nullable. Numeric/text validation moves to the in-memory model layer, driven by ontology context. |
 
 ## Phase 0 — Decision rationale
 
@@ -57,15 +57,15 @@ design.md currently blurs two activities: (a) faithfully represent the authorita
 
 ### D1. `type` column policy
 
-Decision: add `type TEXT` columns to every entity table for now, with no `CHECK` and no canonicalization. This keeps the SQL profile close to the current spec tables while leaving the naming problem (`LabProcess`/`LabProtocol` versus `Process`/`Protocol`) to a separate external issue.
+Decision: add `type TEXT` columns to every entity table for now, with no `CHECK` and no canonicalization. This keeps the SQL profile close to the current spec tables while leaving the naming problem (`Process`/`Plan` versus `Process`/`Protocol`) to a separate external issue.
 
 Concretely, `data.type` already exists; add `type TEXT` to:
 
 - `dataset`
-- `lab_process`
-- `lab_protocol`
-- `material`
-- `property_value`
+- `process`
+- `plan`
+- `sample`
+- `annotation`
 - `formal_parameter`
 - `defined_term`
 
@@ -73,13 +73,13 @@ Remove the current Design Decisions bullet that says `type` columns are omitted 
 
 ### D2. `process_io` symmetry
 
-The spec ([LabProcess.md:41](../spec/core/LabProcess.md#L41)) says inputs/outputs "should be of the same length" — a SHOULD. design.md currently asserts the opposite at [line 444](../schemas/sql/design.md#L444): "the spec does not require the two lists to have equal length." That prose is factually wrong and must be fixed regardless of which option below is chosen.
+The spec ([Process.md:41](../spec/core/Process.md#L41)) says inputs/outputs "should be of the same length" — a SHOULD. design.md currently asserts the opposite at [line 444](../schemas/sql/design.md#L444): "the spec does not require the two lists to have equal length." That prose is factually wrong and must be fixed regardless of which option below is chosen.
 
 Decision: physically allow asymmetry and do not add an import-time length validation yet. The "spec does not require" prose is rewritten to: *"the spec recommends equal-length lists; the profile permits asymmetric storage and does not currently enforce length equality."*
 
 Whether this SHOULD should become a MUST, or whether a profile-level warning should be emitted, is tracked as a separate external issue.
 
-### D3. Orphan `PropertyValue` policy
+### D3. Orphan `Annotation` policy
 
 Validation level matters: per-row at insert vs closed-document at transaction commit. Per-row breaks staging and forward references; closed-document achieves the same end state without that cost.
 
@@ -87,11 +87,11 @@ Validation level matters: per-row at insert vs closed-document at transaction co
 
 - `dataset_additional_property`
 - `protocol_additional_property`
-- `material_additional_property`
+- `sample_additional_property`
 - `data_additional_property`
 - `process_parameter_value`
 
-`PropertyValue.instance_of_id → FormalParameter` is *outbound* from the PV and does **not** count as ownership: a PV that points at a FormalParameter but is referenced by no owner is still orphan.
+`Annotation.instance_of_id → FormalParameter` is *outbound* from the PV and does **not** count as ownership: a PV that points at a FormalParameter but is referenced by no owner is still orphan.
 
 Decision: closed-document invariant, no orphan PVs at commit time. PVs may exist transiently mid-import (staging, forward refs); the constraint is checked once at the end of the import transaction.
 
@@ -99,11 +99,11 @@ Decision: closed-document invariant, no orphan PVs at commit time. PVs may exist
 
 Decision: use `CASCADE` for owner → association rows, because those rows have no independent meaning, and `RESTRICT` for references to first-class entities.
 
-This means deleting a `property_value` row is blocked while any association row still references it; the caller must delete or move those associations explicitly. Deleting an owner row, such as a `dataset`, cascades to that owner's association rows.
+This means deleting a `annotation` row is blocked while any association row still references it; the caller must delete or move those associations explicitly. Deleting an owner row, such as a `dataset`, cascades to that owner's association rows.
 
-### D5. `PropertyValue.value` storage
+### D5. `Annotation.value` storage
 
-Decision: store values as pure strings in SQL. Remove `property_value.value_type` and its consistency CHECKs. `property_value.value` remains nullable `TEXT`.
+Decision: store values as pure strings in SQL. Remove `annotation.value_type` and its consistency CHECKs. `annotation.value` remains nullable `TEXT`.
 
 The SQL profile does not preserve the source scalar kind: YAML `42` and `"42"` both become `value = '42'`. Semantic validation, including numeric parsing based on ontology context, belongs in the SQL ↔ in-memory model layer or a separate validator.
 
@@ -118,10 +118,10 @@ New bullet under Design Decisions, covering five cases:
 > **References resolve to FKs.** YAML schemas express references as `oneOf [string @id, inline object]`. On import:
 >
 > 1. **Single-target string `@id`.** Resolve against the unique target table by `id`. Unknown `@id` → error.
-> 2. **Mixed-target string `@id`** (`hasPart` → Dataset|Data; `inputs`/`outputs` → Material|Data). Look up across all permitted target tables. Zero hits → error. Hits in multiple tables → error (cross-type `id` collision is a data-quality bug the user must resolve).
+> 2. **Mixed-target string `@id`** (`hasPart` → Dataset|Data; `inputs`/`outputs` → Sample|Data). Look up across all permitted target tables. Zero hits → error. Hits in multiple tables → error (cross-type `id` collision is a data-quality bug the user must resolve).
 > 3. **Inline object with `id`** on a single-target list. Upsert by `id` into the target table before recording the FK.
-> 4. **Inline object on a mixed-target list** (`hasPart`, `inputs`, `outputs`). Validate the object against each permitted target schema (`Dataset.yml`/`Data.yml` for `hasPart`; `Material.yml`/`Data.yml` for `inputs`/`outputs`). Zero matches → error. Multiple matches → error (the YAML schemas are mutually exclusive in practice; ambiguity means malformed input).
-> 5. **Inline object without `id`** (permitted by YAML for `LabProcess`, `LabProtocol`, `Data`, where `id` is COULD). Generate a stable local identifier per the rule already in design.md Design Decisions, persist the row, then record the FK.
+> 4. **Inline object on a mixed-target list** (`hasPart`, `inputs`, `outputs`). Validate the object against each permitted target schema (`Dataset.yml`/`Data.yml` for `hasPart`; `Sample.yml`/`Data.yml` for `inputs`/`outputs`). Zero matches → error. Multiple matches → error (the YAML schemas are mutually exclusive in practice; ambiguity means malformed input).
+> 5. **Inline object without `id`** (permitted by YAML for `Process`, `Plan`, `Data`, where `id` is COULD). Generate a stable local identifier per the rule already in design.md Design Decisions, persist the row, then record the FK.
 >
 > This rule applies to `executesProtocol`, `defaultValue`, `instanceOf`, `parameters`, `processes`, `hasPart`, `inputs`, `outputs`, `parameterValue`, and every `additionalProperty`. **`intendedUse` is excluded** — see the disambiguation rule below — because a bare string there can mean free text rather than an unresolved `@id`.
 
@@ -138,23 +138,23 @@ After "Validation Rules". Index shapes are tied to the documented query patterns
 **Graph traversal indexes (process_io):**
 
 - Partial indexes per direction, node-leading:
-  - `process_io(material_id, process_id) WHERE direction = 'input'`
-  - `process_io(material_id, process_id) WHERE direction = 'output'`
+  - `process_io(sample_id, process_id) WHERE direction = 'input'`
+  - `process_io(sample_id, process_id) WHERE direction = 'output'`
   - `process_io(data_id, process_id) WHERE direction = 'input'`
   - `process_io(data_id, process_id) WHERE direction = 'output'`
 - `process_io(process_id, direction)` — already implied by PK; explicit for clarity.
 
 **Lookup-side indexes for the temperature/protocol query:**
 
-- `lab_protocol(intended_use_id)` — find protocols by ontology term (step 1 of the [use-cases.md:37](../spec/querying/use-cases.md#L37) command chain).
-- `process_parameter_value(property_value_id)` — find processes whose parameter values match (step 2).
-- `property_value` lookup indexes depend on the canonical query shape; candidates: `(name_tan, value)` for ontology-keyed value-equality, `(instance_of_id)` for FormalParameter-keyed lookups. Add as the query workload solidifies; do not over-index speculatively.
+- `plan(intended_use_id)` — find protocols by ontology term (step 1 of the [use-cases.md:37](../spec/querying/use-cases.md#L37) command chain).
+- `process_parameter_value(annotation_id)` — find processes whose parameter values match (step 2).
+- `annotation` lookup indexes depend on the canonical query shape; candidates: `(name_tan, value)` for ontology-keyed value-equality, `(instance_of_id)` for FormalParameter-keyed lookups. Add as the query workload solidifies; do not over-index speculatively.
 
 **Other:**
 
 - `dataset_process(process_id)` — locate owning dataset for a given process.
-- `<owner>_additional_property(property_value_id)` — find owners of a PV (supports D3 closed-document check; one index per owner table).
-- `lab_process(executes_protocol_id)` — find executions of a protocol.
+- `<owner>_additional_property(annotation_id)` — find owners of a PV (supports D3 closed-document check; one index per owner table).
+- `process(executes_protocol_id)` — find executions of a protocol.
 - Short `WITH RECURSIVE` example for the Path query from [use-cases.md](../spec/querying/use-cases.md), keyed off `process_io`.
 
 ### E3. Add `Data.id`/`Data.path` import rule (issue #6)
@@ -180,17 +180,17 @@ New bullet under Design Decisions:
 ### E5. Apply Phase 0 decisions
 
 - D0 → retitle the document as "SQL Import Profile" and rewrite intro framing
-- D1 → add `type TEXT` to `dataset`, `lab_process`, `lab_protocol`, `material`, `property_value`, `formal_parameter`, `defined_term`; remove the "type omitted when constant" Design Decisions bullet
+- D1 → add `type TEXT` to `dataset`, `process`, `plan`, `sample`, `annotation`, `formal_parameter`, `defined_term`; remove the "type omitted when constant" Design Decisions bullet
 - D2 → rewrite I/O symmetry prose at [design.md:444](../schemas/sql/design.md#L444); replace the false "spec does not require" claim with the SHOULD + non-enforcement framing
 - D3 → add closed-document "no orphan PVs at commit time" invariant under Validation Rules
 - D4 → add `ON DELETE` clauses to every FK definition: `CASCADE` for owner → association rows, `RESTRICT` for refs to first-class entities
-- D5 → remove `property_value.value_type` and its CHECKs; document that `value` is nullable `TEXT` and semantic validation belongs above SQL
+- D5 → remove `annotation.value_type` and its CHECKs; document that `value` is nullable `TEXT` and semantic validation belongs above SQL
 
 ### E6. Reframe round-trip claim in intro (issue #1 spillover)
 
 The current claim ("round-trip the current core YAML schemas without silently dropping core semantics") is true for the *profile* but not for arbitrary YAML.
 
-Rewrite as: *"This SQL import profile round-trips YAML documents that conform to it. The profile narrows the open YAML surface where SQL needs a concrete contract — for example no orphan PropertyValues at commit time, exact-one-target foreign keys for mixed-target lists, deterministic generated IDs for fragment-level Data, and unresolved references as import errors except for `intendedUse` free text."*
+Rewrite as: *"This SQL import profile round-trips YAML documents that conform to it. The profile narrows the open YAML surface where SQL needs a concrete contract — for example no orphan Annotations at commit time, exact-one-target foreign keys for mixed-target lists, deterministic generated IDs for fragment-level Data, and unresolved references as import errors except for `intendedUse` free text."*
 
 ## Phase 2 — Spec-doc follow-ups
 
@@ -216,5 +216,5 @@ Removed the dangling `creator -> Person` diagram edge from [spec/core/Dataset.md
 
 - Changes to the table set in design.md (no new entities, no new association tables).
 - ISA / Workflow Run / Datamap decoration tables (already documented out of scope in design.md).
-- Closure tables or materialized path views (deferred until query workload demands).
+- Closure tables or sampleized path views (deferred until query workload demands).
 - The `Path` type from the querying spec — derived via `WITH RECURSIVE`, not stored.

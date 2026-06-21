@@ -24,11 +24,11 @@ Decorations specialize Dataset via `additionalType`:
 | `type` | Text | MUST | `Dataset` |
 | `additionalType` | Text | COULD | Discriminator for decoration type |
 | `identifier` | Text | MUST | Identifying descriptor |
-| `name` | Text | SHOULD | Title |
+| `title` | Text | SHOULD | Human-readable dataset title |
 | `description` | Text | SHOULD | Short description or abstract |
-| `processes` | [LabProcess](LabProcess.md) | SHOULD | Processes contained in this dataset |
+| `processes` | [Process](Process.md) | SHOULD | Processes contained in this dataset |
 | `hasPart` | [Dataset](Dataset.md), [Data](Data.md) | SHOULD | Sub-datasets or data files |
-| `additionalProperty` | [PropertyValue](PropertyValue.md) | COULD | Extensible metadata |
+| `additionalProperty` | [Annotation](Annotation.md) | COULD | Extensible metadata |
 
 ## Relationships
 
@@ -40,12 +40,12 @@ flowchart TD
     de@{ shape: stadium, label: "string" }
 
     d[Dataset]
-    Dataset --processes--> LabProcess
+    Dataset --processes--> Process
     d --hasPart--> Dataset
     d --hasPart--> Data
-    Dataset --additionalProperty--> PropertyValue
+    Dataset --additionalProperty--> Annotation
     Dataset --identifier--> id
-    Dataset --name--> na
+    Dataset --title--> na
     Dataset --description--> de
 
 

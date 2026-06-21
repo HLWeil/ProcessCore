@@ -21,10 +21,10 @@ let tests = testList "CompositeTypes" [
             | IOType.Sample -> ()
             | _ -> failwith "Expected Sample"
 
-        testCase "Material case" <| fun _ ->
-            match IOType.Material with
-            | IOType.Material -> ()
-            | _ -> failwith "Expected Material"
+        testCase "Sample case" <| fun _ ->
+            match IOType.Sample with
+            | IOType.Sample -> ()
+            | _ -> failwith "Expected Sample"
 
         testCase "Data case" <| fun _ ->
             match IOType.Data with

@@ -17,7 +17,7 @@ module Data =
               "selectorformat"; "encodingformat"; "additionalproperty"
               "inputof"; "outputof" ]
 
-    let decoderWithPropertyResolver (processCoreOnly: bool) (resolvePropertyValue: string -> PropertyValue option) (value: YAMLElement) : Data =
+    let decoderWithPropertyResolver (processCoreOnly: bool) (resolveAnnotation: string -> Annotation option) (value: YAMLElement) : Data =
         checkType processCoreOnly "Data" value
         let path =
             tryGetField "path" value |> Option.bind tryDecodeString
@@ -34,9 +34,9 @@ module Data =
         tryGetField "additionalProperty" value
         |> Option.iter (fun v ->
             iterSequenceOrSingleton (fun elem ->
-                match decodeRefOrInline (PropertyValue.decoder processCoreOnly) elem with
+                match decodeRefOrInline (Annotation.decoder processCoreOnly) elem with
                 | Choice2Of2 pv -> d.AddAdditionalProperty(pv)
-                | Choice1Of2 id -> resolvePropertyValue id |> Option.iter d.AddAdditionalProperty) v)
+                | Choice1Of2 id -> resolveAnnotation id |> Option.iter d.AddAdditionalProperty) v)
 
         applyOverflow "Data" processCoreOnly knownFields d value
         d
@@ -78,4 +78,4 @@ module Data =
         YAMLicious.Reader.read s |> decoder processCoreOnly
 
     let toYamlString (whitespace: int option) (d: Data) : string =
-        writeYaml whitespace (encoder PropertyValue.encoder d)
+        writeYaml whitespace (encoder Annotation.encoder d)

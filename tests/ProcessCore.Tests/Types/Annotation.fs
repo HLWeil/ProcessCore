@@ -1,12 +1,12 @@
-module ProcessCore.Tests.Types.PropertyValue
+module ProcessCore.Tests.Types.Annotation
 
 open Fable.Pyxpecto
 open ProcessCore
 
-let tests = testList "PropertyValue" [
+let tests = testList "Annotation" [
 
     testCase "construction with name only" <| fun _ ->
-        let pv = PropertyValue("Temperature")
+        let pv = Annotation("Temperature")
         Expect.equal pv.Name "Temperature" "Name should be set"
         Expect.isNone pv.Value         "Value should be None"
         Expect.isNone pv.Unit          "Unit should be None"
@@ -18,7 +18,7 @@ let tests = testList "PropertyValue" [
 
     testCase "construction with all fields" <| fun _ ->
         let fp = FormalParameter("temperature")
-        let pv = PropertyValue(
+        let pv = Annotation(
                     "temperature",
                     value          = "37",
                     unit           = "°C",
@@ -37,42 +37,42 @@ let tests = testList "PropertyValue" [
         Expect.equal pv.InstanceOf.Value fp                                 "InstanceOf value"
 
     testCase "equality same values" <| fun _ ->
-        let pv1 = PropertyValue("temp", value = "37", unit = "°C", nameTAN = "http://example.org/t")
-        let pv2 = PropertyValue("temp", value = "37", unit = "°C", nameTAN = "http://example.org/t")
+        let pv1 = Annotation("temp", value = "37", unit = "°C", nameTAN = "http://example.org/t")
+        let pv2 = Annotation("temp", value = "37", unit = "°C", nameTAN = "http://example.org/t")
         Expect.equal pv1 pv2 "Same name/value/unit/nameTAN → equal"
 
     testCase "equality ignores other fields" <| fun _ ->
-        let pv1 = PropertyValue("temp", value = "37", valueTAN = "http://v1", unitTAN = "http://u1", additionalType = "ParameterValue")
-        let pv2 = PropertyValue("temp", value = "37", valueTAN = "http://v2", unitTAN = "http://u2", additionalType = "FactorValue")
+        let pv1 = Annotation("temp", value = "37", valueTAN = "http://v1", unitTAN = "http://u1", additionalType = "ParameterValue")
+        let pv2 = Annotation("temp", value = "37", valueTAN = "http://v2", unitTAN = "http://u2", additionalType = "FactorValue")
         Expect.equal pv1 pv2 "ValueTAN/UnitTAN/AdditionalType differences should not affect equality"
 
     testCase "inequality different name" <| fun _ ->
-        let pv1 = PropertyValue("temperature", value = "37")
-        let pv2 = PropertyValue("rpm",         value = "37")
+        let pv1 = Annotation("temperature", value = "37")
+        let pv2 = Annotation("rpm",         value = "37")
         Expect.notEqual pv1 pv2 "Different names → not equal"
 
     testCase "inequality different value" <| fun _ ->
-        let pv1 = PropertyValue("temp", value = "37")
-        let pv2 = PropertyValue("temp", value = "42")
+        let pv1 = Annotation("temp", value = "37")
+        let pv2 = Annotation("temp", value = "42")
         Expect.notEqual pv1 pv2 "Different values → not equal"
 
     testCase "inequality different unit" <| fun _ ->
-        let pv1 = PropertyValue("temp", value = "37", unit = "°C")
-        let pv2 = PropertyValue("temp", value = "37", unit = "K")
+        let pv1 = Annotation("temp", value = "37", unit = "°C")
+        let pv2 = Annotation("temp", value = "37", unit = "K")
         Expect.notEqual pv1 pv2 "Different units → not equal"
 
     testCase "inequality different nameTAN" <| fun _ ->
-        let pv1 = PropertyValue("temp", nameTAN = "http://example.org/a")
-        let pv2 = PropertyValue("temp", nameTAN = "http://example.org/b")
+        let pv1 = Annotation("temp", nameTAN = "http://example.org/a")
+        let pv2 = Annotation("temp", nameTAN = "http://example.org/b")
         Expect.notEqual pv1 pv2 "Different NameTAN → not equal"
 
     testCase "hash consistency" <| fun _ ->
-        let pv1 = PropertyValue("temp", value = "37", unit = "°C", nameTAN = "http://example.org/t")
-        let pv2 = PropertyValue("temp", value = "37", unit = "°C", nameTAN = "http://example.org/t")
+        let pv1 = Annotation("temp", value = "37", unit = "°C", nameTAN = "http://example.org/t")
+        let pv2 = Annotation("temp", value = "37", unit = "°C", nameTAN = "http://example.org/t")
         Expect.equal (pv1.GetHashCode()) (pv2.GetHashCode()) "Equal objects must have equal hash codes"
 
     testCase "mutation" <| fun _ ->
-        let pv = PropertyValue("enzyme")
+        let pv = Annotation("enzyme")
         Expect.isNone pv.Value "Value starts as None"
         pv.Value <- Some "Trypsin"
         Expect.equal pv.Value (Some "Trypsin") "Value should reflect mutation"

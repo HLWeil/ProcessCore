@@ -4,13 +4,13 @@ open YAMLicious.YAMLiciousTypes
 open ProcessCore
 open Helpers
 
-module PropertyValue =
+module Annotation =
 
-    let genID (pv: PropertyValue) =
+    let genID (pv: Annotation) =
         match pv.TryGetPropertyValue("@id") with
         | Some (:? string as id) -> id
         | _ ->
-            let prefix = pv.AdditionalType |> Option.defaultValue "PropertyValue" |> makeIdSlug
+            let prefix = pv.AdditionalType |> Option.defaultValue "Annotation" |> makeIdSlug
             let name   = makeIdSlug pv.Name
             let parts  = [
                 yield prefix
@@ -30,8 +30,8 @@ module PropertyValue =
             [ "id"; "type"; "additionaltype"; "name"; "value"; "unit"
               "nametan"; "valuetan"; "unittan"; "instanceof"; "nametext"; "valuetext"; "unittext"; "valuewithunittext"]
 
-    let decoder (processCoreOnly: bool) (value: YAMLElement) : PropertyValue =
-        checkType processCoreOnly "PropertyValue" value
+    let decoder (processCoreOnly: bool) (value: YAMLElement) : Annotation =
+        checkType processCoreOnly "Annotation" value
         let name           = tryGetField "name"           value |> Option.map decodeString |> Option.defaultValue ""
         let pvValue        = tryGetField "value"          value |> Option.map decodeString
         let unit           = tryGetField "unit"           value |> Option.map decodeString
@@ -47,7 +47,7 @@ module PropertyValue =
                 | Choice1Of2 _  -> None)   // id references left unresolved
 
         let pv =
-            PropertyValue(
+            Annotation(
                 name,
                 ?value          = pvValue,
                 ?unit           = unit,
@@ -56,12 +56,12 @@ module PropertyValue =
                 ?unitTAN        = unitTAN,
                 ?additionalType = additionalType,
                 ?instanceOf     = instanceOf)
-        applyOverflow "PropertyValue" processCoreOnly knownFields pv value
+        applyOverflow "Annotation" processCoreOnly knownFields pv value
         pv
 
-    let encoder (pv: PropertyValue) : YAMLElement =
+    let encoder (pv: Annotation) : YAMLElement =
         [
-            yield "type", yamlValue "PropertyValue"
+            yield "type", yamlValue "Annotation"
             yield "name", yamlValue pv.Name
             match pv.AdditionalType with
             | Some at -> yield "additionalType", yamlValue at
@@ -90,8 +90,8 @@ module PropertyValue =
 
 
 
-    let fromYamlString (processCoreOnly: bool) (s: string) : PropertyValue =
+    let fromYamlString (processCoreOnly: bool) (s: string) : Annotation =
         YAMLicious.Reader.read s |> decoder processCoreOnly
 
-    let toYamlString (whitespace: int option) (pv: PropertyValue) : string =
+    let toYamlString (whitespace: int option) (pv: Annotation) : string =
         writeYaml whitespace (encoder pv)

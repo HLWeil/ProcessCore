@@ -7,15 +7,15 @@ index: 4
 
 # Workflow Protocol
 
-Workflow Run specialization of [LabProtocol](../../core/LabProtocol.md). Describes the prospective metadata of a computational workflow, combining computational and laboratory workflow descriptions.
+Workflow Run specialization of [Plan](../../core/Plan.md). Describes the prospective metadata of a computational workflow, combining computational and laboratory workflow descriptions.
 
 **`additionalType`**: `Workflow Protocol`
 
-**Multi-type**: SoftwareSourceCode + ComputationalWorkflow + LabProtocol
+**Multi-type**: SoftwareSourceCode + ComputationalWorkflow + Plan
 
 Reference: [ARC WR RO-Crate Profile — Workflow Protocol](../../../../references/arc_wr_ro_crate.md)
 
-## Additional Properties (beyond LabProtocol)
+## Additional Properties (beyond Plan)
 
 | Property | Type | Required | Description |
 |----------|------|----------|-------------|

@@ -6,11 +6,11 @@ let all =
     testList "ProcessCore.YAML" [
         Codecs.DefinedTerm.tests
         Codecs.FormalParameter.tests
-        Codecs.PropertyValue.tests
-        Codecs.Material.tests
+        Codecs.Annotation.tests
+        Codecs.Sample.tests
         Codecs.Data.tests
-        Codecs.LabProtocol.tests
-        Codecs.LabProcess.tests
+        Codecs.Plan.tests
+        Codecs.Process.tests
         Codecs.Dataset.tests
         Integration.RoundTrip.tests
         Integration.Overflow.tests

@@ -58,7 +58,7 @@ type Table<'row>(
 /// </summary>
 /// <remarks>
 /// Each value bundles the table's name, column list, primary key and row codecs so that the CRUD
-/// façades (<see cref="DefinedTerm"/>, <see cref="LabProtocol"/>, …) and external callers can build
+/// façades (<see cref="DefinedTerm"/>, <see cref="Plan"/>, …) and external callers can build
 /// statements without hard-coding column lists.
 /// </remarks>
 [<RequireQualifiedAccess>]
@@ -76,10 +76,10 @@ module Repository =
             DefinedTermRow.ofRow
             (fun row -> row.ToParameters())
 
-    /// <summary>Descriptor for the <c>lab_protocol</c> table. Primary key: <c>id</c>.</summary>
-    let LabProtocol =
+    /// <summary>Descriptor for the <c>plan</c> table. Primary key: <c>id</c>.</summary>
+    let Plan =
         table
-            "lab_protocol"
+            "plan"
             [|
                 "id"
                 "type"
@@ -92,7 +92,7 @@ module Repository =
                 "intended_use_text"
             |]
             [| "id" |]
-            LabProtocolRow.ofRow
+            PlanRow.ofRow
             (fun row -> row.ToParameters())
 
     /// <summary>Descriptor for the <c>formal_parameter</c> table. Primary key: <c>id</c>.</summary>
@@ -108,18 +108,18 @@ module Repository =
     let Dataset =
         table
             "dataset"
-            [| "id"; "type"; "additional_type"; "identifier"; "name"; "description" |]
+            [| "id"; "type"; "additional_type"; "identifier"; "title"; "description" |]
             [| "id" |]
             DatasetRow.ofRow
             (fun row -> row.ToParameters())
 
-    /// <summary>Descriptor for the <c>material</c> table. Primary key: <c>id</c>.</summary>
-    let Material =
+    /// <summary>Descriptor for the <c>sample</c> table. Primary key: <c>id</c>.</summary>
+    let Sample =
         table
-            "material"
+            "sample"
             [| "id"; "type"; "additional_type"; "name" |]
             [| "id" |]
-            MaterialRow.ofRow
+            SampleRow.ofRow
             (fun row -> row.ToParameters())
 
     /// <summary>Descriptor for the <c>data</c> table. Primary key: <c>id</c>.</summary>
@@ -131,19 +131,19 @@ module Repository =
             DataRow.ofRow
             (fun row -> row.ToParameters())
 
-    /// <summary>Descriptor for the <c>lab_process</c> table. Primary key: <c>id</c>.</summary>
-    let LabProcess =
+    /// <summary>Descriptor for the <c>process</c> table. Primary key: <c>id</c>.</summary>
+    let Process =
         table
-            "lab_process"
+            "process"
             [| "id"; "type"; "additional_type"; "name"; "executes_protocol_id" |]
             [| "id" |]
-            LabProcessRow.ofRow
+            ProcessRow.ofRow
             (fun row -> row.ToParameters())
 
-    /// <summary>Descriptor for the <c>property_value</c> table. Primary key: <c>id</c>.</summary>
-    let PropertyValue =
+    /// <summary>Descriptor for the <c>annotation</c> table. Primary key: <c>id</c>.</summary>
+    let Annotation =
         table
-            "property_value"
+            "annotation"
             [|
                 "id"
                 "type"
@@ -157,7 +157,7 @@ module Repository =
                 "instance_of_id"
             |]
             [| "id" |]
-            PropertyValueRow.ofRow
+            AnnotationRow.ofRow
             (fun row -> row.ToParameters())
 
     /// <summary>Descriptor for the <c>dataset_has_part</c> association table. Primary key: <c>(dataset_id, position)</c>.</summary>
@@ -182,7 +182,7 @@ module Repository =
     let DatasetAdditionalProperty =
         table
             "dataset_additional_property"
-            [| "dataset_id"; "position"; "property_value_id" |]
+            [| "dataset_id"; "position"; "annotation_id" |]
             [| "dataset_id"; "position" |]
             DatasetAdditionalPropertyRow.ofRow
             (fun row -> row.ToParameters())
@@ -200,7 +200,7 @@ module Repository =
     let ProcessIo =
         table
             "process_io"
-            [| "process_id"; "direction"; "position"; "material_id"; "data_id" |]
+            [| "process_id"; "direction"; "position"; "sample_id"; "data_id" |]
             [| "process_id"; "direction"; "position" |]
             ProcessIoRow.ofRow
             (fun row -> row.ToParameters())
@@ -209,7 +209,7 @@ module Repository =
     let ProcessParameterValue =
         table
             "process_parameter_value"
-            [| "process_id"; "position"; "property_value_id" |]
+            [| "process_id"; "position"; "annotation_id" |]
             [| "process_id"; "position" |]
             ProcessParameterValueRow.ofRow
             (fun row -> row.ToParameters())
@@ -218,25 +218,25 @@ module Repository =
     let ProtocolAdditionalProperty =
         table
             "protocol_additional_property"
-            [| "protocol_id"; "position"; "property_value_id" |]
+            [| "protocol_id"; "position"; "annotation_id" |]
             [| "protocol_id"; "position" |]
             ProtocolAdditionalPropertyRow.ofRow
             (fun row -> row.ToParameters())
 
-    /// <summary>Descriptor for the <c>material_additional_property</c> association table. Primary key: <c>(material_id, position)</c>.</summary>
-    let MaterialAdditionalProperty =
+    /// <summary>Descriptor for the <c>sample_additional_property</c> association table. Primary key: <c>(sample_id, position)</c>.</summary>
+    let SampleAdditionalProperty =
         table
-            "material_additional_property"
-            [| "material_id"; "position"; "property_value_id" |]
-            [| "material_id"; "position" |]
-            MaterialAdditionalPropertyRow.ofRow
+            "sample_additional_property"
+            [| "sample_id"; "position"; "annotation_id" |]
+            [| "sample_id"; "position" |]
+            SampleAdditionalPropertyRow.ofRow
             (fun row -> row.ToParameters())
 
     /// <summary>Descriptor for the <c>data_additional_property</c> association table. Primary key: <c>(data_id, position)</c>.</summary>
     let DataAdditionalProperty =
         table
             "data_additional_property"
-            [| "data_id"; "position"; "property_value_id" |]
+            [| "data_id"; "position"; "annotation_id" |]
             [| "data_id"; "position" |]
             DataAdditionalPropertyRow.ofRow
             (fun row -> row.ToParameters())
@@ -248,13 +248,13 @@ module Repository =
     let EntityTables () =
         [|
             DefinedTerm.Name
-            LabProtocol.Name
+            Plan.Name
             FormalParameter.Name
             Dataset.Name
-            Material.Name
+            Sample.Name
             Data.Name
-            LabProcess.Name
-            PropertyValue.Name
+            Process.Name
+            Annotation.Name
         |]
 
     /// <summary>
@@ -270,7 +270,7 @@ module Repository =
             ProcessIo.Name
             ProcessParameterValue.Name
             ProtocolAdditionalProperty.Name
-            MaterialAdditionalProperty.Name
+            SampleAdditionalProperty.Name
             DataAdditionalProperty.Name
         |]
 
@@ -381,20 +381,20 @@ type DefinedTerm =
     /// <summary>Returns all rows ordered by primary key.</summary>
     static member list (driver: ISqliteDriver) = Crud.list Repository.DefinedTerm driver
 
-/// <summary>CRUD façade for the <c>lab_protocol</c> table.</summary>
+/// <summary>CRUD façade for the <c>plan</c> table.</summary>
 [<AttachMembers>]
-type LabProtocol =
+type Plan =
 
     /// <summary>Inserts a new row.</summary>
-    static member insert (driver: ISqliteDriver, row: LabProtocolRow) = Crud.insert Repository.LabProtocol driver row
+    static member insert (driver: ISqliteDriver, row: PlanRow) = Crud.insert Repository.Plan driver row
     /// <summary>Updates the row identified by <c>row.Id</c>.</summary>
-    static member update (driver: ISqliteDriver, row: LabProtocolRow) = Crud.update Repository.LabProtocol driver row
+    static member update (driver: ISqliteDriver, row: PlanRow) = Crud.update Repository.Plan driver row
     /// <summary>Deletes the row with the given id.</summary>
-    static member delete (driver: ISqliteDriver, id: string) = Crud.delete Repository.LabProtocol driver (Crud.key1 "id" id)
+    static member delete (driver: ISqliteDriver, id: string) = Crud.delete Repository.Plan driver (Crud.key1 "id" id)
     /// <summary>Returns the row with the given id, or <c>None</c>.</summary>
-    static member get (driver: ISqliteDriver, id: string) = Crud.get Repository.LabProtocol driver (Crud.key1 "id" id)
+    static member get (driver: ISqliteDriver, id: string) = Crud.get Repository.Plan driver (Crud.key1 "id" id)
     /// <summary>Returns all rows ordered by primary key.</summary>
-    static member list (driver: ISqliteDriver) = Crud.list Repository.LabProtocol driver
+    static member list (driver: ISqliteDriver) = Crud.list Repository.Plan driver
 
 /// <summary>CRUD façade for the <c>formal_parameter</c> table.</summary>
 [<AttachMembers>]
@@ -426,20 +426,20 @@ type Dataset =
     /// <summary>Returns all rows ordered by primary key.</summary>
     static member list (driver: ISqliteDriver) = Crud.list Repository.Dataset driver
 
-/// <summary>CRUD façade for the <c>material</c> table.</summary>
+/// <summary>CRUD façade for the <c>sample</c> table.</summary>
 [<AttachMembers>]
-type Material =
+type Sample =
 
     /// <summary>Inserts a new row.</summary>
-    static member insert (driver: ISqliteDriver, row: MaterialRow) = Crud.insert Repository.Material driver row
+    static member insert (driver: ISqliteDriver, row: SampleRow) = Crud.insert Repository.Sample driver row
     /// <summary>Updates the row identified by <c>row.Id</c>.</summary>
-    static member update (driver: ISqliteDriver, row: MaterialRow) = Crud.update Repository.Material driver row
+    static member update (driver: ISqliteDriver, row: SampleRow) = Crud.update Repository.Sample driver row
     /// <summary>Deletes the row with the given id.</summary>
-    static member delete (driver: ISqliteDriver, id: string) = Crud.delete Repository.Material driver (Crud.key1 "id" id)
+    static member delete (driver: ISqliteDriver, id: string) = Crud.delete Repository.Sample driver (Crud.key1 "id" id)
     /// <summary>Returns the row with the given id, or <c>None</c>.</summary>
-    static member get (driver: ISqliteDriver, id: string) = Crud.get Repository.Material driver (Crud.key1 "id" id)
+    static member get (driver: ISqliteDriver, id: string) = Crud.get Repository.Sample driver (Crud.key1 "id" id)
     /// <summary>Returns all rows ordered by primary key.</summary>
-    static member list (driver: ISqliteDriver) = Crud.list Repository.Material driver
+    static member list (driver: ISqliteDriver) = Crud.list Repository.Sample driver
 
 /// <summary>CRUD façade for the <c>data</c> table.</summary>
 [<AttachMembers>]
@@ -456,35 +456,35 @@ type Data =
     /// <summary>Returns all rows ordered by primary key.</summary>
     static member list (driver: ISqliteDriver) = Crud.list Repository.Data driver
 
-/// <summary>CRUD façade for the <c>lab_process</c> table.</summary>
+/// <summary>CRUD façade for the <c>process</c> table.</summary>
 [<AttachMembers>]
-type LabProcess =
+type Process =
 
     /// <summary>Inserts a new row.</summary>
-    static member insert (driver: ISqliteDriver, row: LabProcessRow) = Crud.insert Repository.LabProcess driver row
+    static member insert (driver: ISqliteDriver, row: ProcessRow) = Crud.insert Repository.Process driver row
     /// <summary>Updates the row identified by <c>row.Id</c>.</summary>
-    static member update (driver: ISqliteDriver, row: LabProcessRow) = Crud.update Repository.LabProcess driver row
+    static member update (driver: ISqliteDriver, row: ProcessRow) = Crud.update Repository.Process driver row
     /// <summary>Deletes the row with the given id.</summary>
-    static member delete (driver: ISqliteDriver, id: string) = Crud.delete Repository.LabProcess driver (Crud.key1 "id" id)
+    static member delete (driver: ISqliteDriver, id: string) = Crud.delete Repository.Process driver (Crud.key1 "id" id)
     /// <summary>Returns the row with the given id, or <c>None</c>.</summary>
-    static member get (driver: ISqliteDriver, id: string) = Crud.get Repository.LabProcess driver (Crud.key1 "id" id)
+    static member get (driver: ISqliteDriver, id: string) = Crud.get Repository.Process driver (Crud.key1 "id" id)
     /// <summary>Returns all rows ordered by primary key.</summary>
-    static member list (driver: ISqliteDriver) = Crud.list Repository.LabProcess driver
+    static member list (driver: ISqliteDriver) = Crud.list Repository.Process driver
 
-/// <summary>CRUD façade for the <c>property_value</c> table.</summary>
+/// <summary>CRUD façade for the <c>annotation</c> table.</summary>
 [<AttachMembers>]
-type PropertyValue =
+type Annotation =
 
     /// <summary>Inserts a new row.</summary>
-    static member insert (driver: ISqliteDriver, row: PropertyValueRow) = Crud.insert Repository.PropertyValue driver row
+    static member insert (driver: ISqliteDriver, row: AnnotationRow) = Crud.insert Repository.Annotation driver row
     /// <summary>Updates the row identified by <c>row.Id</c>.</summary>
-    static member update (driver: ISqliteDriver, row: PropertyValueRow) = Crud.update Repository.PropertyValue driver row
+    static member update (driver: ISqliteDriver, row: AnnotationRow) = Crud.update Repository.Annotation driver row
     /// <summary>Deletes the row with the given id.</summary>
-    static member delete (driver: ISqliteDriver, id: string) = Crud.delete Repository.PropertyValue driver (Crud.key1 "id" id)
+    static member delete (driver: ISqliteDriver, id: string) = Crud.delete Repository.Annotation driver (Crud.key1 "id" id)
     /// <summary>Returns the row with the given id, or <c>None</c>.</summary>
-    static member get (driver: ISqliteDriver, id: string) = Crud.get Repository.PropertyValue driver (Crud.key1 "id" id)
+    static member get (driver: ISqliteDriver, id: string) = Crud.get Repository.Annotation driver (Crud.key1 "id" id)
     /// <summary>Returns all rows ordered by primary key.</summary>
-    static member list (driver: ISqliteDriver) = Crud.list Repository.PropertyValue driver
+    static member list (driver: ISqliteDriver) = Crud.list Repository.Annotation driver
 
 /// <summary>CRUD façade for the <c>dataset_has_part</c> association table. Primary key: <c>(dataset_id, position)</c>.</summary>
 [<AttachMembers>]
@@ -591,20 +591,20 @@ type ProtocolAdditionalProperty =
     /// <summary>Returns all rows ordered by primary key.</summary>
     static member list (driver: ISqliteDriver) = Crud.list Repository.ProtocolAdditionalProperty driver
 
-/// <summary>CRUD façade for the <c>material_additional_property</c> association table. Primary key: <c>(material_id, position)</c>.</summary>
+/// <summary>CRUD façade for the <c>sample_additional_property</c> association table. Primary key: <c>(sample_id, position)</c>.</summary>
 [<AttachMembers>]
-type MaterialAdditionalProperty =
+type SampleAdditionalProperty =
 
     /// <summary>Inserts a new row.</summary>
-    static member insert (driver: ISqliteDriver, row: MaterialAdditionalPropertyRow) = Crud.insert Repository.MaterialAdditionalProperty driver row
-    /// <summary>Updates the row identified by <c>(row.MaterialId, row.Position)</c>.</summary>
-    static member update (driver: ISqliteDriver, row: MaterialAdditionalPropertyRow) = Crud.update Repository.MaterialAdditionalProperty driver row
+    static member insert (driver: ISqliteDriver, row: SampleAdditionalPropertyRow) = Crud.insert Repository.SampleAdditionalProperty driver row
+    /// <summary>Updates the row identified by <c>(row.SampleId, row.Position)</c>.</summary>
+    static member update (driver: ISqliteDriver, row: SampleAdditionalPropertyRow) = Crud.update Repository.SampleAdditionalProperty driver row
     /// <summary>Deletes the row with the given composite key.</summary>
-    static member delete (driver: ISqliteDriver, materialId: string, position: int) = Crud.delete Repository.MaterialAdditionalProperty driver (Crud.key2 "material_id" materialId "position" position)
+    static member delete (driver: ISqliteDriver, sampleId: string, position: int) = Crud.delete Repository.SampleAdditionalProperty driver (Crud.key2 "sample_id" sampleId "position" position)
     /// <summary>Returns the row with the given composite key, or <c>None</c>.</summary>
-    static member get (driver: ISqliteDriver, materialId: string, position: int) = Crud.get Repository.MaterialAdditionalProperty driver (Crud.key2 "material_id" materialId "position" position)
+    static member get (driver: ISqliteDriver, sampleId: string, position: int) = Crud.get Repository.SampleAdditionalProperty driver (Crud.key2 "sample_id" sampleId "position" position)
     /// <summary>Returns all rows ordered by primary key.</summary>
-    static member list (driver: ISqliteDriver) = Crud.list Repository.MaterialAdditionalProperty driver
+    static member list (driver: ISqliteDriver) = Crud.list Repository.SampleAdditionalProperty driver
 
 /// <summary>CRUD façade for the <c>data_additional_property</c> association table. Primary key: <c>(data_id, position)</c>.</summary>
 [<AttachMembers>]
@@ -638,17 +638,17 @@ type ProcessEdges =
             driver
 
 /// <summary>
-/// Read-only façade for the <c>property_value_orphans</c> view, which lists ids of
-/// <see cref="PropertyValueRow"/> entries no entity references. Useful for housekeeping.
+/// Read-only façade for the <c>annotation_orphans</c> view, which lists ids of
+/// <see cref="AnnotationRow"/> entries no entity references. Useful for housekeeping.
 /// </summary>
 [<AttachMembers>]
-type PropertyValueOrphans =
+type AnnotationOrphans =
 
     /// <summary>Returns all orphan ids ordered by id.</summary>
     static member list (driver: ISqliteDriver) =
         Crud.listView
-            "property_value_orphans"
+            "annotation_orphans"
             [| "id" |]
             [| "id" |]
-            PropertyValueOrphanRow.ofRow
+            AnnotationOrphanRow.ofRow
             driver

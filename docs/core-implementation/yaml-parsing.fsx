@@ -66,27 +66,27 @@ strictModeResult
 (*** include-it ***)
 
 (**
-Writing can use inline objects or top-level indexes. Inline YAML is easy to inspect. Indexed YAML deduplicates repeated property values and protocols into `propertyValues` and `labProtocols` sections.
+Writing can use inline objects or top-level indexes. Inline YAML is easy to inspect. Indexed YAML deduplicates repeated property values and protocols into `annotations` and `labProtocols` sections.
 *)
 
 let small = Dataset("yaml-demo")
-let protocol = LabProtocol()
+let protocol = Plan()
 protocol.Name <- Some "Growth"
-protocol.AddLabEquipment(PropertyValue("growth chamber", value = "chamber-1", additionalType = "Component"))
+protocol.AddLabEquipment(Annotation("growth chamber", value = "chamber-1", additionalType = "Component"))
 
-let source = Material("Seedling")
+let source = Sample("Seedling")
 source.AdditionalType <- Some "Source"
-source.AddAdditionalProperty(PropertyValue("organism", value = "Arabidopsis thaliana", additionalType = "CharacteristicValue"))
+source.AddAdditionalProperty(Annotation("organism", value = "Arabidopsis thaliana", additionalType = "CharacteristicValue"))
 
-let sample = Material("Leaf sample")
+let sample = Sample("Leaf sample")
 sample.AdditionalType <- Some "Sample"
-sample.AddAdditionalProperty(PropertyValue("temperature", value = "25", unit = "degree Celsius", additionalType = "FactorValue"))
+sample.AddAdditionalProperty(Annotation("temperature", value = "25", unit = "degree Celsius", additionalType = "FactorValue"))
 
-let growth = LabProcess("Growth")
+let growth = Process("Growth")
 growth.ExecutesProtocol <- Some protocol
-growth.AddInputMaterial(source)
-growth.AddOutputMaterial(sample)
-growth.AddParameterValue(PropertyValue("duration", value = "7", unit = "day", additionalType = "ParameterValue"))
+growth.AddInputSample(source)
+growth.AddOutputSample(sample)
+growth.AddParameterValue(Annotation("duration", value = "7", unit = "day", additionalType = "ParameterValue"))
 small.AddProcess(growth)
 
 let inlineYaml = ProcessCore.Yaml.Dataset.toYamlString (Some 2) small
@@ -109,8 +109,8 @@ let roundTripped = ProcessCore.Yaml.Dataset.fromYamlString true inlineYaml
 let roundTripShape =
     [ "identifier", roundTripped.Identifier
       "processes", string roundTripped.Processes.Count
-      "materials", string (roundTripped.AllMaterials().Count)
-      "property values", string (roundTripped.AllPropertyValues().Count) ]
+      "samples", string (roundTripped.AllSamples().Count)
+      "property values", string (roundTripped.AllAnnotations().Count) ]
 
 roundTripShape
 (*** include-it ***)
@@ -124,5 +124,5 @@ roundTripShape
 | Read strict core-shaped YAML | `ProcessCore.Yaml.Dataset.fromYamlString true` |
 | Write inline YAML | `ProcessCore.Yaml.Dataset.toYamlString` |
 | Write indexed YAML | `ProcessCore.Yaml.Dataset.toYamlStringIndexed` |
-| Decode a specific type | `ProcessCore.Yaml.Material.fromYamlString`, `Data.fromYamlString`, etc. |
+| Decode a specific type | `ProcessCore.Yaml.Sample.fromYamlString`, `Data.fromYamlString`, etc. |
 *)

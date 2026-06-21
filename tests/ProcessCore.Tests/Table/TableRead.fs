@@ -8,11 +8,11 @@ open ProcessCore.Table
 
 /// Build a minimal single-process table: Source1 --[proc]--> Sample1
 let makeSingleProcessTable () =
-    let source = Material("Source1", additionalType = "Source")
-    let sample = Material("Sample1", additionalType = "Sample")
-    let proc   = LabProcess("Growth")
-    proc.AddInputMaterial(source)
-    proc.AddOutputMaterial(sample)
+    let source = Sample("Source1", additionalType = "Source")
+    let sample = Sample("Sample1", additionalType = "Sample")
+    let proc   = Process("Growth")
+    proc.AddInputSample(source)
+    proc.AddOutputSample(sample)
     let ds = Dataset("DS")
     ds.AddProcess(proc)
     Table("Growth", ResizeArray([| proc |]), ds), proc, ds
@@ -49,7 +49,7 @@ let tests = testList "TableRead" [
 
     testCase "single process — protocol ref column present when protocol set" <| fun _ ->
         let t, proc, _ = makeSingleProcessTable()
-        proc.ExecutesProtocol <- Some (LabProtocol("myProtocol"))
+        proc.ExecutesProtocol <- Some (Plan("myProtocol"))
         let headers = t.Headers
         let hasRef  = headers |> Seq.exists (fun h -> h = CompositeHeader.ProtocolREF)
         Expect.isTrue hasRef "ProtocolREF column present"
@@ -57,7 +57,7 @@ let tests = testList "TableRead" [
     testCase "single process — parameter column present" <| fun _ ->
         let t, proc, _ = makeSingleProcessTable()
         let temp = DefinedTerm("temperature")
-        proc.AddParameterValue(PropertyValue("temperature", value = "37", unit = "°C", additionalType = "ParameterValue"))
+        proc.AddParameterValue(Annotation("temperature", value = "37", unit = "°C", additionalType = "ParameterValue"))
         let headers = t.Headers
         let hasParam = headers |> Seq.exists (fun h -> match h with | CompositeHeader.Parameter(dt) when dt.Name = "temperature" -> true | _ -> false)
         Expect.isTrue hasParam "Parameter column for temperature"
@@ -65,7 +65,7 @@ let tests = testList "TableRead" [
     testCase "single process — characteristic column present" <| fun _ ->
         let t, proc, _ = makeSingleProcessTable()
         match proc.Inputs |> Seq.tryHead with
-        | Some (MaterialNode m) -> m.AddAdditionalProperty(PropertyValue("organism", value = "Mouse", additionalType = "CharacteristicValue"))
+        | Some (SampleNode m) -> m.AddAdditionalProperty(Annotation("organism", value = "Mouse", additionalType = "CharacteristicValue"))
         | _ -> ()
         let headers = t.Headers
         let hasChar = headers |> Seq.exists (fun h -> match h with | CompositeHeader.Characteristic(dt) when dt.Name = "organism" -> true | _ -> false)
@@ -74,7 +74,7 @@ let tests = testList "TableRead" [
     testCase "single process — factor column present" <| fun _ ->
         let t, proc, _ = makeSingleProcessTable()
         match proc.Outputs |> Seq.tryHead with
-        | Some (MaterialNode m) -> m.AddAdditionalProperty(PropertyValue("growth_phase", value = "log", additionalType = "FactorValue"))
+        | Some (SampleNode m) -> m.AddAdditionalProperty(Annotation("growth_phase", value = "log", additionalType = "FactorValue"))
         | _ -> ()
         let headers = t.Headers
         let hasFactor = headers |> Seq.exists (fun h -> match h with | CompositeHeader.Factor(dt) when dt.Name = "growth_phase" -> true | _ -> false)
@@ -82,25 +82,25 @@ let tests = testList "TableRead" [
 
     testCase "single process — component column present" <| fun _ ->
         let t, proc, _ = makeSingleProcessTable()
-        let proto = LabProtocol("extraction")
-        proto.AddLabEquipment(PropertyValue("instrument", value = "Orbitrap", additionalType = "Component"))
+        let proto = Plan("extraction")
+        proto.AddLabEquipment(Annotation("instrument", value = "Orbitrap", additionalType = "Component"))
         proc.ExecutesProtocol <- Some proto
         let headers = t.Headers
         let hasComp = headers |> Seq.exists (fun h -> match h with | CompositeHeader.Component(dt) when dt.Name = "instrument" -> true | _ -> false)
         Expect.isTrue hasComp "Component column for instrument"
 
     testCase "column order: Input → ProtocolREF → Characteristic → Component → Parameter → Factor → Output" <| fun _ ->
-        let source = Material("Source1", additionalType = "Source")
-        source.AddAdditionalProperty(PropertyValue("organism", value = "Mouse", additionalType = "CharacteristicValue"))
-        let sample = Material("Sample1", additionalType = "Sample")
-        sample.AddAdditionalProperty(PropertyValue("growth_phase", value = "log", additionalType = "FactorValue"))
-        let proto = LabProtocol("extraction")
-        proto.AddLabEquipment(PropertyValue("instrument", value = "Orbitrap", additionalType = "Component"))
-        let proc = LabProcess("Growth")
-        proc.AddInputMaterial(source)
-        proc.AddOutputMaterial(sample)
+        let source = Sample("Source1", additionalType = "Source")
+        source.AddAdditionalProperty(Annotation("organism", value = "Mouse", additionalType = "CharacteristicValue"))
+        let sample = Sample("Sample1", additionalType = "Sample")
+        sample.AddAdditionalProperty(Annotation("growth_phase", value = "log", additionalType = "FactorValue"))
+        let proto = Plan("extraction")
+        proto.AddLabEquipment(Annotation("instrument", value = "Orbitrap", additionalType = "Component"))
+        let proc = Process("Growth")
+        proc.AddInputSample(source)
+        proc.AddOutputSample(sample)
         proc.ExecutesProtocol <- Some proto
-        proc.AddParameterValue(PropertyValue("temperature", value = "37", unit = "°C", additionalType = "ParameterValue"))
+        proc.AddParameterValue(Annotation("temperature", value = "37", unit = "°C", additionalType = "ParameterValue"))
         let ds = Dataset("DS")
         ds.AddProcess(proc)
         let t = Table("Growth", ResizeArray([| proc |]), ds)
@@ -124,12 +124,12 @@ let tests = testList "TableRead" [
 
     testCase "multiple rows — RowCount and ColumnCount" <| fun _ ->
         let mk name =
-            let s = Material(name + "_in",  additionalType = "Source")
-            let o = Material(name + "_out", additionalType = "Sample")
-            let p = LabProcess("Growth")
-            p.AddInputMaterial(s)
-            p.AddOutputMaterial(o)
-            p.AddParameterValue(PropertyValue("temperature", value = "37", unit = "°C", additionalType = "ParameterValue"))
+            let s = Sample(name + "_in",  additionalType = "Source")
+            let o = Sample(name + "_out", additionalType = "Sample")
+            let p = Process("Growth")
+            p.AddInputSample(s)
+            p.AddOutputSample(o)
+            p.AddParameterValue(Annotation("temperature", value = "37", unit = "°C", additionalType = "ParameterValue"))
             p
         let p1 = mk "A"
         let p2 = mk "B"
@@ -144,10 +144,10 @@ let tests = testList "TableRead" [
     // ── data output ───────────────────────────────────────────────────────────
 
     testCase "data output — Output column typed as Data" <| fun _ ->
-        let source = Material("Source1", additionalType = "Source")
+        let source = Sample("Source1", additionalType = "Source")
         let raw    = Data("rawData1.csv")
-        let proc   = LabProcess("Measurement")
-        proc.AddInputMaterial(source)
+        let proc   = Process("Measurement")
+        proc.AddInputSample(source)
         proc.AddOutputData(raw)
         let ds = Dataset("DS")
         ds.AddProcess(proc)
@@ -160,10 +160,10 @@ let tests = testList "TableRead" [
         | None -> failwith "No output column"
 
     testCase "data output — cell is CompositeCell.Data" <| fun _ ->
-        let source = Material("Source1", additionalType = "Source")
+        let source = Sample("Source1", additionalType = "Source")
         let raw    = Data("rawData1.csv")
-        let proc   = LabProcess("Measurement")
-        proc.AddInputMaterial(source)
+        let proc   = Process("Measurement")
+        proc.AddInputSample(source)
         proc.AddOutputData(raw)
         let ds = Dataset("DS")
         ds.AddProcess(proc)
@@ -177,7 +177,7 @@ let tests = testList "TableRead" [
 
     testCase "Headers derives from Decompose" <| fun _ ->
         let t, proc, _ = makeSingleProcessTable()
-        proc.AddParameterValue(PropertyValue("rpm", value = "200", unit = "rpm", additionalType = "ParameterValue"))
+        proc.AddParameterValue(Annotation("rpm", value = "200", unit = "rpm", additionalType = "ParameterValue"))
         let fromDecompose = t.Decompose() |> Seq.map (fun c -> c.Header) |> Seq.toList
         let fromHeaders   = t.Headers |> Seq.toList
         Expect.equal fromHeaders fromDecompose "Headers matches Decompose"
@@ -195,7 +195,7 @@ let tests = testList "TableRead" [
 
     testCase "TryGetColumnByHeader — found" <| fun _ ->
         let t, proc, _ = makeSingleProcessTable()
-        proc.AddParameterValue(PropertyValue("temperature", value = "37", unit = "°C", additionalType = "ParameterValue"))
+        proc.AddParameterValue(Annotation("temperature", value = "37", unit = "°C", additionalType = "ParameterValue"))
         let result = t.TryGetColumnByHeader(fun h -> match h with CompositeHeader.Parameter(dt) when dt.Name = "temperature" -> true | _ -> false)
         Expect.isSome result "Parameter column found"
 
@@ -220,8 +220,8 @@ let tests = testList "TableRead" [
 
     testCase "GetComponentColumns" <| fun _ ->
         let t, proc, _ = makeSingleProcessTable()
-        let proto = LabProtocol("proto")
-        proto.AddLabEquipment(PropertyValue("instrument", value = "Orbitrap", additionalType = "Component"))
+        let proto = Plan("proto")
+        proto.AddLabEquipment(Annotation("instrument", value = "Orbitrap", additionalType = "Component"))
         proc.ExecutesProtocol <- Some proto
         let compCols = t.GetComponentColumns()
         Expect.equal compCols.Count 1 "one component column"
@@ -261,12 +261,12 @@ let tests = testList "TableRead" [
     testList "Multi-I/O row projection" [
 
         testCase "RowCount counts projected input/output rows, not only processes" <| fun _ ->
-            let p = LabProcess("Pairing")
-            p.AddInputMaterial(Material("Input1", additionalType = "Source"))
-            p.AddInputMaterial(Material("Input2", additionalType = "Source"))
-            p.AddOutputMaterial(Material("Output1", additionalType = "Sample"))
-            p.AddOutputMaterial(Material("Output2", additionalType = "Sample"))
-            p.AddOutputMaterial(Material("Output3", additionalType = "Sample"))
+            let p = Process("Pairing")
+            p.AddInputSample(Sample("Input1", additionalType = "Source"))
+            p.AddInputSample(Sample("Input2", additionalType = "Source"))
+            p.AddOutputSample(Sample("Output1", additionalType = "Sample"))
+            p.AddOutputSample(Sample("Output2", additionalType = "Sample"))
+            p.AddOutputSample(Sample("Output3", additionalType = "Sample"))
             let ds = Dataset("DS")
             ds.AddProcess(p)
             let t = Table("Pairing", ResizeArray([| p |]), ds)
@@ -274,12 +274,12 @@ let tests = testList "TableRead" [
             Expect.equal t.RowCount 3 "one process with two inputs and three outputs projects to three visible rows"
 
         testCase "Decompose pads the shorter I/O side with empty cells" <| fun _ ->
-            let p = LabProcess("Pairing")
-            p.AddInputMaterial(Material("Input1", additionalType = "Source"))
-            p.AddInputMaterial(Material("Input2", additionalType = "Source"))
-            p.AddOutputMaterial(Material("Output1", additionalType = "Sample"))
-            p.AddOutputMaterial(Material("Output2", additionalType = "Sample"))
-            p.AddOutputMaterial(Material("Output3", additionalType = "Sample"))
+            let p = Process("Pairing")
+            p.AddInputSample(Sample("Input1", additionalType = "Source"))
+            p.AddInputSample(Sample("Input2", additionalType = "Source"))
+            p.AddOutputSample(Sample("Output1", additionalType = "Sample"))
+            p.AddOutputSample(Sample("Output2", additionalType = "Sample"))
+            p.AddOutputSample(Sample("Output3", additionalType = "Sample"))
             let ds = Dataset("DS")
             ds.AddProcess(p)
             let t = Table("Pairing", ResizeArray([| p |]), ds)
@@ -295,19 +295,19 @@ let tests = testList "TableRead" [
                 Expect.equal (freeTextValue outputCol.Cells.[2]) "Output3" "third output is still visible"
 
         testCase "Projected rows use the projected input/output for characteristic and factor cells" <| fun _ ->
-            let p = LabProcess("Pairing")
-            let i1 = Material("Input1", additionalType = "Source")
-            let i2 = Material("Input2", additionalType = "Source")
-            i1.AddAdditionalProperty(PropertyValue("organism", value = "Mouse", additionalType = "CharacteristicValue"))
-            i2.AddAdditionalProperty(PropertyValue("organism", value = "Human", additionalType = "CharacteristicValue"))
-            let o1 = Material("Output1", additionalType = "Sample")
-            let o2 = Material("Output2", additionalType = "Sample")
-            o1.AddAdditionalProperty(PropertyValue("phase", value = "early", additionalType = "FactorValue"))
-            o2.AddAdditionalProperty(PropertyValue("phase", value = "late", additionalType = "FactorValue"))
-            p.AddInputMaterial(i1)
-            p.AddInputMaterial(i2)
-            p.AddOutputMaterial(o1)
-            p.AddOutputMaterial(o2)
+            let p = Process("Pairing")
+            let i1 = Sample("Input1", additionalType = "Source")
+            let i2 = Sample("Input2", additionalType = "Source")
+            i1.AddAdditionalProperty(Annotation("organism", value = "Mouse", additionalType = "CharacteristicValue"))
+            i2.AddAdditionalProperty(Annotation("organism", value = "Human", additionalType = "CharacteristicValue"))
+            let o1 = Sample("Output1", additionalType = "Sample")
+            let o2 = Sample("Output2", additionalType = "Sample")
+            o1.AddAdditionalProperty(Annotation("phase", value = "early", additionalType = "FactorValue"))
+            o2.AddAdditionalProperty(Annotation("phase", value = "late", additionalType = "FactorValue"))
+            p.AddInputSample(i1)
+            p.AddInputSample(i2)
+            p.AddOutputSample(o1)
+            p.AddOutputSample(o2)
             let ds = Dataset("DS")
             ds.AddProcess(p)
             let t = Table("Pairing", ResizeArray([| p |]), ds)

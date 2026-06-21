@@ -14,7 +14,7 @@ The core datamodel represents experimental workflows as a process graph. The sam
 
 ## Design Principles
 
-- The table layer sits **on top of** the core datamodel. `Table` holds references to the underlying `LabProcess` nodes; edits to the table mutate those nodes directly, and changes to the graph are visible through the table.
+- The table layer sits **on top of** the core datamodel. `Table` holds references to the underlying `Process` nodes; edits to the table mutate those nodes directly, and changes to the graph are visible through the table.
 - Types and API conventions follow the existing tabular datamodel (`ArcTable`, `ArcTables`) with adjustments to fit the core datamodel structure and semantics.
 - All new types live in the namespace `ArcDataModel.Table`.
 
@@ -24,7 +24,7 @@ The core datamodel represents experimental workflows as a process graph. The sam
 
 ### Grouping processes into tables
 
-A `Dataset`'s processes are grouped into `Table` objects by **name**: all `LabProcess` nodes in the dataset that share the same name belong to the same table. In the simple case, each table has one row per process node. If a process has multiple inputs and/or outputs, table rows are a projection over that process's input/output pairs as described in [Multi-I/O row projection](#multi-io-row-projection).
+A `Dataset`'s processes are grouped into `Table` objects by **name**: all `Process` nodes in the dataset that share the same name belong to the same table. In the simple case, each table has one row per process node. If a process has multiple inputs and/or outputs, table rows are a projection over that process's input/output pairs as described in [Multi-I/O row projection](#multi-io-row-projection).
 
 ### Column roles and graph slots
 
@@ -34,21 +34,21 @@ Each column in a table corresponds to a consistently-typed slot across all proce
 |---|---|
 | `Input` | Name of the input entity node |
 | `Output` | Name of the output entity node |
-| `Parameter` | `PropertyValue` on the process node, `AdditionalType = "ParameterValue"` |
-| `Factor` | `PropertyValue` on the output entity, `AdditionalType = "FactorValue"` |
-| `Characteristic` | `PropertyValue` on the input entity, `AdditionalType = "CharacteristicValue"` |
-| `Component` | `PropertyValue` on the protocol's `LabEquipment`, `AdditionalType = "Component"` |
-| `ProtocolREF` | `LabProtocol.Name` |
-| `ProtocolType` | `LabProtocol.IntendedUse` |
-| `ProtocolDescription` | `LabProtocol.Description` |
-| `ProtocolUri` | `LabProtocol.Url` |
-| `ProtocolVersion` | `LabProtocol.Version` |
-| `Performer` | `LabProcess` performer field (to be added) |
-| `Comment` | `LabProcess` comments collection (to be added) |
+| `Parameter` | `Annotation` on the process node, `AdditionalType = "ParameterValue"` |
+| `Factor` | `Annotation` on the output entity, `AdditionalType = "FactorValue"` |
+| `Characteristic` | `Annotation` on the input entity, `AdditionalType = "CharacteristicValue"` |
+| `Component` | `Annotation` on the protocol's `LabEquipment`, `AdditionalType = "Component"` |
+| `ProtocolREF` | `Plan.Name` |
+| `ProtocolType` | `Plan.IntendedUse` |
+| `ProtocolDescription` | `Plan.Description` |
+| `ProtocolUri` | `Plan.Url` |
+| `ProtocolVersion` | `Plan.Version` |
+| `Performer` | `Process` performer field (to be added) |
+| `Comment` | `Process` comments collection (to be added) |
 
 ### Column ordering
 
-Because the process graph does not preserve column order, every annotation `PropertyValue` (Parameter, Factor, Characteristic, Component) must carry `ColumnIndex` as extensible `DynamicObj` metadata, accessed through helper functions in the table module rather than as a core `PropertyValue` field. This stores the column's ordinal position **within annotation columns only** (Input / Output / Protocol / Comment columns are not counted). During **compose** (table → processes), the column index is written from the column's position. During **decompose** (processes → table), annotation values are sorted by this metadata before assembling a row; values without an index are placed last. The fixed full column order on decompose is:
+Because the process graph does not preserve column order, every annotation `Annotation` (Parameter, Factor, Characteristic, Component) must carry `ColumnIndex` as extensible `DynamicObj` metadata, accessed through helper functions in the table module rather than as a core `Annotation` field. This stores the column's ordinal position **within annotation columns only** (Input / Output / Protocol / Comment columns are not counted). During **compose** (table → processes), the column index is written from the column's position. During **decompose** (processes → table), annotation values are sorted by this metadata before assembling a row; values without an index are placed last. The fixed full column order on decompose is:
 
 1. Input
 2. ProtocolREF, ProtocolType, ProtocolDescription, ProtocolUri, ProtocolVersion
@@ -63,9 +63,9 @@ Because the process graph does not preserve column order, every annotation `Prop
 
 ### Multi-I/O row projection
 
-The public table row index is not always the same thing as the underlying `LabProcess` index. A `Table` must maintain or derive a row projection that maps each visible row to:
+The public table row index is not always the same thing as the underlying `Process` index. A `Table` must maintain or derive a row projection that maps each visible row to:
 
-- one `LabProcess`
+- one `Process`
 - zero or one selected input entity for that visible row
 - zero or one selected output entity for that visible row
 
@@ -79,8 +79,8 @@ The table's `RowCount`, `GetRow`, `GetCellAt`, `TryGetCellAt`, `AddRow`, `Update
 
 (Skip performer and comments fields for now. Skip sorting of annotation columns across header types for now.)
 
-- **`PropertyValue`**: Do not add a dedicated `ColumnIndex` field. Preserve annotation column order through `DynamicObj` metadata and table-module helper functions.
-- **`LabProcess`**: Add a `Performer` field and a `Comments` collection to support the corresponding column roles.
+- **`Annotation`**: Do not add a dedicated `ColumnIndex` field. Preserve annotation column order through `DynamicObj` metadata and table-module helper functions.
+- **`Process`**: Add a `Performer` field and a `Comments` collection to support the corresponding column roles.
 
 ---
 
@@ -88,16 +88,16 @@ The table's `RowCount`, `GetRow`, `GetCellAt`, `TryGetCellAt`, `AddRow`, `Update
 
 ### `Table` type
 
-- Wraps a `ResizeArray<LabProcess>` — the processes it represents.
+- Wraps a `ResizeArray<Process>` — the processes it represents.
 - Exposes `Name`, `ColumnCount`, `RowCount`, `Headers` (`ResizeArray<CompositeHeader>`).
 - Provides full cell, column, row, and protocol column APIs following the `ArcTable` reference.
 - `AddColumn`, `RemoveColumn`, and cell/row update APIs must handle all supported column roles, not only annotation columns. `Input`, `Output`, `ProtocolREF`, `ProtocolType`, `ProtocolDescription`, `ProtocolUri`, and `ProtocolVersion` columns are first-class writable columns.
-- Adding/removing a row creates/removes the corresponding `LabProcess` node (and its input/output entities) in the parent `Dataset`.
-- Modifying a cell updates the corresponding `PropertyValue`, entity name, or protocol field on the underlying process nodes.
+- Adding/removing a row creates/removes the corresponding `Process` node (and its input/output entities) in the parent `Dataset`.
+- Modifying a cell updates the corresponding `Annotation`, entity name, or protocol field on the underlying process nodes.
 - Missing Input or Output: if a table has no Input column but has Characteristic columns, a synthetic input entity is created per row (named `<tableName>_<rowIndex>`). The same applies symmetrically for Output and Factor columns.
 - Multi-I/O: if a process node has more than one input or output entity, decompose produces one row per (input × output) pair; the shorter side is padded with empty cells.
 - Protocol multiplicity: each process node references its own copy of a protocol object. Protocol column values may vary per row.
-- Protocol-field writes must create a `LabProtocol` for the row's process when one does not already exist. Component-column writes must also create a protocol when needed so the component `PropertyValue` has a valid graph slot.
+- Protocol-field writes must create a `Plan` for the row's process when one does not already exist. Component-column writes must also create a protocol when needed so the component `Annotation` has a valid graph slot.
 
 ### Technical difficulty coverage
 
@@ -107,7 +107,7 @@ The following implementation risks are explicitly part of this plan:
 |---|---|
 | Non-annotation columns were ignored by `AddColumn` / `RemoveColumn` | Covered by the first-class writable column requirement above |
 | Decompose/read/update used only the first input/output | Covered by Multi-I/O row projection |
-| `RowCount` assumed one row per `LabProcess` | Covered by Multi-I/O row projection |
+| `RowCount` assumed one row per `Process` | Covered by Multi-I/O row projection |
 | Characteristic/Factor writes failed when the carrier input/output was missing | Covered by the synthetic input/output rule |
 | Annotation column order could not round-trip because column order metadata was missing | Covered by Required Changes and Column ordering |
 | Protocol fields were not updated consistently by row/cell APIs | Covered by first-class writable protocol columns |

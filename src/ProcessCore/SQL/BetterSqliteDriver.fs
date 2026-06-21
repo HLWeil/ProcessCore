@@ -59,7 +59,7 @@ module private BetterSqliteInterop =
     let inline objectKeys (value: obj) : string[] =
         emitJsExpr value "Object.keys($0)"
 
-    let inline propertyValue (value: obj) (key: string) : obj =
+    let inline annotation (value: obj) (key: string) : obj =
         emitJsExpr (value, key) "$0[$1]"
 
     let jsValueToSqlValue (value: obj) =
@@ -80,7 +80,7 @@ module private BetterSqliteInterop =
 
     let jsRowToSqlRow (row: obj) =
         objectKeys row
-        |> Array.map (fun key -> key, propertyValue row key |> jsValueToSqlValue)
+        |> Array.map (fun key -> key, annotation row key |> jsValueToSqlValue)
         |> Map.ofArray
 
 /// <summary>
@@ -160,7 +160,7 @@ type BetterSqliteDriver internal (database: BetterSqliteDatabase, ownsDatabase: 
                 if keys.Length = 0 then
                     SqlValue.Null
                 else
-                    propertyValue row keys[0] |> jsValueToSqlValue
+                    annotation row keys[0] |> jsValueToSqlValue
 
     interface IDisposable with
 

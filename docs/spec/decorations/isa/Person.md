@@ -21,8 +21,8 @@ Individual contributor or performer in the experimental workflow.
 | `familyName` | Text | SHOULD | Family name |
 | `email` | Text | SHOULD | Email address |
 | `affiliation` | [Organization](Organization.md) | SHOULD | Affiliated organization |
-| `identifier` | Text, PropertyValue | SHOULD | ORCID or other identifier |
-| `additionalProperty` | [PropertyValue](../../core/PropertyValue.md) | COULD | Extensible person metadata not covered by the base properties |
+| `identifier` | Text, Annotation | SHOULD | ORCID or other identifier |
+| `additionalProperty` | [Annotation](../../core/Annotation.md) | COULD | Extensible person metadata not covered by the base properties |
 | `jobTitle` | [DefinedTerm](../../core/DefinedTerm.md) | COULD | Job title |
 
 ## Relationships
@@ -36,12 +36,12 @@ flowchart TD
     i@{ shape: stadium, label: "ORCID" }
 
     Dataset --creator--> Person
-    LabProcess --agent--> Person
+    Process --agent--> Person
     Person --affiliation--> Organization
     Person --jobTitle--> DefinedTerm
     Person --givenName--> gn
     Person --familyName--> fn
     Person --email--> e
     Person --identifier--> i
-    Person --additionalProperty--> PropertyValue
+    Person --additionalProperty--> Annotation
 ```

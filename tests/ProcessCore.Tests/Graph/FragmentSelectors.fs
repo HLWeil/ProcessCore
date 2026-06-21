@@ -6,7 +6,7 @@ open ProcessCore
 type RangeSelector = { First: int; Last: int }
 
 type RangeSelectorProvider() =
-    
+
     inherit FragmentSelectorProviderBase<RangeSelector>()
 
     let tryParseInt (text: string) =
@@ -15,7 +15,7 @@ type RangeSelectorProvider() =
         | false, _ -> None
 
     override _.SelectorFormat = "test/range"
-    override _.TryParse(text: string) = 
+    override _.TryParse(text: string) =
         if text.StartsWith("range=") then
             let body = text.Substring("range=".Length)
             let parts = body.Split([| '-' |])
@@ -302,11 +302,11 @@ let tests = testList "Fragment selectors" [
 
     testList "Traversal" [
 
-        testCase "whole file reaches material through contained fragment" <| fun _ ->
-            let source = Material("Source")
+        testCase "whole file reaches sample through contained fragment" <| fun _ ->
+            let source = Sample("Source")
             let fragment = Data("file.csv", selector = "range=2-3", selectorFormat = "test/range")
-            let p = LabProcess("produce-fragment")
-            p.AddInputMaterial(source)
+            let p = Process("produce-fragment")
+            p.AddInputSample(source)
             p.AddOutputData(fragment)
             let ds = datasetWithFakeProvider ()
             ds.AddProcess(p)
@@ -315,11 +315,11 @@ let tests = testList "Fragment selectors" [
             let upstream = ds.NodesUpstreamOf(DataNode whole) |> keys
             Expect.isTrue (upstream.Contains("M:Source")) "whole-resource query follows contained fragment output"
 
-        testCase "fragment reaches material through contained whole file" <| fun _ ->
-            let source = Material("Source")
+        testCase "fragment reaches sample through contained whole file" <| fun _ ->
+            let source = Sample("Source")
             let whole = Data("file.csv")
-            let p = LabProcess("produce-whole")
-            p.AddInputMaterial(source)
+            let p = Process("produce-whole")
+            p.AddInputSample(source)
             p.AddOutputData(whole)
             let ds = datasetWithFakeProvider ()
             ds.AddProcess(p)
@@ -328,11 +328,11 @@ let tests = testList "Fragment selectors" [
             let upstream = ds.NodesUpstreamOf(DataNode fragment) |> keys
             Expect.isTrue (upstream.Contains("M:Source")) "fragment query follows containing whole-resource output"
 
-        testCase "fragment reaches material through outer fragment" <| fun _ ->
-            let source = Material("Source")
+        testCase "fragment reaches sample through outer fragment" <| fun _ ->
+            let source = Sample("Source")
             let whole = Data("file.csv", selector = "range=2-4", selectorFormat = "test/range")
-            let p = LabProcess("produce-whole")
-            p.AddInputMaterial(source)
+            let p = Process("produce-whole")
+            p.AddInputSample(source)
             p.AddOutputData(whole)
             let ds = datasetWithFakeProvider ()
             ds.AddProcess(p)
@@ -342,10 +342,10 @@ let tests = testList "Fragment selectors" [
             Expect.isTrue (upstream.Contains("M:Source")) "fragment query follows containing whole-resource output"
 
         testCase "disjoint fragments do not connect" <| fun _ ->
-            let source = Material("Source")
+            let source = Sample("Source")
             let existing = Data("file.csv", selector = "range=1-2", selectorFormat = "test/range")
-            let p = LabProcess("produce-existing")
-            p.AddInputMaterial(source)
+            let p = Process("produce-existing")
+            p.AddInputSample(source)
             p.AddOutputData(existing)
             let ds = datasetWithFakeProvider ()
             ds.AddProcess(p)
@@ -355,10 +355,10 @@ let tests = testList "Fragment selectors" [
             Expect.isFalse (upstream.Contains("M:Source")) "disjoint selector should not traverse"
 
         testCase "unknown fragment relation does not connect" <| fun _ ->
-            let source = Material("Source")
+            let source = Sample("Source")
             let existing = Data("file.csv", selector = "range=1-5", selectorFormat = "test/range")
-            let p = LabProcess("produce-existing")
-            p.AddInputMaterial(source)
+            let p = Process("produce-existing")
+            p.AddInputSample(source)
             p.AddOutputData(existing)
             let ds = datasetWithFakeProvider ()
             ds.AddProcess(p)
@@ -368,15 +368,15 @@ let tests = testList "Fragment selectors" [
             Expect.isFalse (upstream.Contains("M:Source")) "overlap without containment is unknown"
 
         testCase "connect only through correct fragment containment (separate processes)" <| fun _ ->
-            let source1 = Material("Source1")
-            let source2 = Material("Source2")
+            let source1 = Sample("Source1")
+            let source2 = Sample("Source2")
             let fragment1 = Data("file.csv", selector = "range=1-2", selectorFormat = "test/range")
             let fragment2 = Data("file.csv", selector = "range=4-5", selectorFormat = "test/range")
-            let p1 = LabProcess("produce-1")
-            p1.AddInputMaterial(source1)
+            let p1 = Process("produce-1")
+            p1.AddInputSample(source1)
             p1.AddOutputData(fragment1)
-            let p2 = LabProcess("produce-2")
-            p2.AddInputMaterial(source2)
+            let p2 = Process("produce-2")
+            p2.AddInputSample(source2)
             p2.AddOutputData(fragment2)
             let ds = datasetWithFakeProvider ()
             ds.AddProcess(p1)
@@ -389,14 +389,14 @@ let tests = testList "Fragment selectors" [
 
 
         testCase "connect only through correct fragment containment (same process)" <| fun _ ->
-            let source1 = Material("Source1")
-            let source2 = Material("Source2")
+            let source1 = Sample("Source1")
+            let source2 = Sample("Source2")
             let fragment1 = Data("file.csv", selector = "range=1-2", selectorFormat = "test/range")
             let fragment2 = Data("file.csv", selector = "range=4-5", selectorFormat = "test/range")
-            let p1 = LabProcess("produce")
-            p1.AddInputMaterial(source1)
+            let p1 = Process("produce")
+            p1.AddInputSample(source1)
             p1.AddOutputData(fragment1)
-            p1.AddInputMaterial(source2)
+            p1.AddInputSample(source2)
             p1.AddOutputData(fragment2)
             let ds = datasetWithFakeProvider ()
             ds.AddProcess(p1)
@@ -406,15 +406,15 @@ let tests = testList "Fragment selectors" [
             Expect.isFalse (scoped.Contains("M:Source1")) "out-of-scope related edge excluded"
             Expect.isTrue (scoped.Contains("M:Source2")) "in-scope related edge included"
 
-        testCase "fragment reaches material through outer fragment across processes" <| fun _ ->
-            let source = Material("Source")
-            let sample = Material("Sample")
+        testCase "fragment reaches sample through outer fragment across processes" <| fun _ ->
+            let source = Sample("Source")
+            let sample = Sample("Sample")
             let data = Data("file.csv", selector = "range=2-4", selectorFormat = "test/range")
-            let p1 = LabProcess("produce-sample")
-            let p2 = LabProcess("produce-data")
-            p1.AddInputMaterial(source)
-            p1.AddOutputMaterial(sample)
-            p2.AddInputMaterial(sample)
+            let p1 = Process("produce-sample")
+            let p2 = Process("produce-data")
+            p1.AddInputSample(source)
+            p1.AddOutputSample(sample)
+            p2.AddInputSample(sample)
             p2.AddOutputData(data)
             let ds = datasetWithFakeProvider ()
             ds.AddProcess(p1)
@@ -422,17 +422,17 @@ let tests = testList "Fragment selectors" [
 
             let fragment = Data("file.csv", selector = "range=3", selectorFormat = "test/range")
             let downstream = ds.NodesUpstreamOf(DataNode fragment) |> keys
-            Expect.isTrue (downstream.Contains("M:Sample")) "contains intermediary sample material"
-            Expect.isTrue (downstream.Contains("M:Source")) "contains base source material"
+            Expect.isTrue (downstream.Contains("M:Sample")) "contains intermediary sample sample"
+            Expect.isTrue (downstream.Contains("M:Source")) "contains base source sample"
 
-        testCase "material reaches final data through fragment of full file" <| fun _ ->
-            let source = Material("Source")
+        testCase "sample reaches final data through fragment of full file" <| fun _ ->
+            let source = Sample("Source")
             let intermediaryFile = Data("file.csv")
             let intermediaryFragment = Data("file.csv", selector = "range=2-4", selectorFormat = "test/range")
             let outputData = Data("outputFile.txt")
-            let p1 = LabProcess("produce-intermediary")
-            let p2 = LabProcess("produce-output")
-            p1.AddInputMaterial(source)
+            let p1 = Process("produce-intermediary")
+            let p2 = Process("produce-output")
+            p1.AddInputSample(source)
             p1.AddOutputData(intermediaryFile)
             p2.AddInputData(intermediaryFragment)
             p2.AddOutputData(outputData)
@@ -440,18 +440,18 @@ let tests = testList "Fragment selectors" [
             ds.AddProcess(p1)
             ds.AddProcess(p2)
 
-            let downstream = ds.NodesDownstreamOf(MaterialNode source) |> keys
+            let downstream = ds.NodesDownstreamOf(SampleNode source) |> keys
             Expect.isTrue (downstream.Contains("D:outputFile.txt")) "contains final output data"
             Expect.isTrue (downstream.Contains("D:file.csv")) "contains intermediary file data"
 
-        testCase "material reaches final data through fragment of fragment" <| fun _ ->
-            let source = Material("Source")
+        testCase "sample reaches final data through fragment of fragment" <| fun _ ->
+            let source = Sample("Source")
             let intermediaryOuterFragment = Data("file.csv", selector = "range=2-4", selectorFormat = "test/range")
             let intermediaryFragmentContained = Data("file.csv", selector = "range=3", selectorFormat = "test/range")
             let outputData1 = Data("outputFile.txt")
-            let p1 = LabProcess("produce-intermediary")
-            let p2 = LabProcess("produce-output")
-            p1.AddInputMaterial(source)
+            let p1 = Process("produce-intermediary")
+            let p2 = Process("produce-output")
+            p1.AddInputSample(source)
             p1.AddOutputData(intermediaryOuterFragment)
             p2.AddInputData(intermediaryFragmentContained)
             p2.AddOutputData(outputData1)
@@ -459,20 +459,20 @@ let tests = testList "Fragment selectors" [
             ds.AddProcess(p1)
             ds.AddProcess(p2)
 
-            let downstream = ds.NodesDownstreamOf(MaterialNode source) |> keys
+            let downstream = ds.NodesDownstreamOf(SampleNode source) |> keys
             Expect.isTrue (downstream.Contains("D:outputFile.txt")) "contains final output data"
             Expect.isTrue (downstream.Contains((DataNode intermediaryOuterFragment).Key())) "contains intermediary file data"
 
-        testCase "material reaches final data through fragment of fragment ignore disjunct" <| fun _ ->
-            let source = Material("Source")
+        testCase "sample reaches final data through fragment of fragment ignore disjunct" <| fun _ ->
+            let source = Sample("Source")
             let intermediaryOuterFragment = Data("file.csv", selector = "range=2-4", selectorFormat = "test/range")
             let intermediaryFragmentContained = Data("file.csv", selector = "range=3", selectorFormat = "test/range")
             let intermediaryFragmentNotContained = Data("file.csv", selector = "range=5", selectorFormat = "test/range")
             let outputData1 = Data("outputFile1.txt")
             let outputData2 = Data("outputFile2.txt")
-            let p1 = LabProcess("produce-intermediary")
-            let p2 = LabProcess("produce-output")
-            p1.AddInputMaterial(source)
+            let p1 = Process("produce-intermediary")
+            let p2 = Process("produce-output")
+            p1.AddInputSample(source)
             p1.AddOutputData(intermediaryOuterFragment)
             p2.AddInputData(intermediaryFragmentContained)
             p2.AddOutputData(outputData1)
@@ -482,21 +482,21 @@ let tests = testList "Fragment selectors" [
             ds.AddProcess(p1)
             ds.AddProcess(p2)
 
-            let upstream = ds.NodesDownstreamOf(MaterialNode source) |> keys
+            let upstream = ds.NodesDownstreamOf(SampleNode source) |> keys
             Expect.isTrue (upstream.Contains("D:outputFile1.txt")) "contains final output data"
             Expect.isFalse (upstream.Contains("D:outputFile2.txt")) "does not contain output from disjoint fragment"
             Expect.isTrue (upstream.Contains((DataNode intermediaryOuterFragment).Key())) "contains intermediary file data"
 
         testCase "scope still restricts related fragment traversal" <| fun _ ->
-            let source1 = Material("Source1")
-            let source2 = Material("Source2")
+            let source1 = Sample("Source1")
+            let source2 = Sample("Source2")
             let fragment1 = Data("file.csv", selector = "range=1-2", selectorFormat = "test/range")
             let fragment2 = Data("file.csv", selector = "range=4-5", selectorFormat = "test/range")
-            let p1 = LabProcess("produce-1")
-            p1.AddInputMaterial(source1)
+            let p1 = Process("produce-1")
+            p1.AddInputSample(source1)
             p1.AddOutputData(fragment1)
-            let p2 = LabProcess("produce-2")
-            p2.AddInputMaterial(source2)
+            let p2 = Process("produce-2")
+            p2.AddInputSample(source2)
             p2.AddOutputData(fragment2)
             let ds = datasetWithFakeProvider ()
             ds.AddProcess(p1)
@@ -509,10 +509,10 @@ let tests = testList "Fragment selectors" [
 
 
         testCase "registered CSV provider enables traversal through RFC 7111 column containment" <| fun _ ->
-            let source = Material("Source")
+            let source = Sample("Source")
             let columns = Data("file.csv", selector = "#col=2-11", selectorFormat = CsvFragmentSelectorProvider.SelectorFormatUri)
-            let p = LabProcess("produce-columns")
-            p.AddInputMaterial(source)
+            let p = Process("produce-columns")
+            p.AddInputSample(source)
             p.AddOutputData(columns)
             let ds = datasetWithCsvProvider ()
             ds.AddProcess(p)
@@ -538,7 +538,7 @@ let tests = testList "Fragment selectors" [
             Expect.isFalse (PathTraversal.dataRelatedForTraversal f a b) "different files are not related without a provider"
 
         //testCase "missing selectorFormat does not invoke providers" <| fun _ ->
-        //    let f = fun _ -> RangeSelectorProvider() :> IFragmentSelectorProvider |> Some 
+        //    let f = fun _ -> RangeSelectorProvider() :> IFragmentSelectorProvider |> Some
         //    let a = Data("file.csv", selector = "range=1-10")
         //    let b = Data("file.csv", selector = "range=2-3")
         //    Expect.isFalse (PathTraversal.dataRelatedForTraversal f a b) "no selectorFormat means opaque"

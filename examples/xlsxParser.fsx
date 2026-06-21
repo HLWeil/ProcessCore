@@ -13,9 +13,9 @@ open FsSpreadsheet.Net
 open ARCtrl.Helper
 
 
-module CompositeCell = 
+module CompositeCell =
 
-    let termFromStringCells (tsrCol : int option) (tanCol : int option ) (cellValues : array<string>) : CompositeCell= 
+    let termFromStringCells (tsrCol : int option) (tanCol : int option ) (cellValues : array<string>) : CompositeCell=
         let tan = Option.map (fun i -> cellValues.[i]) tanCol
         let tsr = Option.map (fun i -> cellValues.[i]) tsrCol
         CompositeCell.Term(name = cellValues.[0], ?tan = tan)
@@ -32,7 +32,7 @@ module CompositeCell =
     let dataFromStringCells (format : int option) (selectorFormat : int option) (cellValues : array<string>) : CompositeCell =
         let format = Option.bind (fun i -> cellValues.[i] |> Option.fromValueWithDefault "") format
         let selectorFormat = Option.bind (fun i -> cellValues.[i] |> Option.fromValueWithDefault "") selectorFormat
-        let path, selector = 
+        let path, selector =
             if cellValues.[0].Contains('#') then
                 let parts = cellValues.[0].Split('#', 2)
                 parts.[0], Some parts.[1]
@@ -41,7 +41,7 @@ module CompositeCell =
         let data = Data(path, ?selector = selector, ?encodingFormat = format, ?selectorFormat = selectorFormat)
         CompositeCell.Data(data)
 
-module ActivePattern = 
+module ActivePattern =
 
     open Regex.ActivePatterns
 
@@ -54,7 +54,7 @@ module ActivePattern =
         let (|AC|_|) s =
             categoryParser s
         match cellValues with
-        | [|AC name|] -> 
+        | [|AC name|] ->
             let ont = DefinedTerm(name)
             (f ont, CompositeCell.termFromStringCells None None)
             |> Some
@@ -97,7 +97,7 @@ module ActivePattern =
         | Term Regex.tryParseCharacteristicColumnHeader CompositeHeader.Characteristic r ->
             Some r
         | _ -> None
-    
+
     let (|Component|_|) (cellValues : string []) =
         match cellValues with
         | Term Regex.tryParseComponentColumnHeader CompositeHeader.Component r ->
@@ -108,7 +108,7 @@ module ActivePattern =
         if cellValues.Length = 0 then None
         else
             match cellValues.[0] with
-            | InputColumnHeader ioType -> 
+            | InputColumnHeader ioType ->
                 let cols = cellValues |> Array.skip 1
                 match IOType.ofString ioType with
                 | IOType.Data ->
@@ -125,7 +125,7 @@ module ActivePattern =
         if cellValues.Length = 0 then None
         else
             match cellValues.[0] with
-            | OutputColumnHeader ioType -> 
+            | OutputColumnHeader ioType ->
                 let cols = cellValues |> Array.skip 1
                 match IOType.ofString ioType with
                 | IOType.Data ->
@@ -157,17 +157,17 @@ module ActivePattern =
         | [|"Protocol Uri"|] -> Some (CompositeHeader.ProtocolUri, CompositeCell.freeTextFromStringCells)
         | [|"Protocol Version"|] -> Some (CompositeHeader.ProtocolVersion, CompositeCell.freeTextFromStringCells)
         | [|"Performer"|] -> Some (CompositeHeader.Performer, CompositeCell.freeTextFromStringCells)
-        | [|"Date"|] -> Some (CompositeHeader.Date, CompositeCell.freeTextFromStringCells)       
+        | [|"Date"|] -> Some (CompositeHeader.Date, CompositeCell.freeTextFromStringCells)
         | _ -> None
 
     let (|FreeText|_|) (cellValues : string []) =
         match cellValues with
-        | [|text|] -> 
+        | [|text|] ->
             (CompositeHeader.FreeText text, CompositeCell.freeTextFromStringCells)
             |> Some
         | _ -> None
 
-module CompositeHeader = 
+module CompositeHeader =
 
     open ActivePattern
 
@@ -180,13 +180,13 @@ module CompositeHeader =
         | Input i -> i
         | Output o -> o
         | ProtocolType pt -> pt
-        | ProtocolHeader ph -> ph 
+        | ProtocolHeader ph -> ph
         | Comment c -> c
         | FreeText ft -> ft
         | _ -> failwithf "Could not parse header group %O" cellValues
-  
 
-    let toStringCells (hasUnit : bool) (header : CompositeHeader) : string [] = 
+
+    let toStringCells (hasUnit : bool) (header : CompositeHeader) : string [] =
         if header.IsDataColumn then
             [|header.ToString(); "Data Format";  "Data Selector Format"|]
         elif header.IsSingleColumn then
@@ -198,24 +198,24 @@ module CompositeHeader =
                 $"Term Source REF ({header.GetColumnAccessionShort})"
                 $"Term Accession Number ({header.GetColumnAccessionShort})"
             |]
-        else 
+        else
             failwithf "header %O is neither single nor term column" header
 
 
-module CompositeColumn = 
+module CompositeColumn =
 
     /// Checks if the column header is a deprecated IO Header. If so, fixes it.
     ///
     /// The old format of IO Headers was only the type of IO so, e.g. "Source Name" or "Raw Data File".
     ///
     /// A "Source Name" column will now be mapped to the propper "Input [Source Name]", and all other IO types will be mapped to "Output [<IO Type>]".
-    let fixDeprecatedIOHeader (stringCellCol : string []) = 
-        if stringCellCol.Length = 0 then 
+    let fixDeprecatedIOHeader (stringCellCol : string []) =
+        if stringCellCol.Length = 0 then
             failwith "Can't fix IOHeader Invalid column, neither header nor values given"
         let values = stringCellCol |> Array.skip 1
         match IOType.ofString (stringCellCol.[0]) with
         | IOType.FreeText _ -> stringCellCol
-        | IOType.Source -> 
+        | IOType.Source ->
             let comp = CompositeHeader.Input (IOType.Source)
             stringCellCol.[0] <- comp.ToString()
             stringCellCol
@@ -225,18 +225,18 @@ module CompositeColumn =
             stringCellCol
 
     let fromStringCellColumns (columns : array<string []>) : CompositeColumn =
-        let header, cellParser = 
+        let header, cellParser =
             columns
             |> Array.map (fun c -> c.[0])
             |> CompositeHeader.fromStringCells
         let l = columns.[0].Length
-        let cells = 
+        let cells =
             ResizeArray [|
                 for i = 1 to l - 1 do
                     columns
                     |> Array.map (fun c -> c.[i])
                     |> cellParser
-            |]                 
+            |]
         CompositeColumn(header,cells)
 
     let stringCellColumnsOfFsColumns (columns : FsColumn []) : string [][] =
@@ -249,10 +249,10 @@ module CompositeColumn =
         )
 
 
-    let fromFsColumns (columns : FsColumn []) : CompositeColumn = 
-        let stringCellColumns = 
+    let fromFsColumns (columns : FsColumn []) : CompositeColumn =
+        let stringCellColumns =
             columns
-            |> Array.map (fun c -> 
+            |> Array.map (fun c ->
                 c.ToDenseColumn()
                 c.Cells
                 |> Seq.toArray
@@ -270,7 +270,7 @@ module Aux =
         /// A new group is started when the specified predicate holds about the element
         /// of the list (and at the beginning of the iteration).
         ///
-        /// For example: 
+        /// For example:
         ///    List.groupWhen isOdd [3;3;2;4;1;2] = [[3]; [3; 2; 4]; [1; 2]]
         let groupWhen f list =
             list
@@ -283,8 +283,8 @@ module Aux =
             ) []
             |> List.map List.rev
             |> List.rev
- 
-module Table = 
+
+module Table =
 
     type ColumnOrder =
         | InputClass = 1
@@ -292,22 +292,22 @@ module Table =
         | ParamsClass = 3
         | OutputClass = 4
 
-    let classifyHeaderOrder (header : CompositeHeader) =     
+    let classifyHeaderOrder (header : CompositeHeader) =
         match header with
         | CompositeHeader.Input             _ -> ColumnOrder.InputClass
 
-        | CompositeHeader.ProtocolType          
+        | CompositeHeader.ProtocolType
         | CompositeHeader.ProtocolDescription
         | CompositeHeader.ProtocolUri
         | CompositeHeader.ProtocolVersion
-        | CompositeHeader.ProtocolREF       
+        | CompositeHeader.ProtocolREF
         | CompositeHeader.Performer
         | CompositeHeader.Date                -> ColumnOrder.ProtocolClass
 
         | CompositeHeader.Component         _
         | CompositeHeader.Characteristic    _
         | CompositeHeader.Factor            _
-        | CompositeHeader.Parameter         _ 
+        | CompositeHeader.Parameter         _
         | CompositeHeader.Comment           _
         | CompositeHeader.FreeText          _ -> ColumnOrder.ParamsClass
 
@@ -320,7 +320,7 @@ module Table =
     [<Literal>]
     let annotationTablePrefix = "annotationTable"
 
-    let helperColumnStrings = 
+    let helperColumnStrings =
         [
             "Term Source REF"
             "Term Accession Number"
@@ -329,13 +329,13 @@ module Table =
             "Data Selector Format"
         ]
 
-    let groupColumnsByHeader (stringCellColumns : array<string []>) = 
+    let groupColumnsByHeader (stringCellColumns : array<string []>) =
         stringCellColumns
         |> Array.toList
-        |> Aux.List.groupWhen (fun c -> 
+        |> Aux.List.groupWhen (fun c ->
             let v = c.[0]
             helperColumnStrings
-            |> List.exists (fun s -> v.StartsWith s) 
+            |> List.exists (fun s -> v.StartsWith s)
             |> not
         )
         |> Array.ofList
@@ -356,20 +356,20 @@ module Table =
     //let composeArcTableValues (stringCellColumns : array<string []>) : CompositeHeader [] * ArcTableAux.ArcTableValues =
     //    let valueMap = System.Collections.Generic.Dictionary<int, CompositeCell>()
     //    let rowCount = stringCellColumns.[0].Length - 1
-    //    let headers, columns = 
+    //    let headers, columns =
     //        stringCellColumns
     //        |> groupColumnsByHeader
     //        |> Array.map (CompositeColumn.ColumnValueRefs.fromStringCellColumns valueMap)
     //        |> Array.unzip
     //    headers, ArcTableAux.ArcTableValues.fromRefColumns(columns, valueMap, rowCount)
-    
+
 
     /// Returns the protocol described by the headers and a function for parsing the values of the matrix to the processes of this protocol
     let tryFromFsWorksheet (ds : Dataset) (sheet : FsWorksheet) =
         try
             match tryAnnotationTable sheet with
-            | Some (t: FsTable) -> 
-                let stringCellColumns = 
+            | Some (t: FsTable) ->
+                let stringCellColumns =
                     [|
                     for c = 1 to t.RangeAddress.LastAddress.ColumnNumber do
                         [|for r = 1 to t.RangeAddress.LastAddress.RowNumber do
@@ -377,8 +377,8 @@ module Table =
                             | Some cell -> cell.ValueAsString()
                             | None -> ""
                         |]
-                    |]              
-                let columns = 
+                    |]
+                let columns =
                     stringCellColumns
                     |> Array.map CompositeColumn.fixDeprecatedIOHeader
                     |> composeColumns
@@ -393,7 +393,7 @@ module Table =
         | err -> failwithf "Could not parse table with name \"%s\":\n%s" sheet.Name err.Message
 
 
-let datasetFromTables (name : string) (wb : FsWorkbook) = 
+let datasetFromTables (name : string) (wb : FsWorkbook) =
 
     let d = Dataset(name)
 
@@ -415,7 +415,7 @@ let datasetFromPath (name : string) (path : string) =
     let wb = FsWorkbook.fromXlsxFile(path)
     datasetFromTables name wb
 
-module Assay = 
+module Assay =
 
     open ARCtrl.Spreadsheet.ArcAssay
 
@@ -425,10 +425,10 @@ module Assay =
         let assay = datasetFromTables arcAssay.Identifier wb
         assay.AdditionalType <- Some "Assay"
         assay.Description <- arcAssay.Description
-        assay.Name <- arcAssay.Title
+        assay.Title <- arcAssay.Title
         assay
-    
-module Study = 
+
+module Study =
 
     open ARCtrl.Spreadsheet.ArcStudy
 
@@ -438,10 +438,10 @@ module Study =
         let study = datasetFromTables arcStudy.Identifier wb
         study.AdditionalType <- Some "Study"
         study.Description <- arcStudy.Description
-        study.Name <- arcStudy.Title
+        study.Title <- arcStudy.Title
         study
-        
-module Run = 
+
+module Run =
 
     open ARCtrl.Spreadsheet.ArcRun
 
@@ -451,11 +451,11 @@ module Run =
         let run = datasetFromTables arcRun.Identifier wb
         run.AdditionalType <- Some "Run"
         run.Description <- arcRun.Description
-        run.Name <- arcRun.Title
+        run.Title <- arcRun.Title
         run
 
-module Workflow = 
-   
+module Workflow =
+
     open ARCtrl.Spreadsheet.ArcWorkflow
 
     let fromFsWorkbook (wb : FsWorkbook) =
@@ -464,24 +464,24 @@ module Workflow =
         let workflow = datasetFromTables arcWorkflow.Identifier wb
         workflow.AdditionalType <- Some "Workflow"
         workflow.Description <- arcWorkflow.Description
-        workflow.Name <- arcWorkflow.Title
+        workflow.Title <- arcWorkflow.Title
         workflow
 
-module Investigation = 
- 
+module Investigation =
+
     open ARCtrl.Spreadsheet.ArcInvestigationExtensions
     open ARCtrl
-   
+
     let fromFsWorkbook (wb : FsWorkbook) =
         let arcInvestigation = ArcInvestigation.fromFsWorkbook wb
         Dataset(
-                arcInvestigation.Identifier, 
+                arcInvestigation.Identifier,
                 ?name = arcInvestigation.Title,
                 ?description = arcInvestigation.Description,
                 additionalType = "Investigation"
             )
 
-module ARC = 
+module ARC =
 
     open ARCtrl
     open ARCtrl.Contract
@@ -492,19 +492,19 @@ module ARC =
 
     let load (path : string) =
         let filePaths = FileSystemHelper.getAllFilePathsAsync path |> Async.RunSynchronously
-        let topLevelDataset = 
+        let topLevelDataset =
             filePaths
             |> Seq.pick (fun p ->
                 match ARCtrl.ArcPathHelper.split p with
-                | InvestigationPath _ -> 
+                | InvestigationPath _ ->
                     let wb = readWorkbook path p
                     Investigation.fromFsWorkbook wb |> Some
-                | _ -> None        
+                | _ -> None
             )
         filePaths
-        |> Seq.choose (fun p -> 
+        |> Seq.choose (fun p ->
             match ARCtrl.ArcPathHelper.split p with
-            | AssayPath _ -> 
+            | AssayPath _ ->
                 readWorkbook path p |> Assay.fromFsWorkbook |> Some
             | StudyPath _ ->
                 readWorkbook path p |> Study.fromFsWorkbook |> Some
@@ -524,4 +524,4 @@ let dataset = ARC.load arcPath
 
 dataset.RegisterFragmentSelectorProvider (CsvFragmentSelectorProvider())
 
-dataset.FinalData().[0].UpstreamMaterials()
+dataset.FinalData().[0].UpstreamSamples()

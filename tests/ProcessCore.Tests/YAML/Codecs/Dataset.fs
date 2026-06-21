@@ -12,9 +12,16 @@ let tests = testList "Dataset" [
         Expect.isTrue (yaml.Contains("identifier: DS-1")) "identifier"
         Expect.isTrue (yaml.Contains("type: Dataset"))    "type"
 
+    testCase "encode and decode title" <| fun _ ->
+        let original = Dataset("DS-1", title = "Proteomics assay")
+        let yaml = Yaml.Dataset.toYamlString None original
+        Expect.isTrue (yaml.Contains("title: Proteomics assay")) "title key"
+        let decoded = Yaml.Dataset.fromYamlString true yaml
+        Expect.equal decoded.Title (Some "Proteomics assay") "title round-trip"
+
     testCase "encode with processes" <| fun _ ->
         let ds   = Dataset("DS-1")
-        ds.AddProcess(LabProcess("p1"))
+        ds.AddProcess(Process("p1"))
         let yaml = Yaml.Dataset.toYamlString None ds
         Expect.isTrue (yaml.Contains("processes")) "processes key"
         Expect.isTrue (yaml.Contains("p1"))        "process name"
@@ -28,7 +35,7 @@ let tests = testList "Dataset" [
 
     testCase "encode with additionalProperty" <| fun _ ->
         let ds = Dataset("DS-1")
-        ds.AddAdditionalProperty(PropertyValue("status", value = "complete"))
+        ds.AddAdditionalProperty(Annotation("status", value = "complete"))
         let yaml = Yaml.Dataset.toYamlString None ds
         Expect.isTrue (yaml.Contains("additionalProperty")) "additionalProperty key"
         Expect.isTrue (yaml.Contains("status"))             "property name"
@@ -56,9 +63,9 @@ let tests = testList "Dataset" [
         let yaml = """type: Dataset
 identifier: DS-1
 processes:
-  - type: LabProcess
+  - type: Process
     name: p1
-  - type: LabProcess
+  - type: Process
     name: p2
 """
         let ds = Yaml.Dataset.fromYamlString false yaml
@@ -95,7 +102,7 @@ hasPart:
         let yaml = """type: Dataset
 identifier: DS-1
 additionalProperty:
-  - type: PropertyValue
+  - type: Annotation
     name: status
     value: complete
 """
@@ -116,7 +123,7 @@ processes:
         let yaml = """type: Dataset
 identifier: DS-1
 processes:
-  - type: LabProcess
+  - type: Process
     name: p1
 """
         let ds   = Yaml.Dataset.fromYamlString false yaml
@@ -150,9 +157,9 @@ hasPart:
 
     testCase "round-trip with processes" <| fun _ ->
         let original = Dataset("DS-1")
-        let proc     = LabProcess("p1")
-        proc.AddInput(MaterialNode (Material("Source1")))
-        proc.AddOutput(MaterialNode (Material("Sample1")))
+        let proc     = Process("p1")
+        proc.AddInput(SampleNode (Sample("Source1")))
+        proc.AddOutput(SampleNode (Sample("Sample1")))
         original.AddProcess(proc)
         let yaml    = Yaml.Dataset.toYamlString None original
         let decoded = Yaml.Dataset.fromYamlString false yaml

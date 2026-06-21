@@ -66,9 +66,9 @@ That tradeoff is acceptable if the SQL schema is primarily a query model for gra
 ### Keep These Entity Tables
 
 - `DefinedTerm`
-- `PropertyValue`
+- `Annotation`
 - `Protocol`
-- `Material`
+- `Sample`
 - `Data`
 - `Dataset`
 - `Process`
@@ -84,9 +84,9 @@ CREATE TABLE Process (
     name                        TEXT NOT NULL,
     additional_type             TEXT,
     executes_protocol_id        TEXT REFERENCES Protocol(id),
-    input_type                  TEXT NOT NULL CHECK (input_type IN ('Material', 'Data')),
+    input_type                  TEXT NOT NULL CHECK (input_type IN ('Sample', 'Data')),
     input_id                    TEXT NOT NULL,
-    output_type                 TEXT NOT NULL CHECK (output_type IN ('Material', 'Data')),
+    output_type                 TEXT NOT NULL CHECK (output_type IN ('Sample', 'Data')),
     output_id                   TEXT NOT NULL,
     end_time                    TEXT,
     disambiguating_description  TEXT,
@@ -105,9 +105,9 @@ CREATE INDEX idx_process_additional_type ON Process(additional_type);
 
 This removes the need for:
 
-- `ProcessObjectMaterial`
+- `ProcessObjectSample`
 - `ProcessObjectData`
-- `ProcessResultMaterial`
+- `ProcessResultSample`
 - `ProcessResultData`
 - helper `ProcessEdge` view
 
@@ -130,14 +130,14 @@ If this later proves too repetitive, a second-level grouping field such as `proc
 
 ## Node Representation
 
-Keep `Material` and `Data` as separate tables.
+Keep `Sample` and `Data` as separate tables.
 
 Use a shared node view for traversal and display:
 
 ```sql
 CREATE VIEW NodeRef AS
-SELECT 'Material' AS node_type, id AS node_id, name AS node_name
-FROM Material
+SELECT 'Sample' AS node_type, id AS node_id, name AS node_name
+FROM Sample
 UNION ALL
 SELECT 'Data' AS node_type,
        id AS node_id,
@@ -250,7 +250,7 @@ For `view_only`:
 
 For `closure_table`:
 
-- keep materialized `Paths` and `PathSteps` tables if desired
+- keep sampleized `Paths` and `PathSteps` tables if desired
 - rewrite the refresh script to read directly from `Process`
 
 ### Phase 3: Rewrite Seed Data
@@ -279,7 +279,7 @@ Verification should cover:
 
 - `SELECT * FROM Paths`
 - `SELECT * FROM PathSteps`
-- sample lineage queries from root material to terminal data
+- sample lineage queries from root sample to terminal data
 - factor/parameter queries that still join correctly through `ProcessParameterValue`
 
 ## Open Design Note

@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
@@ -10,7 +10,7 @@
     <Compile Include="Helper.fs" />
     <Compile Include="DefinedTerm.fs" />
     <Compile Include="FormalParameter.fs" />
-    <Compile Include="PropertyValue.fs" />
+    <Compile Include="Annotation.fs" />
     <Compile Include="FragmentSelector.fs" />
     <Compile Include="Graph.fs" />
     <Compile Include="YML\Helpers.fs" />
@@ -18,11 +18,11 @@
     <Compile Include="YML\Encode.fs" />
     <Compile Include="YML\DefinedTerm.fs" />
     <Compile Include="YML\FormalParameter.fs" />
-    <Compile Include="YML\PropertyValue.fs" />
-    <Compile Include="YML\Material.fs" />
+    <Compile Include="YML\Annotation.fs" />
+    <Compile Include="YML\Sample.fs" />
     <Compile Include="YML\Data.fs" />
-    <Compile Include="YML\LabProtocol.fs" />
-    <Compile Include="YML\LabProcess.fs" />
+    <Compile Include="YML\Plan.fs" />
+    <Compile Include="YML\Process.fs" />
     <Compile Include="YML\Dataset.fs" />
     <Compile Include="SQL\Sql.fs" />
     <Compile Include="SQL\Tables.fs" />

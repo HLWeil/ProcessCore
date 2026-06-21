@@ -8,12 +8,12 @@ open ProcessCore.Table
 
 /// Build a minimal single-process table: Source1 --[proc]--> Sample1, with a protocol
 let makeBaseTable () =
-    let source = Material("Source1", additionalType = "Source")
-    let sample = Material("Sample1", additionalType = "Sample")
-    let proto  = LabProtocol("extraction")
-    let proc   = LabProcess("Growth")
-    proc.AddInputMaterial(source)
-    proc.AddOutputMaterial(sample)
+    let source = Sample("Source1", additionalType = "Source")
+    let sample = Sample("Sample1", additionalType = "Sample")
+    let proto  = Plan("extraction")
+    let proc   = Process("Growth")
+    proc.AddInputSample(source)
+    proc.AddOutputSample(sample)
     proc.ExecutesProtocol <- Some proto
     let ds = Dataset("DS")
     ds.AddProcess(proc)
@@ -49,27 +49,27 @@ let tests = testList "TableWrite" [
             let pv = proc.ParameterValue |> Seq.tryFind (fun pv -> pv.Name = "rpm")
             Expect.isSome pv "PV added to process.ParameterValue"
 
-        testCase "AddColumn — Characteristic stored on input material" <| fun _ ->
+        testCase "AddColumn — Characteristic stored on input sample" <| fun _ ->
             let t, proc, _ = makeBaseTable()
             let organism = DefinedTerm("organism")
             t.AddColumn(CompositeHeader.Characteristic(organism),
                         ResizeArray([| CompositeCell.FreeText "E. coli" |]))
             match proc.Inputs |> Seq.tryHead with
-            | Some (MaterialNode m) ->
+            | Some (SampleNode m) ->
                 let pv = m.AdditionalProperty |> Seq.tryFind (fun p -> p.Name = "organism")
-                Expect.isSome pv "Characteristic PV on input material"
-            | _ -> failwith "No input material"
+                Expect.isSome pv "Characteristic PV on input sample"
+            | _ -> failwith "No input sample"
 
-        testCase "AddColumn — Factor stored on output material" <| fun _ ->
+        testCase "AddColumn — Factor stored on output sample" <| fun _ ->
             let t, proc, _ = makeBaseTable()
             let growthPhase = DefinedTerm("growth_phase")
             t.AddColumn(CompositeHeader.Factor(growthPhase),
                         ResizeArray([| CompositeCell.FreeText "log" |]))
             match proc.Outputs |> Seq.tryHead with
-            | Some (MaterialNode m) ->
+            | Some (SampleNode m) ->
                 let pv = m.AdditionalProperty |> Seq.tryFind (fun p -> p.Name = "growth_phase")
-                Expect.isSome pv "Factor PV on output material"
-            | _ -> failwith "No output material"
+                Expect.isSome pv "Factor PV on output sample"
+            | _ -> failwith "No output sample"
 
         testCase "AddColumn — Component stored on protocol.LabEquipment" <| fun _ ->
             let t, proc, _ = makeBaseTable()
@@ -90,14 +90,14 @@ let tests = testList "TableWrite" [
 
         testCase "AddColumn — fewer cells than rows uses FreeText empty for missing" <| fun _ ->
             // Two processes, but only supply one cell
-            let s1 = Material("S1", additionalType = "Source")
-            let o1 = Material("O1", additionalType = "Sample")
-            let s2 = Material("S2", additionalType = "Source")
-            let o2 = Material("O2", additionalType = "Sample")
-            let p1 = LabProcess("T")
-            p1.AddInputMaterial(s1) ; p1.AddOutputMaterial(o1)
-            let p2 = LabProcess("T")
-            p2.AddInputMaterial(s2) ; p2.AddOutputMaterial(o2)
+            let s1 = Sample("S1", additionalType = "Source")
+            let o1 = Sample("O1", additionalType = "Sample")
+            let s2 = Sample("S2", additionalType = "Source")
+            let o2 = Sample("O2", additionalType = "Sample")
+            let p1 = Process("T")
+            p1.AddInputSample(s1) ; p1.AddOutputSample(o1)
+            let p2 = Process("T")
+            p2.AddInputSample(s2) ; p2.AddOutputSample(o2)
             let ds = Dataset("DS")
             ds.AddProcess(p1) ; ds.AddProcess(p2)
             let t = Table("T", ResizeArray([| p1; p2 |]), ds)
@@ -115,7 +115,7 @@ let tests = testList "TableWrite" [
         testCase "RemoveColumn — removes Parameter" <| fun _ ->
             let t, proc, _ = makeBaseTable()
             let rpm = DefinedTerm("rpm")
-            proc.AddParameterValue(PropertyValue("rpm", value = "200", unit = "rpm", additionalType = "ParameterValue"))
+            proc.AddParameterValue(Annotation("rpm", value = "200", unit = "rpm", additionalType = "ParameterValue"))
             t.RemoveColumn(CompositeHeader.Parameter(rpm))
             let hasPV = proc.ParameterValue |> Seq.exists (fun pv -> pv.Name = "rpm")
             Expect.isFalse hasPV "Parameter PV removed"
@@ -124,13 +124,13 @@ let tests = testList "TableWrite" [
             let t, proc, _ = makeBaseTable()
             let organism = DefinedTerm("organism")
             match proc.Inputs |> Seq.tryHead with
-            | Some (MaterialNode m) ->
-                m.AddAdditionalProperty(PropertyValue("organism", value = "Mouse", additionalType = "CharacteristicValue"))
+            | Some (SampleNode m) ->
+                m.AddAdditionalProperty(Annotation("organism", value = "Mouse", additionalType = "CharacteristicValue"))
             | _ -> ()
             t.RemoveColumn(CompositeHeader.Characteristic(organism))
             let hasPV =
                 match proc.Inputs |> Seq.tryHead with
-                | Some (MaterialNode m) -> m.AdditionalProperty |> Seq.exists (fun p -> p.Name = "organism")
+                | Some (SampleNode m) -> m.AdditionalProperty |> Seq.exists (fun p -> p.Name = "organism")
                 | _ -> false
             Expect.isFalse hasPV "Characteristic PV removed"
 
@@ -138,13 +138,13 @@ let tests = testList "TableWrite" [
             let t, proc, _ = makeBaseTable()
             let growthPhase = DefinedTerm("growth_phase")
             match proc.Outputs |> Seq.tryHead with
-            | Some (MaterialNode m) ->
-                m.AddAdditionalProperty(PropertyValue("growth_phase", value = "log", additionalType = "FactorValue"))
+            | Some (SampleNode m) ->
+                m.AddAdditionalProperty(Annotation("growth_phase", value = "log", additionalType = "FactorValue"))
             | _ -> ()
             t.RemoveColumn(CompositeHeader.Factor(growthPhase))
             let hasPV =
                 match proc.Outputs |> Seq.tryHead with
-                | Some (MaterialNode m) -> m.AdditionalProperty |> Seq.exists (fun p -> p.Name = "growth_phase")
+                | Some (SampleNode m) -> m.AdditionalProperty |> Seq.exists (fun p -> p.Name = "growth_phase")
                 | _ -> false
             Expect.isFalse hasPV "Factor PV removed"
 
@@ -152,7 +152,7 @@ let tests = testList "TableWrite" [
             let t, proc, _ = makeBaseTable()
             match proc.ExecutesProtocol with
             | Some proto ->
-                proto.AddLabEquipment(PropertyValue("instrument", value = "Orbitrap", additionalType = "Component"))
+                proto.AddLabEquipment(Annotation("instrument", value = "Orbitrap", additionalType = "Component"))
             | None -> ()
             let instrument = DefinedTerm("instrument")
             t.RemoveColumn(CompositeHeader.Component(instrument))
@@ -190,16 +190,16 @@ let tests = testList "TableWrite" [
             t.AddRow()
             Expect.equal t.RowCount (before + 1) "RowCount +1"
 
-        testCase "AddRow — input cell sets material name" <| fun _ ->
+        testCase "AddRow — input cell sets sample name" <| fun _ ->
             let t, proc, _ = makeBaseTable()
             let cells = ResizeArray([| CompositeCell.FreeText "Source2"; CompositeCell.FreeText "ref"; CompositeCell.FreeText "Sample2" |])
             t.AddRow(cells = cells)
             let newProc = t.Processes.[1]
             match newProc.Inputs |> Seq.tryHead with
-            | Some (MaterialNode m) -> Expect.equal m.Name "Source2" "input name set"
-            | _ -> failwith "expected input MaterialNode"
+            | Some (SampleNode m) -> Expect.equal m.Name "Source2" "input name set"
+            | _ -> failwith "expected input SampleNode"
 
-        testCase "AddRow — output cell sets material name" <| fun _ ->
+        testCase "AddRow — output cell sets sample name" <| fun _ ->
             let t, proc, _ = makeBaseTable()
             let cols = t.Headers
             // Supply enough cells to cover columns. Last cell = output.
@@ -208,14 +208,14 @@ let tests = testList "TableWrite" [
             t.AddRow(cells = emptyCells)
             let newProc = t.Processes.[1]
             match newProc.Outputs |> Seq.tryHead with
-            | Some (MaterialNode m) -> Expect.equal m.Name "Sample2_out" "output name set"
-            | _ -> failwith "expected output MaterialNode"
+            | Some (SampleNode m) -> Expect.equal m.Name "Sample2_out" "output name set"
+            | _ -> failwith "expected output SampleNode"
 
         testCase "AddRow — Data cell creates DataNode input" <| fun _ ->
-            let source = Material("Source1", additionalType = "Source")
+            let source = Sample("Source1", additionalType = "Source")
             let raw    = Data("raw.csv")
-            let proc   = LabProcess("M")
-            proc.AddInputMaterial(source)
+            let proc   = Process("M")
+            proc.AddInputSample(source)
             proc.AddOutputData(raw)
             let ds = Dataset("DS")
             ds.AddProcess(proc)
@@ -259,16 +259,16 @@ let tests = testList "TableWrite" [
             | None       -> failwith "protocol not cloned"
 
         testCase "AddRow at index inserts at correct position" <| fun _ ->
-            let s1 = Material("S1", additionalType = "Source")
-            let o1 = Material("O1", additionalType = "Sample")
-            let s2 = Material("S2", additionalType = "Source")
-            let o2 = Material("O2", additionalType = "Sample")
-            let p1 = LabProcess("T")
-            p1.AddInputMaterial(s1)
-            p1.AddOutputMaterial(o1)
-            let p2 = LabProcess("T")
-            p2.AddInputMaterial(s2)
-            p2.AddOutputMaterial(o2)
+            let s1 = Sample("S1", additionalType = "Source")
+            let o1 = Sample("O1", additionalType = "Sample")
+            let s2 = Sample("S2", additionalType = "Source")
+            let o2 = Sample("O2", additionalType = "Sample")
+            let p1 = Process("T")
+            p1.AddInputSample(s1)
+            p1.AddOutputSample(o1)
+            let p2 = Process("T")
+            p2.AddInputSample(s2)
+            p2.AddOutputSample(o2)
             let ds = Dataset("DS")
             ds.AddProcess(p1)
             ds.AddProcess(p2)
@@ -280,8 +280,8 @@ let tests = testList "TableWrite" [
             t.AddRow(cells = cells, index = 1)
             Expect.equal t.RowCount 3 "3 rows after insert"
             match t.Processes.[1].Inputs |> Seq.tryHead with
-            | Some (MaterialNode m) -> Expect.equal m.Name "SInserted" "inserted at correct position"
-            | _ -> failwith "expected MaterialNode at index 1"
+            | Some (SampleNode m) -> Expect.equal m.Name "SInserted" "inserted at correct position"
+            | _ -> failwith "expected SampleNode at index 1"
 
     ]
 
@@ -322,12 +322,12 @@ let tests = testList "TableWrite" [
             cells.[inIdx] <- CompositeCell.FreeText "UpdatedSource"
             t.UpdateRow(0, cells)
             match proc.Inputs |> Seq.tryHead with
-            | Some (MaterialNode m) -> Expect.equal m.Name "UpdatedSource" "input name updated"
-            | _ -> failwith "expected MaterialNode"
+            | Some (SampleNode m) -> Expect.equal m.Name "UpdatedSource" "input name updated"
+            | _ -> failwith "expected SampleNode"
 
         testCase "UpdateRow — updates existing PV value" <| fun _ ->
             let t, proc, _ = makeBaseTable()
-            proc.AddParameterValue(PropertyValue("rpm", value = "200", unit = "rpm", additionalType = "ParameterValue"))
+            proc.AddParameterValue(Annotation("rpm", value = "200", unit = "rpm", additionalType = "ParameterValue"))
             let headers = t.Headers
             let cells   = ResizeArray(Seq.init headers.Count (fun _ -> CompositeCell.FreeText ""))
             let paramIdx = headers |> Seq.findIndex (fun h -> match h with CompositeHeader.Parameter(dt) when dt.Name = "rpm" -> true | _ -> false)
@@ -340,17 +340,17 @@ let tests = testList "TableWrite" [
             // p1 has "rpm"; p2 does not.
             // Table holds both in its processes list so "rpm" column appears in headers.
             // UpdateRow(1, ...) should add the rpm PV to p2.
-            let s1 = Material("S1", additionalType = "Source")
-            let o1 = Material("O1", additionalType = "Sample")
-            let s2 = Material("S2", additionalType = "Source")
-            let o2 = Material("O2", additionalType = "Sample")
-            let p1 = LabProcess("T")
-            p1.AddInputMaterial(s1)
-            p1.AddOutputMaterial(o1)
-            p1.AddParameterValue(PropertyValue("rpm", value = "200", unit = "rpm", additionalType = "ParameterValue"))
-            let p2 = LabProcess("T")
-            p2.AddInputMaterial(s2)
-            p2.AddOutputMaterial(o2)
+            let s1 = Sample("S1", additionalType = "Source")
+            let o1 = Sample("O1", additionalType = "Sample")
+            let s2 = Sample("S2", additionalType = "Source")
+            let o2 = Sample("O2", additionalType = "Sample")
+            let p1 = Process("T")
+            p1.AddInputSample(s1)
+            p1.AddOutputSample(o1)
+            p1.AddParameterValue(Annotation("rpm", value = "200", unit = "rpm", additionalType = "ParameterValue"))
+            let p2 = Process("T")
+            p2.AddInputSample(s2)
+            p2.AddOutputSample(o2)
             // p2 has no rpm PV
             let ds = Dataset("DS")
             ds.AddProcess(p1)
@@ -372,21 +372,21 @@ let tests = testList "TableWrite" [
 
         testCase "AddColumn Input creates missing process" <| fun _ ->
             let t, ds = makeTable "T" [||] // no processes
-            t.AddColumn(CompositeHeader.Input IOType.Material,
+            t.AddColumn(CompositeHeader.Input IOType.Sample,
                         ResizeArray([| CompositeCell.FreeText "Source1"; CompositeCell.FreeText "Source2" |]))
             Expect.equal ds.Processes.Count 1 "one process created"
             Expect.equal ds.Processes[0].Inputs.Count 2 " process gets an input"
-            Expect.isTrue ds.Processes[0].Inputs[0].IsMaterialNode "process input is MaterialNode"
-            Expect.equal (ds.Processes[0].Inputs[0].AsMaterial().Name) "Source1" "input name set from cell"
+            Expect.isTrue ds.Processes[0].Inputs[0].IsSampleNode "process input is SampleNode"
+            Expect.equal (ds.Processes[0].Inputs[0].AsSample().Name) "Source1" "input name set from cell"
 
             Expect.equal t.RowCount 2 "two rows in table"
 
         // One process caries one value for each parameter. If we add a column with different values for the same parameter, we need to split the process into two (or more) so that each process has only one value for that parameter.
         testCase "AddColumn Parameter differing value leads to splitting processes" <| fun _ ->
-            let p = LabProcess("T")
-            p.AddInputMaterial(Material("S1"))
-            p.AddInputMaterial(Material("S2"))
-            p.AddParameterValue(PropertyValue(name = "organism", value = "Arabidopsis"))
+            let p = Process("T")
+            p.AddInputSample(Sample("S1"))
+            p.AddInputSample(Sample("S2"))
+            p.AddParameterValue(Annotation(name = "organism", value = "Arabidopsis"))
 
             let ds = Dataset("DS")
             ds.AddProcess(p)
@@ -400,7 +400,7 @@ let tests = testList "TableWrite" [
             )
 
             Expect.equal ds.Processes.Count 2 "process was split into two"
-            
+
             Expect.equal ds.Processes[0].ParameterValue.Count 2 "first process has two PVs"
             Expect.equal ds.Processes[0].ParameterValue[0].Name "organism" "first PV is organism"
             Expect.equal ds.Processes[0].ParameterValue[0].Value (Some "Arabidopsis") "first PV value"
@@ -414,9 +414,9 @@ let tests = testList "TableWrite" [
             Expect.equal ds.Processes[1].ParameterValue[1].Value (Some "25") "second PV value"
 
 
-        testCase "AddColumn Input creates missing material inputs from cells" <| fun _ ->
-            let p1 = LabProcess("Import")
-            let p2 = LabProcess("Import")
+        testCase "AddColumn Input creates missing sample inputs from cells" <| fun _ ->
+            let p1 = Process("Import")
+            let p2 = Process("Import")
             let t, _ = makeTable "Import" [| p1; p2 |]
 
             t.AddColumn(
@@ -427,15 +427,15 @@ let tests = testList "TableWrite" [
             Expect.equal p1.Inputs.Count 1 "first process gets an input"
             Expect.equal p2.Inputs.Count 1 "second process gets an input"
             match p1.Inputs.[0], p2.Inputs.[0] with
-            | MaterialNode m1, MaterialNode m2 ->
+            | SampleNode m1, SampleNode m2 ->
                 Expect.equal m1.Name "Source1" "first input name"
                 Expect.equal m1.AdditionalType (Some "Source") "first input type"
                 Expect.equal m2.Name "Source2" "second input name"
-            | other -> failwithf "Expected material inputs but got %A" other
+            | other -> failwithf "Expected sample inputs but got %A" other
 
         testCase "AddColumn Output creates missing data outputs from mixed cell shapes" <| fun _ ->
-            let p1 = LabProcess("Export")
-            let p2 = LabProcess("Export")
+            let p1 = Process("Export")
+            let p2 = Process("Export")
             let t, _ = makeTable "Export" [| p1; p2 |]
 
             t.AddColumn(
@@ -451,25 +451,25 @@ let tests = testList "TableWrite" [
                 Expect.equal d2.Path "raw2.csv" "FreeText cell converted to data path"
             | other -> failwithf "Expected data outputs but got %A" other
 
-        testCase "AddColumn Input fills missing cells with empty material nodes" <| fun _ ->
-            let p1 = LabProcess("Import")
-            let p2 = LabProcess("Import")
+        testCase "AddColumn Input fills missing cells with empty sample nodes" <| fun _ ->
+            let p1 = Process("Import")
+            let p2 = Process("Import")
             let t, _ = makeTable "Import" [| p1; p2 |]
 
             t.AddColumn(CompositeHeader.Input IOType.Sample, ResizeArray([| CompositeCell.FreeText "Sample1" |]))
 
             Expect.equal p2.Inputs.Count 1 "missing input cell still creates the slot"
             match p2.Inputs.[0] with
-            | MaterialNode m ->
+            | SampleNode m ->
                 Expect.equal m.Name "" "missing cell becomes empty text"
                 Expect.equal m.AdditionalType (Some "Sample") "input type is preserved"
-            | other -> failwithf "Expected material input but got %A" other
+            | other -> failwithf "Expected sample input but got %A" other
 
         testCase "RemoveColumn Input removes projected inputs from every process" <| fun _ ->
-            let p1 = LabProcess("Cleanup")
-            let p2 = LabProcess("Cleanup")
-            p1.AddInputMaterial(Material("Source1", additionalType = "Source"))
-            p2.AddInputMaterial(Material("Source2", additionalType = "Source"))
+            let p1 = Process("Cleanup")
+            let p2 = Process("Cleanup")
+            p1.AddInputSample(Sample("Source1", additionalType = "Source"))
+            p2.AddInputSample(Sample("Source2", additionalType = "Source"))
             let t, _ = makeTable "Cleanup" [| p1; p2 |]
 
             t.RemoveColumn(CompositeHeader.Input IOType.Source)
@@ -477,9 +477,9 @@ let tests = testList "TableWrite" [
             Expect.equal p1.Inputs.Count 0 "first input removed"
             Expect.equal p2.Inputs.Count 0 "second input removed"
 
-        testCase "UpdateRow can replace material output with data output when the output column type changes" <| fun _ ->
-            let p = LabProcess("Export")
-            p.AddOutputMaterial(Material("OldSample", additionalType = "Sample"))
+        testCase "UpdateRow can replace sample output with data output when the output column type changes" <| fun _ ->
+            let p = Process("Export")
+            p.AddOutputSample(Sample("OldSample", additionalType = "Sample"))
             let t, _ = makeTable "Export" [| p |]
 
             t.RemoveColumn(CompositeHeader.Output IOType.Sample)
@@ -488,14 +488,14 @@ let tests = testList "TableWrite" [
             Expect.equal p.Outputs.Count 1 "one output slot remains"
             match p.Outputs.[0] with
             | DataNode d -> Expect.equal d.Path "result.csv" "output was recreated as data"
-            | MaterialNode _ -> Expect.isTrue false "output should be recreated as data"
+            | SampleNode _ -> Expect.isTrue false "output should be recreated as data"
 
     ]
 
     testList "Synthetic carrier nodes" [
 
         testCase "AddColumn Characteristic creates synthetic input when input is missing" <| fun _ ->
-            let p = LabProcess("Annotate")
+            let p = Process("Annotate")
             let t, _ = makeTable "Annotate" [| p |]
 
             t.AddColumn(
@@ -505,14 +505,14 @@ let tests = testList "TableWrite" [
 
             Expect.equal p.Inputs.Count 1 "synthetic input created"
             match p.Inputs.[0] with
-            | MaterialNode m ->
+            | SampleNode m ->
                 let pv = m.AdditionalProperty |> Seq.tryFind (fun pv -> pv.Name = "organism")
                 Expect.isSome pv "characteristic stored on synthetic input"
                 Expect.equal pv.Value.Value (Some "E. coli") "characteristic value"
-            | other -> failwithf "Expected synthetic material input but got %A" other
+            | other -> failwithf "Expected synthetic sample input but got %A" other
 
         testCase "AddColumn Factor creates synthetic output when output is missing" <| fun _ ->
-            let p = LabProcess("Annotate")
+            let p = Process("Annotate")
             let t, _ = makeTable "Annotate" [| p |]
 
             t.AddColumn(
@@ -522,19 +522,19 @@ let tests = testList "TableWrite" [
 
             Expect.equal p.Outputs.Count 1 "synthetic output created"
             match p.Outputs.[0] with
-            | MaterialNode m ->
+            | SampleNode m ->
                 let pv = m.AdditionalProperty |> Seq.tryFind (fun pv -> pv.Name = "growth phase")
                 Expect.isSome pv "factor stored on synthetic output"
                 Expect.equal pv.Value.Value (Some "log") "factor value"
-            | other -> failwithf "Expected synthetic material output but got %A" other
+            | other -> failwithf "Expected synthetic sample output but got %A" other
 
     ]
 
     testList "Writable protocol columns" [
 
         testCase "AddColumn ProtocolREF creates protocols when missing" <| fun _ ->
-            let p1 = LabProcess("Protocolize")
-            let p2 = LabProcess("Protocolize")
+            let p1 = Process("Protocolize")
+            let p2 = Process("Protocolize")
             let t, _ = makeTable "Protocolize" [| p1; p2 |]
 
             t.AddColumn(
@@ -546,8 +546,8 @@ let tests = testList "TableWrite" [
             Expect.equal (p2.ExecutesProtocol |> Option.bind (fun p -> p.Name)) (Some "measurement") "second protocol name"
 
         testCase "UpdateRow updates protocol metadata columns" <| fun _ ->
-            let p = LabProcess("Protocolize")
-            let proto = LabProtocol("old")
+            let p = Process("Protocolize")
+            let proto = Plan("old")
             proto.Description <- Some "old description"
             p.ExecutesProtocol <- Some proto
             let t, _ = makeTable "Protocolize" [| p |]
@@ -564,7 +564,7 @@ let tests = testList "TableWrite" [
             Expect.equal proto.Description (Some "new description") "protocol description updated"
 
         testCase "AddColumn Component creates protocol when missing" <| fun _ ->
-            let p = LabProcess("Equip")
+            let p = Process("Equip")
             let t, _ = makeTable "Equip" [| p |]
 
             t.AddColumn(

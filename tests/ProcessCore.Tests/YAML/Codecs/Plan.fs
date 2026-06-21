@@ -1,61 +1,61 @@
-module ProcessCore.Yaml.Tests.Codecs.LabProtocol
+module ProcessCore.Yaml.Tests.Codecs.Plan
 
 open Fable.Pyxpecto
 open ProcessCore
 open ProcessCore.Yaml
 
-let tests = testList "LabProtocol" [
+let tests = testList "Plan" [
 
     testCase "encode minimal" <| fun _ ->
-        let proto = LabProtocol()
-        let yaml  = Yaml.LabProtocol.toYamlString None proto
-        Expect.isTrue (yaml.Contains("type: LabProtocol")) "type"
+        let proto = Plan()
+        let yaml  = Yaml.Plan.toYamlString None proto
+        Expect.isTrue (yaml.Contains("type: Plan")) "type"
 
     testCase "encode with name and url" <| fun _ ->
-        let proto = LabProtocol(name = "extraction", url = "https://protocols.io/v1")
-        let yaml  = Yaml.LabProtocol.toYamlString None proto
+        let proto = Plan(name = "extraction", url = "https://protocols.io/v1")
+        let yaml  = Yaml.Plan.toYamlString None proto
         Expect.isTrue (yaml.Contains("name: extraction"))              "name"
         Expect.isTrue (yaml.Contains("url: https://protocols.io/v1")) "url"
 
     testCase "encode with parameters sequence" <| fun _ ->
-        let proto = LabProtocol(name = "extraction")
+        let proto = Plan(name = "extraction")
         proto.AddParameter(FormalParameter("temperature"))
         proto.AddParameter(FormalParameter("rpm"))
-        let yaml = Yaml.LabProtocol.toYamlString None proto
+        let yaml = Yaml.Plan.toYamlString None proto
         Expect.isTrue (yaml.Contains("parameters")) "parameters key"
         Expect.isTrue (yaml.Contains("temperature")) "temperature"
         Expect.isTrue (yaml.Contains("rpm"))         "rpm"
 
     testCase "encode with labEquipment sequence" <| fun _ ->
-        let proto = LabProtocol(name = "centrifugation")
-        proto.AddLabEquipment(PropertyValue("centrifuge", value = "Eppendorf 5420"))
-        let yaml = Yaml.LabProtocol.toYamlString None proto
+        let proto = Plan(name = "centrifugation")
+        proto.AddLabEquipment(Annotation("centrifuge", value = "Eppendorf 5420"))
+        let yaml = Yaml.Plan.toYamlString None proto
         Expect.isTrue (yaml.Contains("labEquipment")) "labEquipment key"
         Expect.isTrue (yaml.Contains("centrifuge"))   "equipment name"
 
     testCase "encode with additionalProperty sequence" <| fun _ ->
-        let proto = LabProtocol(name = "extraction")
-        proto.AddAdditionalProperty(PropertyValue("notes", value = "Keep on ice"))
-        let yaml = Yaml.LabProtocol.toYamlString None proto
+        let proto = Plan(name = "extraction")
+        proto.AddAdditionalProperty(Annotation("notes", value = "Keep on ice"))
+        let yaml = Yaml.Plan.toYamlString None proto
         Expect.isTrue (yaml.Contains("additionalProperty")) "additionalProperty key"
         Expect.isTrue (yaml.Contains("notes"))              "notes name"
 
     testCase "encode with intendedUse" <| fun _ ->
-        let proto = LabProtocol(name = "extraction")
+        let proto = Plan(name = "extraction")
         proto.IntendedUse <- Some (DefinedTerm("cell growth", tan = "GO:0016049"))
-        let yaml = Yaml.LabProtocol.toYamlString None proto
+        let yaml = Yaml.Plan.toYamlString None proto
         Expect.isTrue (yaml.Contains("intendedUse")) "intendedUse key"
         Expect.isTrue (yaml.Contains("cell growth")) "intendedUse name"
 
     testCase "decode minimal" <| fun _ ->
-        let yaml  = "type: LabProtocol\n"
-        let proto = Yaml.LabProtocol.fromYamlString true yaml
+        let yaml  = "type: Plan\n"
+        let proto = Yaml.Plan.fromYamlString true yaml
         Expect.equal proto.Name        None "no name"
         Expect.equal proto.Description None "no description"
         Expect.equal proto.Parameters.Count 0 "no parameters"
 
     testCase "decode all fields" <| fun _ ->
-        let yaml = """type: LabProtocol
+        let yaml = """type: Plan
 name: extraction
 description: Standard protein extraction
 version: '1.0'
@@ -68,7 +68,7 @@ parameters:
   - type: FormalParameter
     name: temperature
 """
-        let proto = Yaml.LabProtocol.fromYamlString true yaml
+        let proto = Yaml.Plan.fromYamlString true yaml
         Expect.equal proto.Name        (Some "extraction")                  "name"
         Expect.equal proto.Description (Some "Standard protein extraction") "description"
         Expect.equal proto.Version     (Some "1.0")                         "version"
@@ -80,33 +80,33 @@ parameters:
 
     testCase "decode parameters as id-references" <| fun _ ->
         // id references are skipped
-        let yaml = """type: LabProtocol
+        let yaml = """type: Plan
 name: extraction
 parameters:
   - some-fp-id
 """
-        let proto = Yaml.LabProtocol.fromYamlString true yaml
+        let proto = Yaml.Plan.fromYamlString true yaml
         Expect.equal proto.Parameters.Count 0 "id refs skipped"
 
     testCase "decode intendedUse as id-reference" <| fun _ ->
-        let yaml = "type: LabProtocol\nname: extraction\nintendedUse: some-dt-id\n"
-        let proto = Yaml.LabProtocol.fromYamlString true yaml
+        let yaml = "type: Plan\nname: extraction\nintendedUse: some-dt-id\n"
+        let proto = Yaml.Plan.fromYamlString true yaml
         Expect.equal proto.IntendedUse None "id ref leaves IntendedUse as None"
 
     testCase "round-trip minimal" <| fun _ ->
-        let original = LabProtocol(name = "extraction")
-        let yaml     = Yaml.LabProtocol.toYamlString None original
-        let decoded  = Yaml.LabProtocol.fromYamlString true yaml
+        let original = Plan(name = "extraction")
+        let yaml     = Yaml.Plan.toYamlString None original
+        let decoded  = Yaml.Plan.fromYamlString true yaml
         Expect.equal decoded.Name original.Name "name"
 
     testCase "round-trip all fields" <| fun _ ->
-        let original = LabProtocol(name = "extraction", description = "desc", version = "1.0", url = "https://protocols.io/v1")
+        let original = Plan(name = "extraction", description = "desc", version = "1.0", url = "https://protocols.io/v1")
         original.IntendedUse <- Some (DefinedTerm("cell growth", tan = "GO:0016049"))
         original.AddParameter(FormalParameter("temperature", nameTAN = "PATO:0000146"))
-        original.AddLabEquipment(PropertyValue("centrifuge", value = "Eppendorf"))
-        original.AddAdditionalProperty(PropertyValue("notes", value = "On ice"))
-        let yaml    = Yaml.LabProtocol.toYamlString None original
-        let decoded = Yaml.LabProtocol.fromYamlString true yaml
+        original.AddLabEquipment(Annotation("centrifuge", value = "Eppendorf"))
+        original.AddAdditionalProperty(Annotation("notes", value = "On ice"))
+        let yaml    = Yaml.Plan.toYamlString None original
+        let decoded = Yaml.Plan.fromYamlString true yaml
         Expect.equal decoded.Name        original.Name        "name"
         Expect.equal decoded.Description original.Description "description"
         Expect.equal decoded.Version     original.Version     "version"

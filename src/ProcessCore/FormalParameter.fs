@@ -29,7 +29,7 @@ type FormalParameter(name: string, ?nameTAN: string, ?defaultValue: DefinedTerm)
         with get() = _defaultValue
         and set(v) = _defaultValue <- v
 
-    /// Two FormalParameters are identical if their names match (within the same LabProtocol).
+    /// Two FormalParameters are identical if their names match (within the same Plan).
     override this.Equals(obj) =
         match obj with
         | :? FormalParameter as other -> this.Name = other.Name

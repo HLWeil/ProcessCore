@@ -58,7 +58,7 @@ let tests = testList "Data" [
         let yaml = """type: Data
 path: raw.csv
 additionalProperty:
-  - type: PropertyValue
+  - type: Annotation
     name: instrument
     value: Q Exactive
 """
@@ -80,7 +80,7 @@ additionalProperty:
 
     testCase "round-trip all fields" <| fun _ ->
         let original = Data("raw.csv", selector = "Sheet1", selectorFormat = "excel", encodingFormat = "text/csv", additionalType = "RawData")
-        original.AddAdditionalProperty(PropertyValue("instrument", value = "Q Exactive"))
+        original.AddAdditionalProperty(Annotation("instrument", value = "Q Exactive"))
         let yaml    = Yaml.Data.toYamlString None original
         let decoded = Yaml.Data.fromYamlString true yaml
         Expect.equal decoded.Path            original.Path            "path"

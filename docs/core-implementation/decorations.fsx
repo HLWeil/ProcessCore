@@ -8,12 +8,12 @@ index: 3
 
 # Decorations
 
-The core data model is intentionally small: `Dataset`, `LabProcess`, `LabProtocol`, `Material`, `Data`, and `PropertyValue` describe the shape of a process graph.
+The core data model is intentionally small: `Dataset`, `Process`, `Plan`, `Sample`, `Data`, and `Annotation` describe the shape of a process graph.
 Domain specificity is added as decoration on top of that shared shape.
 
 There are two complementary ways to do this:
 
-1. Use `additionalType` and `additionalProperty` on core objects. This keeps the data close to the ProcessCore model and makes the extension queryable as typed `PropertyValue` annotations.
+1. Use `additionalType` and `additionalProperty` on core objects. This keeps the data close to the ProcessCore model and makes the extension queryable as typed `Annotation` annotations.
 2. Use the inherited `DynamicObj` property bag for information that must be preserved but does not fit into the core model.
 
 This page shows both approaches.
@@ -28,7 +28,7 @@ open ProcessCore
 
 let valueOrBlank = Option.defaultValue ""
 
-let pvSummary (pv: PropertyValue) =
+let pvSummary (pv: Annotation) =
     let typeText = pv.AdditionalType |> valueOrBlank
     let valueText = pv.ValueWithUnitText
     if valueText = "" then
@@ -44,18 +44,18 @@ let yamlCodeBlock summary (text: string) =
 (**
 ## Typed Decorations
 
-The preferred extension path is to specialize core objects with `additionalType` and then attach ontologized `PropertyValue` records to the appropriate slot.
+The preferred extension path is to specialize core objects with `additionalType` and then attach ontologized `Annotation` records to the appropriate slot.
 The example below builds a small proteomics-style assay without introducing new graph node types.
 *)
 
 let assay = Dataset("measurement1", additionalType = "Assay")
-assay.Name <- Some "Proteomics assay"
+assay.Title <- Some "Proteomics assay"
 
 let source =
-    Material("Base Culture", additionalType = "Source")
+    Sample("Base Culture", additionalType = "Source")
 
 let organism =
-    PropertyValue(
+    Annotation(
         "organism",
         value = "Arabidopsis thaliana",
         nameTAN = "https://bioregistry.io/SIO:010000",
@@ -65,10 +65,10 @@ let organism =
 source.AddAdditionalProperty(organism)
 
 let roomTemperatureSample =
-    Material("Cultivation Flask RT", additionalType = "Sample")
+    Sample("Cultivation Flask RT", additionalType = "Sample")
 
 let temperature25 =
-    PropertyValue(
+    Annotation(
         "temperature",
         value = "25",
         unit = "degree Celsius",
@@ -79,10 +79,10 @@ let temperature25 =
 roomTemperatureSample.AddAdditionalProperty(temperature25)
 
 let highTemperatureSample =
-    Material("Cultivation Flask HT", additionalType = "Sample")
+    Sample("Cultivation Flask HT", additionalType = "Sample")
 
 let temperature30 =
-    PropertyValue(
+    Annotation(
         "temperature",
         value = "30",
         unit = "degree Celsius",
@@ -92,30 +92,30 @@ let temperature30 =
 
 highTemperatureSample.AddAdditionalProperty(temperature30)
 
-let growthProtocol = LabProtocol(name = "Growth")
+let growthProtocol = Plan(name = "Growth")
 growthProtocol.AddLabEquipment(
-    PropertyValue(
+    Annotation(
         "growth environment",
         value = "bioreactor",
         nameTAN = "https://bioregistry.io/OBI:0000997",
         valueTAN = "https://bioregistry.io/OBI:0001046",
         additionalType = "Component"))
 
-let growthAt25 = LabProcess("Growth", executesProtocol = growthProtocol)
-growthAt25.AddInputMaterial(source)
-growthAt25.AddOutputMaterial(roomTemperatureSample)
+let growthAt25 = Process("Growth", executesProtocol = growthProtocol)
+growthAt25.AddInputSample(source)
+growthAt25.AddOutputSample(roomTemperatureSample)
 assay.AddProcess(growthAt25)
 
-let growthAt30 = LabProcess("Growth", executesProtocol = growthProtocol)
-growthAt30.AddInputMaterial(source)
-growthAt30.AddOutputMaterial(highTemperatureSample)
+let growthAt30 = Process("Growth", executesProtocol = growthProtocol)
+growthAt30.AddInputSample(source)
+growthAt30.AddOutputSample(highTemperatureSample)
 assay.AddProcess(growthAt30)
 
 let assayDecoration =
     [ "identifier", assay.Identifier
       "dataset additionalType", assay.AdditionalType |> valueOrBlank
       "processes", string assay.Processes.Count
-      "materials", string (assay.AllMaterials().Count)
+      "samples", string (assay.AllSamples().Count)
       "data nodes", string (assay.AllData().Count) ]
 
 assayDecoration
@@ -123,33 +123,33 @@ assayDecoration
 
 (**
 The dataset is still a `Dataset`, but `additionalType = "Assay"` tells downstream code which domain role it plays.
-The same pattern is used for material roles: the input is a `Source`, while the outputs are `Sample` materials.
+The same pattern is used for sample roles: the input is a `Source`, while the outputs are `Sample` samples.
 *)
 
-let materialRoles =
-    assay.AllMaterials()
-    |> Seq.countBy (fun material -> material.AdditionalType |> valueOrBlank)
+let sampleRoles =
+    assay.AllSamples()
+    |> Seq.countBy (fun sample -> sample.AdditionalType |> valueOrBlank)
     |> Seq.map (fun (role, count) -> role, count)
     |> Seq.toList
 
-materialRoles
+sampleRoles
 (*** include-it ***)
 
 (**
 The first `Growth` process shows a compact ISA-style shape:
 
-- The input material is a `Source`.
-- The output material is a `Sample`.
+- The input sample is a `Source`.
+- The output sample is a `Sample`.
 - Characteristics are attached to input nodes via `AdditionalProperty`.
 - Factors are attached to output nodes via `AdditionalProperty`.
 *)
 
 let growthInput =
-    growthAt25.InputMaterials()
+    growthAt25.InputSamples()
     |> Seq.head
 
 let growthOutput =
-    growthAt25.OutputMaterials()
+    growthAt25.OutputSamples()
     |> Seq.head
 
 let growthDecoration =
@@ -164,12 +164,12 @@ growthDecoration
 (*** include-it ***)
 
 (**
-Process parameters use the same `PropertyValue` type, but they live on the `LabProcess.ParameterValue` slot.
+Process parameters use the same `Annotation` type, but they live on the `Process.ParameterValue` slot.
 Here, cell lysis records the sonicator, lysis duration, and technical replicate group as `ParameterValue` decorations.
 *)
 
 let sonicator =
-    PropertyValue(
+    Annotation(
         "sonicator",
         value = "Fisherbrand Model 705 Sonic Dismembrator",
         nameTAN = "https://bioregistry.io/OBI:0400114",
@@ -177,7 +177,7 @@ let sonicator =
         additionalType = "ParameterValue")
 
 let lysisTime =
-    PropertyValue(
+    Annotation(
         "time",
         value = "10",
         unit = "minute",
@@ -186,15 +186,15 @@ let lysisTime =
         additionalType = "ParameterValue")
 
 let technicalReplicate =
-    PropertyValue(
+    Annotation(
         "technical replicate group",
         value = "1",
         nameTAN = "https://bioregistry.io/DPBO:1000184",
         additionalType = "ParameterValue")
 
-let lysis = LabProcess("Cell Lysis")
-lysis.AddInputMaterial(roomTemperatureSample)
-lysis.AddOutputMaterial(Material("Eppi RT 1", additionalType = "Sample"))
+let lysis = Process("Cell Lysis")
+lysis.AddInputSample(roomTemperatureSample)
+lysis.AddOutputSample(Sample("Eppi RT 1", additionalType = "Sample"))
 lysis.AddParameterValue(sonicator)
 lysis.AddParameterValue(lysisTime)
 lysis.AddParameterValue(technicalReplicate)
@@ -211,15 +211,15 @@ For example, all samples produced under the 25 degree Celsius growth factor can 
 *)
 
 let samplesAt25Degrees =
-    assay.AllMaterials()
-    |> Seq.filter (fun material ->
-        material.AdditionalType = Some "Sample"
-        && material.AdditionalProperty
+    assay.AllSamples()
+    |> Seq.filter (fun sample ->
+        sample.AdditionalType = Some "Sample"
+        && sample.AdditionalProperty
            |> Seq.exists (fun pv ->
                pv.AdditionalType = Some "FactorValue"
                && pv.Name = "temperature"
                && pv.Value = Some "25"))
-    |> Seq.map (fun material -> material.Name)
+    |> Seq.map (fun sample -> sample.Name)
     |> Seq.toList
 
 samplesAt25Degrees
@@ -235,7 +235,7 @@ The example below adds an experimental facility layout to a dataset.
 *)
 
 let facilityDataset = Dataset("facility-layout-demo", additionalType = "Assay")
-facilityDataset.Name <- Some "Greenhouse proteomics assay"
+facilityDataset.Title <- Some "Greenhouse proteomics assay"
 
 let environmentalControls = DynamicObj()
 environmentalControls.SetProperty("temperatureSetpoint", "22 degree Celsius")
@@ -301,10 +301,10 @@ roundTrippedLayout.IsSome
 | Task | API |
 |------|-----|
 | Give a core object a domain role | `AdditionalType` |
-| Attach characteristics or factors to materials/data | `node.AddAdditionalProperty` |
+| Attach characteristics or factors to samples/data | `node.AddAdditionalProperty` |
 | Attach process parameters | `process.AddParameterValue` |
 | Attach protocol components | `protocol.AddLabEquipment` |
-| Keep extensions ontologized and queryable | `PropertyValue(name, value, unit, nameTAN, valueTAN, unitTAN)` |
+| Keep extensions ontologized and queryable | `Annotation(name, value, unit, nameTAN, valueTAN, unitTAN)` |
 | Preserve metadata outside the core graph | `SetProperty`, `TryGetTypedPropertyValue` from `DynamicObj` |
 | Read/write decorated YAML | `ProcessCore.Yaml.Dataset.fromYamlString false`, `toYamlString` |
 | Enforce core-only YAML | `ProcessCore.Yaml.Dataset.fromYamlString true` |

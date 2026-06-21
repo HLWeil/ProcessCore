@@ -13,7 +13,7 @@ open ProcessCore.Yaml
 // let private readExample name =
 //     System.IO.File.ReadAllText(System.IO.Path.Combine(examplesDir, name))
 
-// The example files use ProcessCore type strings (Dataset, LabProcess, Material, Data)
+// The example files use ProcessCore type strings (Dataset, Process, Sample, Data)
 // with ISA additionalType decorations. Strict mode (processCoreOnly=true) works fine;
 // extra fields (creators, labProtocols, …) go to overflow.
 
@@ -34,7 +34,7 @@ let tests = testList "Examples" [
 
     testCase "investigation name" <| fun _ ->
         let inv = loadInvestigation(false)
-        Expect.equal inv.Name
+        Expect.equal inv.Title
                      (Some "Validation of Proteins in Arabidopsis thaliana")
                      "name"
 
@@ -79,15 +79,15 @@ let tests = testList "Examples" [
         let assay = loadAssay(false)
         let input = assay.Processes.[0].Inputs.[0]
         match input with
-        | MaterialNode m -> Expect.equal m.Name "Base Culture" "first input name"
-        | DataNode _     -> failwith "Expected MaterialNode"
+        | SampleNode m -> Expect.equal m.Name "Base Culture" "first input name"
+        | DataNode _     -> failwith "Expected SampleNode"
 
     testCase "assay first process input additionalType" <| fun _ ->
         let assay = loadAssay(false)
         let input = assay.Processes.[0].Inputs.[0]
         match input with
-        | MaterialNode m -> Expect.equal m.AdditionalType (Some "Source") "additionalType"
-        | DataNode _     -> failwith "Expected MaterialNode"
+        | SampleNode m -> Expect.equal m.AdditionalType (Some "Source") "additionalType"
+        | DataNode _     -> failwith "Expected SampleNode"
 
     testCase "assay cell lycis process correctly resolved parameter values" <| fun _ ->
         let assay = loadAssay(false)
@@ -120,7 +120,7 @@ let tests = testList "Examples" [
         Expect.equal msRun.Outputs.Count 1 "one output"
         match msRun.Outputs.[0] with
         | DataNode d -> Expect.isTrue (d.Path.EndsWith(".raw")) "MS Run output is .raw data file"
-        | MaterialNode _ -> failwith "Expected DataNode for MS Run output"
+        | SampleNode _ -> failwith "Expected DataNode for MS Run output"
 
     testCase "assay CPA output path" <| fun _ ->
         let assay = loadAssay(false)
@@ -131,7 +131,7 @@ let tests = testList "Examples" [
         match cpa.Outputs.[0] with
         | DataNode d ->
             Expect.isTrue (d.Path.StartsWith("proteomics_result.csv")) "CPA output file"
-        | MaterialNode _ -> failwith "Expected DataNode for CPA output"
+        | SampleNode _ -> failwith "Expected DataNode for CPA output"
 
     testCase "assay creators in overflow" <| fun _ ->
         let assay = loadAssay(false)
@@ -142,10 +142,10 @@ let tests = testList "Examples" [
 
     testCase "assay labProtocols in overflow" <| fun _ ->
         let assay = loadAssay(false)
-        let hasLabProtocols =
+        let hasPlans =
             assay.GetProperties(true)
             |> Seq.exists (fun kv -> kv.Key = "labProtocols")
-        Expect.isTrue hasLabProtocols "labProtocols stored in overflow"
+        Expect.isTrue hasPlans "labProtocols stored in overflow"
 
     testCase "assay strict mode fails" <| fun _ ->
         // processCoreOnly=true — should throw because of unknown fields like creators, labProtocols

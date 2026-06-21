@@ -8,9 +8,9 @@ It should contain only these tables:
 
 - `Dataset`
 - `Process`
-- `Material`
+- `Sample`
 - `Data`
-- `PropertyValue`
+- `Annotation`
 
 Core rule:
 
@@ -56,12 +56,12 @@ Representation of the process list:
 - the dataset's process list is represented by all rows in `Process` with the same `dataset_id`
 - no separate junction table is needed in the simplified schema
 
-### `Material`
+### `Sample`
 
-Represents physical or conceptual material nodes in the graph.
+Represents physical or conceptual sample nodes in the graph.
 
 ```sql
-CREATE TABLE Material (
+CREATE TABLE Sample (
     id          TEXT PRIMARY KEY,
     dataset_id  TEXT NOT NULL REFERENCES Dataset(id),
     name        TEXT NOT NULL,
@@ -71,7 +71,7 @@ CREATE TABLE Material (
 
 Purpose:
 
-- stores material nodes such as sources and samples
+- stores sample nodes such as sources and samples
 - stays intentionally generic
 
 Notes:
@@ -111,9 +111,9 @@ CREATE TABLE Process (
     id           TEXT PRIMARY KEY,
     dataset_id   TEXT NOT NULL REFERENCES Dataset(id),
     name         TEXT NOT NULL,
-    input_type   TEXT NOT NULL CHECK (input_type IN ('Material', 'Data')),
+    input_type   TEXT NOT NULL CHECK (input_type IN ('Sample', 'Data')),
     input_id     TEXT NOT NULL,
-    output_type  TEXT NOT NULL CHECK (output_type IN ('Material', 'Data')),
+    output_type  TEXT NOT NULL CHECK (output_type IN ('Sample', 'Data')),
     output_id    TEXT NOT NULL
 );
 ```
@@ -134,7 +134,7 @@ Examples:
   - `A -> B`
   - `A -> C`
 
-### `PropertyValue`
+### `Annotation`
 
 Stores parameters in the simplified schema.
 
@@ -144,7 +144,7 @@ It should be able to attach either:
 - to a `Dataset`, for dataset-level parameters
 
 ```sql
-CREATE TABLE PropertyValue (
+CREATE TABLE Annotation (
     id          TEXT PRIMARY KEY,
     dataset_id  TEXT NOT NULL REFERENCES Dataset(id),
     owner_type  TEXT NOT NULL CHECK (owner_type IN ('Dataset', 'Process')),
@@ -169,14 +169,14 @@ Important interpretation:
 ## Recommended Indexes
 
 ```sql
-CREATE INDEX idx_material_dataset ON Material(dataset_id);
+CREATE INDEX idx_sample_dataset ON Sample(dataset_id);
 CREATE INDEX idx_data_dataset     ON Data(dataset_id);
 CREATE INDEX idx_process_dataset  ON Process(dataset_id);
 CREATE INDEX idx_process_input    ON Process(dataset_id, input_type, input_id);
 CREATE INDEX idx_process_output   ON Process(dataset_id, output_type, output_id);
-CREATE INDEX idx_property_dataset ON PropertyValue(dataset_id);
-CREATE INDEX idx_property_owner   ON PropertyValue(dataset_id, owner_type, owner_id);
-CREATE INDEX idx_property_name    ON PropertyValue(dataset_id, name);
+CREATE INDEX idx_property_dataset ON Annotation(dataset_id);
+CREATE INDEX idx_property_owner   ON Annotation(dataset_id, owner_type, owner_id);
+CREATE INDEX idx_property_name    ON Annotation(dataset_id, name);
 ```
 
 These are enough for:
@@ -196,10 +196,10 @@ The schema should still have only four tables, but one helper view makes queryin
 CREATE VIEW NodeRef AS
 SELECT
     dataset_id,
-    'Material' AS node_type,
+    'Sample' AS node_type,
     id AS node_id,
     name AS node_name
-FROM Material
+FROM Sample
 UNION ALL
 SELECT
     dataset_id,
@@ -215,7 +215,7 @@ FROM Data;
 Purpose:
 
 - gives one common node surface for path queries
-- avoids repeating material/data display logic in every recursive query
+- avoids repeating sample/data display logic in every recursive query
 
 ## Dataset Contains Processes
 
@@ -233,7 +233,7 @@ So the containment rule is:
 
 - `Dataset` owns the graph
 - `Process` rows are the members of that graph
-- `Material` and `Data` rows are the nodes used by those process edges
+- `Sample` and `Data` rows are the nodes used by those process edges
 
 This keeps the model simple while still matching the idea that a dataset contains its processes.
 
@@ -374,7 +374,7 @@ Meaning:
 - start from a leaf data node
 - find the full path that leads to it
 - inspect the processes on that path
-- return all `PropertyValue` rows named `temperature`
+- return all `Annotation` rows named `temperature`
 
 This is why `Paths` alone is not enough. We also need a step-level view of the path.
 
@@ -406,7 +406,7 @@ FROM Paths p
 JOIN PathSteps ps
   ON ps.dataset_id = p.dataset_id
  AND ps.path_id    = p.path_id
-JOIN PropertyValue pv
+JOIN Annotation pv
   ON pv.dataset_id = ps.dataset_id
  AND pv.owner_type = 'Process'
  AND pv.owner_id   = ps.process_id
@@ -432,7 +432,7 @@ Conceptually:
 ```sql
 SELECT pv.*
 FROM Paths p
-JOIN PropertyValue pv
+JOIN Annotation pv
   ON pv.dataset_id = p.dataset_id
  AND pv.owner_type = 'Dataset'
  AND pv.owner_id   = p.dataset_id
@@ -463,7 +463,7 @@ What gets simpler:
 
 - only five tables
 - `Process` is directly readable as a graph edge
-- one generic `PropertyValue` table instead of many parameter tables
+- one generic `Annotation` table instead of many parameter tables
 - no process I/O junction tables
 - `Paths` is straightforward
 - seed data is much shorter
@@ -474,17 +474,17 @@ What gets weaker:
 - only a very small parameter/property model
 - no rich distinction between many parameter subtypes
 - no explicit distinction between process metadata and edge metadata beyond `owner_type`
-- no DB-enforced polymorphic foreign keys from `Process` to `Material`/`Data`
-- no DB-enforced polymorphic foreign keys from `PropertyValue.owner_id` to `Dataset`/`Process`
+- no DB-enforced polymorphic foreign keys from `Process` to `Sample`/`Data`
+- no DB-enforced polymorphic foreign keys from `Annotation.owner_id` to `Dataset`/`Process`
 - less semantic detail than the full ARC model
 
 That is acceptable because this is explicitly a simplified base schema.
 
 ## Validation Strategy
 
-Because `Process.input_id` and `Process.output_id` can point to either `Material` or `Data`, SQLite cannot enforce both targets with a normal foreign key.
+Because `Process.input_id` and `Process.output_id` can point to either `Sample` or `Data`, SQLite cannot enforce both targets with a normal foreign key.
 
-Also, because `PropertyValue.owner_id` can point to either `Dataset` or `Process`, SQLite cannot enforce that polymorphic reference directly either.
+Also, because `Annotation.owner_id` can point to either `Dataset` or `Process`, SQLite cannot enforce that polymorphic reference directly either.
 
 So validation should happen through:
 
@@ -508,10 +508,10 @@ Useful validation queries:
 The simplified seed should follow these rules:
 
 1. insert one dataset
-2. insert all material nodes
+2. insert all sample nodes
 3. insert all data nodes
 4. insert one `Process` row per graph edge
-5. insert `PropertyValue` rows for process parameters and dataset parameters
+5. insert `Annotation` rows for process parameters and dataset parameters
 6. verify `Paths` returns the expected root-to-leaf chains
 7. verify parameter queries work from leaf nodes
 
@@ -548,15 +548,15 @@ Document the simplified schema separately from the richer SQL variants so both c
 The simplified base schema should be:
 
 - `Dataset`
-- `Material`
+- `Sample`
 - `Data`
 - `Process`
-- `PropertyValue`
+- `Annotation`
 
 with:
 
 - `Process` as the edge list
-- `PropertyValue` attached to either `Process` or `Dataset`
+- `Annotation` attached to either `Process` or `Dataset`
 - `NodeRef` as a helper view
 - `Paths` as the recursive root-to-leaf aggregation view
 - `PathSteps` as the process-level join surface for path-based parameter queries

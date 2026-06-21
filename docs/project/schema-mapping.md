@@ -17,7 +17,7 @@ The ProcessCore is designed to be compatible with RO-Crate, and therefore it's m
 |---|---|---|---|
 | `additionalType` | Core | `schema:additionalType` | - |
 | `identifier` | Core | `schema:identifier` | - |
-| `name` | Core | `schema:name` | - |
+| `title` | Core | `schema:name` | Renaming |
 | `description` | Core | `schema:description` | - |
 | `processes` | Core | `schema:about` | Renaming |
 | `hasPart` | Core | `schema:hasPart` | - |
@@ -25,24 +25,24 @@ The ProcessCore is designed to be compatible with RO-Crate, and therefore it's m
 | `dataContexts` | Datamap | `schema:variableMeasured` | Renaming |
 | `additionalProperty` | Core | `schema:additionalProperty` | Added Property |
 
-## LabProcess   
+## Process
 
 | PC property | Location | Schema.org Property | Mapping |
 |---|---|---|---|
-| `LabProcess` | Core | bioschemas:LabProcess | - |
+| `Process` | Core | bioschemas:LabProcess | - |
 |---|---|---|---|
 | `additionalType` | Core | `schema:additionalType` | - |
 | `name` | Core | `schema:name` | - |
 | `inputs` | Core | `schema:object` | Renaming |
 | `outputs` | Core | `schema:result` | Renaming |
-| `executesProtocol` | Core | `bioschemas:executesLabProtocol` | Renaming |
+| `executesProtocol` | Core | `bioschemas:executesPlan` | Renaming |
 | `parameterValue` | Core | `bioschemas:parameterValue` | - |
 
-## LabProtocol
+## Plan
 
 | PC property | Location | Schema.org Property | Mapping |
 |---|---|---|---|
-| `LabProtocol` | Core | bioschemas:LabProtocol | - |
+| `Plan` | Core | bioschemas:LabProtocol | - |
 |---|---|---|---|
 | `additionalType` | Core | `schema:additionalType` | - |
 | `name` | Core | `schema:name` | - |
@@ -54,11 +54,11 @@ The ProcessCore is designed to be compatible with RO-Crate, and therefore it's m
 | `url` | Core | `schema:url` | - |
 | `additionalProperty` | Core | `schema:additionalProperty` | Added Property |
 
-## Material
+## Sample
 
 | PC property | Location | Schema.org Property | Mapping |
 |---|---|---|---|
-| `Material` | Core | bioschemas:Sample | Renaming |
+| `Sample` | Core | bioschemas:Sample | Renaming |
 |---|---|---|---|
 | `additionalType` | Core | `schema:additionalType` | - |
 | `name` | Core | `schema:name` | - |
@@ -77,11 +77,11 @@ The ProcessCore is designed to be compatible with RO-Crate, and therefore it's m
 | `encodingFormat` | Core | `schema:encodingFormat` | - |
 | `additionalProperty` | Core | `schema:additionalProperty` | Added Property |
 
-## PropertyValue
+## Annotation
 
 | PC property | Location | Schema.org Property | Mapping |
 |---|---|---|---|
-| `PropertyValue` | Core | schema:PropertyValue | - |
+| `Annotation` | Core | schema:PropertyValue | - |
 |---|---|---|---|
 | `additionalType` | Core | `schema:additionalType` | - |
 | `name` | Core | `schema:name` | - |
