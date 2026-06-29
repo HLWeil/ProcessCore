@@ -71,18 +71,18 @@ The generic linked-data layer uses flattened JSON-LD-style objects:
 
 ```mermaid
 flowchart TD
-    Dataset --about--> LabProcess
-    Dataset --additionalProperty--> PropertyValue
-    LabProcess --object--> Sample
-    LabProcess --object--> File
-    LabProcess --result--> Sample
-    LabProcess --result--> File
-    LabProcess --parameterValue--> PropertyValue
-    LabProcess --additionalProperty--> PropertyValue
-    LabProcess --executesLabProtocol--> LabProtocol
-    Sample --additionalProperty--> PropertyValue
-    File --additionalProperty--> PropertyValue
-    LabProtocol --additionalProperty--> PropertyValue
+    Dataset --about--> Process
+    Dataset --additionalProperty--> Annotation
+    Process --object--> Sample
+    Process --object--> File
+    Process --result--> Sample
+    Process --result--> File
+    Process --parameterValue--> Annotation
+    Process --additionalProperty--> Annotation
+    Process --executesRecipe--> Recipe
+    Sample --additionalProperty--> Annotation
+    File --additionalProperty--> Annotation
+    Recipe --additionalProperty--> Annotation
 ```
 
 ## Query Model

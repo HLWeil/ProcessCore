@@ -1,13 +1,13 @@
 ---
-title: PropertyValue
+title: Annotation
 category: Core Specification
 categoryindex: 4
 index: 7
 ---
 
-# PropertyValue
+# Annotation
 
-Extensible key-value-unit triple. PropertyValues are the primary extension mechanism of ProcessCore. They can be attached through `additionalProperty` for cross-cutting metadata, or through dedicated relationships such as `parameterValue` when the host type already defines a more specific role.
+Extensible key-value-unit triple. Annotations are the primary extension mechanism of ProcessCore. They can be attached through `additionalProperty` for cross-cutting metadata, or through dedicated relationships such as `parameterValue` when the host type already defines a more specific role.
 
 **Schema.org type**: `schema.org/PropertyValue`
 
@@ -20,7 +20,7 @@ Decoration subtypes:
 | Property | Type | Required | Description |
 |----------|------|----------|-------------|
 | `id` | Text | MUST | Unique identifier |
-| `type` | Text | MUST | `PropertyValue` |
+| `type` | Text | MUST | `Annotation` |
 | `additionalType` | Text | SHOULD | Subtype discriminator |
 | `name` | Text | MUST | Key name |
 | `value` | Text, Number | SHOULD | The value |
@@ -42,20 +42,20 @@ flowchart TD
     vt@{ shape: stadium, label: "URL" }
     ut@{ shape: stadium, label: "URL" }
 
-    Dataset --additionalProperty--> PropertyValue
-    LabProcess --parameterValue--> PropertyValue
-    Material --additionalProperty--> PropertyValue
-    Data --additionalProperty--> PropertyValue
-    LabProtocol --additionalProperty--> PropertyValue
+    Dataset --additionalProperty--> Annotation
+    Process --parameterValue--> Annotation
+    Sample --additionalProperty--> Annotation
+    Data --additionalProperty--> Annotation
+    Recipe --additionalProperty--> Annotation
 
-    PropertyValue --name--> na
-    PropertyValue --value--> va
-    PropertyValue --unit--> un
-    PropertyValue --nameTAN--> nt
-    PropertyValue --valueTAN--> vt
-    PropertyValue --unitTAN--> ut
+    Annotation --name--> na
+    Annotation --value--> va
+    Annotation --unit--> un
+    Annotation --nameTAN--> nt
+    Annotation --valueTAN--> vt
+    Annotation --unitTAN--> ut
 
-    PropertyValue --instanceOf--> FormalParameter
+    Annotation --instanceOf--> FormalParameter
     
 
 ```

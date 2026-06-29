@@ -2,7 +2,7 @@
 
 ## Context
 
-This repository will become the specification home for the ARC Data Model. The model is built on a **ProcessCore** abstraction — a graph connecting sources to data via processes, extensible via PropertyValues. Two "decoration" proof-of-concepts (ISA and WorkflowRun) demonstrate how domain-specific models map onto ProcessCore. The specs must also be representable as SQL and document-DB schemas.
+This repository will become the specification home for the ARC Data Model. The model is built on a **ProcessCore** abstraction — a graph connecting sources to data via processes, extensible via Annotations. Two "decoration" proof-of-concepts (ISA and WorkflowRun) demonstrate how domain-specific models map onto ProcessCore. The specs must also be representable as SQL and document-DB schemas.
 
 Currently, the repo has a flat structure with a few markdown files, YAML examples, and RO-Crate profile references — all at the root or in `roc-profiles/`. This plan reorganizes it into a clean, scalable layout.
 
@@ -21,9 +21,9 @@ ARC-Data-Model/
 │   │   ├── Dataset.md                     # Container/context for processes
 │   │   ├── Process.md                     # Core transformation node (inputs → outputs)
 │   │   ├── Protocol.md                    # Planned procedure description
-│   │   ├── Material.md                    # Input/output materials (sources, samples)
+│   │   ├── Sample.md                    # Input/output samples (sources, samples)
 │   │   ├── Data.md                        # Data files
-│   │   ├── PropertyValue.md               # Extensible key-value-unit triples
+│   │   ├── Annotation.md               # Extensible key-value-unit triples
 │   │   ├── Person.md                      # Contributors
 │   │   └── DefinedTerm.md                 # Ontology annotations
 │   │
@@ -35,10 +35,10 @@ ARC-Data-Model/
 │   │   │   ├── Investigation.md           # Dataset → Investigation
 │   │   │   ├── Study.md                   # Dataset → Study
 │   │   │   ├── Assay.md                   # Dataset → Assay
-│   │   │   ├── LabProcess.md              # Process → LabProcess
-│   │   │   ├── LabProtocol.md             # Protocol → LabProtocol
-│   │   │   ├── Sample.md                  # Material → Sample/Source
-│   │   │   └── PropertyValues.md          # Parameter, Characteristic, Factor, Component
+│   │   │   ├── Process.md              # Process → Process
+│   │   │   ├── Recipe.md           # Protocol → Recipe
+│   │   │   ├── Sample.md                  # Sample → Sample/Source
+│   │   │   └── Annotations.md          # Parameter, Characteristic, Factor, Component
 │   │   │
 │   │   └── workflow-run/                  # Workflow Run decoration
 │   │       ├── README.md                  # Overview + mapping table (core → WR)
@@ -47,7 +47,7 @@ ARC-Data-Model/
 │   │       ├── WorkflowProtocol.md        # Protocol → Workflow Protocol
 │   │       ├── WorkflowInvocation.md      # Process → Workflow Invocation
 │   │       ├── FormalParameter.md         # WR-specific entity
-│   │       └── PropertyValues.md          # Workflow Input, Prefix, Position
+│   │       └── Annotations.md          # Workflow Input, Prefix, Position
 │   │
 │   └── querying/
 │       └── use-cases.md                   # Query patterns on the process graph
@@ -73,13 +73,13 @@ ARC-Data-Model/
 
 ## Key Design Decisions
 
-1. **`spec/` as the normative home** — separates the specification from supporting material (examples, schemas, references). Everything under `spec/` is "what the model IS."
+1. **`spec/` as the normative home** — separates the specification from supporting sample (examples, schemas, references). Everything under `spec/` is "what the model IS."
 
 2. **One file per core type** — each ProcessCore entity gets its own markdown file with properties, relationships, and constraints. Enables direct cross-linking from decoration specs (e.g., ISA `Investigation.md` references `../../core/Dataset.md`).
 
 3. **Decorations as subdirectories** — each decoration is a self-contained folder under `spec/decorations/`. Adding a future decoration (e.g., Galaxy, CWL) means adding a new folder — no changes to core or other decorations.
 
-4. **PropertyValue subtypes grouped per decoration** — Parameter/Characteristic/Factor/Component share the same base structure and differ only by `additionalType`. One file per decoration keeps them together rather than creating many tiny files.
+4. **Annotation subtypes grouped per decoration** — Parameter/Characteristic/Factor/Component share the same base structure and differ only by `additionalType`. One file per decoration keeps them together rather than creating many tiny files.
 
 5. **`references/` replaces `roc-profiles/`** — more general name, accommodates future non-RO-Crate reference material. Files preserved unchanged as upstream specs.
 

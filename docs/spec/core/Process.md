@@ -1,32 +1,32 @@
 ---
-title: LabProcess
+title: Process
 category: Core Specification
 categoryindex: 4
 index: 3
 ---
 
-# LabProcess
+# Process
 
 Core transformation node in the process graph. A Process connects inputs to outputs and references the Protocol that was executed.
 
 **Schema.org type**: `bioschemas.org/LabProcess`
 
 Decorations specialize Process:
-- ISA: LabProcess
-- Workflow Run: Workflow Invocation (CreateAction + LabProcess)
+- ISA: Process
+- Workflow Run: Workflow Invocation (CreateAction + Process)
 
 ## Properties
 
 | Property | Type | Required | Description |
 |----------|------|----------|-------------|
 | `id` | Text | COULD | Unique process identifier |
-| `type` | Text | MUST | `LabProcess` |
-| `additionalType` | Text | COULD | Decoration discriminator, e.g. `LabProcess` |
+| `type` | Text | MUST | `Process` |
+| `additionalType` | Text | COULD | Decoration discriminator, e.g. `Process` |
 | `name` | Text | MUST | Name of the process |
-| `inputs` | [Material](Material.md), [Data](Data.md) | SHOULD | Input(s) of the process |
-| `outputs` | [Material](Material.md), [Data](Data.md) | SHOULD | Output(s) of the process |
-| `executesProtocol` | [LabProtocol](LabProtocol.md) | SHOULD | Protocol that was executed |
-| `parameterValue` | [PropertyValue](PropertyValue.md) | SHOULD | Parameter key-value pairs |
+| `inputs` | [Sample](Sample.md), [Data](Data.md) | SHOULD | Input(s) of the process |
+| `outputs` | [Sample](Sample.md), [Data](Data.md) | SHOULD | Output(s) of the process |
+| `executesProtocol` | [Recipe](Recipe.md) | SHOULD | Protocol that was executed |
+| `parameterValue` | [Annotation](Annotation.md) | SHOULD | Parameter key-value pairs |
 
 ## Relationships
 
@@ -35,12 +35,12 @@ flowchart TD
 
     na@{ shape: stadium, label: "string" }
 
-    Dataset --processes--> LabProcess
-    LabProcess --inputs--> Material/Data
-    LabProcess --"outputs"--> Material/Data
-    LabProcess --executesProtocol--> LabProtocol
-    LabProcess --parameterValue--> PropertyValue
-    LabProcess --name--> na
+    Dataset --processes--> Process
+    Process --inputs--> Sample/Data
+    Process --"outputs"--> Sample/Data
+    Process --executesProtocol--> Recipe
+    Process --parameterValue--> Annotation
+    Process --name--> na
 ```
 
 ## Inputs and Outputs
@@ -60,8 +60,8 @@ flowchart TD
         r2[result 2]
     end
 
-    LabProcess --inputs--> inputs
-    LabProcess --"outputs"--> outputs
+    Process --inputs--> inputs
+    Process --"outputs"--> outputs
 
     o1 -.correspondsTo.-> r1
     o2 -.correspondsTo.-> r2

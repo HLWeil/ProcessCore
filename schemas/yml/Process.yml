@@ -1,18 +1,18 @@
 $schema: "https://json-schema.org/draft/2020-12/schema"
-$id: "LabProcess.yml"
-title: LabProcess
+$id: "Process.yml"
+title: Process
 description: >
-  Core transformation node in the process graph. A LabProcess connects inputs to
+  Core transformation node in the process graph. A Process connects inputs to
   outputs and references the Protocol that was executed.
 type: object
 
 # Cross-reference helpers (reused in inputs/outputs items)
 $defs:
-  materialOrData:
+  sampleOrData:
     oneOf:
       - type: string
-        description: "@id reference to a Material or Data object"
-      - $ref: "Material.yml"
+        description: "@id reference to a Sample or Data object"
+      - $ref: "Sample.yml"
       - $ref: "Data.yml"
 
 properties:
@@ -22,12 +22,12 @@ properties:
 
   type:
     type: string
-    const: "LabProcess"
+    const: "Process"
     description: Fixed type discriminator
 
   additionalType:
     type: string
-    description: Decoration discriminator (e.g. LabProcess, CreateAction)
+    description: Decoration discriminator (e.g. Process, CreateAction)
 
   name:
     type: string
@@ -36,24 +36,24 @@ properties:
   inputs:
     type: array
     description: >
-      Input materials or data files consumed by this process (SHOULD).
+      Input samples or data files consumed by this process (SHOULD).
       The Nth input corresponds to the Nth output.
     items:
-      $ref: "#/$defs/materialOrData"
+      $ref: "#/$defs/sampleOrData"
 
   outputs:
     type: array
     description: >
-      Output materials or data files produced by this process (SHOULD).
+      Output samples or data files produced by this process (SHOULD).
       The Nth output corresponds to the Nth input.
     items:
-      $ref: "#/$defs/materialOrData"
+      $ref: "#/$defs/sampleOrData"
 
   executesProtocol:
     oneOf:
       - type: string
-        description: "@id reference to a LabProtocol"
-      - $ref: "LabProtocol.yml"
+        description: "@id reference to a Recipe"
+      - $ref: "Recipe.yml"
     description: Protocol that was executed by this process (SHOULD)
 
   parameterValue:
@@ -62,8 +62,8 @@ properties:
     items:
       oneOf:
         - type: string
-          description: "@id reference to a PropertyValue"
-        - $ref: "PropertyValue.yml"
+          description: "@id reference to a Annotation"
+        - $ref: "Annotation.yml"
 
 required:
   - type

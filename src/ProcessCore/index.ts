@@ -1,6 +1,6 @@
 export { DefinedTerm } from "./ts/DefinedTerm.ts";
 export { FormalParameter } from "./ts/FormalParameter.ts";
-export { PropertyValue } from "./ts/PropertyValue.ts";
+export { Annotation } from "./ts/Annotation.ts";
 export {
     FragmentRelation,
     type IFragmentSelectorProvider,
@@ -9,10 +9,10 @@ export {
 } from "./ts/FragmentSelector.ts";
 export {
     IONode,
-    Material,
+    Sample,
     Data,
-    LabProcess,
-    LabProtocol,
+    Process,
+    Recipe,
     Dataset,
     Path,
 } from "./ts/Graph.ts";

@@ -11,7 +11,7 @@ This document describes the test suite for the `src/ProcessCore` library. Tests 
   - **Deduplication** — adding an identical object a second time is silently ignored.
   - **Object identity** — each type's `Equals` / `GetHashCode` follows the spec.
 - Cover all graph traversal directions (undirected, upstream, downstream) and the optional `scope` parameter.
-- Cover all four PropertyValue sources.
+- Cover all four Annotation sources.
 - Cover all three querying use-cases from the spec.
 
 ## Test Structure
@@ -24,20 +24,20 @@ tests/ProcessCore.Tests/
     Synchronization.fs       ← (already exists, placeholder)
     Fixtures.fs              ← shared graph fixtures (must be first)
     Types/
-        PropertyValue.fs
+        Annotation.fs
         DefinedTerm.fs
         FormalParameter.fs
-        Material.fs
+        Sample.fs
         Data.fs
-        LabProtocol.fs
-        LabProcess.fs
+        Recipe.fs
+        Process.fs
         Dataset.fs
         IONode.fs
     Graph/
         BackEdges.fs
         Deduplication.fs
         Traversal.fs
-        PropertyValueSources.fs
+        AnnotationSources.fs
         DatasetQueries.fs
         ProcessGraphQueries.fs
         PathQueries.fs
@@ -63,10 +63,10 @@ Two shared fixtures should be defined in a `Fixtures.fs` module and reused acros
 Source1 --[p1]--> Sample1 --[p2]--> Sample2 --[p3]--> rawData1.csv
 ```
 
-- Three `LabProcess` instances: `p1`, `p2`, `p3`
-- `p1`: input `Material("Source1", AdditionalType="Source")`, output `Material("Sample1", AdditionalType="Sample")`; protocol `"extraction"` with `IntendedUse = DefinedTerm("cell growth")`; `ParameterValue` `[temperature=37°C (unit), rpm=200 (unitized)]`
-- `p2`: input `Material("Sample1")`, output `Material("Sample2")`; protocol `"digestion"`; `ParameterValue` `[enzyme="Trypsin" (term, with TAN)]`
-- `p3`: input `Material("Sample2")`, output `Data("rawData1.csv")`; no protocol
+- Three `Process` instances: `p1`, `p2`, `p3`
+- `p1`: input `Sample("Source1", AdditionalType="Source")`, output `Sample("Sample1", AdditionalType="Sample")`; protocol `"extraction"` with `IntendedUse = DefinedTerm("cell growth")`; `ParameterValue` `[temperature=37°C (unit), rpm=200 (unitized)]`
+- `p2`: input `Sample("Sample1")`, output `Sample("Sample2")`; protocol `"digestion"`; `ParameterValue` `[enzyme="Trypsin" (term, with TAN)]`
+- `p3`: input `Sample("Sample2")`, output `Data("rawData1.csv")`; no protocol
 - All three collected in a single `Dataset("DS-A")`
 
 ### Fixture B — Branching Graph
@@ -104,11 +104,11 @@ Dataset("parent")
 
 ## 1 — Types
 
-### 1.1 PropertyValue (`Types/PropertyValue.fs`)
+### 1.1 Annotation (`Types/Annotation.fs`)
 
 | Test | Description |
 |------|-------------|
-| `construction with name only` | `PropertyValue("Temperature")` has `Name = "Temperature"`, all optional fields `None` |
+| `construction with name only` | `Annotation("Temperature")` has `Name = "Temperature"`, all optional fields `None` |
 | `construction with all fields` | Constructor overload or property setters populate `Value`, `Unit`, `NameTAN`, `ValueTAN`, `UnitTAN`, `AdditionalType`, `InstanceOf` |
 | `equality same values` | Two PVs with same name/value/unit/nameTAN are equal |
 | `equality ignores other fields` | Two PVs differing only in `ValueTAN`, `UnitTAN`, `AdditionalType` are still equal |
@@ -136,15 +136,15 @@ Dataset("parent")
 | `inequality different name` | Different names → not equal |
 | `DefaultValue field` | Setting `DefaultValue` to a `DefinedTerm` is readable |
 
-### 1.4 Material (`Types/Material.fs`)
+### 1.4 Sample (`Types/Sample.fs`)
 
 | Test | Description |
 |------|-------------|
-| `equality by name` | Two `Material("Sample1")` are equal regardless of other fields |
+| `equality by name` | Two `Sample("Sample1")` are equal regardless of other fields |
 | `inequality different name` | Different names → not equal |
 | `AddAdditionalProperty deduplicates` | Adding identical PV twice → one entry |
 | `RemoveAdditionalProperty` | PV is removed; non-existent remove is a no-op |
-| `InputOf / OutputOf start empty` | Fresh material has empty back-edge lists |
+| `InputOf / OutputOf start empty` | Fresh sample has empty back-edge lists |
 
 ### 1.5 Data (`Types/Data.fs`)
 
@@ -158,7 +158,7 @@ Dataset("parent")
 | `InputOf / OutputOf start empty` | Fresh data node has empty back-edge lists |
 | `EncodingFormat and AdditionalType fields` | Settable and readable |
 
-### 1.6 LabProtocol (`Types/LabProtocol.fs`)
+### 1.6 Recipe (`Types/Recipe.fs`)
 
 | Test | Description |
 |------|-------------|
@@ -170,32 +170,32 @@ Dataset("parent")
 | `AddLabEquipment deduplicates` | Identical PV added twice → one entry |
 | `RemoveLabEquipment` | PV removed |
 | `AddAdditionalProperty deduplicates` | Identical PV added twice → one entry |
-| `optional name constructor` | `LabProtocol()` has `Name = None` |
+| `optional name constructor` | `Recipe()` has `Name = None` |
 
-### 1.7 LabProcess (`Types/LabProcess.fs`)
+### 1.7 Process (`Types/Process.fs`)
 
 | Test | Description |
 |------|-------------|
 | `equality by name` | Two processes with same name are equal |
-| `AddInput deduplicates material` | `AddInputMaterial` with identical material twice → one input |
+| `AddInput deduplicates sample` | `AddInputSample` with identical sample twice → one input |
 | `AddInput deduplicates data` | Same for Data nodes |
-| `RemoveInput material` | Input removed; back-edge cleared |
+| `RemoveInput sample` | Input removed; back-edge cleared |
 | `RemoveInput data` | Same for Data |
-| `AddOutput deduplicates material` | Identical material twice → one output |
-| `RemoveOutput material` | Output removed; back-edge cleared |
+| `AddOutput deduplicates sample` | Identical sample twice → one output |
+| `RemoveOutput sample` | Output removed; back-edge cleared |
 | `AddParameterValue deduplicates` | Identical PV twice → one entry |
 | `RemoveParameterValue` | PV removed |
 | `TryGetParameterValue found / not found` | Returns `Some` / `None` |
 | `GetParameterValue throws if missing` | Raises exception |
-| `InputMaterials / InputData filters correctly` | Mixed inputs → typed helpers return only the correct type |
-| `OutputMaterials / OutputData` | Same for outputs |
+| `InputSamples / InputData filters correctly` | Mixed inputs → typed helpers return only the correct type |
+| `OutputSamples / OutputData` | Same for outputs |
 | `ProtocolParameters returns empty without protocol` | No protocol → empty |
 | `ProtocolParameters delegates to protocol` | Returns protocol parameters |
-| `PropertyValuesByName — parameter source` | PV in `ParameterValue` with matching name returned |
-| `PropertyValuesByName — input node source` | PV in input material `AdditionalProperty` returned |
-| `PropertyValuesByName — output node source` | PV in output material `AdditionalProperty` returned |
-| `PropertyValuesByName — protocol component source` | PV in `LabEquipment` returned |
-| `PropertyValuesByName — no match returns empty` | Unknown name → empty |
+| `AnnotationsByName — parameter source` | PV in `ParameterValue` with matching name returned |
+| `AnnotationsByName — input node source` | PV in input sample `AdditionalProperty` returned |
+| `AnnotationsByName — output node source` | PV in output sample `AdditionalProperty` returned |
+| `AnnotationsByName — protocol component source` | PV in `LabEquipment` returned |
+| `AnnotationsByName — no match returns empty` | Unknown name → empty |
 
 ### 1.8 Dataset (`Types/Dataset.fs`)
 
@@ -222,11 +222,11 @@ These tests verify the **eager consistency** contract.
 
 | Test | Description |
 |------|-------------|
-| `AddInput — material InputOf updated` | After `p.AddInputMaterial(m)`, `m.InputOf` contains `p` |
+| `AddInput — sample InputOf updated` | After `p.AddInputSample(m)`, `m.InputOf` contains `p` |
 | `AddInput — data InputOf updated` | Same for Data nodes |
-| `RemoveInput — material InputOf cleared` | After removal, `m.InputOf` no longer contains `p` |
-| `AddOutput — material OutputOf updated` | After `p.AddOutputMaterial(m)`, `m.OutputOf` contains `p` |
-| `RemoveOutput — material OutputOf cleared` | After removal, `m.OutputOf` no longer contains `p` |
+| `RemoveInput — sample InputOf cleared` | After removal, `m.InputOf` no longer contains `p` |
+| `AddOutput — sample OutputOf updated` | After `p.AddOutputSample(m)`, `m.OutputOf` contains `p` |
+| `RemoveOutput — sample OutputOf cleared` | After removal, `m.OutputOf` no longer contains `p` |
 | `AddOutput — data OutputOf updated` | Same for Data |
 | `RemoveOutput — data OutputOf cleared` | Same for Data |
 | `two processes sharing a node` | Node's `InputOf` contains both processes |
@@ -257,12 +257,12 @@ These tests verify the **eager consistency** contract.
 
 | Test | Description |
 |------|-------------|
-| `MaterialNode.Key()` | Returns `"M:<name>"` |
+| `SampleNode.Key()` | Returns `"M:<name>"` |
 | `DataNode.Key() without selector` | Returns `"D:<path>"` |
 | `DataNode.Key() with selector` | Returns `"D:<path><selector>"` |
-| `EqualTo same material` | `MaterialNode(m1).EqualTo(MaterialNode(m2))` where `m1 = m2` → true |
-| `EqualTo different types` | `MaterialNode` vs `DataNode` → false |
-| `GetInputOf / GetOutputOf delegate` | Returns the underlying material/data back-edge list |
+| `EqualTo same sample` | `SampleNode(m1).EqualTo(SampleNode(m2))` where `m1 = m2` → true |
+| `EqualTo different types` | `SampleNode` vs `DataNode` → false |
+| `GetInputOf / GetOutputOf delegate` | Returns the underlying sample/data back-edge list |
 | `IsRootNode: no predecessor in graph` | `Source1` in Fixture A → `IsRootNode` = true |
 | `IsRootNode: has predecessor` | `Sample1` in Fixture A → `IsRootNode` = false |
 | `IsFinalNode: no successor in graph` | `rawData1.csv` in Fixture A → `IsFinalNode` = true |
@@ -317,18 +317,18 @@ Using Fixture A (linear) and Fixture B (branching) and Fixture C (merging).
 | `RootNodes in branching graph` | From either branch output in B → `{Source1}` |
 | `FinalNodes in merging graph` | From `Source1` in C → `{FinalSample}` |
 
-### 5.5 UpstreamMaterials / DownstreamData etc.
+### 5.5 UpstreamSamples / DownstreamData etc.
 
 | Test | Description |
 |------|-------------|
-| `UpstreamMaterials from data leaf` | `rawData1.csv` in A → `{Sample2, Sample1, Source1}` |
+| `UpstreamSamples from data leaf` | `rawData1.csv` in A → `{Sample2, Sample1, Source1}` |
 | `DownstreamData from root` | `Source1` in A → `{rawData1.csv}` |
-| `ConnectedMaterials from mid` | `Sample1` in A → `{Source1, Sample2}` |
+| `ConnectedSamples from mid` | `Sample1` in A → `{Source1, Sample2}` |
 | `ConnectedData` | Returns only Data nodes |
 
 ---
 
-## 6 — PropertyValue Sources (`Graph/PropertyValueSources.fs`)
+## 6 — Annotation Sources (`Graph/AnnotationSources.fs`)
 
 These tests verify that **all four sources** are collected when querying property values.
 
@@ -336,13 +336,13 @@ A dedicated fixture is needed: one process with PVs in all four positions simult
 
 | Test | Description |
 |------|-------------|
-| `LabProcess.PropertyValuesByName — all 4 sources` | Create a process with `ParameterValue`, input node `AdditionalProperty`, output node `AdditionalProperty`, and protocol `LabEquipment` each having a PV with a unique name. Call `PropertyValuesByName` for each name and verify it is found. |
-| `IONode.AllPropertyValues — all 4 sources` | Start from the input node of the above process; `AllPropertyValues` includes entries from all four sources |
-| `UpstreamPropertyValues — filters to upstream only` | PV only on downstream process is not included |
-| `DownstreamPropertyValues — filters to downstream only` | PV only on upstream process is not included |
-| `UpstreamPropertyValues with protocolName filter` | Only collects from processes whose protocol name matches |
+| `Process.AnnotationsByName — all 4 sources` | Create a process with `ParameterValue`, input node `AdditionalProperty`, output node `AdditionalProperty`, and protocol `LabEquipment` each having a PV with a unique name. Call `AnnotationsByName` for each name and verify it is found. |
+| `IONode.AllAnnotations — all 4 sources` | Start from the input node of the above process; `AllAnnotations` includes entries from all four sources |
+| `UpstreamAnnotations — filters to upstream only` | PV only on downstream process is not included |
+| `DownstreamAnnotations — filters to downstream only` | PV only on upstream process is not included |
+| `UpstreamAnnotations with protocolName filter` | Only collects from processes whose protocol name matches |
 | `Deduplication across sources` | A PV with the same name/value/unit/nameTAN appearing in two sources is returned only once |
-| `AllPropertyValues on Path` | Same four-source fixture wrapped in a `Path` → identical set returned |
+| `AllAnnotations on Path` | Same four-source fixture wrapped in a `Path` → identical set returned |
 
 ---
 
@@ -354,27 +354,27 @@ Using Fixture A and Fixture D (nested).
 |------|-------------|
 | `AllProcesses — flat dataset` | `DS-A.AllProcesses()` → `{p1, p2, p3}` |
 | `AllProcesses — nested datasets` | Fixture D: `parent.AllProcesses()` → processes from both children |
-| `AllMaterials deduplicates shared nodes` | Fixture D: `Sample1` appears in both children but is in result once |
+| `AllSamples deduplicates shared nodes` | Fixture D: `Sample1` appears in both children but is in result once |
 | `AllData` | Fixture A: `rawData1.csv` in result |
 | `AllNodes includes both types` | Fixture A: 4 nodes total |
 | `RootNodes` | Fixture A: `{Source1}` |
 | `FinalNodes` | Fixture A: `{rawData1.csv}` |
-| `RootMaterials / RootData / FinalMaterials / FinalData` | Typed subsets of above |
-| `AllPropertyValues — no filter` | Returns PVs from all processes |
-| `AllPropertyValues — protocolName filter` | Only PVs from processes whose protocol name matches |
-| `PropertyValuesForNode — upstream + downstream` | Mid-graph node returns PVs from both directions |
-| `UpstreamPropertyValuesForNode` | Returns only upstream PVs |
-| `DownstreamPropertyValuesForNode` | Returns only downstream PVs |
+| `RootSamples / RootData / FinalSamples / FinalData` | Typed subsets of above |
+| `AllAnnotations — no filter` | Returns PVs from all processes |
+| `AllAnnotations — protocolName filter` | Only PVs from processes whose protocol name matches |
+| `AnnotationsForNode — upstream + downstream` | Mid-graph node returns PVs from both directions |
+| `UpstreamAnnotationsForNode` | Returns only upstream PVs |
+| `DownstreamAnnotationsForNode` | Returns only downstream PVs |
 | `FindProcessesByProtocolType` | Fixture A: `"cell growth"` → `{p1}` |
 | `FindProcessesByProtocolType — no match` | Unknown type → empty |
-| `FindProcessesByPropertyValue — param source` | Finds process with matching parameter |
-| `FindProcessesByPropertyValue — input node source` | Finds process whose input node has matching `AdditionalProperty` |
-| `FindProcessesByPropertyValue — output node source` | Same for output |
-| `FindProcessesByPropertyValue — protocol component source` | PV in `LabEquipment` |
+| `FindProcessesByAnnotation — param source` | Finds process with matching parameter |
+| `FindProcessesByAnnotation — input node source` | Finds process whose input node has matching `AdditionalProperty` |
+| `FindProcessesByAnnotation — output node source` | Same for output |
+| `FindProcessesByAnnotation — protocol component source` | PV in `LabEquipment` |
 | `FindProcessesByPropertyName` | Returns process regardless of value |
-| `MaterialsResultingFromCondition — use-case 1` | Fixture A: query for samples resulting from `"cell growth"` at `temperature=37°C` → `{Sample1}` (first downstream terminal material after `p1`) |
-| `MaterialsResultingFromCondition — no qualifying process` | Unknown protocol type → empty |
-| `MaterialsResultingFromCondition — branching downstream` | Fixture B: qualifying process has two terminal output materials → both returned |
+| `SamplesResultingFromCondition — use-case 1` | Fixture A: query for samples resulting from `"cell growth"` at `temperature=37°C` → `{Sample1}` (first downstream terminal sample after `p1`) |
+| `SamplesResultingFromCondition — no qualifying process` | Unknown protocol type → empty |
+| `SamplesResultingFromCondition — branching downstream` | Fixture B: qualifying process has two terminal output samples → both returned |
 
 ---
 
@@ -386,14 +386,14 @@ Using Fixture A and Fixture D (nested).
 | `Path.Head` | First process in the path |
 | `Path.Last` | Last process in the path |
 | `Path.Nodes() deduplicates shared nodes` | Shared node between two processes appears once |
-| `Path.Materials()` | Only material nodes |
+| `Path.Samples()` | Only sample nodes |
 | `Path.DataNodes()` | Only data nodes |
 | `Path.ContainsNode — present` | Mid-graph node → true |
 | `Path.ContainsNode — absent` | Node not in path → false |
 | `Path.TerminalInputs` | Input nodes that are never outputs in the path |
 | `Path.TerminalOutputs` | Output nodes that are never inputs in the path |
-| `Path.AllPropertyValues — all 4 sources` | See section 6 fixture |
-| `Path.PropertyValuesByName` | Returns only matching PVs |
+| `Path.AllAnnotations — all 4 sources` | See section 6 fixture |
+| `Path.AnnotationsByName` | Returns only matching PVs |
 | `Path.ProtocolParameters` | Returns FPs from all executed protocols, deduplicated |
 | `empty Path` | `Head = None`, `Last = None`, `Length = 0`, `Nodes()` empty |
 
@@ -405,23 +405,23 @@ Using Fixture A and Fixture D (nested).
 |------|-------------|
 | `TryGetProcess found / not found` | |
 | `FindProcessesByProtocolType` | Same as Dataset test but via ProcessGraph |
-| `FindProcessesByPropertyValue` | Same as Dataset test |
+| `FindProcessesByAnnotation` | Same as Dataset test |
 | `FindProcessesByPropertyName` | Same |
-| `ProcessesForNode — material` | Returns both InputOf and OutputOf processes in scope |
+| `ProcessesForNode — sample` | Returns both InputOf and OutputOf processes in scope |
 | `ProcessesForNode — scoped to subset` | Processes outside scope not returned |
 | `PathsThrough — single path` | Linear graph → one path covering all three processes |
 | `PathsThrough — branching graph` | Node with two successors → two paths returned |
 | `PathsThrough — node not in graph` | Empty result |
 | `NodesDownstreamOf` | From root node → all downstream nodes |
 | `NodesUpstreamOf` | From leaf node → all upstream nodes |
-| `MaterialsDownstreamOf / MaterialsUpstreamOf` | Typed variants |
+| `SamplesDownstreamOf / SamplesUpstreamOf` | Typed variants |
 | `DataDownstreamOf / DataUpstreamOf` | Typed variants |
 | `AllConnectedNodes via ProcessGraph` | Matches IONode.AllConnectedNodes for the same node |
-| `ConnectedMaterialsForNode / ConnectedDataForNode` | Typed variants |
-| `AllPropertyValuesForNode` | Collects across all paths through node |
+| `ConnectedSamplesForNode / ConnectedDataForNode` | Typed variants |
+| `AllAnnotationsForNode` | Collects across all paths through node |
 | `ProtocolParametersForNode` | Collects FPs across all paths |
-| `MaterialsResultingFromCondition (name+value overload)` | Same as Dataset use-case 1 |
-| `MaterialsResultingFromCondition (predicate overload)` | Custom predicate selects qualifying processes |
+| `SamplesResultingFromCondition (name+value overload)` | Same as Dataset use-case 1 |
+| `SamplesResultingFromCondition (predicate overload)` | Custom predicate selects qualifying processes |
 
 ---
 
@@ -445,9 +445,9 @@ Using Fixture A and Fixture D (nested).
 
 | Test | Description |
 |------|-------------|
-| `MaterialIOType — Source` | `AdditionalType = Some "Source"` → `IOType.Source` |
-| `MaterialIOType — Sample` | `AdditionalType = Some "Sample"` → `IOType.Sample` |
-| `MaterialIOType — None` | Default → `IOType.Sample` |
+| `SampleIOType — Source` | `AdditionalType = Some "Source"` → `IOType.Source` |
+| `SampleIOType — Sample` | `AdditionalType = Some "Sample"` → `IOType.Sample` |
+| `SampleIOType — None` | Default → `IOType.Sample` |
 | `PVToCell — unitized PV` | PV with `Unit` set → `CompositeCell.Unitized` |
 | `PVToCell — term PV` | PV with `ValueTAN` and no unit → `CompositeCell.Term` |
 | `PVToCell — freetext PV` | PV with only `Value` → `CompositeCell.FreeText` |
@@ -473,11 +473,11 @@ Tests for `Decompose` and the derived read helpers.
 | `single process — protocol ref column present` | `ProtocolREF` column in result when process has a protocol |
 | `single process — output column last` | Last column header is `Output(IOType.Sample)` or `Output(IOType.Data)` |
 | `single process — parameter column present` | Process with one `ParameterValue` → one `Parameter` column |
-| `single process — characteristic column present` | Input material with `AdditionalProperty` typed as characteristic |
-| `single process — factor column present` | Output material with `AdditionalProperty` typed as factor |
+| `single process — characteristic column present` | Input sample with `AdditionalProperty` typed as characteristic |
+| `single process — factor column present` | Output sample with `AdditionalProperty` typed as factor |
 | `single process — component column present` | Protocol `LabEquipment` → `Component` column |
 | `column order is Input → Protocol → Char → Comp → Param → Factor → Output` | Verify index order in result |
-| `multiple rows (multiple processes with same name)` | `Table` built from two `LabProcess` objects with the same name → `Decompose` produces two rows worth of cells per annotation column |
+| `multiple rows (multiple processes with same name)` | `Table` built from two `Process` objects with the same name → `Decompose` produces two rows worth of cells per annotation column |
 | `data output — CompositeCell.Data in output column` | Output is `Data` node → cell carries `CompositeCell.Data` |
 | `Headers derives from Decompose` | `table.Headers` matches `table.Decompose() |> map _.Header` |
 | `ColumnCount / RowCount` | Correct counts for a known fixture |
@@ -500,8 +500,8 @@ Tests for column and row mutation methods.
 | Test | Description |
 |------|-------------|
 | `AddColumn Parameter — PV added to each process` | After `table.AddColumn(CompositeHeader.Parameter("Temp", None), cells)`, each process has a new `ParameterValue` with the corresponding cell value |
-| `AddColumn Characteristic — PV added to input node` | PV lands on input material's `AdditionalProperty` |
-| `AddColumn Factor — PV added to output node` | PV lands on output material's `AdditionalProperty` |
+| `AddColumn Characteristic — PV added to input node` | PV lands on input sample's `AdditionalProperty` |
+| `AddColumn Factor — PV added to output node` | PV lands on output sample's `AdditionalProperty` |
 | `AddColumn Component — PV added to protocol LabEquipment` | Requires process to have an `ExecutesProtocol` |
 | `AddColumn non-annotation header is no-op` | `CompositeHeader.ProtocolREF` → nothing changes |
 | `AddColumn with fewer cells than rows` | Missing cells are treated as `FreeText ""` |
@@ -515,9 +515,9 @@ Tests for column and row mutation methods.
 
 | Test | Description |
 |------|-------------|
-| `AddRow — new LabProcess created and registered in dataset` | After `table.AddRow(cells)`, `dataset.Processes` contains the new process |
-| `AddRow — input cell sets input node name` | `FreeText "S1"` in Input column → process input is `Material("S1")` |
-| `AddRow — output cell sets output node name` | `FreeText "S2"` in Output column → process output is `Material("S2")` |
+| `AddRow — new Process created and registered in dataset` | After `table.AddRow(cells)`, `dataset.Processes` contains the new process |
+| `AddRow — input cell sets input node name` | `FreeText "S1"` in Input column → process input is `Sample("S1")` |
+| `AddRow — output cell sets output node name` | `FreeText "S2"` in Output column → process output is `Sample("S2")` |
 | `AddRow — Data cell in Data-typed column` | `CompositeCell.Data d` → process input/output is `DataNode d` |
 | `AddRow — ProtocolREF cell sets protocol name` | |
 | `AddRow — ProtocolType cell sets protocol IntendedUse` | |
@@ -528,7 +528,7 @@ Tests for column and row mutation methods.
 | `RemoveRow — process removed from table and dataset` | After `table.RemoveRow(0)`, `dataset.Processes.Count` decreases by 1 |
 | `RemoveRow out-of-range is no-op` | |
 | `UpdateRow — existing PV value updated in place` | `UpdateRow(0, cells)` with a new Unitized cell → the process's PV reflects the new value |
-| `UpdateRow — input node name updated` | Cell in Input column changes material name |
+| `UpdateRow — input node name updated` | Cell in Input column changes sample name |
 | `UpdateRow — new PV added if column did not have one` | If process had no PV for a column, one is created |
 
 ### 10.5 Tables (`Table/TablesApi.fs`)
@@ -556,8 +556,8 @@ A small number of integration tests that assemble a realistic multi-step process
 
 | Test | Description |
 |------|-------------|
-| `use-case 1 — growth temperature filter` | Build a multi-step dataset; use `Dataset.MaterialsResultingFromCondition` to find samples downstream of a specific growth temperature |
-| `use-case 2 — all parameters for a sample` | Use `Dataset.PropertyValuesForNode` to retrieve all parameters connected to a mid-graph sample |
+| `use-case 1 — growth temperature filter` | Build a multi-step dataset; use `Dataset.SamplesResultingFromCondition` to find samples downstream of a specific growth temperature |
+| `use-case 2 — all parameters for a sample` | Use `Dataset.AnnotationsForNode` to retrieve all parameters connected to a mid-graph sample |
 | `use-case 3 — all connected samples` | Use `IONode.AllConnectedNodes` scoped to the dataset to retrieve all samples connected to a given node |
 | `ProcessGraph.PathsThrough — multi-path proteomics` | ProcessGraph over an investigation-level flat process list; `PathsThrough` returns the correct distinct paths |
 
@@ -571,4 +571,4 @@ A small number of integration tests that assemble a realistic multi-step process
 - **Shared fixtures**: Define shared fixtures as `let`-bound values in a `Fixtures` module included early in the test project. Avoid re-constructing complex graphs in every test.
 - **Reference equality check**: Use `obj.ReferenceEquals(a, b)` (or `Fable`-compatible equivalent) to verify that deduplication returns the original object instance.
 - **Mutation safety**: Tests that mutate shared fixtures must create local copies or reconstruct from scratch to avoid test-order coupling.
-- **`.fsproj` ordering**: F# files must be listed in `ProcessCore.Tests.fsproj` in dependency order. `Fixtures.fs` must come before all test files. Each sub-folder file (`Types/PropertyValue.fs`, etc.) is a flat entry in the project — there are no sub-folder project groupings, just ordered `<Compile Include="..." />` lines.
+- **`.fsproj` ordering**: F# files must be listed in `ProcessCore.Tests.fsproj` in dependency order. `Fixtures.fs` must come before all test files. Each sub-folder file (`Types/Annotation.fs`, etc.) is a flat entry in the project — there are no sub-folder project groupings, just ordered `<Compile Include="..." />` lines.

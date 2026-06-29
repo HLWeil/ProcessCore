@@ -22,7 +22,7 @@ Data files produced or consumed by processes. A Data object may represent either
 | `selector` | Text | COULD | Fragment selector that narrows the target to a subset of the data object |
 | `selectorFormat` | URL | COULD | Formal description of the selector syntax, e.g. RFC 7111 |
 | `encodingFormat` | Text | COULD | MIME type of the target data object or fragment |
-| `additionalProperty` | [PropertyValue](PropertyValue.md) | COULD | Extensible file-, fragment-, or content-level metadata |
+| `additionalProperty` | [Annotation](Annotation.md) | COULD | Extensible file-, fragment-, or content-level metadata |
 
 ## Relationships
 
@@ -34,11 +34,11 @@ flowchart TD
     sf@{ shape: stadium, label: "URL" }
     ef@{ shape: stadium, label: "string" }
 
-    LabProcess --inputs--> Data
-    LabProcess --"outputs"--> Data
+    Process --inputs--> Data
+    Process --"outputs"--> Data
     Data --path--> pa
     Data --selector--> se
     Data --selectorFormat--> sf
     Data --encodingFormat--> ef
-    Data --additionalProperty--> PropertyValue
+    Data --additionalProperty--> Annotation
 ```

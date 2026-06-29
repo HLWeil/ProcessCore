@@ -1,19 +1,19 @@
 $schema: "https://json-schema.org/draft/2020-12/schema"
-$id: "Material.yml"
-title: Material
+$id: "Sample.yml"
+title: Sample
 description: >
-  Input or output biological, chemical, or digital material in the process graph.
-  Materials can derive from other materials, forming provenance chains.
+  Input or output biological, chemical, or digital sample in the process graph.
+  Samples can derive from other samples, forming provenance chains.
 type: object
 
 properties:
   id:
     type: string
-    description: Unique material identifier (typically the material name)
+    description: Unique sample identifier (typically the sample name)
 
   type:
     type: string
-    const: "Material"
+    const: "Sample"
     description: Fixed type discriminator
 
   additionalType:
@@ -22,7 +22,7 @@ properties:
 
   name:
     type: string
-    description: Human-readable name identifying the material
+    description: Human-readable name identifying the sample
 
   additionalProperty:
     type: array
@@ -30,8 +30,8 @@ properties:
     items:
       oneOf:
         - type: string
-          description: "@id reference to a PropertyValue"
-        - $ref: "PropertyValue.yml"
+          description: "@id reference to a Annotation"
+        - $ref: "Annotation.yml"
 
 required:
   - id

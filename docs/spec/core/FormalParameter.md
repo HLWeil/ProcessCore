@@ -29,7 +29,7 @@ flowchart TD
     na@{ shape: stadium, label: "string" }
     nt@{ shape: stadium, label: "URL" }
 
-    LabProtocol --parameters--> FormalParameter
+    Recipe --parameters--> FormalParameter
     FormalParameter --name--> na
     FormalParameter --nameTAN--> nt
     FormalParameter --defaultValue--> DefinedTerm

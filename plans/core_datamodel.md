@@ -20,22 +20,22 @@ Types are **mutable classes**. All collection fields (e.g. `inputs`, `outputs`, 
 
 ## Back-Edges
 
-Each `Material` and `Data` node must maintain two back-edge collections:
+Each `Sample` and `Data` node must maintain two back-edge collections:
 
-- `inputOf` — the set of `LabProcess` instances for which this node is an **input**.
-- `outputOf` — the set of `LabProcess` instances for which this node is an **output**.
+- `inputOf` — the set of `Process` instances for which this node is an **input**.
+- `outputOf` — the set of `Process` instances for which this node is an **output**.
 
 These back-edges must be kept consistent eagerly: whenever a process's `inputs` or `outputs` list is mutated (add/remove), the corresponding back-edge on the affected node is updated in the same operation. This allows O(1) lookup of "which processes consume/produce this node" without scanning all processes.
 
-Each `LabProcess` instance must maintain a back-edge reference to its dataset: `processOf`
+Each `Process` instance must maintain a back-edge reference to its dataset: `processOf`
 
 Each `dataset` instance must maintain a back-edge reference to its parent dataset (if any): `partOf`
 
 ## Object Identity and Distinctness
 
-For each object in the datamodel, identity is determined by it's values. Each type contains their own indicator fields of identity. For each type, this equality (or distinctness) is only given in a specific context of a container it is contained in. For example, two `Material` objects with the same name are considered identical across indefinite dataset hierarchies.
+For each object in the datamodel, identity is determined by it's values. Each type contains their own indicator fields of identity. For each type, this equality (or distinctness) is only given in a specific context of a container it is contained in. For example, two `Sample` objects with the same name are considered identical across indefinite dataset hierarchies.
 
-This distinctness must be kept consistent eagerly: whenever an object is added to a container (e.g. a `Material` to a `LabProcess`'s `inputs`), the container must check if an identical object already exists in that container. If it does, the existing object is reused instead of adding the new one. This ensures that all references to a given entity point to the same object instance, maintaining consistency and enabling efficient graph traversal.
+This distinctness must be kept consistent eagerly: whenever an object is added to a container (e.g. a `Sample` to a `Process`'s `inputs`), the container must check if an identical object already exists in that container. If it does, the existing object is reused instead of adding the new one. This ensures that all references to a given entity point to the same object instance, maintaining consistency and enabling efficient graph traversal.
 In the same sense, when datasets are nested, if a child dataset is added to a parent dataset, the parent must check if an identical child already exists in its collection. If it does, the existing child is reused instead of adding the new one.
 
 ### IONode registry
@@ -57,7 +57,7 @@ The root is reached by walking `PartOf` until `None`.
 
 ## Path Type
 
-A `Path` type is part of the core data model. It represents a sequence of `LabProcess` instances connected through their shared I/O nodes, i.e. a directed walk through the process graph. It is a **read-only view** — it has no CRUD API of its own and does not own the processes it references. It is produced by graph-traversal queries and exposes the ordered list of processes and the nodes connecting them.
+A `Path` type is part of the core data model. It represents a sequence of `Process` instances connected through their shared I/O nodes, i.e. a directed walk through the process graph. It is a **read-only view** — it has no CRUD API of its own and does not own the processes it references. It is produced by graph-traversal queries and exposes the ordered list of processes and the nodes connecting them.
 
 It is basically the more capable continuation of the [ValueCollection](../references/ProcessCore/ValueCollection.fs) concept, but maintaining the full process context, allowing more than just retrieving property values.
 
@@ -65,7 +65,7 @@ It is basically the more capable continuation of the [ValueCollection](../refere
 
 Querying methods are embedded directly on the entity objects (not in a separate query wrapper), following the pattern established by the reference query model (`ARCtrl.QueryModel.ProcessCore`).
 
-### PropertyValue sources
+### Annotation sources
 
 When retrieving property values from a process context, four sources can contribute:
 
@@ -74,11 +74,11 @@ When retrieving property values from a process context, four sources can contrib
 3. `process.Outputs[*].AdditionalProperty` — factors attached to output nodes
 4. `process.ExecutesProtocol?.LabEquipment` — components (equipment, reagents, software) attached to the protocol via `labEquipment`
 
-All retrieval methods are named `*PropertyValues` (not `*ParameterValues`) to reflect this broad collection.
+All retrieval methods are named `*Annotations` (not `*ParameterValues`) to reflect this broad collection.
 
-For graph traversal queries from an `IONode`, node-attached values are collected on an input/output-pair basis. A reached `LabProcess` contributes its process-level `ParameterValue` and protocol `LabEquipment`, but only the `AdditionalProperty` values of nodes actually reached by the traversal are included. If two independent IO lanes share the same processes, querying from one lane must not collect `AdditionalProperty` values from the other lane.
+For graph traversal queries from an `IONode`, node-attached values are collected on an input/output-pair basis. A reached `Process` contributes its process-level `ParameterValue` and protocol `LabEquipment`, but only the `AdditionalProperty` values of nodes actually reached by the traversal are included. If two independent IO lanes share the same processes, querying from one lane must not collect `AdditionalProperty` values from the other lane.
 
-This applies equally when the member is called on `IONode`, `Material`, or `Data`, and through dataset-scoped wrappers such as `UpstreamPropertyValuesForNode` / `DownstreamPropertyValuesForNode` / `PropertyValuesForNode`. `Path.AllPropertyValues` operates on the explicit process sequence supplied to the `Path` value and therefore collects from all input/output nodes of those path processes.
+This applies equally when the member is called on `IONode`, `Sample`, or `Data`, and through dataset-scoped wrappers such as `UpstreamAnnotationsForNode` / `DownstreamAnnotationsForNode` / `AnnotationsForNode`. `Path.AllAnnotations` operates on the explicit process sequence supplied to the `Path` value and therefore collects from all input/output nodes of those path processes.
 
 ### Traversal directions
 
@@ -90,7 +90,7 @@ Graph traversal methods come in three flavours:
 
 ### Positional N-to-N mapping within a process
 
-Within a single `LabProcess` the I/O slots are positionally paired: the **Nth input corresponds to the Nth output**. Directional traversal (`UpstreamNodes`, `DownstreamNodes`, and their `*Processes` counterparts) exploits this by walking only through the positional peer rather than through all inputs or outputs. For example, `Output[1].UpstreamNodes()` follows only `Input[1]` of the producing process, not `Input[0]`.
+Within a single `Process` the I/O slots are positionally paired: the **Nth input corresponds to the Nth output**. Directional traversal (`UpstreamNodes`, `DownstreamNodes`, and their `*Processes` counterparts) exploits this by walking only through the positional peer rather than through all inputs or outputs. For example, `Output[1].UpstreamNodes()` follows only `Input[1]` of the producing process, not `Input[0]`.
 
 This mapping applies when a process has **equal numbers of inputs and outputs**. When the counts differ (e.g. a merge or split step) the traversal falls back to considering all inputs or all outputs.
 
@@ -98,7 +98,7 @@ This mapping applies when a process has **equal numbers of inputs and outputs**.
 
 ### Root and final nodes
 
-A node is a **root** if no in-scope process produces it as output (`IsRootNode`).  
+A node is a **root** if no in-scope process produces it as output (`IsRootNode`).
 A node is a **final** if no in-scope process consumes it as input (`IsFinalNode`).
 
 ### Data fragment selector support
@@ -126,17 +126,17 @@ Specific selector implementations should sit on top of the generic core mechanis
 
 ### Optional scope
 
-All traversal methods accept an optional `scope: ResizeArray<LabProcess>` parameter. When supplied, the BFS is restricted to processes within that set. This allows scoping queries to a single `Dataset` without creating a separate graph object.
+All traversal methods accept an optional `scope: ResizeArray<Process>` parameter. When supplied, the BFS is restricted to processes within that set. This allows scoping queries to a single `Dataset` without creating a separate graph object.
 
 ### Placement of query methods
 
 | Entity | Methods |
 |--------|---------|
-| `IONode` | Full traversal and PropertyValue retrieval; `IsRootNode`, `IsFinalNode` |
-| `Material`, `Data` | Delegate to `IONode` wrapper (`MaterialNode this` / `DataNode this`) |
-| `LabProcess` | `InputMaterials`, `InputData`, `OutputMaterials`, `OutputData`, `ProtocolParameters`, `PropertyValuesByName` |
-| `Dataset` | `AllNodes`, `RootNodes`, `FinalNodes`, `AllPropertyValues(?protocolName)`, `PropertyValuesForNode`, `UpstreamPropertyValuesForNode`, `DownstreamPropertyValuesForNode`, `ProcessesForNode`, `PathsThrough`, `NodesUpstreamOf`, `NodesDownstreamOf`, `ConnectedMaterialsForNode`, `ConnectedDataForNode`, `ProtocolParametersForNode`, `FindProcessesByProtocolType`, `FindProcessesByPropertyValue`, `FindProcessesByPropertyName`, `MaterialsResultingFromCondition` |
-| `Path` | `AllPropertyValues`, `PropertyValuesByName`, `ProtocolParameters`, `TerminalInputs`, `TerminalOutputs` |
+| `IONode` | Full traversal and Annotation retrieval; `IsRootNode`, `IsFinalNode` |
+| `Sample`, `Data` | Delegate to `IONode` wrapper (`SampleNode this` / `DataNode this`) |
+| `Process` | `InputSamples`, `InputData`, `OutputSamples`, `OutputData`, `ProtocolParameters`, `AnnotationsByName` |
+| `Dataset` | `AllNodes`, `RootNodes`, `FinalNodes`, `AllAnnotations(?protocolName)`, `AnnotationsForNode`, `UpstreamAnnotationsForNode`, `DownstreamAnnotationsForNode`, `ProcessesForNode`, `PathsThrough`, `NodesUpstreamOf`, `NodesDownstreamOf`, `ConnectedSamplesForNode`, `ConnectedDataForNode`, `ProtocolParametersForNode`, `FindProcessesByProtocolType`, `FindProcessesByAnnotation`, `FindProcessesByPropertyName`, `SamplesResultingFromCondition` |
+| `Path` | `AllAnnotations`, `AnnotationsByName`, `ProtocolParameters`, `TerminalInputs`, `TerminalOutputs` |
 
 ## Target folder
 

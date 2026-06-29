@@ -5,9 +5,9 @@ The first version of the sql schema should contain tables for the following enti
 - Data
 - Dataset
 - DefinedTerm
-- Material
+- Sample
 - Process
-- PropertyValue
+- Annotation
 - Protocol
 
 Additionally, a view called `Paths` should aggregate all FULL paths connected through processes, e.g.:
@@ -32,11 +32,11 @@ The following decorations should also be added to the schema:
 
 - ISA
   - Assay and Study Dataset decorations
-  - PropertyValue Subtype decorations
+  - Annotation Subtype decorations
 - Workflow Run
   - Workflow Invocation decoration
   - Workflow Run Dataset decoration
-  - PropertyValue Subtype decorations
+  - Annotation Subtype decorations
 
 Open questions (do not address in this plan):
 
@@ -63,7 +63,7 @@ Open questions (do not address in this plan):
 ### Design Approach
 
 - **Core tables** store all properties, including decoration-specific columns as nullable. This avoids complex table-per-subtype joins while keeping queries simple.
-- **Junction tables** model all M:N relationships (process I/O, additionalProperty, etc.). Polymorphic I/O (Material vs Data) uses separate junction tables per type rather than a type discriminator column, giving us proper foreign keys.
+- **Junction tables** model all M:N relationships (process I/O, additionalProperty, etc.). Polymorphic I/O (Sample vs Data) uses separate junction tables per type rather than a type discriminator column, giving us proper foreign keys.
 - **Decoration views** are filtered SELECTs on core tables by `additionalType`, presenting the domain-specific perspective.
 - **Paths view** uses a recursive CTE over a helper `ProcessEdge` view to trace maximal chains through the process graph.
 
@@ -78,11 +78,11 @@ Open questions (do not address in this plan):
 | term_code | TEXT | | `termCode` |
 | in_defined_term_set | TEXT | | `inDefinedTermSet` |
 
-#### `PropertyValue`
+#### `Annotation`
 | Column | Type | Constraint | Source |
 |--------|------|------------|--------|
 | id | TEXT | PK | `@id` |
-| type | TEXT | NOT NULL DEFAULT 'PropertyValue' | `@type` |
+| type | TEXT | NOT NULL DEFAULT 'Annotation' | `@type` |
 | additional_type | TEXT | | `additionalType` — discriminator for subtypes |
 | name | TEXT | NOT NULL | `name` |
 | value | TEXT | | `value` (stored as text) |
@@ -105,7 +105,7 @@ Open questions (do not address in this plan):
 | url | TEXT | | `url` |
 | programming_language | TEXT | | WR: `programmingLanguage` |
 
-#### `Material`
+#### `Sample`
 | Column | Type | Constraint | Source |
 |--------|------|------------|--------|
 | id | TEXT | PK | `@id` |
@@ -149,18 +149,18 @@ Open questions (do not address in this plan):
 | additional_type | TEXT | | decoration discriminator |
 | executes_protocol_id | TEXT | FK -> Protocol | `executesProtocol` |
 | end_time | TEXT | | `endTime` |
-| disambiguating_description | TEXT | | ISA LabProcess: comments |
+| disambiguating_description | TEXT | | ISA Process: comments |
 | description | TEXT | | WR WorkflowInvocation: execution details |
 
 ### Junction / Relationship Tables (16)
 
 **Process I/O** (polymorphic, split by target type):
-- `ProcessObjectMaterial` (process_id FK, material_id FK) — PK both
+- `ProcessObjectSample` (process_id FK, sample_id FK) — PK both
 - `ProcessObjectData` (process_id FK, data_id FK) — PK both
-- `ProcessResultMaterial` (process_id FK, material_id FK) — PK both
+- `ProcessResultSample` (process_id FK, sample_id FK) — PK both
 - `ProcessResultData` (process_id FK, data_id FK) — PK both
 
-**Process -> PropertyValue:**
+**Process -> Annotation:**
 - `ProcessParameterValue` (process_id FK, propertyvalue_id FK)
 - `ProcessAdditionalProperty` (process_id FK, propertyvalue_id FK)
 
@@ -172,13 +172,13 @@ Open questions (do not address in this plan):
 **AdditionalProperty per entity:**
 - `DataAdditionalProperty` (data_id FK, propertyvalue_id FK)
 - `DatasetAdditionalProperty` (dataset_id FK, propertyvalue_id FK)
-- `MaterialAdditionalProperty` (material_id FK, propertyvalue_id FK)
+- `SampleAdditionalProperty` (sample_id FK, propertyvalue_id FK)
 - `ProtocolAdditionalProperty` (protocol_id FK, propertyvalue_id FK)
 - `DefinedTermAdditionalProperty` (definedterm_id FK, propertyvalue_id FK)
 
 **Other:**
-- `MaterialDerivesFrom` (material_id FK, source_material_id FK)
-- `ProtocolComponent` (protocol_id FK, propertyvalue_id FK, role TEXT) — ISA LabProtocol: labEquipment/reagent/computationalTool
+- `SampleDerivesFrom` (sample_id FK, source_sample_id FK)
+- `ProtocolComponent` (protocol_id FK, propertyvalue_id FK, role TEXT) — ISA Recipe: labEquipment/reagent/computationalTool
 
 ### Decoration Views
 
@@ -186,16 +186,16 @@ Open questions (do not address in this plan):
 - `Investigation` — Dataset WHERE additional_type = 'Investigation'
 - `Study` — Dataset WHERE additional_type = 'Study'
 - `Assay` — Dataset WHERE additional_type = 'Assay'
-- `ParameterValue` — PropertyValue WHERE additional_type = 'ParameterValue'
-- `CharacteristicValue` — PropertyValue WHERE additional_type = 'CharacteristicValue'
-- `FactorValue` — PropertyValue WHERE additional_type = 'FactorValue'
-- `Component` — PropertyValue WHERE additional_type = 'Component'
+- `ParameterValue` — Annotation WHERE additional_type = 'ParameterValue'
+- `CharacteristicValue` — Annotation WHERE additional_type = 'CharacteristicValue'
+- `FactorValue` — Annotation WHERE additional_type = 'FactorValue'
+- `Component` — Annotation WHERE additional_type = 'Component'
 
 **Workflow Run decoration views:**
 - `ArcWorkflow` — Dataset WHERE additional_type = 'ARC Workflow'
 - `ArcRun` — Dataset WHERE additional_type = 'ARC Run'
 - `WorkflowInvocation` — Process WHERE additional_type = 'Workflow Invocation'
-- `WorkflowInput` — PropertyValue WHERE additional_type = 'Workflow Input'
+- `WorkflowInput` — Annotation WHERE additional_type = 'Workflow Input'
 
 ### Paths View
 
@@ -203,9 +203,9 @@ The `Paths` view traces all maximal chains through the process graph — from ro
 
 **Implementation using helper views + recursive CTE:**
 
-1. **`NodeRef`** — unifies Material and Data into a single "node" reference:
+1. **`NodeRef`** — unifies Sample and Data into a single "node" reference:
    ```sql
-   SELECT 'Material' AS node_type, id, name FROM Material
+   SELECT 'Sample' AS node_type, id, name FROM Sample
    UNION ALL
    SELECT 'Data', id, name FROM Data
    ```

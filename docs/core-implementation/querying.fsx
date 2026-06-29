@@ -8,7 +8,7 @@ index: 5
 
 # Querying Process Graphs
 
-ProcessCore query methods let you ask questions from either the dataset or a specific material/data node.
+ProcessCore query methods let you ask questions from either the dataset or a specific sample/data node.
 This walkthrough loads the proteomics assay example and follows provenance from final data back to experimental conditions.
 *)
 
@@ -56,12 +56,12 @@ for proc in myAssay.Processes do
 (**
 ## Dataset-Level Discovery
 
-Start by asking what is in the dataset. Dataset helpers include nested datasets through `AllProcesses`, `AllMaterials`, `AllData`, and `AllNodes`.
+Start by asking what is in the dataset. Dataset helpers include nested datasets through `AllProcesses`, `AllSamples`, `AllData`, and `AllNodes`.
 *)
 
 let datasetOverview =
     [ "processes", myAssay.AllProcesses().Count
-      "materials", myAssay.AllMaterials().Count
+      "samples", myAssay.AllSamples().Count
       "data", myAssay.AllData().Count
       "root nodes", myAssay.RootNodes().Count
       "final nodes", myAssay.FinalNodes().Count ]
@@ -116,13 +116,13 @@ upstreamNodeKeys
 Property-value queries collect annotations from process parameters, input/output node properties, and protocol components.
 *)
 
-let upstreamPropertyValues =
-    myAssay.UpstreamPropertyValuesForNode(DataNode resultData)
+let upstreamAnnotations =
+    myAssay.UpstreamAnnotationsForNode(DataNode resultData)
     |> Seq.map (fun pv -> pv.Name + "=" + pv.ValueWithUnitText)
     |> Seq.distinct
     |> Seq.toList
 
-upstreamPropertyValues
+upstreamAnnotations
 (*** include-it ***)
 
 (**
@@ -131,7 +131,7 @@ upstreamPropertyValues
 Plain F# sequence operations compose with graph traversal. This predicate selects the growth temperature condition used in the example.
 *)
 
-let is25Degrees (pv: PropertyValue) =
+let is25Degrees (pv: Annotation) =
     pv.NameText = "temperature"
     && pv.ValueText = "25"
     && pv.UnitText = "degree Celsius"
@@ -139,7 +139,7 @@ let is25Degrees (pv: PropertyValue) =
 let dataWith25DegreeHistory =
     myAssay.AllData()
     |> Seq.filter (fun data ->
-        myAssay.UpstreamPropertyValuesForNode(DataNode data)
+        myAssay.UpstreamAnnotationsForNode(DataNode data)
         |> Seq.exists is25Degrees)
     |> Seq.map (fun d -> d.Path)
     |> Seq.toList
@@ -155,7 +155,7 @@ let resultPathsFrom25DegreeGrowth =
     myAssay.AllData()
     |> Seq.filter (fun data -> data.Path.Contains("proteomics_result.csv"))
     |> Seq.filter (fun data ->
-        data.UpstreamPropertyValues(protocolName = "Growth", scope = myAssay.AllProcesses())
+        data.UpstreamAnnotations(protocolName = "Growth", scope = myAssay.AllProcesses())
         |> Seq.exists is25Degrees)
     |> Seq.map (fun d -> d.Path)
     |> Seq.toList
@@ -168,10 +168,10 @@ resultPathsFrom25DegreeGrowth
 
 | Task | API |
 |------|-----|
-| Count or list dataset contents | `AllProcesses`, `AllMaterials`, `AllData`, `AllNodes` |
+| Count or list dataset contents | `AllProcesses`, `AllSamples`, `AllData`, `AllNodes` |
 | Find terminal sources and sinks | `RootNodes`, `FinalNodes` |
 | Walk from a node | `UpstreamNodes`, `DownstreamNodes` |
-| Collect annotations around a node | `UpstreamPropertyValues`, `DownstreamPropertyValues`, `PropertyValuesForNode` |
+| Collect annotations around a node | `UpstreamAnnotations`, `DownstreamAnnotations`, `AnnotationsForNode` |
 | Work inside one dataset only | Dataset-scoped helpers such as `NodesUpstreamOf` |
 | Ask path questions | `PathsThrough`, `Path.TerminalInputs`, `Path.TerminalOutputs` |
 *)

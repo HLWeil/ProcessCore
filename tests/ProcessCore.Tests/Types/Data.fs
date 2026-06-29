@@ -22,14 +22,14 @@ let tests = testList "Data" [
 
     testCase "AddAdditionalProperty deduplicates" <| fun _ ->
         let d  = Data("results.csv")
-        let pv = PropertyValue("format", value = "tabular")
+        let pv = Annotation("format", value = "tabular")
         d.AddAdditionalProperty(pv)
         d.AddAdditionalProperty(pv)
         Expect.equal d.AdditionalProperty.Count 1 "Identical PV added twice should result in one entry"
 
     testCase "RemoveAdditionalProperty" <| fun _ ->
         let d  = Data("results.csv")
-        let pv = PropertyValue("format", value = "tabular")
+        let pv = Annotation("format", value = "tabular")
         d.AddAdditionalProperty(pv)
         Expect.equal d.AdditionalProperty.Count 1 "PV should be present before removal"
         d.RemoveAdditionalProperty(pv)

@@ -24,9 +24,9 @@ Specification and implementation workspace for the ARC process data model. The p
 
 ```mermaid
 flowchart LR
-    dataset[Dataset] --> process[LabProcess]
-    process --> material[Material]
+    dataset[Dataset] --> process[Process]
+    process --> sample[Sample]
     process --> data[Data]
-    protocol[LabProtocol] -. executes .-> process
-    process --> value[PropertyValue]
+    protocol[Recipe] -. executes .-> process
+    process --> value[Annotation]
 ```

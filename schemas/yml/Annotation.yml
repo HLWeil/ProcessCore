@@ -1,6 +1,6 @@
 $schema: "https://json-schema.org/draft/2020-12/schema"
-$id: "PropertyValue.yml"
-title: PropertyValue
+$id: "Annotation.yml"
+title: Annotation
 description: >
   Extensible key-value-unit triple. The primary extension mechanism of ProcessCore.
   Can be attached via additionalProperty for cross-cutting metadata, or via dedicated
@@ -14,7 +14,7 @@ properties:
 
   type:
     type: string
-    const: "PropertyValue"
+    const: "Annotation"
     description: Fixed type discriminator
 
   additionalType:

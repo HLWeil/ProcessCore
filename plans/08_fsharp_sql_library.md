@@ -105,13 +105,13 @@ Create one F# class per SQL table, decorated with `[<AttachMembers>]` so Fable e
 Entity tables:
 
 - `DefinedTermRow`
-- `LabProtocolRow`
+- `RecipeRow`
 - `FormalParameterRow`
 - `DatasetRow`
-- `MaterialRow`
+- `SampleRow`
 - `DataRow`
-- `LabProcessRow`
-- `PropertyValueRow`
+- `ProcessRow`
+- `AnnotationRow`
 
 Association tables:
 
@@ -122,13 +122,13 @@ Association tables:
 - `ProcessIoRow`
 - `ProcessParameterValueRow`
 - `ProtocolAdditionalPropertyRow`
-- `MaterialAdditionalPropertyRow`
+- `SampleAdditionalPropertyRow`
 - `DataAdditionalPropertyRow`
 
 Two read-only view types:
 
 - `ProcessEdgeRow`
-- `PropertyValueOrphanRow`
+- `AnnotationOrphanRow`
 
 Pattern (illustrated for `DefinedTermRow`):
 
@@ -280,7 +280,7 @@ Implementation notes:
 - Centralize nullable handling.
 - Fail with table/column names in error messages.
 - Keep generated column `data.fragment_identity` read-only and out of `DataRow` for now; it is an implementation detail of the SQLite database.
-- View types (`ProcessEdgeRow`, `PropertyValueOrphanRow`) only need `ofRow`; they have no `ToParameters`.
+- View types (`ProcessEdgeRow`, `AnnotationOrphanRow`) only need `ofRow`; they have no `ToParameters`.
 
 ## Repository API
 
@@ -302,7 +302,7 @@ A single `Repository` class collects the table-metadata accessors:
 [<AttachMembers>]
 type Repository =
     static member DefinedTerm : Table<DefinedTermRow> = ...
-    static member LabProtocol : Table<LabProtocolRow> = ...
+    static member Recipe : Table<RecipeRow> = ...
     // ... all 17 tables ...
     static member EntityTables : string[] = [| ... |]
     static member AssociationTables : string[] = [| ... |]
@@ -317,7 +317,7 @@ Current status: not implemented. `src/ProcessCore/SQL/Repository.fs` currently c
 Views:
 
 - `ProcessEdges.list`
-- `PropertyValueOrphans.list`
+- `AnnotationOrphans.list`
 
 Transactions:
 
@@ -372,7 +372,7 @@ Test groups:
    - `001_core.sql` creates 17 tables.
    - `seed_example.sql` loads without FK errors.
    - `PRAGMA foreign_key_check` returns no rows.
-   - `property_value_orphans` returns no rows for the seed.
+   - `annotation_orphans` returns no rows for the seed.
 
 2. **Table Reads**
    - Read each table from the seeded database.
@@ -386,12 +386,12 @@ Test groups:
 4. **Constraint Behavior**
    - `process_io` exact-one-target check rejects both-null and both-set targets.
    - `intended_use_id` / `intended_use_text` mutual exclusion rejects both-set values.
-   - FK `RESTRICT` blocks deleting referenced `property_value`.
+   - FK `RESTRICT` blocks deleting referenced `annotation`.
    - owner delete cascades to owner association rows.
 
 5. **Views**
    - `process_edges` returns the growth and measurement edges.
-   - `property_value_orphans` surfaces an intentionally inserted orphan PV.
+   - `annotation_orphans` surfaces an intentionally inserted orphan PV.
 
 6. **Cross-Target Tests**
    - Same public tests should run under .NET, JS, TS, and Python once drivers are wired.
@@ -447,7 +447,7 @@ Expected package categories:
 - Done: implemented the .NET SQLite driver adapter with `Microsoft.Data.Sqlite`.
 - Done: added .NET tests that create an in-memory database from `001_core.sql` and `seed_example.sql`, check FK health, bind parameters, and read seeded rows through shared codecs.
 - Done: implemented table-shaped CRUD classes for all 17 tables (`insert`, `update`, `delete`, `get`, `list`), with composite-key accessors for association tables.
-- Done: added view readers for `process_edges` and `property_value_orphans`.
+- Done: added view readers for `process_edges` and `annotation_orphans`.
 - Done: moved the driver and CRUD tests into the shared `tests/ProcessCore.Tests` project with target-specific driver fixtures for .NET, JavaScript, and Python.
 - Pending: add transaction helpers or document explicit `BEGIN` / `COMMIT` / `ROLLBACK` usage.
 

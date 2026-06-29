@@ -6,7 +6,7 @@ open DynamicObj
 /// Extensible key-value-unit triple. Primary extension mechanism of ProcessCore.
 /// schema.org/PropertyValue
 [<AttachMembers>]
-type PropertyValue(name: string, ?value: string, ?unit: string, ?nameTAN: string, ?valueTAN: string, ?unitTAN: string, ?additionalType: string, ?instanceOf: FormalParameter) =
+type Annotation(name: string, ?value: string, ?unit: string, ?nameTAN: string, ?valueTAN: string, ?unitTAN: string, ?additionalType: string, ?instanceOf: FormalParameter) =
 
     inherit DynamicObj()
 
@@ -76,10 +76,10 @@ type PropertyValue(name: string, ?value: string, ?unit: string, ?nameTAN: string
         | None, None     -> ""
 
 
-    /// Two PropertyValues are identical if name, value, unit, and nameTAN all match.
+    /// Two Annotations are identical if name, value, unit, and nameTAN all match.
     override this.Equals(obj) =
         match obj with
-        | :? PropertyValue as other ->
+        | :? Annotation as other ->
             this.Name = other.Name &&
             this.Value = other.Value &&
             this.Unit = other.Unit &&

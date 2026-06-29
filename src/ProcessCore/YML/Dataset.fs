@@ -10,12 +10,12 @@ module Dataset =
 
     let knownFields =
         Set.ofList
-            [ "type"; "additionalType"; "identifier"; "name"; "description"
+            [ "type"; "additionalType"; "identifier"; "title"; "description"
               "processes"; "hasPart"; "additionalProperty" ]
 
     let knownPropertyNames =
         Set.ofList
-            [ "type"; "additionaltype"; "identifier"; "name"; "description"
+            [ "type"; "additionaltype"; "identifier"; "title"; "description"
               "processes"; "haspart"; "additionalproperty"; "partof"
               "propertyvalues"; "labprotocols"
               // Fable-compiled read-only instance properties — must not be re-emitted as overflow
@@ -42,21 +42,21 @@ module Dataset =
             tryGetField "identifier" value |> Option.bind tryDecodeString
             |> Option.defaultWith (fun () -> failwith "Dataset YAML object is missing required 'identifier' field.")
 
-        let name           = tryGetField "name"           value |> Option.map decodeString
+        let title          = tryGetField "title"          value |> Option.map decodeString
         let description    = tryGetField "description"    value |> Option.map decodeString
         let additionalType = tryGetField "additionalType" value |> Option.map decodeString
 
-        let ds = Dataset(identifier, ?name = name, ?description = description, ?additionalType = additionalType)
+        let ds = Dataset(identifier, ?title = title, ?description = description, ?additionalType = additionalType)
 
-        let propertyValues =
-            addIndexedValues "propertyValues" (PropertyValue.decoder processCoreOnly) value
+        let annotations =
+            addIndexedValues "annotations" (Annotation.decoder processCoreOnly) value
 
-        let resolvePropertyValue id = tryFind propertyValues id
+        let resolveAnnotation id = tryFind annotations id
 
         let labProtocols =
-            addIndexedValues "labProtocols" (LabProtocol.decoderWithPropertyResolver processCoreOnly resolvePropertyValue) value
+            addIndexedValues "labProtocols" (Recipe.decoderWithPropertyResolver processCoreOnly resolveAnnotation) value
 
-        let resolveLabProtocol id = tryFind labProtocols id
+        let resolveRecipe id = tryFind labProtocols id
 
         // processes
         tryGetField "processes" value
@@ -64,7 +64,7 @@ module Dataset =
             match tryDecodeSequence v with
             | Some elems ->
                 for elem in elems do
-                    match decodeRefOrInline (LabProcess.decoderWithResolvers processCoreOnly resolvePropertyValue resolveLabProtocol) elem with
+                    match decodeRefOrInline (Process.decoderWithResolvers processCoreOnly resolveAnnotation resolveRecipe) elem with
                     | Choice2Of2 proc -> ds.AddProcess(proc)
                     | Choice1Of2 _    -> ()
             | None -> ())
@@ -91,48 +91,48 @@ module Dataset =
         tryGetField "additionalProperty" value
         |> Option.iter (fun v ->
             iterSequenceOrSingleton (fun elem ->
-                match decodeRefOrInline (PropertyValue.decoder processCoreOnly) elem with
+                match decodeRefOrInline (Annotation.decoder processCoreOnly) elem with
                 | Choice2Of2 pv -> ds.AddAdditionalProperty(pv)
-                | Choice1Of2 id -> resolvePropertyValue id |> Option.iter ds.AddAdditionalProperty) v)
+                | Choice1Of2 id -> resolveAnnotation id |> Option.iter ds.AddAdditionalProperty) v)
 
         applyOverflow "Dataset" processCoreOnly knownFields ds value
         ds
 
     // ── Encoders ───────────────────────────────────────────────────────────────
 
-    let rec encoder (useIndexedMode: bool) (pvEncoder : (PropertyValue -> YAMLElement) option) (protEncoder : (LabProtocol -> YAMLElement) option) (ds: Dataset) : YAMLElement =
-        
+    let rec encoder (useIndexedMode: bool) (pvEncoder : (Annotation -> YAMLElement) option) (protEncoder : (Recipe -> YAMLElement) option) (ds: Dataset) : YAMLElement =
+
         // Build PV index from ALL processes (including hasPart children)
-        let pvRegistry = Dictionary<string, PropertyValue>()
-        let encodePV (pv : PropertyValue) =
+        let pvRegistry = Dictionary<string, Annotation>()
+        let encodePV (pv : Annotation) =
             if useIndexedMode then
-                let id = PropertyValue.genID pv
+                let id = Annotation.genID pv
                 pv.SetProperty("@id", id)
-                if not <| pvRegistry.ContainsKey(id) then                
+                if not <| pvRegistry.ContainsKey(id) then
                     pvRegistry.[id] <- pv
                 encodeRef id
-            else 
-                (Option.defaultValue PropertyValue.encoder pvEncoder) pv
+            else
+                (Option.defaultValue Annotation.encoder pvEncoder) pv
 
-        let protocolRegistry = Dictionary<string, LabProtocol>()
-        let encodeProtocol (proto: LabProtocol) =
+        let protocolRegistry = Dictionary<string, Recipe>()
+        let encodeProtocol (proto: Recipe) =
             if useIndexedMode then
-                let id = LabProtocol.genID proto
+                let id = Recipe.genID proto
                 proto.SetProperty("@id", id)
                 if not <| protocolRegistry.ContainsKey(id) then
                     protocolRegistry.[id] <- proto
                 encodeRef id
             else
-                (Option.defaultValue (LabProtocol.encoder encodePV) protEncoder) proto
+                (Option.defaultValue (Recipe.encoder encodePV) protEncoder) proto
 
         let processes =
             if ds.Processes.Count > 0 then
                 ds.Processes
-                |> Seq.map (LabProcess.encoder encodePV encodeProtocol)
+                |> Seq.map (Process.encoder encodePV encodeProtocol)
                 |> Seq.toList
                 |> yamlSeq
                 |> Some
-            else 
+            else
                 None
 
         let hasParts =
@@ -142,7 +142,7 @@ module Dataset =
                 |> Seq.toList
                 |> yamlSeq
                 |> Some
-            else    
+            else
                 None
 
         let additionalProperties =
@@ -161,8 +161,8 @@ module Dataset =
             match ds.AdditionalType with
             | Some at -> yield "additionalType", yamlValue at
             | None    -> ()
-            match ds.Name with
-            | Some n -> yield "name", yamlValue n
+            match ds.Title with
+            | Some title -> yield "title", yamlValue title
             | None   -> ()
             match ds.Description with
             | Some d -> yield "description", yamlValue d
@@ -171,23 +171,23 @@ module Dataset =
             if protocolRegistry.Count > 0 then
                 yield "labProtocols",
                     protocolRegistry.Values
-                    |> Seq.map (fun kv -> LabProtocol.encoder encodePV kv)
+                    |> Seq.map (fun kv -> Recipe.encoder encodePV kv)
                     |> Seq.toList
                     |> yamlSeq
             if pvRegistry.Count > 0 then
-                yield "propertyValues",
+                yield "annotations",
                     pvRegistry.Values
-                    |> Seq.map (fun kv -> PropertyValue.encoder kv)
+                    |> Seq.map (fun kv -> Annotation.encoder kv)
                     |> Seq.toList
                     |> yamlSeq
             // Processes using references
             if processes.IsSome then
                 yield "processes", processes.Value
-                    
+
             // hasPart children use the same resolvers but don't emit their own index sections
             if hasParts.IsSome then
                 yield "hasPart", hasParts.Value
-                    
+
             if additionalProperties.IsSome then
                 yield "additionalProperty", additionalProperties.Value
             yield! emitOverflow knownPropertyNames ds

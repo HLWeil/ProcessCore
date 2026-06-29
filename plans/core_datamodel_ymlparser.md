@@ -43,7 +43,7 @@ The parser targets Fable compatibility (JS, Python, .NET) and uses [YAMLicious](
     <!-- Core model files first, then YAML codec files. Compilation order matters in F#. -->
     <Compile Include="DefinedTerm.fs" />
     <Compile Include="FormalParameter.fs" />
-    <Compile Include="PropertyValue.fs" />
+    <Compile Include="Annotation.fs" />
     <Compile Include="FragmentSelector.fs" />
     <Compile Include="Graph.fs" />
     <Compile Include="YML\Helpers.fs" />
@@ -51,11 +51,11 @@ The parser targets Fable compatibility (JS, Python, .NET) and uses [YAMLicious](
     <Compile Include="YML\Encode.fs" />
     <Compile Include="YML\DefinedTerm.fs" />
     <Compile Include="YML\FormalParameter.fs" />
-    <Compile Include="YML\PropertyValue.fs" />
-    <Compile Include="YML\Material.fs" />
+    <Compile Include="YML\Annotation.fs" />
+    <Compile Include="YML\Sample.fs" />
     <Compile Include="YML\Data.fs" />
-    <Compile Include="YML\LabProtocol.fs" />
-    <Compile Include="YML\LabProcess.fs" />
+    <Compile Include="YML\Recipe.fs" />
+    <Compile Include="YML\Process.fs" />
     <Compile Include="YML\Dataset.fs" />
     <Compile Include="Table.fs" />
   </ItemGroup>
@@ -161,27 +161,27 @@ Callers resolve `Choice1Of2 id` lazily (pass through, leave as string, or look u
 
 ## Indexed Object Sections
 
-Reusable objects can be defined once in top-level index sections and referenced elsewhere by `@id`. This avoids repeating shared `PropertyValue` and `LabProtocol` objects in larger assay-style YAML files.
+Reusable objects can be defined once in top-level index sections and referenced elsewhere by `@id`. This avoids repeating shared `Annotation` and `Recipe` objects in larger assay-style YAML files.
 
 References use the same compact mapping shape as indexed objects:
 
 ```yaml
 labProtocols:
   - "@id": "#Protocol_Cell_Lysis"
-    type: LabProtocol
+    type: Recipe
     labEquipment:
       "@id": "#Component_centrifuge_Eppendorf_5420"
 
-propertyValues:
+annotations:
   - "@id": "#ParameterValue_time_10_minute"
-    type: PropertyValue
+    type: Annotation
     additionalType: ParameterValue
     name: time
     value: 10
     unit: minute
 
 processes:
-  - type: LabProcess
+  - type: Process
     name: Cell Lysis
     executesProtocol:
       "@id": "#Protocol_Cell_Lysis"
@@ -191,8 +191,8 @@ processes:
 
 Indexed sections currently cover:
 
-- `propertyValues`: reusable `PropertyValue` objects, including parameter values, characteristics, factors, components, and additional properties.
-- `labProtocols`: reusable `LabProtocol` objects that processes can reference through `executesProtocol`.
+- `annotations`: reusable `Annotation` objects, including parameter values, characteristics, factors, components, and additional properties.
+- `labProtocols`: reusable `Recipe` objects that processes can reference through `executesProtocol`.
 
 Inline objects remain valid wherever references are accepted. `@id` values should be stable within the document; fragment identifiers are preferred for local objects, while absolute URLs are suitable for externally identified objects.
 
@@ -256,12 +256,12 @@ module <TypeName> =
 
 ---
 
-### PropertyValue
+### Annotation
 
 **Known YAML fields:** `id`, `type`, `additionalType`, `name`, `value`, `unit`, `nameTAN`, `valueTAN`, `unitTAN`, `instanceOf`
 
 **Decoder:**
-- `name` → `PropertyValue(name)`
+- `name` → `Annotation(name)`
 - `value` → optional `.Value` (decoded as string even if YAML stores numeric)
 - `unit`, `nameTAN`, `valueTAN`, `unitTAN`, `additionalType` → optional scalars
 - `instanceOf` → `decodeRefOrInline FormalParameter.decoder` (inline only; id reference left unresolved)
@@ -276,14 +276,14 @@ module <TypeName> =
 
 ---
 
-### Material
+### Sample
 
 **Known YAML fields:** `id`, `type`, `additionalType`, `name`, `additionalProperty`
 
 **Decoder:**
-- `name` → `Material(name)`
+- `name` → `Sample(name)`
 - `additionalType` → optional
-- `additionalProperty` → sequence decoded via `PropertyValue.decoder` per element (or string id skipped)
+- `additionalProperty` → sequence decoded via `Annotation.decoder` per element (or string id skipped)
 - Overflow → `.SetProperty`
 
 **Encoder:**
@@ -304,7 +304,7 @@ module <TypeName> =
 **Decoder:**
 - `path` (or `id` when `path` is absent) → `Data(path)`
 - `selector`, `selectorFormat`, `encodingFormat`, `additionalType` → optional
-- `additionalProperty` → sequence decoded via `PropertyValue.decoder`
+- `additionalProperty` → sequence decoded via `Annotation.decoder`
 - Overflow → `.SetProperty`
 
 **Encoder:**
@@ -318,16 +318,16 @@ module <TypeName> =
 
 ---
 
-### LabProtocol
+### Recipe
 
 **Known YAML fields:** `id`, `type`, `additionalType`, `name`, `description`, `version`, `url`, `intendedUse`, `parameters`, `labEquipment`, `additionalProperty`
 
 **Decoder:**
-- All optional; construct `LabProtocol()` then assign
+- All optional; construct `Recipe()` then assign
 - `intendedUse` → `decodeRefOrInline DefinedTerm.decoder`
 - `parameters` → sequence of `decodeRefOrInline FormalParameter.decoder`
-- `labEquipment` → sequence of `decodeRefOrInline PropertyValue.decoder`
-- `additionalProperty` → sequence of `decodeRefOrInline PropertyValue.decoder`
+- `labEquipment` → sequence of `decodeRefOrInline Annotation.decoder`
+- `additionalProperty` → sequence of `decodeRefOrInline Annotation.decoder`
 - Overflow → `.SetProperty`
 
 **Encoder:**
@@ -340,17 +340,17 @@ module <TypeName> =
 
 ---
 
-### LabProcess
+### Process
 
 **Known YAML fields:** `id`, `type`, `additionalType`, `name`, `inputs`, `outputs`, `executesProtocol`, `parameterValue`
 
 **Decoder:**
-- `name` (required) → `LabProcess(name)`
+- `name` (required) → `Process(name)`
 - `additionalType` → optional
-- `inputs` → sequence; each element is `decodeRefOrInline` of either `Material.decoder` or `Data.decoder`; discriminate by `type` field value (`"bioschemas:Sample"` → Material, `"schema:MediaObject"` / `"File"` → Data); string ids are kept as unresolved references
+- `inputs` → sequence; each element is `decodeRefOrInline` of either `Sample.decoder` or `Data.decoder`; discriminate by `type` field value (`"bioschemas:Sample"` → Sample, `"schema:MediaObject"` / `"File"` → Data); string ids are kept as unresolved references
 - `outputs` → same pattern as `inputs`
-- `executesProtocol` → `decodeRefOrInline LabProtocol.decoder`
-- `parameterValue` → sequence of `decodeRefOrInline PropertyValue.decoder`
+- `executesProtocol` → `decodeRefOrInline Recipe.decoder`
+- `parameterValue` → sequence of `decodeRefOrInline Annotation.decoder`
 - Overflow → `.SetProperty`
 
 > **Back-edges** (`ProcessOf`) are never deserialized directly; they are wired up by the `Dataset` decoder after constructing the full process list.
@@ -372,9 +372,9 @@ module <TypeName> =
 **Decoder:**
 - `identifier` (required) → `Dataset(identifier)`
 - Other optional scalars
-- `processes` → sequence of `decodeRefOrInline LabProcess.decoder`; after constructing all processes, wire back-edges (`process.ProcessOf <- dataset`)
+- `processes` → sequence of `decodeRefOrInline Process.decoder`; after constructing all processes, wire back-edges (`process.ProcessOf <- dataset`)
 - `hasPart` → sequence of `decodeRefOrInline` of either `Dataset.decoder` or `Data.decoder` (discriminate by `type`)
-- `additionalProperty` → sequence of `decodeRefOrInline PropertyValue.decoder`
+- `additionalProperty` → sequence of `decodeRefOrInline Annotation.decoder`
 - Overflow → `.SetProperty`
 
 **Encoder:**
@@ -457,11 +457,11 @@ module Decode =
 | `Helpers.fs` | `ProcessCore.Yaml.Helpers` | `getMappings`, `requireField`, `tryGetField`, `decodeString`, `yamlValue`, `yamlMap`, `yamlSeq`, `genericDecodeToObj`, `genericEncodeFromObj`, `decodeRefOrInline` |
 | `DefinedTerm.fs` | `ProcessCore.Yaml.DefinedTerm` | `decoder`, `encoder`, `fromYamlString`, `toYamlString` |
 | `FormalParameter.fs` | `ProcessCore.Yaml.FormalParameter` | `decoder`, `encoder`, `fromYamlString`, `toYamlString` |
-| `PropertyValue.fs` | `ProcessCore.Yaml.PropertyValue` | `decoder`, `encoder`, `fromYamlString`, `toYamlString` |
-| `Material.fs` | `ProcessCore.Yaml.Material` | `decoder`, `encoder`, `fromYamlString`, `toYamlString` |
+| `Annotation.fs` | `ProcessCore.Yaml.Annotation` | `decoder`, `encoder`, `fromYamlString`, `toYamlString` |
+| `Sample.fs` | `ProcessCore.Yaml.Sample` | `decoder`, `encoder`, `fromYamlString`, `toYamlString` |
 | `Data.fs` | `ProcessCore.Yaml.Data` | `decoder`, `encoder`, `fromYamlString`, `toYamlString` |
-| `LabProtocol.fs` | `ProcessCore.Yaml.LabProtocol` | `decoder`, `encoder`, `fromYamlString`, `toYamlString` |
-| `LabProcess.fs` | `ProcessCore.Yaml.LabProcess` | `decoder`, `encoder`, `fromYamlString`, `toYamlString` |
+| `Recipe.fs` | `ProcessCore.Yaml.Recipe` | `decoder`, `encoder`, `fromYamlString`, `toYamlString` |
+| `Process.fs` | `ProcessCore.Yaml.Process` | `decoder`, `encoder`, `fromYamlString`, `toYamlString` |
 | `Dataset.fs` | `ProcessCore.Yaml.Dataset` | `decoder`, `encoder`, `fromYamlString`, `toYamlString` |
 
 ---

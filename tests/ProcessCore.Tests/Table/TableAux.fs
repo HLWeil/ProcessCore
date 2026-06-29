@@ -6,34 +6,34 @@ open ProcessCore.Table
 
 let tests = testList "TableAux" [
 
-    // ── MaterialIOType ────────────────────────────────────────────────────────
+    // ── SampleIOType ────────────────────────────────────────────────────────
 
-    testCase "MaterialIOType — Source" <| fun _ ->
-        let m = Material("S1", additionalType = "Source")
-        Expect.equal (TableAux.MaterialIOType m) IOType.Source "AdditionalType=Source → IOType.Source"
+    testCase "SampleIOType — Source" <| fun _ ->
+        let m = Sample("S1", additionalType = "Source")
+        Expect.equal (TableAux.SampleIOType m) IOType.Source "AdditionalType=Source → IOType.Source"
 
-    testCase "MaterialIOType — Sample" <| fun _ ->
-        let m = Material("S1", additionalType = "Sample")
-        Expect.equal (TableAux.MaterialIOType m) IOType.Sample "AdditionalType=Sample → IOType.Sample"
+    testCase "SampleIOType — Sample" <| fun _ ->
+        let m = Sample("S1", additionalType = "Sample")
+        Expect.equal (TableAux.SampleIOType m) IOType.Sample "AdditionalType=Sample → IOType.Sample"
 
-    testCase "MaterialIOType — Material" <| fun _ ->
-        let m = Material("S1", additionalType = "Material")
-        Expect.equal (TableAux.MaterialIOType m) IOType.Material "AdditionalType=Material → IOType.Material"
+    testCase "SampleIOType — Sample" <| fun _ ->
+        let m = Sample("S1", additionalType = "Sample")
+        Expect.equal (TableAux.SampleIOType m) IOType.Sample "AdditionalType=Sample → IOType.Sample"
 
-    testCase "MaterialIOType — None defaults to Sample" <| fun _ ->
-        let m = Material("S1")
-        Expect.equal (TableAux.MaterialIOType m) IOType.Sample "None → IOType.Sample"
+    testCase "SampleIOType — None defaults to Sample" <| fun _ ->
+        let m = Sample("S1")
+        Expect.equal (TableAux.SampleIOType m) IOType.Sample "None → IOType.Sample"
 
-    testCase "MaterialIOType — unknown string → FreeText" <| fun _ ->
-        let m = Material("S1", additionalType = "SpecialNode")
-        match TableAux.MaterialIOType m with
+    testCase "SampleIOType — unknown string → FreeText" <| fun _ ->
+        let m = Sample("S1", additionalType = "SpecialNode")
+        match TableAux.SampleIOType m with
         | IOType.FreeText s -> Expect.equal s "SpecialNode" "FreeText carries the string"
         | _ -> failwith "Expected FreeText"
 
     // ── PVToCell ──────────────────────────────────────────────────────────────
 
     testCase "PVToCell — unitized PV" <| fun _ ->
-        let pv = PropertyValue("temperature", value = "37", unit = "°C", unitTAN = "UO:0000027")
+        let pv = Annotation("temperature", value = "37", unit = "°C", unitTAN = "UO:0000027")
         match TableAux.PVToCell pv with
         | CompositeCell.Unitized(v, u, _) ->
             Expect.equal v "37" "value"
@@ -41,7 +41,7 @@ let tests = testList "TableAux" [
         | _ -> failwith "Expected Unitized"
 
     testCase "PVToCell — term PV (valueTAN, no unit)" <| fun _ ->
-        let pv = PropertyValue("enzyme", value = "Trypsin", valueTAN = "NCIT:C17077")
+        let pv = Annotation("enzyme", value = "Trypsin", valueTAN = "NCIT:C17077")
         match TableAux.PVToCell pv with
         | CompositeCell.Term(n, Some t) ->
             Expect.equal n "Trypsin"      "name"
@@ -49,13 +49,13 @@ let tests = testList "TableAux" [
         | _ -> failwith "Expected Term"
 
     testCase "PVToCell — freetext PV (value only)" <| fun _ ->
-        let pv = PropertyValue("comment", value = "hello")
+        let pv = Annotation("comment", value = "hello")
         match TableAux.PVToCell pv with
         | CompositeCell.FreeText v -> Expect.equal v "hello" "value"
         | _ -> failwith "Expected FreeText"
 
     testCase "PVToCell — no value returns empty FreeText" <| fun _ ->
-        let pv = PropertyValue("empty")
+        let pv = Annotation("empty")
         match TableAux.PVToCell pv with
         | CompositeCell.FreeText "" -> ()
         | _ -> failwith "Expected empty FreeText"
@@ -63,31 +63,31 @@ let tests = testList "TableAux" [
     // ── PVToHeader ────────────────────────────────────────────────────────────
 
     testCase "PVToHeader — ParameterValue" <| fun _ ->
-        let pv = PropertyValue("temperature", additionalType = "ParameterValue")
+        let pv = Annotation("temperature", additionalType = "ParameterValue")
         match TableAux.PVToHeader pv with
         | CompositeHeader.Parameter(dt) when dt.Name = "temperature" -> ()
         | _ -> failwith "Expected Parameter"
 
     testCase "PVToHeader — FactorValue" <| fun _ ->
-        let pv = PropertyValue("growth_phase", additionalType = "FactorValue")
+        let pv = Annotation("growth_phase", additionalType = "FactorValue")
         match TableAux.PVToHeader pv with
         | CompositeHeader.Factor(dt) when dt.Name = "growth_phase" -> ()
         | _ -> failwith "Expected Factor"
 
     testCase "PVToHeader — CharacteristicValue" <| fun _ ->
-        let pv = PropertyValue("organism", additionalType = "CharacteristicValue")
+        let pv = Annotation("organism", additionalType = "CharacteristicValue")
         match TableAux.PVToHeader pv with
         | CompositeHeader.Characteristic(dt) when dt.Name = "organism" -> ()
         | _ -> failwith "Expected Characteristic"
 
     testCase "PVToHeader — Component" <| fun _ ->
-        let pv = PropertyValue("instrument", additionalType = "Component")
+        let pv = Annotation("instrument", additionalType = "Component")
         match TableAux.PVToHeader pv with
         | CompositeHeader.Component(dt) when dt.Name = "instrument" -> ()
         | _ -> failwith "Expected Component"
 
     testCase "PVToHeader — no AdditionalType defaults to Parameter" <| fun _ ->
-        let pv = PropertyValue("whatever")
+        let pv = Annotation("whatever")
         match TableAux.PVToHeader pv with
         | CompositeHeader.Parameter(dt) when dt.Name = "whatever" -> ()
         | _ -> failwith "Expected Parameter default"
@@ -95,7 +95,7 @@ let tests = testList "TableAux" [
     // ── ApplyCellToPV ─────────────────────────────────────────────────────────
 
     testCase "ApplyCellToPV — FreeText sets Value, clears others" <| fun _ ->
-        let pv = PropertyValue("x", value = "old", unit = "°C", valueTAN = "tan", unitTAN = "uTAN")
+        let pv = Annotation("x", value = "old", unit = "°C", valueTAN = "tan", unitTAN = "uTAN")
         TableAux.ApplyCellToPV(pv, CompositeCell.FreeText "new")
         Expect.equal pv.Value    (Some "new") "Value updated"
         Expect.equal pv.Unit     None         "Unit cleared"
@@ -103,7 +103,7 @@ let tests = testList "TableAux" [
         Expect.equal pv.UnitTAN  None         "UnitTAN cleared"
 
     testCase "ApplyCellToPV — Term sets Value and ValueTAN, clears unit" <| fun _ ->
-        let pv = PropertyValue("x", unit = "°C", unitTAN = "uTAN")
+        let pv = Annotation("x", unit = "°C", unitTAN = "uTAN")
         TableAux.ApplyCellToPV(pv, CompositeCell.Term("Trypsin", Some "NCIT:C17077"))
         Expect.equal pv.Value    (Some "Trypsin")      "Value"
         Expect.equal pv.ValueTAN (Some "NCIT:C17077")  "ValueTAN"
@@ -111,14 +111,14 @@ let tests = testList "TableAux" [
         Expect.equal pv.UnitTAN  None                  "UnitTAN cleared"
 
     testCase "ApplyCellToPV — Unitized sets all three" <| fun _ ->
-        let pv = PropertyValue("x")
+        let pv = Annotation("x")
         TableAux.ApplyCellToPV(pv, CompositeCell.Unitized("37", "°C", Some "UO:0000027"))
         Expect.equal pv.Value   (Some "37")           "Value"
         Expect.equal pv.Unit    (Some "°C")           "Unit"
         Expect.equal pv.UnitTAN (Some "UO:0000027")   "UnitTAN"
 
     testCase "ApplyCellToPV — Data cell is a no-op" <| fun _ ->
-        let pv = PropertyValue("x", value = "original")
+        let pv = Annotation("x", value = "original")
         TableAux.ApplyCellToPV(pv, CompositeCell.Data(Data("file.csv")))
         Expect.equal pv.Value (Some "original") "Value unchanged"
 

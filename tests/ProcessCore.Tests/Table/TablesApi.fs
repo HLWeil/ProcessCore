@@ -8,16 +8,16 @@ open ProcessCore.Table
 
 let makeDatasetWithTwoTables () =
     // "TableA" — 2 processes
-    let p1a = LabProcess("TableA")
-    p1a.AddInputMaterial(Material("S1", additionalType = "Source"))
-    p1a.AddOutputMaterial(Material("O1", additionalType = "Sample"))
-    let p2a = LabProcess("TableA")
-    p2a.AddInputMaterial(Material("S2", additionalType = "Source"))
-    p2a.AddOutputMaterial(Material("O2", additionalType = "Sample"))
+    let p1a = Process("TableA")
+    p1a.AddInputSample(Sample("S1", additionalType = "Source"))
+    p1a.AddOutputSample(Sample("O1", additionalType = "Sample"))
+    let p2a = Process("TableA")
+    p2a.AddInputSample(Sample("S2", additionalType = "Source"))
+    p2a.AddOutputSample(Sample("O2", additionalType = "Sample"))
     // "TableB" — 1 process
-    let p1b = LabProcess("TableB")
-    p1b.AddInputMaterial(Material("S3", additionalType = "Source"))
-    p1b.AddOutputMaterial(Material("O3", additionalType = "Sample"))
+    let p1b = Process("TableB")
+    p1b.AddInputSample(Sample("S3", additionalType = "Source"))
+    p1b.AddOutputSample(Sample("O3", additionalType = "Sample"))
     let ds = Dataset("DS")
     ds.AddProcess(p1a)
     ds.AddProcess(p2a)
@@ -59,7 +59,7 @@ let tests = testList "TablesApi" [
         let ds = makeDatasetWithTwoTables()
         let t  = Tables(ds).GetTable("TableA")
         Expect.equal t.Name     "TableA" "name"
-        // LabProcess equality is by reference, so AddProcess does not deduplicate same-named procs;
+        // Process equality is by reference, so AddProcess does not deduplicate same-named procs;
         Expect.equal t.RowCount 2        "RowCount = 2 (two processes with the same name in the dataset)"
 
     testCase "GetTable — non-existent raises" <| fun _ ->

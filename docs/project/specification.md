@@ -13,15 +13,15 @@ The normative specification lives in [docs/spec](../spec/index.md). ProcessCore 
 
 ```mermaid
 flowchart LR
-    Dataset --processes--> LabProcess
+    Dataset --processes--> Process
     Dataset --hasPart--> Data
     Dataset --hasPart--> Dataset
-    LabProcess --inputs--> Material
-    LabProcess --outputs--> Data
-    LabProcess --executesProtocol--> LabProtocol
-    LabProcess --parameterValue--> PropertyValue
-    LabProtocol --parameters--> FormalParameter
-    PropertyValue --instanceOf--> FormalParameter
+    Process --inputs--> Sample
+    Process --outputs--> Data
+    Process --executesProtocol--> Recipe
+    Process --parameterValue--> Annotation
+    Recipe --parameters--> FormalParameter
+    Annotation --instanceOf--> FormalParameter
 ```
 
 Core entities:
@@ -29,11 +29,11 @@ Core entities:
 | Entity | Source |
 |--------|--------|
 | Dataset | [Dataset](../spec/core/Dataset.md) |
-| LabProcess | [LabProcess](../spec/core/LabProcess.md) |
-| LabProtocol | [LabProtocol](../spec/core/LabProtocol.md) |
-| Material | [Material](../spec/core/Material.md) |
+| Process | [Process](../spec/core/Process.md) |
+| Recipe | [Recipe](../spec/core/Recipe.md) |
+| Sample | [Sample](../spec/core/Sample.md) |
 | Data | [Data](../spec/core/Data.md) |
-| PropertyValue | [PropertyValue](../spec/core/PropertyValue.md) |
+| Annotation | [Annotation](../spec/core/Annotation.md) |
 | FormalParameter | [FormalParameter](../spec/core/FormalParameter.md) |
 | DefinedTerm | [DefinedTerm](../spec/core/DefinedTerm.md) |
 
@@ -49,7 +49,7 @@ Decorations add domain-specific meaning through `additionalType`, specialized pr
 
 ## Naming Notes
 
-The current core vocabulary uses `LabProcess` and `LabProtocol`, not the older placeholder names `Process` and `Protocol`.
+The current core vocabulary uses `Process` and `Recipe`, not the older placeholder names `Process` and `Protocol`.
 
 For process I/O, the current core and YAML schema names are:
 
@@ -59,7 +59,7 @@ For process I/O, the current core and YAML schema names are:
 - `parameterValue`
 - `additionalProperty`
 
-Some legacy/profile-shaped examples and upstream references use RO-Crate or Bioschemas names such as `object`, `result`, and `executesLabProtocol`. See [Examples and schemas](examples-and-schemas.md) for how those files are treated.
+Some legacy/profile-shaped examples and upstream references use RO-Crate or Bioschemas names such as `object`, `result`, and `executesRecipe`. See [Examples and schemas](examples-and-schemas.md) for how those files are treated.
 
 ## Querying
 

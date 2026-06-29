@@ -1,15 +1,15 @@
 ---
-title: Workflow Run PropertyValue Subtypes
+title: Workflow Run Annotation Subtypes
 category: Workflow Run Decoration
 categoryindex: 6
 index: 7
 ---
 
-# Workflow Run PropertyValue Subtypes
+# Workflow Run Annotation Subtypes
 
-Specializations of [PropertyValue](../../core/PropertyValue.md) used in the Workflow Run decoration.
+Specializations of [Annotation](../../core/Annotation.md) used in the Workflow Run decoration.
 
-Reference: [ARC WR RO-Crate Profile — PropertyValue](../../../../references/arc_wr_ro_crate.md)
+Reference: [ARC WR RO-Crate Profile — Annotation](../../../../references/arc_wr_ro_crate.md)
 
 ## Workflow Input (`Workflow Input`)
 

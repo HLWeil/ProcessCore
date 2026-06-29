@@ -23,7 +23,7 @@ Use Markdown pages for conceptual orientation, invariants, and extension-point e
 
 ## Didactic Shape
 
-- Start with the smallest mental model: datasets contain processes; processes connect material and data nodes; property values annotate nodes, processes, protocols, and datasets.
+- Start with the smallest mental model: datasets contain processes; processes connect sample and data nodes; property values annotate nodes, processes, protocols, and datasets.
 - Use one running example per literate page.
 - Keep setup code hidden and visible snippets short.
 - Use collapsible `<details>` blocks for long YAML or generated output.
@@ -41,4 +41,4 @@ Use Markdown pages for conceptual orientation, invariants, and extension-point e
 
 - Primary audience is F# library users.
 - No new production dependencies are added.
-- Examples use current core vocabulary: `LabProcess`, `LabProtocol`, `inputs`, `outputs`, and `executesProtocol`.
+- Examples use current core vocabulary: `Process`, `Recipe`, `inputs`, `outputs`, and `executesProtocol`.

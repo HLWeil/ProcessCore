@@ -4,7 +4,7 @@ open YAMLicious.YAMLiciousTypes
 open ProcessCore
 open Helpers
 
-module LabProtocol =
+module Recipe =
 
     let private knownFields =
         Set.ofList
@@ -16,7 +16,7 @@ module LabProtocol =
             [ "id"; "type"; "additionaltype"; "name"; "description"; "version"
               "url"; "intendeduse"; "parameters"; "labequipment"; "additionalproperty" ]
 
-    let genID (proto: LabProtocol) : string =
+    let genID (proto: Recipe) : string =
         match proto.TryGetPropertyValue("@id") with
         | Some (:? string as id) -> id
         | _ ->
@@ -27,8 +27,8 @@ module LabProtocol =
                 "#Protocol_" + name
 
 
-    let decoderWithPropertyResolver (processCoreOnly: bool) (resolvePropertyValue: string -> PropertyValue option) (value: YAMLElement) : LabProtocol =
-        checkType processCoreOnly "LabProtocol" value
+    let decoderWithPropertyResolver (processCoreOnly: bool) (resolveAnnotation: string -> Annotation option) (value: YAMLElement) : Recipe =
+        checkType processCoreOnly "Recipe" value
         let name           = tryGetField "name"           value |> Option.map decodeString
         let description    = tryGetField "description"    value |> Option.map decodeString
         let version        = tryGetField "version"        value |> Option.map decodeString
@@ -42,7 +42,7 @@ module LabProtocol =
                 | Choice1Of2 _  -> None)
 
         let proto =
-            LabProtocol(
+            Recipe(
                 ?name           = name,
                 ?description    = description,
                 ?version        = version,
@@ -59,19 +59,19 @@ module LabProtocol =
                     | Choice1Of2 id -> resolve id |> Option.iter add) v)
 
         decodeSeq "parameters"         (FormalParameter.decoder processCoreOnly) (fun _ -> None) proto.AddParameter
-        decodeSeq "labEquipment"       (PropertyValue.decoder processCoreOnly) resolvePropertyValue proto.AddLabEquipment
-        decodeSeq "labEquipments"      (PropertyValue.decoder processCoreOnly) resolvePropertyValue proto.AddLabEquipment
-        decodeSeq "additionalProperty" (PropertyValue.decoder processCoreOnly) resolvePropertyValue proto.AddAdditionalProperty
+        decodeSeq "labEquipment"       (Annotation.decoder processCoreOnly) resolveAnnotation proto.AddLabEquipment
+        decodeSeq "labEquipments"      (Annotation.decoder processCoreOnly) resolveAnnotation proto.AddLabEquipment
+        decodeSeq "additionalProperty" (Annotation.decoder processCoreOnly) resolveAnnotation proto.AddAdditionalProperty
 
-        applyOverflow "LabProtocol" processCoreOnly knownFields proto value
+        applyOverflow "Recipe" processCoreOnly knownFields proto value
         proto
 
-    let decoder (processCoreOnly: bool) (value: YAMLElement) : LabProtocol =
+    let decoder (processCoreOnly: bool) (value: YAMLElement) : Recipe =
         decoderWithPropertyResolver processCoreOnly (fun _ -> None) value
 
-    let encoder (pvEncoder : PropertyValue -> YAMLElement) (proto: LabProtocol) : YAMLElement =
+    let encoder (pvEncoder : Annotation -> YAMLElement) (proto: Recipe) : YAMLElement =
         [
-            yield "type", yamlValue "LabProtocol"
+            yield "type", yamlValue "Recipe"
             match proto.AdditionalType with
             | Some at -> yield "additionalType", yamlValue at
             | None    -> ()
@@ -112,8 +112,8 @@ module LabProtocol =
         ]
         |> yamlMap
 
-    let fromYamlString (processCoreOnly: bool) (s: string) : LabProtocol =
+    let fromYamlString (processCoreOnly: bool) (s: string) : Recipe =
         YAMLicious.Reader.read s |> decoder processCoreOnly
 
-    let toYamlString (whitespace: int option) (proto: LabProtocol) : string =
-        writeYaml whitespace (encoder PropertyValue.encoder proto)
+    let toYamlString (whitespace: int option) (proto: Recipe) : string =
+        writeYaml whitespace (encoder Annotation.encoder proto)

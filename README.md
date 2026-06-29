@@ -27,7 +27,7 @@ dotnet add package ProcessCore
 
 ## What You Get
 
-- Core ARC process graph types: `Dataset`, `LabProcess`, `LabProtocol`, `Material`, `Data`, `PropertyValue`, `FormalParameter`, and `DefinedTerm`.
+- Core ARC process graph types: `Dataset`, `Process`, `Recipe`, `Sample`, `Data`, `Annotation`, `FormalParameter`, and `DefinedTerm`.
 - Query helpers for connected, upstream, downstream, and path-based traversal.
 - Fragment-aware `Data` nodes with `path`, `selector`, `selectorFormat`, and pluggable selector providers.
 - YAML encode/decode support for the core model, including strict and lenient type handling.
@@ -40,24 +40,24 @@ dotnet add package ProcessCore
 ```fsharp
 open ProcessCore
 
-let source = Material("Base Culture", additionalType = "Source")
-let sample = Material("Cultivation Flask RT", additionalType = "Sample")
+let source = Sample("Base Culture", additionalType = "Source")
+let sample = Sample("Cultivation Flask RT", additionalType = "Sample")
 
 let growth =
-    LabProcess(
+    Process(
         "Growth",
         parameterValue =
-            [ PropertyValue("temperature", value = "25", unit = "degree Celsius") ]
+            [ Annotation("temperature", value = "25", unit = "degree Celsius") ]
     )
 
-growth.AddInputMaterial(source)
-growth.AddOutputMaterial(sample)
+growth.AddInputSample(source)
+growth.AddOutputSample(sample)
 
-let assay = Dataset("measurement1", name = "Proteomics assay")
+let assay = Dataset("measurement1", title = "Proteomics assay")
 assay.AddProcess(growth)
 
-let roots = assay.RootMaterials()
-let finals = assay.FinalMaterials()
+let roots = assay.RootSamples()
+let finals = assay.FinalSamples()
 ```
 
 ## YAML

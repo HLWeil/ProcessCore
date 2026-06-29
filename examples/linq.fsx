@@ -18,15 +18,15 @@ let myAssay = Dataset.fromYamlString false ymlContent
 
 query {
     for data in myAssay.AllData() do
-    where (data.UpstreamPropertyValues() |> Seq.exists (fun pv -> pv.NameText = "temperature" && pv.ValueText = "25"))
+    where (data.UpstreamAnnotations() |> Seq.exists (fun pv -> pv.NameText = "temperature" && pv.ValueText = "25"))
 }
 
-myAssay.AllData().[0].UpstreamPropertyValues()
+myAssay.AllData().[0].UpstreamAnnotations()
 
 
-myAssay.AllData().[0].UpstreamPropertyValues()
-myAssay.AllData().[0].UpstreamNodes().[0].UpstreamPropertyValues()
+myAssay.AllData().[0].UpstreamAnnotations()
+myAssay.AllData().[0].UpstreamNodes().[0].UpstreamAnnotations()
 
 (myAssay.AllData().[0].UpstreamNodes().[0].GetInputOf() |> Seq.item 0).ParameterValue
 
-myAssay.AllMaterials().[3].UpstreamPropertyValues()
+myAssay.AllSamples().[3].UpstreamAnnotations()

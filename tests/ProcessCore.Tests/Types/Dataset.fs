@@ -5,6 +5,12 @@ open ProcessCore
 
 let tests = testList "Dataset" [
 
+    testCase "title is optional and mutable" <| fun _ ->
+        let ds = Dataset("DS-A", title = "Initial title")
+        Expect.equal ds.Title (Some "Initial title") "constructor title"
+        ds.Title <- Some "Updated title"
+        Expect.equal ds.Title (Some "Updated title") "mutable title"
+
     testCase "equality by identifier" <| fun _ ->
         let ds1 = Dataset("DS-A")
         let ds2 = Dataset("DS-A")
@@ -17,7 +23,7 @@ let tests = testList "Dataset" [
 
     testCase "AddProcess sets ProcessOf back-edge" <| fun _ ->
         let ds = Dataset("DS-A")
-        let p  = LabProcess("p1")
+        let p  = Process("p1")
         Expect.isNone p.ProcessOf "ProcessOf starts as None"
         ds.AddProcess(p)
         Expect.isSome p.ProcessOf "ProcessOf should be Some after AddProcess"
@@ -25,22 +31,22 @@ let tests = testList "Dataset" [
 
     testCase "AddProcess deduplicates reference Identity" <| fun _ ->
         let ds = Dataset("DS-A")
-        let p  = LabProcess("p1")
+        let p  = Process("p1")
         ds.AddProcess(p)
         ds.AddProcess(p)
         Expect.equal ds.Processes.Count 1 "Same process added twice → one entry"
 
     testCase "AddProcess does not deduplicate different instances" <| fun _ ->
         let ds = Dataset("DS-A")
-        let p1 = LabProcess("p1")
-        let p2 = LabProcess("p1")
+        let p1 = Process("p1")
+        let p2 = Process("p1")
         ds.AddProcess(p1)
         ds.AddProcess(p2)
         Expect.equal ds.Processes.Count 2 "Different instances with same identifier → two entries"
 
     testCase "RemoveProcess clears ProcessOf" <| fun _ ->
         let ds = Dataset("DS-A")
-        let p  = LabProcess("p1")
+        let p  = Process("p1")
         ds.AddProcess(p)
         ds.RemoveProcess(p)
         Expect.equal ds.Processes.Count 0 "Process should be removed"
@@ -48,7 +54,7 @@ let tests = testList "Dataset" [
 
     testCase "TryGetProcess found" <| fun _ ->
         let ds = Dataset("DS-A")
-        let p  = LabProcess("p1")
+        let p  = Process("p1")
         ds.AddProcess(p)
         let result = ds.TryGetProcess("p1")
         Expect.isSome result "Should find the process"
@@ -101,7 +107,7 @@ let tests = testList "Dataset" [
 
     testCase "AddAdditionalProperty deduplicates" <| fun _ ->
         let ds = Dataset("DS-A")
-        let pv = PropertyValue("licence", value = "CC-BY-4.0")
+        let pv = Annotation("licence", value = "CC-BY-4.0")
         ds.AddAdditionalProperty(pv)
         ds.AddAdditionalProperty(pv)
         Expect.equal ds.AdditionalProperty.Count 1 "Identical PV added twice → one entry"
@@ -109,14 +115,14 @@ let tests = testList "Dataset" [
     testCase "CollapseProcesses groups same name and equal process values" <| fun _ ->
         let nodeName (node: IONode) =
             match node with
-            | MaterialNode m -> m.Name
+            | SampleNode m -> m.Name
             | DataNode d -> d.Path
 
         let makeProcess input value output =
-            let p = LabProcess("MyProcess")
-            p.AddInputMaterial(Material(input))
-            p.AddParameterValue(PropertyValue("status", value = value, additionalType = "ParameterValue"))
-            p.AddOutputMaterial(Material(output))
+            let p = Process("MyProcess")
+            p.AddInputSample(Sample(input))
+            p.AddParameterValue(Annotation("status", value = value, additionalType = "ParameterValue"))
+            p.AddOutputSample(Sample(output))
             p
 
         let ds = Dataset("DS-collapse")
@@ -150,15 +156,15 @@ let tests = testList "Dataset" [
         Expect.equal (nodeName valueY.Outputs[1]) "Output4" "second ValueY output"
 
     testCase "CollapseProcesses does not collapse processes with different names" <| fun _ ->
-        let p1 = LabProcess("ProcessA")
-        p1.AddInputMaterial(Material("Input1"))
-        p1.AddParameterValue(PropertyValue("status", value = "ValueX", additionalType = "ParameterValue"))
-        p1.AddOutputMaterial(Material("Output1"))
+        let p1 = Process("ProcessA")
+        p1.AddInputSample(Sample("Input1"))
+        p1.AddParameterValue(Annotation("status", value = "ValueX", additionalType = "ParameterValue"))
+        p1.AddOutputSample(Sample("Output1"))
 
-        let p2 = LabProcess("ProcessB")
-        p2.AddInputMaterial(Material("Input2"))
-        p2.AddParameterValue(PropertyValue("status", value = "ValueX", additionalType = "ParameterValue"))
-        p2.AddOutputMaterial(Material("Output2"))
+        let p2 = Process("ProcessB")
+        p2.AddInputSample(Sample("Input2"))
+        p2.AddParameterValue(Annotation("status", value = "ValueX", additionalType = "ParameterValue"))
+        p2.AddOutputSample(Sample("Output2"))
 
         let ds = Dataset("DS-collapse-names")
         ds.AddProcess(p1)
@@ -173,15 +179,15 @@ let tests = testList "Dataset" [
         Expect.equal p2.Outputs.Count 1 "ProcessB keeps one output lane"
 
     testCase "CollapseProcesses does not collapse when property values differ" <| fun _ ->
-        let p1 = LabProcess("MyProcess")
-        p1.AddInputMaterial(Material("Input1"))
-        p1.AddParameterValue(PropertyValue("status", value = "ValueX", additionalType = "ParameterValue"))
-        p1.AddOutputMaterial(Material("Output1"))
+        let p1 = Process("MyProcess")
+        p1.AddInputSample(Sample("Input1"))
+        p1.AddParameterValue(Annotation("status", value = "ValueX", additionalType = "ParameterValue"))
+        p1.AddOutputSample(Sample("Output1"))
 
-        let p2 = LabProcess("MyProcess")
-        p2.AddInputMaterial(Material("Input2"))
-        p2.AddParameterValue(PropertyValue("status", value = "ValueY", additionalType = "ParameterValue"))
-        p2.AddOutputMaterial(Material("Output2"))
+        let p2 = Process("MyProcess")
+        p2.AddInputSample(Sample("Input2"))
+        p2.AddParameterValue(Annotation("status", value = "ValueY", additionalType = "ParameterValue"))
+        p2.AddOutputSample(Sample("Output2"))
 
         let ds = Dataset("DS-collapse-values")
         ds.AddProcess(p1)
@@ -198,25 +204,25 @@ let tests = testList "Dataset" [
     testCase "CollapseProcesses appends a single IO process to an existing multi-IO process" <| fun _ ->
         let nodeName (node: IONode) =
             match node with
-            | MaterialNode m -> m.Name
+            | SampleNode m -> m.Name
             | DataNode d -> d.Path
 
-        let multi = LabProcess("MyProcess")
-        multi.AddInputMaterial(Material("Input1"))
-        multi.AddInputMaterial(Material("Input2"))
-        multi.AddParameterValue(PropertyValue("status", value = "ValueX", additionalType = "ParameterValue"))
-        multi.AddOutputMaterial(Material("Output1"))
-        multi.AddOutputMaterial(Material("Output2"))
+        let multi = Process("MyProcess")
+        multi.AddInputSample(Sample("Input1"))
+        multi.AddInputSample(Sample("Input2"))
+        multi.AddParameterValue(Annotation("status", value = "ValueX", additionalType = "ParameterValue"))
+        multi.AddOutputSample(Sample("Output1"))
+        multi.AddOutputSample(Sample("Output2"))
 
-        let single = LabProcess("MyProcess")
-        single.AddInputMaterial(Material("Input3"))
-        single.AddParameterValue(PropertyValue("status", value = "ValueX", additionalType = "ParameterValue"))
-        single.AddOutputMaterial(Material("Output3"))
+        let single = Process("MyProcess")
+        single.AddInputSample(Sample("Input3"))
+        single.AddParameterValue(Annotation("status", value = "ValueX", additionalType = "ParameterValue"))
+        single.AddOutputSample(Sample("Output3"))
 
-        let separate = LabProcess("MyProcess")
-        separate.AddInputMaterial(Material("Input4"))
-        separate.AddParameterValue(PropertyValue("status", value = "ValueY", additionalType = "ParameterValue"))
-        separate.AddOutputMaterial(Material("Output4"))
+        let separate = Process("MyProcess")
+        separate.AddInputSample(Sample("Input4"))
+        separate.AddParameterValue(Annotation("status", value = "ValueY", additionalType = "ParameterValue"))
+        separate.AddOutputSample(Sample("Output4"))
 
         let ds = Dataset("DS-collapse-multi")
         ds.AddProcess(multi)
@@ -240,16 +246,16 @@ let tests = testList "Dataset" [
     testCase "CollapseProcesses collapses processes with inputs only" <| fun _ ->
         let nodeName (node: IONode) =
             match node with
-            | MaterialNode m -> m.Name
+            | SampleNode m -> m.Name
             | DataNode d -> d.Path
 
-        let p1 = LabProcess("InputOnly")
-        p1.AddInputMaterial(Material("Input1"))
-        p1.AddParameterValue(PropertyValue("status", value = "ValueX", additionalType = "ParameterValue"))
+        let p1 = Process("InputOnly")
+        p1.AddInputSample(Sample("Input1"))
+        p1.AddParameterValue(Annotation("status", value = "ValueX", additionalType = "ParameterValue"))
 
-        let p2 = LabProcess("InputOnly")
-        p2.AddInputMaterial(Material("Input2"))
-        p2.AddParameterValue(PropertyValue("status", value = "ValueX", additionalType = "ParameterValue"))
+        let p2 = Process("InputOnly")
+        p2.AddInputSample(Sample("Input2"))
+        p2.AddParameterValue(Annotation("status", value = "ValueX", additionalType = "ParameterValue"))
 
         let ds = Dataset("DS-collapse-input-only")
         ds.AddProcess(p1)
@@ -266,32 +272,32 @@ let tests = testList "Dataset" [
     testCase "CollapseProcesses keeps both-sided, input-only, and output-only groups separate" <| fun _ ->
         let nodeName (node: IONode) =
             match node with
-            | MaterialNode m -> m.Name
+            | SampleNode m -> m.Name
             | DataNode d -> d.Path
 
-        let addStatus (p: LabProcess) =
-            p.AddParameterValue(PropertyValue("status", value = "ValueX", additionalType = "ParameterValue"))
+        let addStatus (p: Process) =
+            p.AddParameterValue(Annotation("status", value = "ValueX", additionalType = "ParameterValue"))
             p
 
-        let both1 = addStatus (LabProcess("MixedShape"))
-        both1.AddInputMaterial(Material("BothInput1"))
-        both1.AddOutputMaterial(Material("BothOutput1"))
+        let both1 = addStatus (Process("MixedShape"))
+        both1.AddInputSample(Sample("BothInput1"))
+        both1.AddOutputSample(Sample("BothOutput1"))
 
-        let both2 = addStatus (LabProcess("MixedShape"))
-        both2.AddInputMaterial(Material("BothInput2"))
-        both2.AddOutputMaterial(Material("BothOutput2"))
+        let both2 = addStatus (Process("MixedShape"))
+        both2.AddInputSample(Sample("BothInput2"))
+        both2.AddOutputSample(Sample("BothOutput2"))
 
-        let inputOnly1 = addStatus (LabProcess("MixedShape"))
-        inputOnly1.AddInputMaterial(Material("OnlyInput1"))
+        let inputOnly1 = addStatus (Process("MixedShape"))
+        inputOnly1.AddInputSample(Sample("OnlyInput1"))
 
-        let inputOnly2 = addStatus (LabProcess("MixedShape"))
-        inputOnly2.AddInputMaterial(Material("OnlyInput2"))
+        let inputOnly2 = addStatus (Process("MixedShape"))
+        inputOnly2.AddInputSample(Sample("OnlyInput2"))
 
-        let outputOnly1 = addStatus (LabProcess("MixedShape"))
-        outputOnly1.AddOutputMaterial(Material("OnlyOutput1"))
+        let outputOnly1 = addStatus (Process("MixedShape"))
+        outputOnly1.AddOutputSample(Sample("OnlyOutput1"))
 
-        let outputOnly2 = addStatus (LabProcess("MixedShape"))
-        outputOnly2.AddOutputMaterial(Material("OnlyOutput2"))
+        let outputOnly2 = addStatus (Process("MixedShape"))
+        outputOnly2.AddOutputSample(Sample("OnlyOutput2"))
 
         let ds = Dataset("DS-collapse-mixed-shape")
         ds.AddProcess(both1)
@@ -331,18 +337,18 @@ let tests = testList "Dataset" [
     testCase "CollapseProcesses preserves positional N-to-N traversal and back-edges" <| fun _ ->
         let nodeName (node: IONode) =
             match node with
-            | MaterialNode m -> m.Name
+            | SampleNode m -> m.Name
             | DataNode d -> d.Path
 
-        let p1 = LabProcess("MyProcess")
-        p1.AddInputMaterial(Material("Input1"))
-        p1.AddParameterValue(PropertyValue("status", value = "ValueX", additionalType = "ParameterValue"))
-        p1.AddOutputMaterial(Material("Output1"))
+        let p1 = Process("MyProcess")
+        p1.AddInputSample(Sample("Input1"))
+        p1.AddParameterValue(Annotation("status", value = "ValueX", additionalType = "ParameterValue"))
+        p1.AddOutputSample(Sample("Output1"))
 
-        let p2 = LabProcess("MyProcess")
-        p2.AddInputMaterial(Material("Input2"))
-        p2.AddParameterValue(PropertyValue("status", value = "ValueX", additionalType = "ParameterValue"))
-        p2.AddOutputMaterial(Material("Output2"))
+        let p2 = Process("MyProcess")
+        p2.AddInputSample(Sample("Input2"))
+        p2.AddParameterValue(Annotation("status", value = "ValueX", additionalType = "ParameterValue"))
+        p2.AddOutputSample(Sample("Output2"))
 
         let ds = Dataset("DS-collapse-map")
         ds.AddProcess(p1)

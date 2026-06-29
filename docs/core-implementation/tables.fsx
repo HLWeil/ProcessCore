@@ -8,7 +8,7 @@ index: 7
 
 # Tabular Views Over Process Graphs
 
-`ProcessCore.Table` exposes ISA-like table views over a process graph. A table groups processes by name, and each row is backed by a live `LabProcess`.
+`ProcessCore.Table` exposes ISA-like table views over a process graph. A table groups processes by name, and each row is backed by a live `Process`.
 *)
 
 (*** hide ***)
@@ -18,24 +18,24 @@ open ProcessCore
 open ProcessCore.Table
 
 let sample name =
-    Material(name, additionalType = "Sample")
+    Sample(name, additionalType = "Sample")
 
 let source name =
-    Material(name, additionalType = "Source")
+    Sample(name, additionalType = "Source")
 
 let growthProcess inputName outputName temperature =
-    let protocol = LabProtocol()
+    let protocol = Recipe()
     protocol.Name <- Some "Growth"
-    protocol.AddLabEquipment(PropertyValue("growth chamber", value = "chamber-1", additionalType = "Component"))
+    protocol.AddLabEquipment(Annotation("growth chamber", value = "chamber-1", additionalType = "Component"))
 
     let output = sample outputName
-    output.AddAdditionalProperty(PropertyValue("temperature", value = temperature, unit = "degree Celsius", additionalType = "FactorValue"))
+    output.AddAdditionalProperty(Annotation("temperature", value = temperature, unit = "degree Celsius", additionalType = "FactorValue"))
 
-    let p = LabProcess("Growth")
+    let p = Process("Growth")
     p.ExecutesProtocol <- Some protocol
-    p.AddInputMaterial(source inputName)
-    p.AddOutputMaterial(output)
-    p.AddParameterValue(PropertyValue("duration", value = "7", unit = "day", additionalType = "ParameterValue"))
+    p.AddInputSample(source inputName)
+    p.AddOutputSample(output)
+    p.AddParameterValue(Annotation("duration", value = "7", unit = "day", additionalType = "ParameterValue"))
     p
 
 let dataset = Dataset("table-demo")
@@ -83,7 +83,7 @@ firstRow
 (*** include-it ***)
 
 (**
-Adding an annotation column writes `PropertyValue` objects into the appropriate graph slot. Parameter columns go to `LabProcess.ParameterValue`.
+Adding an annotation column writes `Annotation` objects into the appropriate graph slot. Parameter columns go to `Process.ParameterValue`.
 *)
 
 growth.AddColumn(
@@ -106,7 +106,7 @@ processParameters
 (*** include-it ***)
 
 (**
-Adding a row creates a new `LabProcess` in both the table and the parent dataset. Empty cells use the table's current headers as a template.
+Adding a row creates a new `Process` in both the table and the parent dataset. Empty cells use the table's current headers as a template.
 *)
 
 growth.AppendRow()
@@ -123,7 +123,7 @@ The table is a view, not a detached copy. Querying the dataset after a table edi
 *)
 
 let allParameterNames =
-    dataset.AllPropertyValues()
+    dataset.AllAnnotations()
     |> Seq.map (fun pv -> pv.Name)
     |> Seq.distinct
     |> Seq.toList

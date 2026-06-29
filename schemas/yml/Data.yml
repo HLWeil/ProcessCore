@@ -43,8 +43,8 @@ properties:
     items:
       oneOf:
         - type: string
-          description: "@id reference to a PropertyValue"
-        - $ref: "PropertyValue.yml"
+          description: "@id reference to a Annotation"
+        - $ref: "Annotation.yml"
 
 required:
   - type

@@ -17,20 +17,20 @@ let all =
         "ProcessCore"
         [
             Integration.tests
-            Types.PropertyValue.tests
+            Types.Annotation.tests
             Types.DefinedTerm.tests
             Types.FormalParameter.tests
-            Types.Material.tests
+            Types.Sample.tests
             Types.Data.tests
-            Types.LabProtocol.tests
-            Types.LabProcess.tests
+            Types.Recipe.tests
+            Types.Process.tests
             Types.Dataset.tests
             Types.IONode.tests
             Graph.BackEdges.tests
             Graph.Deduplication.tests
             Graph.Traversal.tests
             Graph.FragmentSelectors.tests
-            Graph.PropertyValueSources.tests
+            Graph.AnnotationSources.tests
             Graph.DatasetQueries.tests
             Graph.PathQueries.tests
             Table.CompositeTypes.tests
@@ -51,9 +51,9 @@ let map (a: 'T1 -> 'T2) (pr: JS.Promise<'T1>): JS.Promise<'T2> = jsNative
 let itAsync(name: string, test: unit -> Promise<unit>) = jsNative
 
 [<Import("describe", from = "vitest")>]
-let describe(name: string, testSuit: unit -> unit) = jsNative 
+let describe(name: string, testSuit: unit -> unit) = jsNative
 
-describe("index", fun () -> 
+describe("index", fun () ->
     itAsync ("add", fun () ->
         Pyxpecto.runTestsAsync [| ConfigArg.DoNotExitWithCode|] all
         |> Async.StartAsPromise

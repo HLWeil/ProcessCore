@@ -18,7 +18,7 @@ type ProcessIoDirection =
 
 /// <summary>
 /// Row of the <c>defined_term</c> table — a controlled-vocabulary term used as a typed identifier
-/// throughout the data model (e.g. as ontology references for materials, units and parameter names).
+/// throughout the data model (e.g. as ontology references for samples, units and parameter names).
 /// </summary>
 /// <param name="Id">Primary key — opaque identifier for the term.</param>
 /// <param name="Type">Type discriminator (the term's class within the data model).</param>
@@ -69,8 +69,8 @@ type DefinedTermRow(
         )
 
 /// <summary>
-/// Row of the <c>lab_protocol</c> table — a reusable protocol definition that can be executed by
-/// one or more <see cref="LabProcessRow"/> instances and parameterised through
+/// Row of the <c>recipe</c> table — a reusable protocol definition that can be executed by
+/// one or more <see cref="ProcessRow"/> instances and parameterised through
 /// <see cref="ProtocolParameterRow"/> entries.
 /// </summary>
 /// <param name="Id">Primary key.</param>
@@ -83,7 +83,7 @@ type DefinedTermRow(
 /// <param name="IntendedUseId">Optional id of a defined term describing the intended use.</param>
 /// <param name="IntendedUseText">Optional free-form intended-use description.</param>
 [<AttachMembers>]
-type LabProtocolRow(
+type RecipeRow(
     Id: string,
     Type: string,
     ?AdditionalType: string,
@@ -127,7 +127,7 @@ type LabProtocolRow(
         ?IntendedUseId: string,
         ?IntendedUseText: string
     ) =
-        LabProtocolRow(
+        RecipeRow(
             Id,
             Type,
             ?AdditionalType = AdditionalType,
@@ -141,13 +141,13 @@ type LabProtocolRow(
 
 /// <summary>
 /// Row of the <c>formal_parameter</c> table — the schema-side declaration of a parameter that a
-/// <see cref="LabProtocolRow"/> can take, optionally pinned to a default <see cref="PropertyValueRow"/>.
+/// <see cref="RecipeRow"/> can take, optionally pinned to a default <see cref="AnnotationRow"/>.
 /// </summary>
 /// <param name="Id">Primary key.</param>
 /// <param name="Type">Type discriminator.</param>
 /// <param name="Name">Optional parameter name.</param>
 /// <param name="NameTan">Optional Term Accession Number for the parameter name.</param>
-/// <param name="DefaultValueId">Optional id of a <see cref="PropertyValueRow"/> used as the default.</param>
+/// <param name="DefaultValueId">Optional id of a <see cref="AnnotationRow"/> used as the default.</param>
 [<AttachMembers>]
 type FormalParameterRow(Id: string, Type: string, ?Name: string, ?NameTan: string, ?DefaultValueId: string) =
 
@@ -175,7 +175,7 @@ type FormalParameterRow(Id: string, Type: string, ?Name: string, ?NameTan: strin
 /// <param name="Type">Type discriminator.</param>
 /// <param name="Identifier">External identifier (e.g. ARC identifier or DOI).</param>
 /// <param name="AdditionalType">Optional refinement of <paramref name="Type"/>.</param>
-/// <param name="Name">Optional dataset name.</param>
+/// <param name="Title">Optional dataset title.</param>
 /// <param name="Description">Optional free-form description.</param>
 [<AttachMembers>]
 type DatasetRow(
@@ -183,7 +183,7 @@ type DatasetRow(
     Type: string,
     Identifier: string,
     ?AdditionalType: string,
-    ?Name: string,
+    ?Title: string,
     ?Description: string
 ) =
 
@@ -195,8 +195,8 @@ type DatasetRow(
     member val Identifier = Identifier with get, set
     /// <summary>Optional refinement of <see cref="Type"/>.</summary>
     member val AdditionalType = AdditionalType with get, set
-    /// <summary>Optional dataset name.</summary>
-    member val Name = Name with get, set
+    /// <summary>Optional dataset title.</summary>
+    member val Title = Title with get, set
     /// <summary>Optional free-form description.</summary>
     member val Description = Description with get, set
 
@@ -207,27 +207,27 @@ type DatasetRow(
         Type: string,
         Identifier: string,
         ?AdditionalType: string,
-        ?Name: string,
+        ?Title: string,
         ?Description: string
     ) =
-        DatasetRow(Id, Type, Identifier, ?AdditionalType = AdditionalType, ?Name = Name, ?Description = Description)
+        DatasetRow(Id, Type, Identifier, ?AdditionalType = AdditionalType, ?Title = Title, ?Description = Description)
 
 /// <summary>
-/// Row of the <c>material</c> table — a tangible substance or sample that can act as input or
-/// output of a <see cref="LabProcessRow"/>.
+/// Row of the <c>sample</c> table — a tangible substance or sample that can act as input or
+/// output of a <see cref="ProcessRow"/>.
 /// </summary>
 /// <param name="Id">Primary key.</param>
 /// <param name="Type">Type discriminator.</param>
-/// <param name="Name">Material name.</param>
+/// <param name="Name">Sample name.</param>
 /// <param name="AdditionalType">Optional refinement of <paramref name="Type"/>.</param>
 [<AttachMembers>]
-type MaterialRow(Id: string, Type: string, Name: string, ?AdditionalType: string) =
+type SampleRow(Id: string, Type: string, Name: string, ?AdditionalType: string) =
 
     /// <summary>Primary key.</summary>
     member val Id = Id with get, set
     /// <summary>Type discriminator.</summary>
     member val Type = Type with get, set
-    /// <summary>Material name.</summary>
+    /// <summary>Sample name.</summary>
     member val Name = Name with get, set
     /// <summary>Optional refinement of <see cref="Type"/>.</summary>
     member val AdditionalType = AdditionalType with get, set
@@ -235,11 +235,11 @@ type MaterialRow(Id: string, Type: string, Name: string, ?AdditionalType: string
     /// <summary>Named-argument constructor exposed to JavaScript and Python callers.</summary>
     [<NamedParams>]
     static member create(Id: string, Type: string, Name: string, ?AdditionalType: string) =
-        MaterialRow(Id, Type, Name, ?AdditionalType = AdditionalType)
+        SampleRow(Id, Type, Name, ?AdditionalType = AdditionalType)
 
 /// <summary>
 /// Row of the <c>data</c> table — a digital data item identified by a path and optional selector,
-/// participating as input or output of a <see cref="LabProcessRow"/>.
+/// participating as input or output of a <see cref="ProcessRow"/>.
 /// </summary>
 /// <param name="Id">Primary key.</param>
 /// <param name="Type">Type discriminator.</param>
@@ -296,7 +296,7 @@ type DataRow(
         )
 
 /// <summary>
-/// Row of the <c>lab_process</c> table — a single execution of a <see cref="LabProtocolRow"/>,
+/// Row of the <c>process</c> table — a single execution of a <see cref="RecipeRow"/>,
 /// connected to its inputs and outputs through <see cref="ProcessIoRow"/> and to its parameter values
 /// through <see cref="ProcessParameterValueRow"/>.
 /// </summary>
@@ -304,9 +304,9 @@ type DataRow(
 /// <param name="Type">Type discriminator.</param>
 /// <param name="Name">Process name.</param>
 /// <param name="AdditionalType">Optional refinement of <paramref name="Type"/>.</param>
-/// <param name="ExecutesProtocolId">Optional id of the executed <see cref="LabProtocolRow"/>.</param>
+/// <param name="ExecutesProtocolId">Optional id of the executed <see cref="RecipeRow"/>.</param>
 [<AttachMembers>]
-type LabProcessRow(Id: string, Type: string, Name: string, ?AdditionalType: string, ?ExecutesProtocolId: string) =
+type ProcessRow(Id: string, Type: string, Name: string, ?AdditionalType: string, ?ExecutesProtocolId: string) =
 
     /// <summary>Primary key.</summary>
     member val Id = Id with get, set
@@ -328,10 +328,10 @@ type LabProcessRow(Id: string, Type: string, Name: string, ?AdditionalType: stri
         ?AdditionalType: string,
         ?ExecutesProtocolId: string
     ) =
-        LabProcessRow(Id, Type, Name, ?AdditionalType = AdditionalType, ?ExecutesProtocolId = ExecutesProtocolId)
+        ProcessRow(Id, Type, Name, ?AdditionalType = AdditionalType, ?ExecutesProtocolId = ExecutesProtocolId)
 
 /// <summary>
-/// Row of the <c>property_value</c> table — a typed name/value pair, optionally with a unit and
+/// Row of the <c>annotation</c> table — a typed name/value pair, optionally with a unit and
 /// ontology references. Used as parameter value, additional property and default-value carrier.
 /// </summary>
 /// <param name="Id">Primary key.</param>
@@ -345,7 +345,7 @@ type LabProcessRow(Id: string, Type: string, Name: string, ?AdditionalType: stri
 /// <param name="UnitTan">Optional Term Accession Number for the unit.</param>
 /// <param name="InstanceOfId">Optional id of the <see cref="FormalParameterRow"/> this value instantiates.</param>
 [<AttachMembers>]
-type PropertyValueRow(
+type AnnotationRow(
     Id: string,
     Type: string,
     Name: string,
@@ -393,7 +393,7 @@ type PropertyValueRow(
         ?UnitTan: string,
         ?InstanceOfId: string
     ) =
-        PropertyValueRow(
+        AnnotationRow(
             Id,
             Type,
             Name,
@@ -433,7 +433,7 @@ type DatasetHasPartRow(DatasetId: string, Position: int, ?PartDatasetId: string,
 
 /// <summary>
 /// Row of the <c>dataset_process</c> association table — links a dataset to one of its
-/// <see cref="LabProcessRow"/> entries at a given ordered position.
+/// <see cref="ProcessRow"/> entries at a given ordered position.
 /// </summary>
 /// <param name="DatasetId">Owning dataset id.</param>
 /// <param name="Position">Zero-based ordering position within the dataset.</param>
@@ -455,29 +455,29 @@ type DatasetProcessRow(DatasetId: string, Position: int, ProcessId: string) =
 
 /// <summary>
 /// Row of the <c>dataset_additional_property</c> association table — attaches an ordered
-/// <see cref="PropertyValueRow"/> to a dataset.
+/// <see cref="AnnotationRow"/> to a dataset.
 /// </summary>
 /// <param name="DatasetId">Owning dataset id.</param>
 /// <param name="Position">Zero-based ordering position within the dataset.</param>
-/// <param name="PropertyValueId">Referenced property-value id.</param>
+/// <param name="AnnotationId">Referenced property-value id.</param>
 [<AttachMembers>]
-type DatasetAdditionalPropertyRow(DatasetId: string, Position: int, PropertyValueId: string) =
+type DatasetAdditionalPropertyRow(DatasetId: string, Position: int, AnnotationId: string) =
 
     /// <summary>Owning dataset id.</summary>
     member val DatasetId = DatasetId with get, set
     /// <summary>Position within the dataset.</summary>
     member val Position = Position with get, set
     /// <summary>Referenced property-value id.</summary>
-    member val PropertyValueId = PropertyValueId with get, set
+    member val AnnotationId = AnnotationId with get, set
 
     /// <summary>Named-argument constructor exposed to JavaScript and Python callers.</summary>
     [<NamedParams>]
-    static member create(DatasetId: string, Position: int, PropertyValueId: string) =
-        DatasetAdditionalPropertyRow(DatasetId, Position, PropertyValueId)
+    static member create(DatasetId: string, Position: int, AnnotationId: string) =
+        DatasetAdditionalPropertyRow(DatasetId, Position, AnnotationId)
 
 /// <summary>
 /// Row of the <c>protocol_parameter</c> association table — attaches an ordered
-/// <see cref="FormalParameterRow"/> to a <see cref="LabProtocolRow"/>.
+/// <see cref="FormalParameterRow"/> to a <see cref="RecipeRow"/>.
 /// </summary>
 /// <param name="ProtocolId">Owning protocol id.</param>
 /// <param name="Position">Zero-based ordering position within the protocol.</param>
@@ -498,21 +498,21 @@ type ProtocolParameterRow(ProtocolId: string, Position: int, FormalParameterId: 
         ProtocolParameterRow(ProtocolId, Position, FormalParameterId)
 
 /// <summary>
-/// Row of the <c>process_io</c> association table — attaches a <see cref="MaterialRow"/> or
-/// <see cref="DataRow"/> to a <see cref="LabProcessRow"/> on either the input or output side at
+/// Row of the <c>process_io</c> association table — attaches a <see cref="SampleRow"/> or
+/// <see cref="DataRow"/> to a <see cref="ProcessRow"/> on either the input or output side at
 /// an ordered position.
 /// </summary>
 /// <param name="ProcessId">Owning lab-process id.</param>
 /// <param name="Direction">Whether the entry is consumed (<see cref="ProcessIoDirection.Input"/>) or produced (<see cref="ProcessIoDirection.Output"/>).</param>
 /// <param name="Position">Zero-based ordering position within the direction-specific side of the process.</param>
-/// <param name="MaterialId">Optional referenced material id. Mutually exclusive with <paramref name="DataId"/>.</param>
-/// <param name="DataId">Optional referenced data id. Mutually exclusive with <paramref name="MaterialId"/>.</param>
+/// <param name="SampleId">Optional referenced sample id. Mutually exclusive with <paramref name="DataId"/>.</param>
+/// <param name="DataId">Optional referenced data id. Mutually exclusive with <paramref name="SampleId"/>.</param>
 [<AttachMembers>]
 type ProcessIoRow(
     ProcessId: string,
     Direction: ProcessIoDirection,
     Position: int,
-    ?MaterialId: string,
+    ?SampleId: string,
     ?DataId: string
 ) =
 
@@ -522,8 +522,8 @@ type ProcessIoRow(
     member val Direction = Direction with get, set
     /// <summary>Position within the direction-specific side.</summary>
     member val Position = Position with get, set
-    /// <summary>Optional referenced material id.</summary>
-    member val MaterialId = MaterialId with get, set
+    /// <summary>Optional referenced sample id.</summary>
+    member val SampleId = SampleId with get, set
     /// <summary>Optional referenced data id.</summary>
     member val DataId = DataId with get, set
 
@@ -533,98 +533,98 @@ type ProcessIoRow(
         ProcessId: string,
         Direction: ProcessIoDirection,
         Position: int,
-        ?MaterialId: string,
+        ?SampleId: string,
         ?DataId: string
     ) =
-        ProcessIoRow(ProcessId, Direction, Position, ?MaterialId = MaterialId, ?DataId = DataId)
+        ProcessIoRow(ProcessId, Direction, Position, ?SampleId = SampleId, ?DataId = DataId)
 
 /// <summary>
 /// Row of the <c>process_parameter_value</c> association table — attaches an ordered
-/// <see cref="PropertyValueRow"/> to a <see cref="LabProcessRow"/> as a parameter value.
+/// <see cref="AnnotationRow"/> to a <see cref="ProcessRow"/> as a parameter value.
 /// </summary>
 /// <param name="ProcessId">Owning lab-process id.</param>
 /// <param name="Position">Zero-based ordering position within the process.</param>
-/// <param name="PropertyValueId">Referenced property-value id.</param>
+/// <param name="AnnotationId">Referenced property-value id.</param>
 [<AttachMembers>]
-type ProcessParameterValueRow(ProcessId: string, Position: int, PropertyValueId: string) =
+type ProcessParameterValueRow(ProcessId: string, Position: int, AnnotationId: string) =
 
     /// <summary>Owning lab-process id.</summary>
     member val ProcessId = ProcessId with get, set
     /// <summary>Position within the process.</summary>
     member val Position = Position with get, set
     /// <summary>Referenced property-value id.</summary>
-    member val PropertyValueId = PropertyValueId with get, set
+    member val AnnotationId = AnnotationId with get, set
 
     /// <summary>Named-argument constructor exposed to JavaScript and Python callers.</summary>
     [<NamedParams>]
-    static member create(ProcessId: string, Position: int, PropertyValueId: string) =
-        ProcessParameterValueRow(ProcessId, Position, PropertyValueId)
+    static member create(ProcessId: string, Position: int, AnnotationId: string) =
+        ProcessParameterValueRow(ProcessId, Position, AnnotationId)
 
 /// <summary>
 /// Row of the <c>protocol_additional_property</c> association table — attaches an ordered
-/// <see cref="PropertyValueRow"/> to a <see cref="LabProtocolRow"/>.
+/// <see cref="AnnotationRow"/> to a <see cref="RecipeRow"/>.
 /// </summary>
 /// <param name="ProtocolId">Owning protocol id.</param>
 /// <param name="Position">Zero-based ordering position within the protocol.</param>
-/// <param name="PropertyValueId">Referenced property-value id.</param>
+/// <param name="AnnotationId">Referenced property-value id.</param>
 [<AttachMembers>]
-type ProtocolAdditionalPropertyRow(ProtocolId: string, Position: int, PropertyValueId: string) =
+type ProtocolAdditionalPropertyRow(ProtocolId: string, Position: int, AnnotationId: string) =
 
     /// <summary>Owning protocol id.</summary>
     member val ProtocolId = ProtocolId with get, set
     /// <summary>Position within the protocol.</summary>
     member val Position = Position with get, set
     /// <summary>Referenced property-value id.</summary>
-    member val PropertyValueId = PropertyValueId with get, set
+    member val AnnotationId = AnnotationId with get, set
 
     /// <summary>Named-argument constructor exposed to JavaScript and Python callers.</summary>
     [<NamedParams>]
-    static member create(ProtocolId: string, Position: int, PropertyValueId: string) =
-        ProtocolAdditionalPropertyRow(ProtocolId, Position, PropertyValueId)
+    static member create(ProtocolId: string, Position: int, AnnotationId: string) =
+        ProtocolAdditionalPropertyRow(ProtocolId, Position, AnnotationId)
 
 /// <summary>
-/// Row of the <c>material_additional_property</c> association table — attaches an ordered
-/// <see cref="PropertyValueRow"/> to a <see cref="MaterialRow"/>.
+/// Row of the <c>sample_additional_property</c> association table — attaches an ordered
+/// <see cref="AnnotationRow"/> to a <see cref="SampleRow"/>.
 /// </summary>
-/// <param name="MaterialId">Owning material id.</param>
-/// <param name="Position">Zero-based ordering position within the material.</param>
-/// <param name="PropertyValueId">Referenced property-value id.</param>
+/// <param name="SampleId">Owning sample id.</param>
+/// <param name="Position">Zero-based ordering position within the sample.</param>
+/// <param name="AnnotationId">Referenced property-value id.</param>
 [<AttachMembers>]
-type MaterialAdditionalPropertyRow(MaterialId: string, Position: int, PropertyValueId: string) =
+type SampleAdditionalPropertyRow(SampleId: string, Position: int, AnnotationId: string) =
 
-    /// <summary>Owning material id.</summary>
-    member val MaterialId = MaterialId with get, set
-    /// <summary>Position within the material.</summary>
+    /// <summary>Owning sample id.</summary>
+    member val SampleId = SampleId with get, set
+    /// <summary>Position within the sample.</summary>
     member val Position = Position with get, set
     /// <summary>Referenced property-value id.</summary>
-    member val PropertyValueId = PropertyValueId with get, set
+    member val AnnotationId = AnnotationId with get, set
 
     /// <summary>Named-argument constructor exposed to JavaScript and Python callers.</summary>
     [<NamedParams>]
-    static member create(MaterialId: string, Position: int, PropertyValueId: string) =
-        MaterialAdditionalPropertyRow(MaterialId, Position, PropertyValueId)
+    static member create(SampleId: string, Position: int, AnnotationId: string) =
+        SampleAdditionalPropertyRow(SampleId, Position, AnnotationId)
 
 /// <summary>
 /// Row of the <c>data_additional_property</c> association table — attaches an ordered
-/// <see cref="PropertyValueRow"/> to a <see cref="DataRow"/>.
+/// <see cref="AnnotationRow"/> to a <see cref="DataRow"/>.
 /// </summary>
 /// <param name="DataId">Owning data id.</param>
 /// <param name="Position">Zero-based ordering position within the data item.</param>
-/// <param name="PropertyValueId">Referenced property-value id.</param>
+/// <param name="AnnotationId">Referenced property-value id.</param>
 [<AttachMembers>]
-type DataAdditionalPropertyRow(DataId: string, Position: int, PropertyValueId: string) =
+type DataAdditionalPropertyRow(DataId: string, Position: int, AnnotationId: string) =
 
     /// <summary>Owning data id.</summary>
     member val DataId = DataId with get, set
     /// <summary>Position within the data item.</summary>
     member val Position = Position with get, set
     /// <summary>Referenced property-value id.</summary>
-    member val PropertyValueId = PropertyValueId with get, set
+    member val AnnotationId = AnnotationId with get, set
 
     /// <summary>Named-argument constructor exposed to JavaScript and Python callers.</summary>
     [<NamedParams>]
-    static member create(DataId: string, Position: int, PropertyValueId: string) =
-        DataAdditionalPropertyRow(DataId, Position, PropertyValueId)
+    static member create(DataId: string, Position: int, AnnotationId: string) =
+        DataAdditionalPropertyRow(DataId, Position, AnnotationId)
 
 /// <summary>
 /// Row of the <c>process_edges</c> view — a denormalised pairing of one input and one output of the
@@ -632,13 +632,13 @@ type DataAdditionalPropertyRow(DataId: string, Position: int, PropertyValueId: s
 /// </summary>
 /// <remarks>
 /// This row type is read-only; the view has no insert/update/delete repository. The kind columns
-/// indicate which underlying entity table the corresponding id refers to (e.g. <c>"material"</c>
+/// indicate which underlying entity table the corresponding id refers to (e.g. <c>"sample"</c>
 /// or <c>"data"</c>).
 /// </remarks>
 /// <param name="ProcessId">Lab-process id shared by the input and output side.</param>
 /// <param name="InputPosition">Position of the input on its side of the process.</param>
 /// <param name="OutputPosition">Position of the output on its side of the process.</param>
-/// <param name="InputKind">Kind tag of the input entity (e.g. <c>"material"</c> or <c>"data"</c>).</param>
+/// <param name="InputKind">Kind tag of the input entity (e.g. <c>"sample"</c> or <c>"data"</c>).</param>
 /// <param name="InputId">Id of the input entity.</param>
 /// <param name="OutputKind">Kind tag of the output entity.</param>
 /// <param name="OutputId">Id of the output entity.</param>
@@ -682,12 +682,12 @@ type ProcessEdgeRow(
         ProcessEdgeRow(ProcessId, InputPosition, OutputPosition, InputKind, InputId, OutputKind, OutputId)
 
 /// <summary>
-/// Row of the <c>property_value_orphans</c> view — the id of a <see cref="PropertyValueRow"/>
+/// Row of the <c>annotation_orphans</c> view — the id of a <see cref="AnnotationRow"/>
 /// that is not referenced by any owning entity. Useful for housekeeping and integrity checks.
 /// </summary>
 /// <param name="Id">Id of an unreferenced property value.</param>
 [<AttachMembers>]
-type PropertyValueOrphanRow(Id: string) =
+type AnnotationOrphanRow(Id: string) =
 
     /// <summary>Id of an unreferenced property value.</summary>
     member val Id = Id with get, set
@@ -695,4 +695,4 @@ type PropertyValueOrphanRow(Id: string) =
     /// <summary>Named-argument constructor exposed to JavaScript and Python callers.</summary>
     [<NamedParams>]
     static member create(Id: string) =
-        PropertyValueOrphanRow(Id)
+        AnnotationOrphanRow(Id)

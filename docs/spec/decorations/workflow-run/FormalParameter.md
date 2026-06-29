@@ -21,7 +21,7 @@ Reference: [ARC WR RO-Crate Profile — FormalParameter](../../../../references/
 |----------|------|----------|-------------|
 | `@id` | Text | MUST | Unique identifier |
 | `@type` | Text | MUST | `bioschemas.org/FormalParameter` |
-| `additionalType` | Text | SHOULD | File, Dataset, Collection, PropertyValue, or DataType |
+| `additionalType` | Text | SHOULD | File, Dataset, Collection, Annotation, or DataType |
 | `name` | Text | SHOULD | Parameter slot name (should match workflow parameter) |
 | `encodingFormat` | Text, URL | SHOULD | MIME format |
 | `description` | Text | COULD | Parameter purpose |
@@ -35,5 +35,5 @@ Reference: [ARC WR RO-Crate Profile — FormalParameter](../../../../references/
 flowchart TD
     WorkflowProtocol --input--> FormalParameter
     WorkflowProtocol --"output"--> FormalParameter
-    FormalParameter --workExample--> Data/PropertyValue
+    FormalParameter --workExample--> Data/Annotation
 ```

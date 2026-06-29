@@ -18,4 +18,4 @@ Reference: [ARC Workflow Run RO-Crate Profile](../../../../references/arc_wr_ro_
 - [WorkflowProtocol](WorkflowProtocol.md)
 - [WorkflowInvocation](WorkflowInvocation.md)
 - [FormalParameter](FormalParameter.md)
-- [PropertyValues](PropertyValues.md)
+- [Annotations](Annotations.md)

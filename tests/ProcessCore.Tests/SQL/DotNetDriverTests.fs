@@ -13,11 +13,11 @@ let tests =
 
                 let tableCount = sql.Scalar "SELECT count(*) FROM sqlite_master WHERE type = 'table';" [||]
                 let fkViolations = sql.Query "PRAGMA foreign_key_check;" [||]
-                let orphans = sql.Query "SELECT id FROM property_value_orphans;" [||]
+                let orphans = sql.Query "SELECT id FROM annotation_orphans;" [||]
 
                 Expect.equal tableCount (SqlValue.Int 17) "Seeded schema should expose 17 tables."
                 Expect.equal fkViolations.Length 0 "Seeded database should not have FK violations."
-                Expect.equal orphans.Length 0 "Seeded database should not have orphan PropertyValues.")
+                Expect.equal orphans.Length 0 "Seeded database should not have orphan Annotations.")
 
             testCase "binds named parameters and maps scalar values" (fun _ ->
                 let sql = createEmptyDriver ()
@@ -41,7 +41,7 @@ let tests =
 
                 let dataset =
                     sql.Query
-                        "SELECT id, type, additional_type, identifier, name, description FROM dataset WHERE id = $id;"
+                        "SELECT id, type, additional_type, identifier, title, description FROM dataset WHERE id = $id;"
                         [| SqlParameter("id", SqlValue.Text "dataset:proteomics-assay") |]
                     |> Array.exactlyOne
                     |> DatasetRow.ofRow

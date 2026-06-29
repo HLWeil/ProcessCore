@@ -35,10 +35,10 @@ let cellSelector = provider.TryParse "cell=2,2"
 
 (*** include-value: cellSelector ***)
 
-(** 
+(**
 
 The provider can also relate two selectors. The relation can be either `Exact`, `Contains`, or `Disjunct`.
-In this case, `col=1-3` contains `cell=2,2`. 
+In this case, `col=1-3` contains `cell=2,2`.
 
 *)
 
@@ -64,20 +64,20 @@ let dataset = Dataset("fragment-demo")
 
 let exportedColumns = Data(path = "measurements.csv", selector = "col=1-3", selectorFormat = CsvFragmentSelectorProvider.SelectorFormatUri, encodingFormat = "text/csv")
 let measuredCell = Data(path = "measurements.csv", selector = "cell=2,2", selectorFormat = CsvFragmentSelectorProvider.SelectorFormatUri, encodingFormat = "text/csv")
-let interpretedSample = Material("Interpreted sample", additionalType = "Sample")
+let interpretedSample = Sample("Interpreted sample", additionalType = "Sample")
 
-let export = LabProcess("Export CSV")
+let export = Process("Export CSV")
 export.AddOutputData(exportedColumns)
 
-let interpret = LabProcess("Interpret selected cell")
+let interpret = Process("Interpret selected cell")
 interpret.AddInputData(measuredCell)
-interpret.AddOutputMaterial(interpretedSample)
+interpret.AddOutputSample(interpretedSample)
 
 dataset.AddProcess(export)
 dataset.AddProcess(interpret)
 
 let beforeRegistration =
-    exportedColumns.DownstreamMaterials(scope = dataset.AllProcesses())
+    exportedColumns.DownstreamSamples(scope = dataset.AllProcesses())
     |> Seq.map (fun m -> m.Name)
 
 beforeRegistration
@@ -98,7 +98,7 @@ registeredProvider
 (*** include-it ***)
 
 let afterRegistration =
-    exportedColumns.DownstreamMaterials(scope = dataset.AllProcesses())
+    exportedColumns.DownstreamSamples(scope = dataset.AllProcesses())
     |> Seq.map (fun m -> m.Name)
 
 afterRegistration
@@ -110,7 +110,7 @@ afterRegistration
 The idea behind the inclusion of generic fragment selectors syntax into the ProcessCore is so that any kind of fragment can be defined given a proper fragment selector specification.
 In the datamodel, this corresponds to an implementation of the `IFragmentSelectorProvider` interface, which can be registered on a dataset and will be used to relate any two selectors with the same `SelectorFormat`.
 
-Usually, you should inherit from `FragmentSelectorProviderBase<'Selector>`, which implements `IFragmentSelectorProvider` and requires parsers and typed comparers. 
+Usually, you should inherit from `FragmentSelectorProviderBase<'Selector>`, which implements `IFragmentSelectorProvider` and requires parsers and typed comparers.
 The provider parses strings into a typed selector and returns a semantic relation.
 *)
 

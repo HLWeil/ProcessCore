@@ -23,19 +23,19 @@ let tests = testList "Integration" [
 
     // ─── Use-case 1: growth temperature filter ────────────────────────────────
     //
-    // "Give me all materials that result from a 'cell growth' process where
+    // "Give me all samples that result from a 'cell growth' process where
     //  temperature = 37°C."
     //
     // Expected: Sample1 (direct output of the growth process).
-    // rawData1.csv is Data, not Material; Sample2 is consumed before it, so it
+    // rawData1.csv is Data, not Sample; Sample2 is consumed before it, so it
     // would only appear if it is not re-consumed by another process. In Fixture A,
-    // Sample2 IS consumed by p3 → only Sample1 is a terminal material output.
+    // Sample2 IS consumed by p3 → only Sample1 is a terminal sample output.
     // Wait — let's trace: growth(p1) → output = Sample1;
     //   downstream from p1: p2 consumes Sample1 → p3 consumes Sample2 → rawData1.csv
     // Terminal outputs not consumed in subgraph = nodes not input to any other
-    // subgraph process.  All material outputs of p1, p2, p3:
+    // subgraph process.  All sample outputs of p1, p2, p3:
     //   p1→Sample1 (consumed by p2 ∈ subgraph), p2→Sample2 (consumed by p3 ∈ subgraph), p3→rawData1 (Data).
-    // So no terminal Materials → the query returns empty for Fixture A's default
+    // So no terminal Samples → the query returns empty for Fixture A's default
     // temperature.  Use Fixture B (branching) instead, where Sample1 → SampleA and SampleB
     // are NOT consumed by any further process.
 
@@ -45,7 +45,7 @@ let tests = testList "Integration" [
         // p1 protocol IntendedUse="cell growth", parameter temperature=37°C
         // SampleA and SampleB are terminal → both should appear
         let f = makeFixtureB()
-        let results = f.DS.MaterialsResultingFromConditionBy("cell growth", fun pv -> pv.Name = "temperature" && pv.Value = Some "37")
+        let results = f.DS.SamplesResultingFromConditionBy("cell growth", fun pv -> pv.Name = "temperature" && pv.Value = Some "37")
         let names = results |> Seq.map (fun m -> m.Name) |> Set.ofSeq
         Expect.isTrue  (names.Contains("SampleA")) "SampleA downstream of 37°C growth"
         Expect.isTrue  (names.Contains("SampleB")) "SampleB downstream of 37°C growth"
@@ -53,7 +53,7 @@ let tests = testList "Integration" [
 
     testCase "use-case 1 — wrong temperature returns empty" <| fun _ ->
         let f = makeFixtureB()
-        let results = f.DS.MaterialsResultingFromConditionBy("cell growth", fun pv -> pv.Name = "temperature" && pv.Value = Some "4")
+        let results = f.DS.SamplesResultingFromConditionBy("cell growth", fun pv -> pv.Name = "temperature" && pv.Value = Some "4")
         Expect.equal results.Count 0 "no results for non-matching temperature"
 
     // ─── Use-case 2: all parameters for a sample ─────────────────────────────
@@ -67,8 +67,8 @@ let tests = testList "Integration" [
 
     testCase "use-case 2 — all parameters for a sample" <| fun _ ->
         let f = makeFixtureA()
-        let node = MaterialNode f.Sample1
-        let pvs  = f.DS.PropertyValuesForNode(node)
+        let node = SampleNode f.Sample1
+        let pvs  = f.DS.AnnotationsForNode(node)
         let names = pvs |> Seq.map (fun pv -> pv.Name) |> Set.ofSeq
         Expect.isTrue (names.Contains("temperature")) "temperature PV included"
         Expect.isTrue (names.Contains("rpm"))         "rpm PV included"
@@ -77,18 +77,18 @@ let tests = testList "Integration" [
 
     testCase "use-case 2 — scoped to dataset excludes other datasets" <| fun _ ->
         // Construct an unrelated dataset with its own processes carrying same PV names
-        let s = Material("Sx", additionalType = "Source")
-        let o = Material("Ox", additionalType = "Sample")
-        let px = LabProcess("px")
-        px.AddInputMaterial(s)
-        px.AddOutputMaterial(o)
-        px.AddParameterValue(PropertyValue("temperature", value = "100", unit = "°C", additionalType = "ParameterValue"))
+        let s = Sample("Sx", additionalType = "Source")
+        let o = Sample("Ox", additionalType = "Sample")
+        let px = Process("px")
+        px.AddInputSample(s)
+        px.AddOutputSample(o)
+        px.AddParameterValue(Annotation("temperature", value = "100", unit = "°C", additionalType = "ParameterValue"))
         let dsX = Dataset("DS-X")
         dsX.AddProcess(px)
         // The result from Fixture A's dataset must NOT include the "100°C" value
         let f = makeFixtureA()
-        let node = MaterialNode f.Sample1
-        let pvs  = f.DS.PropertyValuesForNode(node)
+        let node = SampleNode f.Sample1
+        let pvs  = f.DS.AnnotationsForNode(node)
         let vals = pvs |> Seq.filter (fun pv -> pv.Name = "temperature") |> Seq.map (fun pv -> pv.Value) |> Seq.toList
         Expect.equal vals [Some "37"] "only Fixture A's temperature, not DS-X's"
 
@@ -102,7 +102,7 @@ let tests = testList "Integration" [
 
     testCase "use-case 3 — all connected nodes from mid-graph sample" <| fun _ ->
         let f = makeFixtureA()
-        let connected = (MaterialNode f.Sample1).AllConnectedNodes()
+        let connected = (SampleNode f.Sample1).AllConnectedNodes()
         let keys = connected |> Seq.map (fun n -> n.Key()) |> Set.ofSeq
         // Must include Source1, Sample2, rawData1.csv; must NOT include Sample1 itself
         Expect.isTrue  (keys.Contains("M:Source1"))       "Source1 connected"
@@ -115,7 +115,7 @@ let tests = testList "Integration" [
         // Scoped to child1 only p1 is visible; connected nodes from Sample1 = {Source1}.
         let f = makeFixtureD()
         let scope = f.Child1.Processes
-        let connected = (MaterialNode f.Sample1).AllConnectedNodes(scope = scope)
+        let connected = (SampleNode f.Sample1).AllConnectedNodes(scope = scope)
         let keys = connected |> Seq.map (fun n -> n.Key()) |> Set.ofSeq
         Expect.isTrue  (keys.Contains("M:Source1"))       "Source1 in child1 scope"
         Expect.isFalse (keys.Contains("D:rawData1.csv"))  "rawData1.csv not in child1 scope"
@@ -133,23 +133,23 @@ let tests = testList "Integration" [
     //   [growth_a, measurement]  and  [growth_b, measurement]
 
     testCase "Dataset.PathsThrough — multi-path proteomics" <| fun _ ->
-        let sourceA = Material("SourceA", additionalType = "Source")
-        let sampleA = Material("SampleA", additionalType = "Sample")
-        let sourceB = Material("SourceB", additionalType = "Source")
-        let sampleB = Material("SampleB", additionalType = "Sample")
+        let sourceA = Sample("SourceA", additionalType = "Source")
+        let sampleA = Sample("SampleA", additionalType = "Sample")
+        let sourceB = Sample("SourceB", additionalType = "Source")
+        let sampleB = Sample("SampleB", additionalType = "Sample")
         let raw     = Data("rawData.csv")
 
-        let growthA = LabProcess("growth_a")
-        growthA.AddInputMaterial(sourceA)
-        growthA.AddOutputMaterial(sampleA)
+        let growthA = Process("growth_a")
+        growthA.AddInputSample(sourceA)
+        growthA.AddOutputSample(sampleA)
 
-        let growthB = LabProcess("growth_b")
-        growthB.AddInputMaterial(sourceB)
-        growthB.AddOutputMaterial(sampleB)
+        let growthB = Process("growth_b")
+        growthB.AddInputSample(sourceB)
+        growthB.AddOutputSample(sampleB)
 
-        let measurement = LabProcess("measurement")
-        measurement.AddInputMaterial(sampleA)
-        measurement.AddInputMaterial(sampleB)
+        let measurement = Process("measurement")
+        measurement.AddInputSample(sampleA)
+        measurement.AddInputSample(sampleB)
         measurement.AddOutputData(raw)
 
         let ds = Dataset("investigation")

@@ -30,52 +30,52 @@ Start with a dataset. Administrative metadata is optional, but an identifier is 
 *)
 
 let dataset = Dataset("demo-dataset")
-dataset.Name <- Some "Minimal ProcessCore example"
+dataset.Title <- Some "Minimal ProcessCore example"
 dataset.Description <- Some "One extraction process with nested quality control."
 
 (**
-#### LabProtocol
+#### Recipe
 
-A protocol describes the method. Formal parameters define expected knobs, for which values should be provided when the protocol is executed. 
+A protocol describes the method. Formal parameters define expected knobs, for which values should be provided when the protocol is executed.
 *)
 
-let protocol = LabProtocol()
+let protocol = Recipe()
 let temperature = FormalParameter("temperature")
 protocol.Name <- Some "Extraction"
 protocol.IntendedUse <- Some (DefinedTerm("sample extraction"))
 protocol.AddParameter(temperature)
 
 (**
-Components are non-transformed entities in a protocol, such as machines or reagents. 
+Components are non-transformed entities in a protocol, such as machines or reagents.
 *)
 
-let centrifuge = PropertyValue(name = "centrifuge", value = "Eppendorf 5420")
-let buffer = PropertyValue(name = "buffer", value = "PBS")
+let centrifuge = Annotation(name = "centrifuge", value = "Eppendorf 5420")
+let buffer = Annotation(name = "buffer", value = "PBS")
 
 protocol.AddLabEquipment(centrifuge)
 protocol.AddLabEquipment(buffer)
 
 (**
-#### LabProcess
+#### Process
 
-LabProcesses are the core of the process graph. They are concrete executions of a protocol, with specific parameter values, and input and output entities.
+Processes are the core of the process graph. They are concrete executions of a protocol, with specific parameter values, and input and output entities.
 
-First, we define input and output, i.e. `Material` or `Data` nodes. 
+First, we define input and output, i.e. `Sample` or `Data` nodes.
 *)
 
-let leaf = Material("Leaf tissue")
+let leaf = Sample("Leaf tissue")
 
 let extractData = Data("raw/extract.csv")
 extractData.EncodingFormat <- Some "text/csv"
 
 (**
-A `LabProcess` connects those inputs to outputs. We also attach parameter values to the process, which should correspond to the protocol's formal parameters.
+A `Process` connects those inputs to outputs. We also attach parameter values to the process, which should correspond to the protocol's formal parameters.
 *)
 
-let extraction = LabProcess("Extraction")
-let degrees25 = PropertyValue(name = "temperature", value = "25", unit = "degree Celsius", instanceOf = temperature)
+let extraction = Process("Extraction")
+let degrees25 = Annotation(name = "temperature", value = "25", unit = "degree Celsius", instanceOf = temperature)
 extraction.ExecutesProtocol <- Some protocol
-extraction.AddInputMaterial(leaf)
+extraction.AddInputSample(leaf)
 extraction.AddOutputData(extractData)
 extraction.AddParameterValue(degrees25)
 
@@ -91,15 +91,15 @@ Datasets can contain child datasets. When a child dataset is added, its process 
 *)
 
 let child = Dataset("qc-dataset")
-child.Name <- Some "Quality control"
+child.Title <- Some "Quality control"
 
 let qcReport = Data("qc/extract-report.tsv")
 
-let qc = LabProcess("Quality Control")
+let qc = Process("Quality Control")
 qc.AddInputData(extractData)
 qc.AddOutputData(qcReport)
 let threshold = FormalParameter("threshold")
-let threshold95 = PropertyValue(name = "threshold", value = "0.95", instanceOf = threshold)
+let threshold95 = Annotation(name = "threshold", value = "0.95", instanceOf = threshold)
 qc.AddParameterValue(threshold95)
 
 child.AddProcess(qc)
@@ -112,7 +112,7 @@ The parent process output and the child process input are the same logical `Data
 let qcInputAfterAttach =
     match qc.Inputs.[0] with
     | DataNode d -> d
-    | MaterialNode _ -> failwith "Expected data input"
+    | SampleNode _ -> failwith "Expected data input"
 
 let sharedDataIdentity =
     obj.ReferenceEquals(extractData, qcInputAfterAttach)
@@ -140,7 +140,7 @@ finalNodes
 | Create a container | `Dataset(identifier)` |
 | Add a process | `dataset.AddProcess(process)` |
 | Add nested datasets | `dataset.AddPart(child)` |
-| Connect materials or files | `process.AddInputMaterial`, `process.AddOutputData` |
+| Connect samples or files | `process.AddInputSample`, `process.AddOutputData` |
 | Attach process parameters | `process.AddParameterValue` |
 | Attach characteristics/factors | `node.AddAdditionalProperty` |
 | Attach protocol components | `protocol.AddLabEquipment` |
