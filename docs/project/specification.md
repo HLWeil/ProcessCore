@@ -17,7 +17,7 @@ flowchart LR
     Dataset --hasPart--> Data
     Dataset --hasPart--> Dataset
     Process --inputs--> Sample
-    Process --outputs--> Data
+    Process --"outputs"--> Data
     Process --executesProtocol--> Recipe
     Process --parameterValue--> Annotation
     Recipe --parameters--> FormalParameter

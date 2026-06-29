@@ -73,8 +73,8 @@ The generic linked-data layer uses flattened JSON-LD-style objects:
 flowchart TD
     Dataset --about--> Process
     Dataset --additionalProperty--> Annotation
-    Process --object--> Sample
-    Process --object--> File
+    Process --"object"--> Sample
+    Process --"object"--> File
     Process --result--> Sample
     Process --result--> File
     Process --parameterValue--> Annotation
