@@ -12,7 +12,7 @@ export {
     Sample,
     Data,
     Process,
-    Plan,
+    Recipe,
     Dataset,
     Path,
 } from "./ts/Graph.ts";

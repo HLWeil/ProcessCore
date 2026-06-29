@@ -18,7 +18,7 @@ DROP TABLE IF EXISTS data;
 DROP TABLE IF EXISTS sample;
 DROP TABLE IF EXISTS dataset;
 DROP TABLE IF EXISTS formal_parameter;
-DROP TABLE IF EXISTS plan;
+DROP TABLE IF EXISTS recipe;
 DROP TABLE IF EXISTS defined_term;
 
 CREATE TABLE defined_term (
@@ -30,7 +30,7 @@ CREATE TABLE defined_term (
   in_defined_term_set_name TEXT
 );
 
-CREATE TABLE plan (
+CREATE TABLE recipe (
   id TEXT PRIMARY KEY,
   type TEXT NOT NULL,
   additional_type TEXT,
@@ -89,7 +89,7 @@ CREATE TABLE process (
   type TEXT NOT NULL,
   additional_type TEXT,
   name TEXT NOT NULL,
-  executes_protocol_id TEXT REFERENCES plan(id) ON DELETE RESTRICT
+  executes_protocol_id TEXT REFERENCES recipe(id) ON DELETE RESTRICT
 );
 
 CREATE TABLE annotation (
@@ -133,7 +133,7 @@ CREATE TABLE dataset_additional_property (
 );
 
 CREATE TABLE protocol_parameter (
-  protocol_id TEXT NOT NULL REFERENCES plan(id) ON DELETE CASCADE,
+  protocol_id TEXT NOT NULL REFERENCES recipe(id) ON DELETE CASCADE,
   position INTEGER NOT NULL CHECK (position >= 0),
   formal_parameter_id TEXT NOT NULL REFERENCES formal_parameter(id) ON DELETE RESTRICT,
   PRIMARY KEY (protocol_id, position)
@@ -161,7 +161,7 @@ CREATE TABLE process_parameter_value (
 );
 
 CREATE TABLE protocol_additional_property (
-  protocol_id TEXT NOT NULL REFERENCES plan(id) ON DELETE CASCADE,
+  protocol_id TEXT NOT NULL REFERENCES recipe(id) ON DELETE CASCADE,
   position INTEGER NOT NULL CHECK (position >= 0),
   annotation_id TEXT NOT NULL REFERENCES annotation(id) ON DELETE RESTRICT,
   PRIMARY KEY (protocol_id, position)
@@ -203,8 +203,8 @@ CREATE INDEX idx_dataset_process_process
 CREATE INDEX idx_process_protocol
   ON process(executes_protocol_id);
 
-CREATE INDEX idx_plan_intended_use
-  ON plan(intended_use_id);
+CREATE INDEX idx_recipe_intended_use
+  ON recipe(intended_use_id);
 
 CREATE INDEX idx_process_parameter_value_property
   ON process_parameter_value(annotation_id);

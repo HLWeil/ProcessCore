@@ -13,7 +13,7 @@ The core model is intentionally small:
 
 - A `Dataset` groups process graphs and nested datasets.
 - A `Process` connects `Sample` and `Data` input/output nodes.
-- A `Plan` describes what the process executes.
+- A `Recipe` describes what the process executes.
 - A `Annotation` annotates datasets, process parameters, input/output nodes, and protocol components.
 - `additionalType`, `additionalProperty`, and `DynamicObj` carry domain-specific extensions without changing the shared graph shape.
 

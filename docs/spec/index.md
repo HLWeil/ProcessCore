@@ -25,7 +25,7 @@ The ARC Data Model specification defines ProcessCore and a set of decoration pro
 
 | Area | Description |
 |------|-------------|
-| [ProcessCore](core/overview.md) | Foundational model: Dataset, Process, Plan, Sample, Data, Annotation, FormalParameter, and DefinedTerm |
+| [ProcessCore](core/overview.md) | Foundational model: Dataset, Process, Recipe, Sample, Data, Annotation, FormalParameter, and DefinedTerm |
 | [ISA Decoration](decorations/isa/overview.md) | Investigation/Study/Assay and ISA-specific roles |
 | [Workflow Run Decoration](decorations/workflow-run/overview.md) | Workflow and Run datasets, workflow protocols, and workflow invocations |
 | [Datamap Decoration](decorations/datamap/overview.md) | Datamap datasets and DataContext fragment annotations |

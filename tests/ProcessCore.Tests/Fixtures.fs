@@ -59,7 +59,7 @@ let makeFixtureA () : FixtureA =
     let rawData1 = Data("rawData1.csv")
 
     // p1 — extraction / cell growth
-    let proto1 = Plan("extraction")
+    let proto1 = Recipe("extraction")
     proto1.IntendedUse <- Some (DefinedTerm("cell growth"))
     proto1.AddParameter(FormalParameter("temperature"))
     proto1.AddParameter(FormalParameter("rpm"))
@@ -72,7 +72,7 @@ let makeFixtureA () : FixtureA =
     p1.AddOutputSample(sample1)
 
     // p2 — digestion
-    let proto2 = Plan("digestion")
+    let proto2 = Recipe("digestion")
 
     let p2 = Process("p2")
     p2.ExecutesProtocol <- Some proto2
@@ -123,7 +123,7 @@ let makeFixtureB () : FixtureB =
     let sampleA = Sample("SampleA", additionalType = "Sample")
     let sampleB = Sample("SampleB", additionalType = "Sample")
 
-    let proto1 = Plan("extraction")
+    let proto1 = Recipe("extraction")
     proto1.IntendedUse <- Some (DefinedTerm("cell growth"))
 
     let p1 = Process("p1")
@@ -364,7 +364,7 @@ let makeFixtureFourSources () : FixtureFourSources =
     upstreamProc.AddOutputSample(inputNode)
 
     // central process — all four sources
-    let proto   = Plan("four-source-protocol")
+    let proto   = Recipe("four-source-protocol")
     let compPV  = Annotation("instrument",    value = "Orbitrap",  additionalType = "Component")
     proto.AddLabEquipment(compPV)
 

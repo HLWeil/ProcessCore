@@ -8,10 +8,10 @@ VALUES
   ('obo:NCIT_C16681', 'schema:DefinedTerm', 'temperature', 'NCIT:C16681', 'https://ncithesaurus.nci.nih.gov', 'NCI Thesaurus'),
   ('obo:UO_0000027', 'schema:DefinedTerm', 'degree Celsius', 'UO:0000027', 'http://purl.obolibrary.org/obo/uo.owl', 'Units of measurement ontology');
 
-INSERT INTO plan (id, type, additional_type, name, description, version, url, intended_use_id, intended_use_text)
+INSERT INTO recipe (id, type, additional_type, name, description, version, url, intended_use_id, intended_use_text)
 VALUES
-  ('protocol:growth', 'bioschemas:LabProtocol', 'Plan', 'Plant growth', 'Grow source sample under controlled temperature.', '1.0', NULL, 'obo:OBI_0000070', NULL),
-  ('protocol:proteomics', 'bioschemas:LabProtocol', 'Plan', 'Proteomics measurement', 'Measure protein abundance by mass spectrometry.', '1.0', NULL, NULL, 'proteomics assay');
+  ('protocol:growth', 'bioschemas:LabProtocol', 'Recipe', 'Plant growth', 'Grow source sample under controlled temperature.', '1.0', NULL, 'obo:OBI_0000070', NULL),
+  ('protocol:proteomics', 'bioschemas:LabProtocol', 'Recipe', 'Proteomics measurement', 'Measure protein abundance by mass spectrometry.', '1.0', NULL, NULL, 'proteomics assay');
 
 INSERT INTO formal_parameter (id, type, name, name_tan, default_value_id)
 VALUES

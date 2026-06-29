@@ -18,22 +18,22 @@ creators:
 labProtocols:
     -
       "@id": "#Protocol_Growth"
-      type: Plan
+      type: Recipe
       labEquipments:
         "@id": "#Component_growth_environment_bioreactor"
     -
       "@id": "#Protocol_Cell_Lysis"
-      type: Plan
+      type: Recipe
       labEquipments:
         "@id": "#Component_centrifuge_Eppendorf™_Centrifuge_5420"
     -
       "@id": "#Protocol_MS_Run"
-      type: Plan
+      type: Recipe
       labEquipments:
         "@id": "#Component_mass_spectrometer_Q_Exactive_9000"
     -
       "@id": "#Protocol_Computational_Proteome_Analysis"
-      type: Plan
+      type: Recipe
 annotations:
   -
     "@id": "#ParameterValue_sonicator_Fisherbrand_Model_705_Sonic_Dismembrator"

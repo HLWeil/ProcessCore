@@ -10,7 +10,7 @@ open ProcessCore.Table
 let makeBaseTable () =
     let source = Sample("Source1", additionalType = "Source")
     let sample = Sample("Sample1", additionalType = "Sample")
-    let proto  = Plan("extraction")
+    let proto  = Recipe("extraction")
     let proc   = Process("Growth")
     proc.AddInputSample(source)
     proc.AddOutputSample(sample)
@@ -547,7 +547,7 @@ let tests = testList "TableWrite" [
 
         testCase "UpdateRow updates protocol metadata columns" <| fun _ ->
             let p = Process("Protocolize")
-            let proto = Plan("old")
+            let proto = Recipe("old")
             proto.Description <- Some "old description"
             p.ExecutesProtocol <- Some proto
             let t, _ = makeTable "Protocolize" [| p |]

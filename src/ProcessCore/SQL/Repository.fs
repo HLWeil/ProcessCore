@@ -58,7 +58,7 @@ type Table<'row>(
 /// </summary>
 /// <remarks>
 /// Each value bundles the table's name, column list, primary key and row codecs so that the CRUD
-/// façades (<see cref="DefinedTerm"/>, <see cref="Plan"/>, …) and external callers can build
+/// façades (<see cref="DefinedTerm"/>, <see cref="Recipe"/>, …) and external callers can build
 /// statements without hard-coding column lists.
 /// </remarks>
 [<RequireQualifiedAccess>]
@@ -76,10 +76,10 @@ module Repository =
             DefinedTermRow.ofRow
             (fun row -> row.ToParameters())
 
-    /// <summary>Descriptor for the <c>plan</c> table. Primary key: <c>id</c>.</summary>
-    let Plan =
+    /// <summary>Descriptor for the <c>recipe</c> table. Primary key: <c>id</c>.</summary>
+    let Recipe =
         table
-            "plan"
+            "recipe"
             [|
                 "id"
                 "type"
@@ -92,7 +92,7 @@ module Repository =
                 "intended_use_text"
             |]
             [| "id" |]
-            PlanRow.ofRow
+            RecipeRow.ofRow
             (fun row -> row.ToParameters())
 
     /// <summary>Descriptor for the <c>formal_parameter</c> table. Primary key: <c>id</c>.</summary>
@@ -248,7 +248,7 @@ module Repository =
     let EntityTables () =
         [|
             DefinedTerm.Name
-            Plan.Name
+            Recipe.Name
             FormalParameter.Name
             Dataset.Name
             Sample.Name
@@ -381,20 +381,20 @@ type DefinedTerm =
     /// <summary>Returns all rows ordered by primary key.</summary>
     static member list (driver: ISqliteDriver) = Crud.list Repository.DefinedTerm driver
 
-/// <summary>CRUD façade for the <c>plan</c> table.</summary>
+/// <summary>CRUD façade for the <c>recipe</c> table.</summary>
 [<AttachMembers>]
-type Plan =
+type Recipe =
 
     /// <summary>Inserts a new row.</summary>
-    static member insert (driver: ISqliteDriver, row: PlanRow) = Crud.insert Repository.Plan driver row
+    static member insert (driver: ISqliteDriver, row: RecipeRow) = Crud.insert Repository.Recipe driver row
     /// <summary>Updates the row identified by <c>row.Id</c>.</summary>
-    static member update (driver: ISqliteDriver, row: PlanRow) = Crud.update Repository.Plan driver row
+    static member update (driver: ISqliteDriver, row: RecipeRow) = Crud.update Repository.Recipe driver row
     /// <summary>Deletes the row with the given id.</summary>
-    static member delete (driver: ISqliteDriver, id: string) = Crud.delete Repository.Plan driver (Crud.key1 "id" id)
+    static member delete (driver: ISqliteDriver, id: string) = Crud.delete Repository.Recipe driver (Crud.key1 "id" id)
     /// <summary>Returns the row with the given id, or <c>None</c>.</summary>
-    static member get (driver: ISqliteDriver, id: string) = Crud.get Repository.Plan driver (Crud.key1 "id" id)
+    static member get (driver: ISqliteDriver, id: string) = Crud.get Repository.Recipe driver (Crud.key1 "id" id)
     /// <summary>Returns all rows ordered by primary key.</summary>
-    static member list (driver: ISqliteDriver) = Crud.list Repository.Plan driver
+    static member list (driver: ISqliteDriver) = Crud.list Repository.Recipe driver
 
 /// <summary>CRUD façade for the <c>formal_parameter</c> table.</summary>
 [<AttachMembers>]

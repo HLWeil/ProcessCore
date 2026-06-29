@@ -27,7 +27,7 @@ let tests = testList "Process" [
         Expect.isTrue (yaml.Contains("results.csv")) "data path"
 
     testCase "encode with executesProtocol" <| fun _ ->
-        let proto = Plan(name = "extraction")
+        let proto = Recipe(name = "extraction")
         let proc  = Process("p1")
         proc.ExecutesProtocol <- Some proto
         let yaml  = Yaml.Process.toYamlString None proc
@@ -106,7 +106,7 @@ outputs:
         let yaml = """type: Process
 name: p1
 executesProtocol:
-  type: Plan
+  type: Recipe
   name: extraction
 """
         let proc = Yaml.Process.fromYamlString true yaml
@@ -156,7 +156,7 @@ parameterValue:
         | _ -> failwith "Expected SampleNode"
 
     testCase "round-trip with protocol and parameters" <| fun _ ->
-        let proto = Plan(name = "extraction")
+        let proto = Recipe(name = "extraction")
         proto.AddParameter(FormalParameter("temperature"))
         let original = Process("p1")
         original.ExecutesProtocol <- Some proto

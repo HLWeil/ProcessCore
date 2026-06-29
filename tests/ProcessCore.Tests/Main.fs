@@ -22,7 +22,7 @@ let all =
             Types.FormalParameter.tests
             Types.Sample.tests
             Types.Data.tests
-            Types.Plan.tests
+            Types.Recipe.tests
             Types.Process.tests
             Types.Dataset.tests
             Types.IONode.tests

@@ -27,7 +27,7 @@ dotnet add package ProcessCore
 
 ## What You Get
 
-- Core ARC process graph types: `Dataset`, `Process`, `Plan`, `Sample`, `Data`, `Annotation`, `FormalParameter`, and `DefinedTerm`.
+- Core ARC process graph types: `Dataset`, `Process`, `Recipe`, `Sample`, `Data`, `Annotation`, `FormalParameter`, and `DefinedTerm`.
 - Query helpers for connected, upstream, downstream, and path-based traversal.
 - Fragment-aware `Data` nodes with `path`, `selector`, `selectorFormat`, and pluggable selector providers.
 - YAML encode/decode support for the core model, including strict and lenient type handling.

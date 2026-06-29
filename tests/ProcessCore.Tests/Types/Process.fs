@@ -125,7 +125,7 @@ let tests = testList "Process" [
         Expect.equal (p.ProtocolParameters().Count) 0 "No protocol → empty parameter list"
 
     testCase "ProtocolParameters delegates to protocol" <| fun _ ->
-        let proto = Plan("extraction")
+        let proto = Recipe("extraction")
         proto.AddParameter(FormalParameter("temperature"))
         proto.AddParameter(FormalParameter("rpm"))
         let p = Process("p")
@@ -158,7 +158,7 @@ let tests = testList "Process" [
         Expect.equal result.Count 1 "Should find PV in output node AdditionalProperty"
 
     testCase "AnnotationsByName - protocol component source" <| fun _ ->
-        let proto = Plan("measurement")
+        let proto = Recipe("measurement")
         let pv    = Annotation("instrument", value = "Orbitrap", additionalType = "Component")
         proto.AddLabEquipment(pv)
         let p = Process("p")

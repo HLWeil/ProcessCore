@@ -426,8 +426,8 @@ type Table(name: string, processes: ResizeArray<Process>, dataset: Dataset) =
                 clone.AddAdditionalProperty(this.ClonePV(pv))
             DataNode clone
 
-    member private this.CloneProtocol(proto: Plan) =
-        let clone = Plan()
+    member private this.CloneProtocol(proto: Recipe) =
+        let clone = Recipe()
         clone.Name <- proto.Name
         clone.Description <- proto.Description
         clone.Version <- proto.Version
@@ -443,7 +443,7 @@ type Table(name: string, processes: ResizeArray<Process>, dataset: Dataset) =
         match p.ExecutesProtocol with
         | Some proto -> proto
         | None ->
-            let proto = Plan()
+            let proto = Recipe()
             p.ExecutesProtocol <- Some proto
             proto
 
@@ -984,7 +984,7 @@ type Table(name: string, processes: ResizeArray<Process>, dataset: Dataset) =
         // Clone protocol from first process if available
         match processes |> Seq.tryHead |> Option.bind (fun p -> p.ExecutesProtocol) with
         | Some proto ->
-            let p2 = Plan()
+            let p2 = Recipe()
             p2.Name        <- proto.Name
             p2.Description <- proto.Description
             p2.Version     <- proto.Version
@@ -1070,7 +1070,7 @@ type Table(name: string, processes: ResizeArray<Process>, dataset: Dataset) =
                     match proc.ExecutesProtocol with
                     | Some proto -> proto.Name <- Some n
                     | None ->
-                        let proto = Plan()
+                        let proto = Recipe()
                         proto.Name <- Some n
                         proc.ExecutesProtocol <- Some proto
                 | _ -> ()

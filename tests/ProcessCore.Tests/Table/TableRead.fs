@@ -49,7 +49,7 @@ let tests = testList "TableRead" [
 
     testCase "single process — protocol ref column present when protocol set" <| fun _ ->
         let t, proc, _ = makeSingleProcessTable()
-        proc.ExecutesProtocol <- Some (Plan("myProtocol"))
+        proc.ExecutesProtocol <- Some (Recipe("myProtocol"))
         let headers = t.Headers
         let hasRef  = headers |> Seq.exists (fun h -> h = CompositeHeader.ProtocolREF)
         Expect.isTrue hasRef "ProtocolREF column present"
@@ -82,7 +82,7 @@ let tests = testList "TableRead" [
 
     testCase "single process — component column present" <| fun _ ->
         let t, proc, _ = makeSingleProcessTable()
-        let proto = Plan("extraction")
+        let proto = Recipe("extraction")
         proto.AddLabEquipment(Annotation("instrument", value = "Orbitrap", additionalType = "Component"))
         proc.ExecutesProtocol <- Some proto
         let headers = t.Headers
@@ -94,7 +94,7 @@ let tests = testList "TableRead" [
         source.AddAdditionalProperty(Annotation("organism", value = "Mouse", additionalType = "CharacteristicValue"))
         let sample = Sample("Sample1", additionalType = "Sample")
         sample.AddAdditionalProperty(Annotation("growth_phase", value = "log", additionalType = "FactorValue"))
-        let proto = Plan("extraction")
+        let proto = Recipe("extraction")
         proto.AddLabEquipment(Annotation("instrument", value = "Orbitrap", additionalType = "Component"))
         let proc = Process("Growth")
         proc.AddInputSample(source)
@@ -220,7 +220,7 @@ let tests = testList "TableRead" [
 
     testCase "GetComponentColumns" <| fun _ ->
         let t, proc, _ = makeSingleProcessTable()
-        let proto = Plan("proto")
+        let proto = Recipe("proto")
         proto.AddLabEquipment(Annotation("instrument", value = "Orbitrap", additionalType = "Component"))
         proc.ExecutesProtocol <- Some proto
         let compCols = t.GetComponentColumns()

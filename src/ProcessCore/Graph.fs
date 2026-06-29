@@ -135,7 +135,7 @@ type Path(processes: ResizeArray<Process>) =
         let seen = HashSet<string>()
         for proc in processes do
             match proc.ExecutesProtocol with
-            | Some (proto: Plan) ->
+            | Some (proto: Recipe) ->
                 for fp: FormalParameter in proto.Parameters do
                     if seen.Add(fp.Name) then acc.Add(fp)
             | None -> ()
@@ -156,7 +156,7 @@ module PathTraversal =
     let addProcessAnnotations (result: ResizeArray<Annotation>) (seen: HashSet<string>) (proc: Process) =
         for pv: Annotation in proc.ParameterValue do addAnnotation result seen pv
         match proc.ExecutesProtocol with
-        | Some (proto: Plan) -> for pv: Annotation in proto.LabEquipment do addAnnotation result seen pv
+        | Some (proto: Recipe) -> for pv: Annotation in proto.LabEquipment do addAnnotation result seen pv
         | None -> ()
 
     let addAnnotationsFromProcess (result: ResizeArray<Annotation>) (seen: HashSet<string>) (proc: Process) =
@@ -176,7 +176,7 @@ module PathTraversal =
             match protocolName with
             | Some pn ->
                 match proc.ExecutesProtocol with
-                | Some (proto: Plan) -> proto.Name = Some pn
+                | Some (proto: Recipe) -> proto.Name = Some pn
                 | None -> false
             | None -> true
 
@@ -188,7 +188,7 @@ module PathTraversal =
         match protocolName with
         | Some pn ->
             match proc.ExecutesProtocol with
-            | Some (proto: Plan) -> proto.Name = Some pn
+            | Some (proto: Recipe) -> proto.Name = Some pn
             | None -> false
         | None -> true
 
@@ -527,7 +527,7 @@ type IONode =
         let result = ResizeArray<FormalParameter>()
         for p: Process in this.AllConnectedProcesses(?scope = scope) do
             match p.ExecutesProtocol with
-            | Some (proto: Plan) ->
+            | Some (proto: Recipe) ->
                 for fp: FormalParameter in proto.Parameters do
                     if seen.Add(fp.Name) then result.Add(fp)
             | None -> ()
@@ -1006,12 +1006,12 @@ and [<AttachMembers>] Data(path: string, ?selector: string, ?selectorFormat: str
         Fable.Core.PyInterop.emitPyExpr (this) "int($0.GetHashCode())"
     #endif
 // ─────────────────────────────────────────────────────────────────────────────
-// Plan
+// Recipe
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// Description of a planned procedure.
 /// bioschemas.org/LabProtocol
-and [<AttachMembers>] Plan(?name: string, ?description: string, ?version: string, ?url: string, ?intendedUse: DefinedTerm, ?additionalType: string, ?parameters: seq<FormalParameter>, ?labEquipment: seq<Annotation>, ?additionalProperty: seq<Annotation>) as this =
+and [<AttachMembers>] Recipe(?name: string, ?description: string, ?version: string, ?url: string, ?intendedUse: DefinedTerm, ?additionalType: string, ?parameters: seq<FormalParameter>, ?labEquipment: seq<Annotation>, ?additionalProperty: seq<Annotation>) as this =
 
     inherit DynamicObj()
 
@@ -1087,7 +1087,7 @@ and [<AttachMembers>] Plan(?name: string, ?description: string, ?version: string
 
     override this.Equals(obj) =
         match obj with
-        | :? Plan as other -> this.Name = other.Name && this.Version = other.Version
+        | :? Recipe as other -> this.Name = other.Name && this.Version = other.Version
         | _ -> false
 
     override this.GetHashCode() = hash (this.Name, this.Version)
@@ -1103,12 +1103,12 @@ and [<AttachMembers>] Plan(?name: string, ?description: string, ?version: string
 
 /// Core transformation node. Connects inputs to outputs via a protocol.
 /// bioschemas.org/LabProcess
-and [<AttachMembers>] Process(name: string, ?executesProtocol: Plan, ?additionalType: string, ?inputs: seq<IONode>, ?outputs: seq<IONode>, ?parameterValue: seq<Annotation>) as this =
+and [<AttachMembers>] Process(name: string, ?executesProtocol: Recipe, ?additionalType: string, ?inputs: seq<IONode>, ?outputs: seq<IONode>, ?parameterValue: seq<Annotation>) as this =
 
     inherit DynamicObj()
 
     let mutable _name: string = name
-    let mutable _executesProtocol: Plan option = executesProtocol
+    let mutable _executesProtocol: Recipe option = executesProtocol
     let mutable _additionalType: string option = additionalType
     let mutable _processOf: Dataset option = None
     let _inputs: ResizeArray<IONode> = ResizeArray()
@@ -1438,7 +1438,7 @@ and [<AttachMembers>] Dataset(identifier: string, ?title: string, ?description: 
             | None -> "N"
         ]
 
-    let protocolKey (proto: Plan) =
+    let protocolKey (proto: Recipe) =
         fieldsKey [
             optionKey proto.Name
             optionKey proto.Description

@@ -7,15 +7,15 @@ index: 4
 
 # Workflow Protocol
 
-Workflow Run specialization of [Plan](../../core/Plan.md). Describes the prospective metadata of a computational workflow, combining computational and laboratory workflow descriptions.
+Workflow Run specialization of [Recipe](../../core/Recipe.md). Describes the prospective metadata of a computational workflow, combining computational and laboratory workflow descriptions.
 
 **`additionalType`**: `Workflow Protocol`
 
-**Multi-type**: SoftwareSourceCode + ComputationalWorkflow + Plan
+**Multi-type**: SoftwareSourceCode + ComputationalWorkflow + Recipe
 
 Reference: [ARC WR RO-Crate Profile — Workflow Protocol](../../../../references/arc_wr_ro_crate.md)
 
-## Additional Properties (beyond Plan)
+## Additional Properties (beyond Recipe)
 
 | Property | Type | Required | Description |
 |----------|------|----------|-------------|

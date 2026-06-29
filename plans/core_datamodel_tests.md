@@ -29,7 +29,7 @@ tests/ProcessCore.Tests/
         FormalParameter.fs
         Sample.fs
         Data.fs
-        Plan.fs
+        Recipe.fs
         Process.fs
         Dataset.fs
         IONode.fs
@@ -158,7 +158,7 @@ Dataset("parent")
 | `InputOf / OutputOf start empty` | Fresh data node has empty back-edge lists |
 | `EncodingFormat and AdditionalType fields` | Settable and readable |
 
-### 1.6 Plan (`Types/Plan.fs`)
+### 1.6 Recipe (`Types/Recipe.fs`)
 
 | Test | Description |
 |------|-------------|
@@ -170,7 +170,7 @@ Dataset("parent")
 | `AddLabEquipment deduplicates` | Identical PV added twice → one entry |
 | `RemoveLabEquipment` | PV removed |
 | `AddAdditionalProperty deduplicates` | Identical PV added twice → one entry |
-| `optional name constructor` | `Plan()` has `Name = None` |
+| `optional name constructor` | `Recipe()` has `Name = None` |
 
 ### 1.7 Process (`Types/Process.fs`)
 

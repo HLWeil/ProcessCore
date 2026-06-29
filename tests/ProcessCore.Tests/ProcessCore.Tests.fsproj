@@ -12,7 +12,7 @@
     <Compile Include="Types/FormalParameter.fs" />
     <Compile Include="Types/Sample.fs" />
     <Compile Include="Types/Data.fs" />
-    <Compile Include="Types/Plan.fs" />
+    <Compile Include="Types/Recipe.fs" />
     <Compile Include="Types/Process.fs" />
     <Compile Include="Types/Dataset.fs" />
     <Compile Include="Types/IONode.fs" />
@@ -35,7 +35,7 @@
     <Compile Include="YAML/Codecs/Annotation.fs" />
     <Compile Include="YAML/Codecs/Sample.fs" />
     <Compile Include="YAML/Codecs/Data.fs" />
-    <Compile Include="YAML/Codecs/Plan.fs" />
+    <Compile Include="YAML/Codecs/Recipe.fs" />
     <Compile Include="YAML/Codecs/Process.fs" />
     <Compile Include="YAML/Codecs/Dataset.fs" />
     <Compile Include="YAML/Integration/RoundTrip.fs" />

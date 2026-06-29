@@ -27,6 +27,6 @@ flowchart LR
     dataset[Dataset] --> process[Process]
     process --> sample[Sample]
     process --> data[Data]
-    protocol[Plan] -. executes .-> process
+    protocol[Recipe] -. executes .-> process
     process --> value[Annotation]
 ```

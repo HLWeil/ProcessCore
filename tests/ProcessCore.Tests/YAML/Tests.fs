@@ -9,7 +9,7 @@ let all =
         Codecs.Annotation.tests
         Codecs.Sample.tests
         Codecs.Data.tests
-        Codecs.Plan.tests
+        Codecs.Recipe.tests
         Codecs.Process.tests
         Codecs.Dataset.tests
         Integration.RoundTrip.tests

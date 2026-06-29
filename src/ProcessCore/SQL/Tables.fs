@@ -69,7 +69,7 @@ type DefinedTermRow(
         )
 
 /// <summary>
-/// Row of the <c>plan</c> table — a reusable protocol definition that can be executed by
+/// Row of the <c>recipe</c> table — a reusable protocol definition that can be executed by
 /// one or more <see cref="ProcessRow"/> instances and parameterised through
 /// <see cref="ProtocolParameterRow"/> entries.
 /// </summary>
@@ -83,7 +83,7 @@ type DefinedTermRow(
 /// <param name="IntendedUseId">Optional id of a defined term describing the intended use.</param>
 /// <param name="IntendedUseText">Optional free-form intended-use description.</param>
 [<AttachMembers>]
-type PlanRow(
+type RecipeRow(
     Id: string,
     Type: string,
     ?AdditionalType: string,
@@ -127,7 +127,7 @@ type PlanRow(
         ?IntendedUseId: string,
         ?IntendedUseText: string
     ) =
-        PlanRow(
+        RecipeRow(
             Id,
             Type,
             ?AdditionalType = AdditionalType,
@@ -141,7 +141,7 @@ type PlanRow(
 
 /// <summary>
 /// Row of the <c>formal_parameter</c> table — the schema-side declaration of a parameter that a
-/// <see cref="PlanRow"/> can take, optionally pinned to a default <see cref="AnnotationRow"/>.
+/// <see cref="RecipeRow"/> can take, optionally pinned to a default <see cref="AnnotationRow"/>.
 /// </summary>
 /// <param name="Id">Primary key.</param>
 /// <param name="Type">Type discriminator.</param>
@@ -296,7 +296,7 @@ type DataRow(
         )
 
 /// <summary>
-/// Row of the <c>process</c> table — a single execution of a <see cref="PlanRow"/>,
+/// Row of the <c>process</c> table — a single execution of a <see cref="RecipeRow"/>,
 /// connected to its inputs and outputs through <see cref="ProcessIoRow"/> and to its parameter values
 /// through <see cref="ProcessParameterValueRow"/>.
 /// </summary>
@@ -304,7 +304,7 @@ type DataRow(
 /// <param name="Type">Type discriminator.</param>
 /// <param name="Name">Process name.</param>
 /// <param name="AdditionalType">Optional refinement of <paramref name="Type"/>.</param>
-/// <param name="ExecutesProtocolId">Optional id of the executed <see cref="PlanRow"/>.</param>
+/// <param name="ExecutesProtocolId">Optional id of the executed <see cref="RecipeRow"/>.</param>
 [<AttachMembers>]
 type ProcessRow(Id: string, Type: string, Name: string, ?AdditionalType: string, ?ExecutesProtocolId: string) =
 
@@ -477,7 +477,7 @@ type DatasetAdditionalPropertyRow(DatasetId: string, Position: int, AnnotationId
 
 /// <summary>
 /// Row of the <c>protocol_parameter</c> association table — attaches an ordered
-/// <see cref="FormalParameterRow"/> to a <see cref="PlanRow"/>.
+/// <see cref="FormalParameterRow"/> to a <see cref="RecipeRow"/>.
 /// </summary>
 /// <param name="ProtocolId">Owning protocol id.</param>
 /// <param name="Position">Zero-based ordering position within the protocol.</param>
@@ -562,7 +562,7 @@ type ProcessParameterValueRow(ProcessId: string, Position: int, AnnotationId: st
 
 /// <summary>
 /// Row of the <c>protocol_additional_property</c> association table — attaches an ordered
-/// <see cref="AnnotationRow"/> to a <see cref="PlanRow"/>.
+/// <see cref="AnnotationRow"/> to a <see cref="RecipeRow"/>.
 /// </summary>
 /// <param name="ProtocolId">Owning protocol id.</param>
 /// <param name="Position">Zero-based ordering position within the protocol.</param>

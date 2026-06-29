@@ -1,6 +1,6 @@
 $schema: "https://json-schema.org/draft/2020-12/schema"
-$id: "Plan.yml"
-title: Plan
+$id: "Recipe.yml"
+title: Recipe
 description: >
   Description of a planned procedure. Protocols define what a Process executes,
   including intended use, equipment, reagents, and software.
@@ -13,12 +13,12 @@ properties:
 
   type:
     type: string
-    const: "Plan"
+    const: "Recipe"
     description: Fixed type discriminator
 
   additionalType:
     type: string
-    description: Decoration discriminator (e.g. Plan, ComputationalWorkflow)
+    description: Decoration discriminator (e.g. Recipe, ComputationalWorkflow)
 
   name:
     type: string

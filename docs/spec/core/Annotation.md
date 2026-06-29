@@ -46,7 +46,7 @@ flowchart TD
     Process --parameterValue--> Annotation
     Sample --additionalProperty--> Annotation
     Data --additionalProperty--> Annotation
-    Plan --additionalProperty--> Annotation
+    Recipe --additionalProperty--> Annotation
 
     Annotation --name--> na
     Annotation --value--> va

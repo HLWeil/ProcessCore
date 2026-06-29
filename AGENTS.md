@@ -34,9 +34,9 @@ ARC-Data-Model/
 
 ## Current Vocabulary
 
-- Core process/protocol entities are `Process` and `Plan`.
+- Core process/protocol entities are `Process` and `Recipe`.
 - Core process I/O properties are `inputs`, `outputs`, and `executesProtocol`.
-- Some upstream/profile-shaped examples use `object`, `result`, and `executesPlan`; treat those as legacy/profile terminology unless the task explicitly says to preserve profile shape.
+- Some upstream/profile-shaped examples use `object`, `result`, and `executesRecipe`; treat those as legacy/profile terminology unless the task explicitly says to preserve profile shape.
 - Long-form project documentation belongs under `docs/project/`.
 - Normative specification prose belongs under `docs/spec/`.
 - Existing README files should stay short and link into `docs/`.

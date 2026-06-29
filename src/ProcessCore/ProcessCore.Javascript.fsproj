@@ -21,7 +21,7 @@
     <Compile Include="YML\Annotation.fs" />
     <Compile Include="YML\Sample.fs" />
     <Compile Include="YML\Data.fs" />
-    <Compile Include="YML\Plan.fs" />
+    <Compile Include="YML\Recipe.fs" />
     <Compile Include="YML\Process.fs" />
     <Compile Include="YML\Dataset.fs" />
     <Compile Include="SQL\Sql.fs" />

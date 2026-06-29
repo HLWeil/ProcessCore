@@ -167,7 +167,7 @@ let tests = testList "DatasetQueries" [
         Expect.equal names (Set.ofList ["proc-factor"]) "found via output node AdditionalProperty"
 
     testCase "FindProcessesByAnnotation — protocol component source" <| fun _ ->
-        let proto = Plan("instrument-protocol")
+        let proto = Recipe("instrument-protocol")
         proto.AddLabEquipment(Annotation("instrument", value = "Orbitrap", additionalType = "Component"))
         let proc = Process("proc-comp")
         proc.ExecutesProtocol <- Some proto

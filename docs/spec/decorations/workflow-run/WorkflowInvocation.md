@@ -21,7 +21,7 @@ Inherits all properties from [Process](../../core/Process.md). WR-specific refin
 
 | Property | Type | Required | Description |
 |----------|------|----------|-------------|
-| `executesPlan` | [WorkflowProtocol](WorkflowProtocol.md) | MUST | Executed workflow (MUST equal `instrument`) |
+| `executesRecipe` | [WorkflowProtocol](WorkflowProtocol.md) | MUST | Executed workflow (MUST equal `instrument`) |
 | `inputs` | MediaObject, Dataset, Annotation | MUST | Input files consumed |
 | `outputs` | MediaObject, Dataset, Annotation | MUST | Output files created/modified |
 | `parameterValue` | [Annotation](Annotations.md) | COULD | Workflow parameter values |

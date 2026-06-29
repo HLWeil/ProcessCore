@@ -142,10 +142,10 @@ let tests = testList "Examples" [
 
     testCase "assay labProtocols in overflow" <| fun _ ->
         let assay = loadAssay(false)
-        let hasPlans =
+        let hasRecipes =
             assay.GetProperties(true)
             |> Seq.exists (fun kv -> kv.Key = "labProtocols")
-        Expect.isTrue hasPlans "labProtocols stored in overflow"
+        Expect.isTrue hasRecipes "labProtocols stored in overflow"
 
     testCase "assay strict mode fails" <| fun _ ->
         // processCoreOnly=true — should throw because of unknown fields like creators, labProtocols

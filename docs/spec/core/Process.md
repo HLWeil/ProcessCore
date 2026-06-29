@@ -25,7 +25,7 @@ Decorations specialize Process:
 | `name` | Text | MUST | Name of the process |
 | `inputs` | [Sample](Sample.md), [Data](Data.md) | SHOULD | Input(s) of the process |
 | `outputs` | [Sample](Sample.md), [Data](Data.md) | SHOULD | Output(s) of the process |
-| `executesProtocol` | [Plan](Plan.md) | SHOULD | Protocol that was executed |
+| `executesProtocol` | [Recipe](Recipe.md) | SHOULD | Protocol that was executed |
 | `parameterValue` | [Annotation](Annotation.md) | SHOULD | Parameter key-value pairs |
 
 ## Relationships
@@ -38,7 +38,7 @@ flowchart TD
     Dataset --processes--> Process
     Process --inputs--> Sample/Data
     Process --"outputs"--> Sample/Data
-    Process --executesProtocol--> Plan
+    Process --executesProtocol--> Recipe
     Process --parameterValue--> Annotation
     Process --name--> na
 ```

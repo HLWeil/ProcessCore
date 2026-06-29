@@ -36,7 +36,7 @@ ARC-Data-Model/
 │   │   │   ├── Study.md                   # Dataset → Study
 │   │   │   ├── Assay.md                   # Dataset → Assay
 │   │   │   ├── Process.md              # Process → Process
-│   │   │   ├── Plan.md             # Protocol → Plan
+│   │   │   ├── Recipe.md           # Protocol → Recipe
 │   │   │   ├── Sample.md                  # Sample → Sample/Source
 │   │   │   └── Annotations.md          # Parameter, Characteristic, Factor, Component
 │   │   │

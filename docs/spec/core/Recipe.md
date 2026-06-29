@@ -1,19 +1,19 @@
 ---
-title: Plan
+title: Recipe
 category: Core Specification
 categoryindex: 4
 index: 4
 ---
 
-# Plan
+# Recipe
 
 Description of a planned procedure. Protocols define what a Process executes, including intended use, equipment, reagents, and software.
 
 **Schema.org type**: `bioschemas.org/LabProtocol`
 
 Decorations specialize Protocol:
-- ISA: Plan
-- Workflow Run: Workflow Protocol (SoftwareSourceCode + ComputationalWorkflow + Plan)
+- ISA: Recipe
+- Workflow Run: Workflow Protocol (SoftwareSourceCode + ComputationalWorkflow + Recipe)
 
 ## Properties
 
@@ -21,7 +21,7 @@ Decorations specialize Protocol:
 |----------|------|----------|-------------|
 | `id` | Text | COULD | URL or identifier for the protocol |
 | `type` | Text | MUST | `Process` |
-| `additionalType` | Text | COULD | Decoration discriminator, e.g. `Plan` |
+| `additionalType` | Text | COULD | Decoration discriminator, e.g. `Recipe` |
 | `name` | Text | SHOULD | Main title |
 | `parameters` | [FormalParameter](FormalParameter.md) | COULD | Prospectively specifies parameters for which values should be given in the execution of the protocol, Maps to `input` in Bioschemas type|
 | `description` | Text | SHOULD | Short description or abstract |
@@ -43,14 +43,14 @@ flowchart TD
     av[Annotation]
     le[Annotation]
 
-    Process --executesProtocol--> Plan
-    Plan --intendedUse--> DefinedTerm
-    Plan --additionalProperty--> av
-    Plan --labEquipment--> le
-    Plan --parameters--> FormalParameter
-    Plan --name--> na
-    Plan --description--> de
-    Plan --version--> ve
-    Plan --url--> ur
+    Process --executesProtocol--> Recipe
+    Recipe --intendedUse--> DefinedTerm
+    Recipe --additionalProperty--> av
+    Recipe --labEquipment--> le
+    Recipe --parameters--> FormalParameter
+    Recipe --name--> na
+    Recipe --description--> de
+    Recipe --version--> ve
+    Recipe --url--> ur
 
 ```

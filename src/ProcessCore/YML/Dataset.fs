@@ -54,9 +54,9 @@ module Dataset =
         let resolveAnnotation id = tryFind annotations id
 
         let labProtocols =
-            addIndexedValues "labProtocols" (Plan.decoderWithPropertyResolver processCoreOnly resolveAnnotation) value
+            addIndexedValues "labProtocols" (Recipe.decoderWithPropertyResolver processCoreOnly resolveAnnotation) value
 
-        let resolvePlan id = tryFind labProtocols id
+        let resolveRecipe id = tryFind labProtocols id
 
         // processes
         tryGetField "processes" value
@@ -64,7 +64,7 @@ module Dataset =
             match tryDecodeSequence v with
             | Some elems ->
                 for elem in elems do
-                    match decodeRefOrInline (Process.decoderWithResolvers processCoreOnly resolveAnnotation resolvePlan) elem with
+                    match decodeRefOrInline (Process.decoderWithResolvers processCoreOnly resolveAnnotation resolveRecipe) elem with
                     | Choice2Of2 proc -> ds.AddProcess(proc)
                     | Choice1Of2 _    -> ()
             | None -> ())
@@ -100,7 +100,7 @@ module Dataset =
 
     // ── Encoders ───────────────────────────────────────────────────────────────
 
-    let rec encoder (useIndexedMode: bool) (pvEncoder : (Annotation -> YAMLElement) option) (protEncoder : (Plan -> YAMLElement) option) (ds: Dataset) : YAMLElement =
+    let rec encoder (useIndexedMode: bool) (pvEncoder : (Annotation -> YAMLElement) option) (protEncoder : (Recipe -> YAMLElement) option) (ds: Dataset) : YAMLElement =
 
         // Build PV index from ALL processes (including hasPart children)
         let pvRegistry = Dictionary<string, Annotation>()
@@ -114,16 +114,16 @@ module Dataset =
             else
                 (Option.defaultValue Annotation.encoder pvEncoder) pv
 
-        let protocolRegistry = Dictionary<string, Plan>()
-        let encodeProtocol (proto: Plan) =
+        let protocolRegistry = Dictionary<string, Recipe>()
+        let encodeProtocol (proto: Recipe) =
             if useIndexedMode then
-                let id = Plan.genID proto
+                let id = Recipe.genID proto
                 proto.SetProperty("@id", id)
                 if not <| protocolRegistry.ContainsKey(id) then
                     protocolRegistry.[id] <- proto
                 encodeRef id
             else
-                (Option.defaultValue (Plan.encoder encodePV) protEncoder) proto
+                (Option.defaultValue (Recipe.encoder encodePV) protEncoder) proto
 
         let processes =
             if ds.Processes.Count > 0 then
@@ -171,7 +171,7 @@ module Dataset =
             if protocolRegistry.Count > 0 then
                 yield "labProtocols",
                     protocolRegistry.Values
-                    |> Seq.map (fun kv -> Plan.encoder encodePV kv)
+                    |> Seq.map (fun kv -> Recipe.encoder encodePV kv)
                     |> Seq.toList
                     |> yamlSeq
             if pvRegistry.Count > 0 then

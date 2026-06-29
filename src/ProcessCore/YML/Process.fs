@@ -40,14 +40,14 @@ module Process =
     let private decodeIONode (processCoreOnly: bool) (value: YAMLElement) : IONode option =
         decodeIONodeWithPropertyResolver processCoreOnly (fun _ -> None) value
 
-    let decoderWithResolvers (processCoreOnly: bool) (resolveAnnotation: string -> Annotation option) (resolveProtocol: string -> Plan option) (value: YAMLElement) : Process =
+    let decoderWithResolvers (processCoreOnly: bool) (resolveAnnotation: string -> Annotation option) (resolveProtocol: string -> Recipe option) (value: YAMLElement) : Process =
         checkType processCoreOnly "Process" value
         let name           = requireField "name"          value |> decodeString
         let additionalType = tryGetField "additionalType" value |> Option.map decodeString
         let executesProtocol =
             tryGetField "executesProtocol" value
             |> Option.bind (fun v ->
-                match decodeRefOrInline (Plan.decoderWithPropertyResolver processCoreOnly resolveAnnotation) v with
+                match decodeRefOrInline (Recipe.decoderWithPropertyResolver processCoreOnly resolveAnnotation) v with
                 | Choice2Of2 proto -> Some proto
                 | Choice1Of2 id    -> resolveProtocol id)
 
@@ -85,7 +85,7 @@ module Process =
         | SampleNode m -> Sample.encoder pvEncoder m
         | DataNode d     -> Data.encoder pvEncoder d
 
-    let encoder (pvEncoder : Annotation -> YAMLElement) (protEncoder : Plan -> YAMLElement) (proc: Process) : YAMLElement =
+    let encoder (pvEncoder : Annotation -> YAMLElement) (protEncoder : Recipe -> YAMLElement) (proc: Process) : YAMLElement =
         [
             yield "type", yamlValue "Process"
             yield "name", yamlValue proc.Name
@@ -115,4 +115,4 @@ module Process =
         YAMLicious.Reader.read s |> decoder processCoreOnly
 
     let toYamlString (whitespace: int option) (proc: Process) : string =
-        writeYaml whitespace (encoder Annotation.encoder (Plan.encoder Annotation.encoder) proc)
+        writeYaml whitespace (encoder Annotation.encoder (Recipe.encoder Annotation.encoder) proc)

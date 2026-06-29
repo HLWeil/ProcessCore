@@ -15,7 +15,7 @@ ProcessCore is the foundational ARC process model. It abstracts experimental and
 |------|-------------|
 | [Dataset](Dataset.md) | Container and context for processes, nested datasets, data files, and metadata |
 | [Process](Process.md) | Transformation node connecting inputs to outputs |
-| [Plan](Plan.md) | Planned procedure that a process executes |
+| [Recipe](Recipe.md) | Planned procedure that a process executes |
 | [Sample](Sample.md) | Biological, chemical, or digital sample used as input or output |
 | [Data](Data.md) | Data file or selected file fragment |
 | [Annotation](Annotation.md) | Extensible key-value-unit triple |
@@ -31,9 +31,9 @@ flowchart LR
     Dataset --hasPart--> Dataset
     Process --inputs--> Sample
     Process --"outputs"--> Data
-    Process --executesProtocol--> Plan
+    Process --executesProtocol--> Recipe
     Process --parameterValue--> Annotation
-    Plan --parameters--> FormalParameter
+    Recipe --parameters--> FormalParameter
     Annotation --instanceOf--> FormalParameter
 ```
 

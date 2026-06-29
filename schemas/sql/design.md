@@ -6,14 +6,14 @@ The Markdown files in `docs/spec/core/` remain authoritative. This SQL import pr
 
 ## Design Decisions
 
-- **Primary keys** - every entity table uses `TEXT PRIMARY KEY`. Where the spec marks `id` as `MUST`, it is taken from the source. Where `id` is `COULD` (`Process`, `Plan`, `Data`), import code must generate or persist a stable local identifier when no source identifier is present.
+- **Primary keys** - every entity table uses `TEXT PRIMARY KEY`. Where the spec marks `id` as `MUST`, it is taken from the source. Where `id` is `COULD` (`Process`, `Recipe`, `Data`), import code must generate or persist a stable local identifier when no source identifier is present.
 - **`type` is stored as source text** - every entity table has a `type TEXT` column. The profile does not currently canonicalize or constrain core type strings; naming questions such as `Process` versus `Process` are left to the core spec.
-- **`additional_type` only where the model defines it** - kept on `dataset`, `plan`, `process`, `sample`, `data`, and `annotation`. It is intentionally absent from `defined_term` and `formal_parameter`.
+- **`additional_type` only where the model defines it** - kept on `dataset`, `recipe`, `process`, `sample`, `data`, and `annotation`. It is intentionally absent from `defined_term` and `formal_parameter`.
 - **Ordered lists are keyed by position** - ordered association tables use `(owner_id, position)` as the primary key, with `position INTEGER NOT NULL CHECK(position >= 0)`. This preserves order and does not forbid the same target appearing more than once unless a future requirement adds a uniqueness rule.
 - **Mixed-target lists use one association table with strict FKs** - `Dataset.hasPart` and `Process.inputs`/`outputs` can point to more than one target type. They are represented with nullable target FK columns plus an exact-one-target `CHECK`, rather than with polymorphic IDs or several split tables that must later be merged by `position`.
-- **References resolve to FKs** - string references resolve against the target table by `id`; unknown IDs are import errors. For mixed-target lists (`hasPart`, `inputs`, `outputs`), the importer looks across all permitted target tables and errors on zero hits or cross-type ID collisions. Inline objects on mixed-target lists are validated against all permitted schemas and must match exactly one. Inline objects are inserted or upserted before recording the FK; if an inline `Process`, `Plan`, or `Data` omits `id`, the importer generates a stable local identifier. `intendedUse` is the exception: a string is resolved to `defined_term.id` on hit and otherwise stored as free text.
-- **Entity references stay reusable unless the spec says otherwise** - `Plan.parameters` is represented by `protocol_parameter`, not by a `protocol_id` column on `formal_parameter`. This avoids baking in single-owner semantics that the core schema does not require.
-- **`Annotation` is a first-class entity** - it has its own PK, and associations to owners (`Dataset`, `Sample`, `Data`, `Plan`, `Process`) live in ordered association tables. The schema permits a `Annotation` to be referenced from multiple owners; in practice each will typically have one owner.
+- **References resolve to FKs** - string references resolve against the target table by `id`; unknown IDs are import errors. For mixed-target lists (`hasPart`, `inputs`, `outputs`), the importer looks across all permitted target tables and errors on zero hits or cross-type ID collisions. Inline objects on mixed-target lists are validated against all permitted schemas and must match exactly one. Inline objects are inserted or upserted before recording the FK; if an inline `Process`, `Recipe`, or `Data` omits `id`, the importer generates a stable local identifier. `intendedUse` is the exception: a string is resolved to `defined_term.id` on hit and otherwise stored as free text.
+- **Entity references stay reusable unless the spec says otherwise** - `Recipe.parameters` is represented by `protocol_parameter`, not by a `protocol_id` column on `formal_parameter`. This avoids baking in single-owner semantics that the core schema does not require.
+- **`Annotation` is a first-class entity** - it has its own PK, and associations to owners (`Dataset`, `Sample`, `Data`, `Recipe`, `Process`) live in ordered association tables. The schema permits a `Annotation` to be referenced from multiple owners; in practice each will typically have one owner.
 - **Per-owner `additional_property` tables** - the profile uses one association table per owner instead of a polymorphic `(owner_table, owner_id)` table. The duplication preserves FK enforcement on the owner side.
 - **Property values are stored as strings** - `annotation.value` is nullable `TEXT`. The SQL profile does not preserve whether the YAML scalar was numeric or textual; semantic validation belongs in the SQL-to-model layer or a separate validator.
 - **No path/closure tables** - process paths are derivable from `process_io` and can be added later as a view or sampleized closure table.
@@ -27,10 +27,10 @@ erDiagram
     dataset_has_part }o--o| data : "part_data_id"
     dataset ||--o{ dataset_process : "processes"
     process ||--o{ dataset_process : ""
-    process }o--o| plan : "executes_protocol_id"
-    plan ||--o{ protocol_parameter : "parameters"
+    process }o--o| recipe : "executes_protocol_id"
+    recipe ||--o{ protocol_parameter : "parameters"
     formal_parameter ||--o{ protocol_parameter : ""
-    plan }o--o| defined_term : "intended_use_id"
+    recipe }o--o| defined_term : "intended_use_id"
     formal_parameter }o--o| defined_term : "default_value_id"
     annotation }o--o| formal_parameter : "instance_of_id"
     process ||--o{ process_io : "inputs/outputs"
@@ -40,7 +40,7 @@ erDiagram
     annotation ||--o{ process_parameter_value : ""
     dataset ||--o{ dataset_additional_property : "additionalProperty"
     annotation ||--o{ dataset_additional_property : ""
-    plan ||--o{ protocol_additional_property : "additionalProperty"
+    recipe ||--o{ protocol_additional_property : "additionalProperty"
     annotation ||--o{ protocol_additional_property : ""
     sample ||--o{ sample_additional_property : "additionalProperty"
     annotation ||--o{ sample_additional_property : ""
@@ -53,7 +53,7 @@ erDiagram
 FK dependencies require this broad order:
 
 1. `defined_term`
-2. `plan`
+2. `recipe`
 3. `formal_parameter`
 4. `dataset`
 5. `sample`
@@ -82,7 +82,7 @@ erDiagram
         TEXT in_defined_term_set_id
         TEXT in_defined_term_set_name
     }
-    plan }o--o| defined_term : "intended_use_id"
+    recipe }o--o| defined_term : "intended_use_id"
     formal_parameter }o--o| defined_term : "default_value_id"
 ```
 
@@ -97,13 +97,13 @@ erDiagram
 
 ---
 
-### `plan`
+### `recipe`
 
 Planned procedure.
 
 ```mermaid
 erDiagram
-    plan {
+    recipe {
         TEXT id PK
         TEXT type
         TEXT additional_type
@@ -114,10 +114,10 @@ erDiagram
         TEXT intended_use_id FK
         TEXT intended_use_text
     }
-    plan }o--o| defined_term : "intended_use_id"
-    plan ||--o{ formal_parameter : "parameters"
-    plan ||--o{ protocol_additional_property : ""
-    process }o--o| plan : "executes_protocol_id"
+    recipe }o--o| defined_term : "intended_use_id"
+    recipe ||--o{ formal_parameter : "parameters"
+    recipe ||--o{ protocol_additional_property : ""
+    process }o--o| recipe : "executes_protocol_id"
 ```
 
 | Column | Type | Constraint | Source |
@@ -151,7 +151,7 @@ erDiagram
         TEXT name_tan
         TEXT default_value_id FK
     }
-    plan ||--o{ protocol_parameter : "parameters"
+    recipe ||--o{ protocol_parameter : "parameters"
     formal_parameter ||--o{ protocol_parameter : ""
     formal_parameter }o--o| defined_term : "default_value_id"
     annotation }o--o| formal_parameter : "instance_of_id"
@@ -210,7 +210,7 @@ erDiagram
         TEXT name
         TEXT executes_protocol_id FK
     }
-    process }o--o| plan : "executes_protocol_id"
+    process }o--o| recipe : "executes_protocol_id"
     process ||--o{ dataset_process : ""
     process ||--o{ process_io : "inputs/outputs"
     process ||--o{ process_parameter_value : ""
@@ -222,7 +222,7 @@ erDiagram
 | `type` | TEXT | NOT NULL | spec `type` |
 | `additional_type` | TEXT | nullable | spec `additionalType` |
 | `name` | TEXT | NOT NULL | spec `name` (MUST) |
-| `executes_protocol_id` | TEXT | FK -> `plan.id` ON DELETE RESTRICT, nullable | spec `executesProtocol` |
+| `executes_protocol_id` | TEXT | FK -> `recipe.id` ON DELETE RESTRICT, nullable | spec `executesProtocol` |
 
 ---
 
@@ -406,7 +406,7 @@ erDiagram
 | `position` | INTEGER | PK, `CHECK(position >= 0)` | order in `additionalProperty` |
 | `annotation_id` | TEXT | NOT NULL, FK -> `annotation.id` ON DELETE RESTRICT | property value item |
 
-### `protocol_parameter` - `Plan.parameters` -> `FormalParameter`
+### `protocol_parameter` - `Recipe.parameters` -> `FormalParameter`
 
 ```mermaid
 erDiagram
@@ -415,14 +415,14 @@ erDiagram
         INTEGER position PK
         TEXT formal_parameter_id FK
     }
-    plan ||--o{ protocol_parameter : ""
+    recipe ||--o{ protocol_parameter : ""
     formal_parameter ||--o{ protocol_parameter : ""
 ```
 
 | Column | Type | Constraint | Source |
 |---|---|---|---|
-| `protocol_id` | TEXT | PK, FK -> `plan.id` ON DELETE CASCADE | owning protocol |
-| `position` | INTEGER | PK, `CHECK(position >= 0)` | order in `Plan.parameters` |
+| `protocol_id` | TEXT | PK, FK -> `recipe.id` ON DELETE CASCADE | owning protocol |
+| `position` | INTEGER | PK, `CHECK(position >= 0)` | order in `Recipe.parameters` |
 | `formal_parameter_id` | TEXT | NOT NULL, FK -> `formal_parameter.id` ON DELETE RESTRICT | formal parameter item |
 
 ### `process_io` - `Process.inputs` / `Process.outputs` -> `Sample` or `Data`
@@ -480,7 +480,7 @@ erDiagram
 | `position` | INTEGER | PK, `CHECK(position >= 0)` | order in `parameterValue` |
 | `annotation_id` | TEXT | NOT NULL, FK -> `annotation.id` ON DELETE RESTRICT | property value item |
 
-### `protocol_additional_property` - `Plan.additionalProperty` -> `Annotation`
+### `protocol_additional_property` - `Recipe.additionalProperty` -> `Annotation`
 
 ```mermaid
 erDiagram
@@ -489,13 +489,13 @@ erDiagram
         INTEGER position PK
         TEXT annotation_id FK
     }
-    plan ||--o{ protocol_additional_property : ""
+    recipe ||--o{ protocol_additional_property : ""
     annotation ||--o{ protocol_additional_property : ""
 ```
 
 | Column | Type | Constraint | Source |
 |---|---|---|---|
-| `protocol_id` | TEXT | PK, FK -> `plan.id` ON DELETE CASCADE | owning protocol |
+| `protocol_id` | TEXT | PK, FK -> `recipe.id` ON DELETE CASCADE | owning protocol |
 | `position` | INTEGER | PK, `CHECK(position >= 0)` | order in `additionalProperty` |
 | `annotation_id` | TEXT | NOT NULL, FK -> `annotation.id` ON DELETE RESTRICT | property value item |
 
@@ -584,7 +584,7 @@ The primary key on `process_io(process_id, direction, position)` already support
 
 - `dataset_process(process_id)` - locate owning datasets for a process.
 - `process(executes_protocol_id)` - find executions of a protocol.
-- `plan(intended_use_id)` - find protocols by ontology term.
+- `recipe(intended_use_id)` - find protocols by ontology term.
 - `process_parameter_value(annotation_id)` - find processes whose parameter values match.
 - `<owner>_additional_property(annotation_id)` - find owners of a Annotation and support the closed-document orphan check.
 - `annotation(instance_of_id)` - find realized values for a FormalParameter, if that query becomes common.

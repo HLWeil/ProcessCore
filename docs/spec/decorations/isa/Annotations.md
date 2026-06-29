@@ -31,6 +31,6 @@ Same properties as Annotation, with `additionalType` = `FactorValue`.
 
 ## Component (`Component`)
 
-Key-value pair representing a protocol component (equipment, reagent, software). Attached to Plan via `labEquipment`, `reagent`, or `computationalTool`.
+Key-value pair representing a protocol component (equipment, reagent, software). Attached to Recipe via `labEquipment`, `reagent`, or `computationalTool`.
 
 Same properties as Annotation, with `additionalType` = `Component`.

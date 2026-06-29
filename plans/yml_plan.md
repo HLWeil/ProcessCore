@@ -6,7 +6,7 @@ The first version of the yml schema should contain schema files for the followin
 - Dataset
 - DefinedTerm
 - FormalParameter
-- Plan
+- Recipe
 - Process
 - Sample
 - Annotation

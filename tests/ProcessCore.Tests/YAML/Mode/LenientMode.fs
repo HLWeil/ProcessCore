@@ -29,10 +29,10 @@ let tests = testList "LenientMode" [
         Expect.equal d.Path "raw.csv" "path decoded"
         Expect.equal d.EncodingFormat (Some "text/csv") "encodingFormat decoded"
 
-    testCase "decorated type on Plan accepted" <| fun _ ->
-        let yaml = "type: Plan\nname: extraction\ndescription: desc\n"
+    testCase "decorated type on Recipe accepted" <| fun _ ->
+        let yaml = "type: Recipe\nname: extraction\ndescription: desc\n"
         // Even strict would pass here, but lenient definitely passes
-        let proto = Yaml.Plan.decoder false (YAMLicious.Reader.read yaml)
+        let proto = Yaml.Recipe.decoder false (YAMLicious.Reader.read yaml)
         Expect.equal proto.Name        (Some "extraction") "name decoded"
         Expect.equal proto.Description (Some "desc")       "description decoded"
 

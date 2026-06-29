@@ -34,12 +34,12 @@ dataset.Title <- Some "Minimal ProcessCore example"
 dataset.Description <- Some "One extraction process with nested quality control."
 
 (**
-#### Plan
+#### Recipe
 
 A protocol describes the method. Formal parameters define expected knobs, for which values should be provided when the protocol is executed.
 *)
 
-let protocol = Plan()
+let protocol = Recipe()
 let temperature = FormalParameter("temperature")
 protocol.Name <- Some "Extraction"
 protocol.IntendedUse <- Some (DefinedTerm("sample extraction"))

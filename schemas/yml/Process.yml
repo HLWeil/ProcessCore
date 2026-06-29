@@ -52,8 +52,8 @@ properties:
   executesProtocol:
     oneOf:
       - type: string
-        description: "@id reference to a Plan"
-      - $ref: "Plan.yml"
+        description: "@id reference to a Recipe"
+      - $ref: "Recipe.yml"
     description: Protocol that was executed by this process (SHOULD)
 
   parameterValue:

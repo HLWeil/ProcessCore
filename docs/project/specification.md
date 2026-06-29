@@ -18,9 +18,9 @@ flowchart LR
     Dataset --hasPart--> Dataset
     Process --inputs--> Sample
     Process --outputs--> Data
-    Process --executesProtocol--> Plan
+    Process --executesProtocol--> Recipe
     Process --parameterValue--> Annotation
-    Plan --parameters--> FormalParameter
+    Recipe --parameters--> FormalParameter
     Annotation --instanceOf--> FormalParameter
 ```
 
@@ -30,7 +30,7 @@ Core entities:
 |--------|--------|
 | Dataset | [Dataset](../spec/core/Dataset.md) |
 | Process | [Process](../spec/core/Process.md) |
-| Plan | [Plan](../spec/core/Plan.md) |
+| Recipe | [Recipe](../spec/core/Recipe.md) |
 | Sample | [Sample](../spec/core/Sample.md) |
 | Data | [Data](../spec/core/Data.md) |
 | Annotation | [Annotation](../spec/core/Annotation.md) |
@@ -49,7 +49,7 @@ Decorations add domain-specific meaning through `additionalType`, specialized pr
 
 ## Naming Notes
 
-The current core vocabulary uses `Process` and `Plan`, not the older placeholder names `Process` and `Protocol`.
+The current core vocabulary uses `Process` and `Recipe`, not the older placeholder names `Process` and `Protocol`.
 
 For process I/O, the current core and YAML schema names are:
 
@@ -59,7 +59,7 @@ For process I/O, the current core and YAML schema names are:
 - `parameterValue`
 - `additionalProperty`
 
-Some legacy/profile-shaped examples and upstream references use RO-Crate or Bioschemas names such as `object`, `result`, and `executesPlan`. See [Examples and schemas](examples-and-schemas.md) for how those files are treated.
+Some legacy/profile-shaped examples and upstream references use RO-Crate or Bioschemas names such as `object`, `result`, and `executesRecipe`. See [Examples and schemas](examples-and-schemas.md) for how those files are treated.
 
 ## Querying
 

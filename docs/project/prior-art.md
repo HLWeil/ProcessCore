@@ -79,10 +79,10 @@ flowchart TD
     Process --result--> File
     Process --parameterValue--> Annotation
     Process --additionalProperty--> Annotation
-    Process --executesPlan--> Plan
+    Process --executesRecipe--> Recipe
     Sample --additionalProperty--> Annotation
     File --additionalProperty--> Annotation
-    Plan --additionalProperty--> Annotation
+    Recipe --additionalProperty--> Annotation
 ```
 
 ## Query Model

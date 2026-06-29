@@ -29,13 +29,13 @@ let tests = testList "StrictMode" [
         Expect.throws (fun () -> Yaml.Data.fromYamlString true yaml |> ignore)
                       "wrong type raises for Data in strict mode"
 
-    testCase "wrong type on Plan raises" <| fun _ ->
+    testCase "wrong type on Recipe raises" <| fun _ ->
         let yaml = "type: Protocol\nname: extraction\n"
-        Expect.throws (fun () -> Yaml.Plan.fromYamlString true yaml |> ignore)
-                      "wrong type raises for Plan"
+        Expect.throws (fun () -> Yaml.Recipe.fromYamlString true yaml |> ignore)
+                      "wrong type raises for Recipe"
 
     testCase "wrong type on Process raises" <| fun _ ->
-        let yaml = "type: Plan\nname: p1\n"
+        let yaml = "type: Recipe\nname: p1\n"
         Expect.throws (fun () -> Yaml.Process.fromYamlString true yaml |> ignore)
                       "wrong type raises for Process"
 
@@ -51,7 +51,7 @@ let tests = testList "StrictMode" [
         Expect.equal (Yaml.Annotation.fromYamlString true "name: pH\n").Name       "pH"   "Annotation no type"
         Expect.equal (Yaml.Sample.fromYamlString      true "name: S1\n").Name       "S1"   "Sample no type"
         Expect.equal (Yaml.Data.fromYamlString          true "path: raw.csv\n").Path  "raw.csv" "Data no type"
-        Expect.equal (Yaml.Plan.fromYamlString   true "name: prot\n").Name     (Some "prot") "Plan no type"
+        Expect.equal (Yaml.Recipe.fromYamlString   true "name: prot\n").Name     (Some "prot") "Recipe no type"
         Expect.equal (Yaml.Process.fromYamlString    true "name: p1\n").Name       "p1"   "Process no type"
         Expect.equal (Yaml.Dataset.fromYamlString false "identifier: DS-1\n").Identifier "DS-1" "Dataset no type"
 

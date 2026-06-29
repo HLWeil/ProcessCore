@@ -105,7 +105,7 @@ Create one F# class per SQL table, decorated with `[<AttachMembers>]` so Fable e
 Entity tables:
 
 - `DefinedTermRow`
-- `PlanRow`
+- `RecipeRow`
 - `FormalParameterRow`
 - `DatasetRow`
 - `SampleRow`
@@ -302,7 +302,7 @@ A single `Repository` class collects the table-metadata accessors:
 [<AttachMembers>]
 type Repository =
     static member DefinedTerm : Table<DefinedTermRow> = ...
-    static member Plan : Table<PlanRow> = ...
+    static member Recipe : Table<RecipeRow> = ...
     // ... all 17 tables ...
     static member EntityTables : string[] = [| ... |]
     static member AssociationTables : string[] = [| ... |]

@@ -89,7 +89,7 @@ let tests = testList "RoundTrip" [
         Expect.equal pvs.[2].Value   (Some "Trypsin")     "pv2 value"
 
     testCase "protocol round-trip" <| fun _ ->
-        let proto = Plan(
+        let proto = Recipe(
                         name        = "extraction",
                         description = "Standard extraction",
                         version     = "1.0",

@@ -38,11 +38,11 @@ Each column in a table corresponds to a consistently-typed slot across all proce
 | `Factor` | `Annotation` on the output entity, `AdditionalType = "FactorValue"` |
 | `Characteristic` | `Annotation` on the input entity, `AdditionalType = "CharacteristicValue"` |
 | `Component` | `Annotation` on the protocol's `LabEquipment`, `AdditionalType = "Component"` |
-| `ProtocolREF` | `Plan.Name` |
-| `ProtocolType` | `Plan.IntendedUse` |
-| `ProtocolDescription` | `Plan.Description` |
-| `ProtocolUri` | `Plan.Url` |
-| `ProtocolVersion` | `Plan.Version` |
+| `ProtocolREF` | `Recipe.Name` |
+| `ProtocolType` | `Recipe.IntendedUse` |
+| `ProtocolDescription` | `Recipe.Description` |
+| `ProtocolUri` | `Recipe.Url` |
+| `ProtocolVersion` | `Recipe.Version` |
 | `Performer` | `Process` performer field (to be added) |
 | `Comment` | `Process` comments collection (to be added) |
 
@@ -97,7 +97,7 @@ The table's `RowCount`, `GetRow`, `GetCellAt`, `TryGetCellAt`, `AddRow`, `Update
 - Missing Input or Output: if a table has no Input column but has Characteristic columns, a synthetic input entity is created per row (named `<tableName>_<rowIndex>`). The same applies symmetrically for Output and Factor columns.
 - Multi-I/O: if a process node has more than one input or output entity, decompose produces one row per (input × output) pair; the shorter side is padded with empty cells.
 - Protocol multiplicity: each process node references its own copy of a protocol object. Protocol column values may vary per row.
-- Protocol-field writes must create a `Plan` for the row's process when one does not already exist. Component-column writes must also create a protocol when needed so the component `Annotation` has a valid graph slot.
+- Protocol-field writes must create a `Recipe` for the row's process when one does not already exist. Component-column writes must also create a protocol when needed so the component `Annotation` has a valid graph slot.
 
 ### Technical difficulty coverage
 

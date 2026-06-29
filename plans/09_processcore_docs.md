@@ -41,4 +41,4 @@ Use Markdown pages for conceptual orientation, invariants, and extension-point e
 
 - Primary audience is F# library users.
 - No new production dependencies are added.
-- Examples use current core vocabulary: `Process`, `Plan`, `inputs`, `outputs`, and `executesProtocol`.
+- Examples use current core vocabulary: `Process`, `Recipe`, `inputs`, `outputs`, and `executesProtocol`.

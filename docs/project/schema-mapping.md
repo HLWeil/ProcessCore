@@ -35,14 +35,14 @@ The ProcessCore is designed to be compatible with RO-Crate, and therefore it's m
 | `name` | Core | `schema:name` | - |
 | `inputs` | Core | `schema:object` | Renaming |
 | `outputs` | Core | `schema:result` | Renaming |
-| `executesProtocol` | Core | `bioschemas:executesPlan` | Renaming |
+| `executesProtocol` | Core | `bioschemas:executesRecipe` | Renaming |
 | `parameterValue` | Core | `bioschemas:parameterValue` | - |
 
-## Plan
+## Recipe
 
 | PC property | Location | Schema.org Property | Mapping |
 |---|---|---|---|
-| `Plan` | Core | bioschemas:LabProtocol | - |
+| `Recipe` | Core | bioschemas:LabProtocol | - |
 |---|---|---|---|
 | `additionalType` | Core | `schema:additionalType` | - |
 | `name` | Core | `schema:name` | - |

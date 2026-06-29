@@ -4,7 +4,7 @@ open YAMLicious.YAMLiciousTypes
 open ProcessCore
 open Helpers
 
-module Plan =
+module Recipe =
 
     let private knownFields =
         Set.ofList
@@ -16,7 +16,7 @@ module Plan =
             [ "id"; "type"; "additionaltype"; "name"; "description"; "version"
               "url"; "intendeduse"; "parameters"; "labequipment"; "additionalproperty" ]
 
-    let genID (proto: Plan) : string =
+    let genID (proto: Recipe) : string =
         match proto.TryGetPropertyValue("@id") with
         | Some (:? string as id) -> id
         | _ ->
@@ -27,8 +27,8 @@ module Plan =
                 "#Protocol_" + name
 
 
-    let decoderWithPropertyResolver (processCoreOnly: bool) (resolveAnnotation: string -> Annotation option) (value: YAMLElement) : Plan =
-        checkType processCoreOnly "Plan" value
+    let decoderWithPropertyResolver (processCoreOnly: bool) (resolveAnnotation: string -> Annotation option) (value: YAMLElement) : Recipe =
+        checkType processCoreOnly "Recipe" value
         let name           = tryGetField "name"           value |> Option.map decodeString
         let description    = tryGetField "description"    value |> Option.map decodeString
         let version        = tryGetField "version"        value |> Option.map decodeString
@@ -42,7 +42,7 @@ module Plan =
                 | Choice1Of2 _  -> None)
 
         let proto =
-            Plan(
+            Recipe(
                 ?name           = name,
                 ?description    = description,
                 ?version        = version,
@@ -63,15 +63,15 @@ module Plan =
         decodeSeq "labEquipments"      (Annotation.decoder processCoreOnly) resolveAnnotation proto.AddLabEquipment
         decodeSeq "additionalProperty" (Annotation.decoder processCoreOnly) resolveAnnotation proto.AddAdditionalProperty
 
-        applyOverflow "Plan" processCoreOnly knownFields proto value
+        applyOverflow "Recipe" processCoreOnly knownFields proto value
         proto
 
-    let decoder (processCoreOnly: bool) (value: YAMLElement) : Plan =
+    let decoder (processCoreOnly: bool) (value: YAMLElement) : Recipe =
         decoderWithPropertyResolver processCoreOnly (fun _ -> None) value
 
-    let encoder (pvEncoder : Annotation -> YAMLElement) (proto: Plan) : YAMLElement =
+    let encoder (pvEncoder : Annotation -> YAMLElement) (proto: Recipe) : YAMLElement =
         [
-            yield "type", yamlValue "Plan"
+            yield "type", yamlValue "Recipe"
             match proto.AdditionalType with
             | Some at -> yield "additionalType", yamlValue at
             | None    -> ()
@@ -112,8 +112,8 @@ module Plan =
         ]
         |> yamlMap
 
-    let fromYamlString (processCoreOnly: bool) (s: string) : Plan =
+    let fromYamlString (processCoreOnly: bool) (s: string) : Recipe =
         YAMLicious.Reader.read s |> decoder processCoreOnly
 
-    let toYamlString (whitespace: int option) (proto: Plan) : string =
+    let toYamlString (whitespace: int option) (proto: Recipe) : string =
         writeYaml whitespace (encoder Annotation.encoder proto)

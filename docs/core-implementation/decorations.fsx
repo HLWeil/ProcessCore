@@ -8,7 +8,7 @@ index: 3
 
 # Decorations
 
-The core data model is intentionally small: `Dataset`, `Process`, `Plan`, `Sample`, `Data`, and `Annotation` describe the shape of a process graph.
+The core data model is intentionally small: `Dataset`, `Process`, `Recipe`, `Sample`, `Data`, and `Annotation` describe the shape of a process graph.
 Domain specificity is added as decoration on top of that shared shape.
 
 There are two complementary ways to do this:
@@ -92,7 +92,7 @@ let temperature30 =
 
 highTemperatureSample.AddAdditionalProperty(temperature30)
 
-let growthProtocol = Plan(name = "Growth")
+let growthProtocol = Recipe(name = "Growth")
 growthProtocol.AddLabEquipment(
     Annotation(
         "growth environment",

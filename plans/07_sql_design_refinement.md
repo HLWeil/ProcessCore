@@ -13,7 +13,7 @@ Resolve the 13 original issues identified in design.md, plus the framing issue *
 | 0 | meta | design.md blurs "faithful YAML representation" with "stricter SQL profile"; framing must come first | done |
 | 1 | high | "Round-trip" claim is overstated; `type` column policy understates which tables actually have a `const` type in YAML | done |
 | 2 | high | `oneOf [string @id, inline object]` resolution rule is implicit; mixed-target lists need multi-table lookup policy; inline objects can lack `id` | done |
-| 3 | high | `Plan.intendedUse` string is ambiguous (free text vs `@id`) | done |
+| 3 | high | `Recipe.intendedUse` string is ambiguous (free text vs `@id`) | done |
 | 4 | high | `process_io` symmetry policy contradicts the spec; design.md prose ("spec does not require") is factually wrong | done |
 | 5 | high | No index strategy for documented graph-traversal queries; composites and `process_parameter_value` lookup are missing | done |
 | 6 | medium | `Data.id` vs `Data.path` relationship unspecified; naive `id := path` collides on fragment-level data | done |
@@ -39,7 +39,7 @@ Resolve the 13 original issues identified in design.md, plus the framing issue *
 | # | Choice | Notes |
 |---|---|---|
 | D0 | **(a) Profile** | Rename design.md as "SQL Import Profile of the ProcessCore model." Round-trip is to/from the profile; SQL ↔ in-memory model mapping handles deviations. |
-| D1 | **add `type TEXT` for now** | Add `type TEXT` (no CHECK, no canonicalization) to `dataset`, `process`, `plan`, `sample`, `annotation`, `formal_parameter`, `defined_term`. Drop the "type omitted when constant" Design Decisions bullet. External issue filed: rename `Process` → `Process`, `Plan` → `Protocol`. |
+| D1 | **add `type TEXT` for now** | Add `type TEXT` (no CHECK, no canonicalization) to `dataset`, `process`, `recipe`, `sample`, `annotation`, `formal_parameter`, `defined_term`. Drop the "type omitted when constant" Design Decisions bullet. External issue filed: rename `Process` → `Process`, `Recipe` → `Protocol`. |
 | D2 | **keep symmetry non-mandatory** | No CHECK or import validation on `inputs.length == outputs.length`. Fix the false prose at [design.md:444](../schemas/sql/design.md#L444) to acknowledge spec SHOULD. External issue filed: future enforcement. |
 | D3 | **(a) closed-document invariant** | At end of import transaction: every PV must be referenced by ≥1 row in the five owner association tables. `instance_of_id` does not count. |
 | D4 | **(a) CASCADE owner→assoc, RESTRICT on entity refs** | Deleting a `annotation` is *blocked* if any association row still references it. Deleting an owner (e.g. `dataset`) cascades to its association rows. Forces explicit cleanup; surfaces accidents. |
@@ -57,13 +57,13 @@ design.md currently blurs two activities: (a) faithfully represent the authorita
 
 ### D1. `type` column policy
 
-Decision: add `type TEXT` columns to every entity table for now, with no `CHECK` and no canonicalization. This keeps the SQL profile close to the current spec tables while leaving the naming problem (`Process`/`Plan` versus `Process`/`Protocol`) to a separate external issue.
+Decision: add `type TEXT` columns to every entity table for now, with no `CHECK` and no canonicalization. This keeps the SQL profile close to the current spec tables while leaving the naming problem (`Process`/`Recipe` versus `Process`/`Protocol`) to a separate external issue.
 
 Concretely, `data.type` already exists; add `type TEXT` to:
 
 - `dataset`
 - `process`
-- `plan`
+- `recipe`
 - `sample`
 - `annotation`
 - `formal_parameter`
@@ -121,7 +121,7 @@ New bullet under Design Decisions, covering five cases:
 > 2. **Mixed-target string `@id`** (`hasPart` → Dataset|Data; `inputs`/`outputs` → Sample|Data). Look up across all permitted target tables. Zero hits → error. Hits in multiple tables → error (cross-type `id` collision is a data-quality bug the user must resolve).
 > 3. **Inline object with `id`** on a single-target list. Upsert by `id` into the target table before recording the FK.
 > 4. **Inline object on a mixed-target list** (`hasPart`, `inputs`, `outputs`). Validate the object against each permitted target schema (`Dataset.yml`/`Data.yml` for `hasPart`; `Sample.yml`/`Data.yml` for `inputs`/`outputs`). Zero matches → error. Multiple matches → error (the YAML schemas are mutually exclusive in practice; ambiguity means malformed input).
-> 5. **Inline object without `id`** (permitted by YAML for `Process`, `Plan`, `Data`, where `id` is COULD). Generate a stable local identifier per the rule already in design.md Design Decisions, persist the row, then record the FK.
+> 5. **Inline object without `id`** (permitted by YAML for `Process`, `Recipe`, `Data`, where `id` is COULD). Generate a stable local identifier per the rule already in design.md Design Decisions, persist the row, then record the FK.
 >
 > This rule applies to `executesProtocol`, `defaultValue`, `instanceOf`, `parameters`, `processes`, `hasPart`, `inputs`, `outputs`, `parameterValue`, and every `additionalProperty`. **`intendedUse` is excluded** — see the disambiguation rule below — because a bare string there can mean free text rather than an unresolved `@id`.
 
@@ -146,7 +146,7 @@ After "Validation Rules". Index shapes are tied to the documented query patterns
 
 **Lookup-side indexes for the temperature/protocol query:**
 
-- `plan(intended_use_id)` — find protocols by ontology term (step 1 of the [use-cases.md:37](../spec/querying/use-cases.md#L37) command chain).
+- `recipe(intended_use_id)` — find protocols by ontology term (step 1 of the [use-cases.md:37](../spec/querying/use-cases.md#L37) command chain).
 - `process_parameter_value(annotation_id)` — find processes whose parameter values match (step 2).
 - `annotation` lookup indexes depend on the canonical query shape; candidates: `(name_tan, value)` for ontology-keyed value-equality, `(instance_of_id)` for FormalParameter-keyed lookups. Add as the query workload solidifies; do not over-index speculatively.
 
@@ -180,7 +180,7 @@ New bullet under Design Decisions:
 ### E5. Apply Phase 0 decisions
 
 - D0 → retitle the document as "SQL Import Profile" and rewrite intro framing
-- D1 → add `type TEXT` to `dataset`, `process`, `plan`, `sample`, `annotation`, `formal_parameter`, `defined_term`; remove the "type omitted when constant" Design Decisions bullet
+- D1 → add `type TEXT` to `dataset`, `process`, `recipe`, `sample`, `annotation`, `formal_parameter`, `defined_term`; remove the "type omitted when constant" Design Decisions bullet
 - D2 → rewrite I/O symmetry prose at [design.md:444](../schemas/sql/design.md#L444); replace the false "spec does not require" claim with the SHOULD + non-enforcement framing
 - D3 → add closed-document "no orphan PVs at commit time" invariant under Validation Rules
 - D4 → add `ON DELETE` clauses to every FK definition: `CASCADE` for owner → association rows, `RESTRICT` for refs to first-class entities

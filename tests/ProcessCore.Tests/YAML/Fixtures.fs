@@ -35,8 +35,8 @@ let fixtureData =
     d.AddAdditionalProperty(Annotation("instrument", value = "Q Exactive"))
     d
 
-let fixturePlan =
-    let lp = Plan(
+let fixtureRecipe =
+    let lp = Recipe(
                 name        = "extraction",
                 description = "Standard protein extraction protocol",
                 version     = "1.0",
@@ -51,7 +51,7 @@ let fixtureProcess =
     let proc = Process("p1")
     proc.AddInput(SampleNode fixtureSample)
     proc.AddOutput(DataNode fixtureData)
-    proc.ExecutesProtocol <- Some fixturePlan
+    proc.ExecutesProtocol <- Some fixtureRecipe
     proc.AddParameterValue(Annotation("temperature", value = "37", unit = "°C"))
     proc.AddParameterValue(Annotation("rpm", value = "200", unit = "rpm"))
     proc
@@ -78,7 +78,7 @@ let makeLinearGraph () =
     let sample2  = Sample("Sample2",  additionalType = "Sample")
     let rawData1 = Data("rawData1.csv")
 
-    let proto1 = Plan(name = "extraction")
+    let proto1 = Recipe(name = "extraction")
     proto1.IntendedUse <- Some (DefinedTerm("cell growth"))
     let p1 = Process("p1")
     p1.AddInput(SampleNode source1)
@@ -87,7 +87,7 @@ let makeLinearGraph () =
     p1.AddParameterValue(Annotation("temperature", value = "37", unit = "°C"))
     p1.AddParameterValue(Annotation("rpm", value = "200", unit = "rpm"))
 
-    let proto2 = Plan(name = "digestion")
+    let proto2 = Recipe(name = "digestion")
     let p2 = Process("p2")
     p2.AddInput(SampleNode sample1)
     p2.AddOutput(SampleNode sample2)
@@ -135,22 +135,22 @@ creators:
 labProtocols:
     -
       "@id": "#Protocol_Growth"
-      type: Plan
+      type: Recipe
       labEquipments:
         "@id": "#Component_growth_environment_bioreactor"
     -
       "@id": "#Protocol_Cell_Lysis"
-      type: Plan
+      type: Recipe
       labEquipments:
         "@id": "#Component_centrifuge_Eppendorf™_Centrifuge_5420"
     -
       "@id": "#Protocol_MS_Run"
-      type: Plan
+      type: Recipe
       labEquipments:
         "@id": "#Component_mass_spectrometer_Q_Exactive_9000"
     -
       "@id": "#Protocol_Computational_Proteome_Analysis"
-      type: Plan
+      type: Recipe
 annotations:
   -
     "@id": "#ParameterValue_sonicator_Fisherbrand_Model_705_Sonic_Dismembrator"

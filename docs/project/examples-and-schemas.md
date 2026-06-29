@@ -27,7 +27,7 @@ The YAML schemas describe the current core vocabulary. In particular, `Process.y
 | `examples/isa/` | Legacy/profile-shaped ISA and Datamap examples kept as domain examples |
 | `examples/workflow-run/` | Placeholder for future Workflow Run examples |
 
-The current ISA examples are useful profile examples, but they are not currently guaranteed to validate against the strict core YAML schemas. They use some RO-Crate/Bioschemas profile terms such as `object`, `result`, `executesPlan`, `annotations`, and `additionalProperties`.
+The current ISA examples are useful profile examples, but they are not currently guaranteed to validate against the strict core YAML schemas. They use some RO-Crate/Bioschemas profile terms such as `object`, `result`, `executesRecipe`, `annotations`, and `additionalProperties`.
 
 ## Reconciliation Rule
 

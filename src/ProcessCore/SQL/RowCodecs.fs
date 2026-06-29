@@ -74,13 +74,13 @@ module RowCodecExtensions =
                 RowCodecHelpers.textOptionParam "in_defined_term_set_name" this.InDefinedTermSetName
             |]
 
-    type PlanRow with
+    type RecipeRow with
 
-        /// <summary>Decodes a <see cref="PlanRow"/> from a <c>plan</c> result row.</summary>
+        /// <summary>Decodes a <see cref="RecipeRow"/> from a <c>recipe</c> result row.</summary>
         static member ofRow(row: SqlRow) =
-            let table = "plan"
+            let table = "recipe"
 
-            PlanRow(
+            RecipeRow(
                 RowCodecHelpers.text table "id" row,
                 RowCodecHelpers.text table "type" row,
                 ?AdditionalType = RowCodecHelpers.textOption table "additional_type" row,
@@ -92,7 +92,7 @@ module RowCodecExtensions =
                 ?IntendedUseText = RowCodecHelpers.textOption table "intended_use_text" row
             )
 
-        /// <summary>Encodes the row to <see cref="SqlParameters"/> for INSERT/UPDATE on <c>plan</c>.</summary>
+        /// <summary>Encodes the row to <see cref="SqlParameters"/> for INSERT/UPDATE on <c>recipe</c>.</summary>
         member this.ToParameters() : SqlParameters =
             [|
                 RowCodecHelpers.textParam "id" this.Id

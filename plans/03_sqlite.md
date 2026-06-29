@@ -178,7 +178,7 @@ Open questions (do not address in this plan):
 
 **Other:**
 - `SampleDerivesFrom` (sample_id FK, source_sample_id FK)
-- `ProtocolComponent` (protocol_id FK, propertyvalue_id FK, role TEXT) — ISA Plan: labEquipment/reagent/computationalTool
+- `ProtocolComponent` (protocol_id FK, propertyvalue_id FK, role TEXT) — ISA Recipe: labEquipment/reagent/computationalTool
 
 ### Decoration Views
 

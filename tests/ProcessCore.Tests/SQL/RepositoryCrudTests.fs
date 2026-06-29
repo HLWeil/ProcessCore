@@ -6,7 +6,7 @@ open ProcessCore.SQL.Tests.Fixtures
 
 let private insertGraph (sql: ISqliteDriver) =
     DefinedTerm.insert (sql, DefinedTermRow("term:temperature", "DefinedTerm", "temperature"))
-    Plan.insert (sql, PlanRow("protocol:extraction", "Plan", Name = "Extraction"))
+    Recipe.insert (sql, RecipeRow("protocol:extraction", "Recipe", Name = "Extraction"))
     FormalParameter.insert (sql, FormalParameterRow("parameter:temperature", "FormalParameter", Name = "temperature"))
     Dataset.insert (sql, DatasetRow("dataset:assay", "Dataset", "assay-001", AdditionalType = "Assay"))
     Sample.insert (sql, SampleRow("sample:source", "Sample", "leaf"))
@@ -34,7 +34,7 @@ let tests =
                 insertGraph sql
 
                 Expect.equal (DefinedTerm.get (sql, "term:temperature")).Value.Name "temperature" "DefinedTerm should read back."
-                Expect.equal (Plan.get (sql, "protocol:extraction")).Value.Name (Some "Extraction") "Plan should read back."
+                Expect.equal (Recipe.get (sql, "protocol:extraction")).Value.Name (Some "Extraction") "Recipe should read back."
                 Expect.equal (FormalParameter.get (sql, "parameter:temperature")).Value.Name (Some "temperature") "FormalParameter should read back."
                 Expect.equal (Dataset.get (sql, "dataset:assay")).Value.Identifier "assay-001" "Dataset should read back."
                 Expect.equal (Sample.get (sql, "sample:source")).Value.Name "leaf" "Sample should read back."

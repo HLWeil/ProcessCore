@@ -30,7 +30,7 @@ let private makeLinearDataAnnotationFixture () =
     let data2 = Data("pv-data2.csv")
     data2.AddAdditionalProperty(Annotation("data2_property", value = "d2"))
 
-    let protocol1 = Plan("pv-protocol-1")
+    let protocol1 = Recipe("pv-protocol-1")
     protocol1.AddLabEquipment(Annotation("protocol1_component", value = "instrument-1"))
 
     let process1 = Process("pv-process-1")
@@ -41,7 +41,7 @@ let private makeLinearDataAnnotationFixture () =
     process1.AddOutputSample(sample2)
     process1.AddOutputSample(sample4)
 
-    let protocol2 = Plan("pv-protocol-2")
+    let protocol2 = Recipe("pv-protocol-2")
     protocol2.AddLabEquipment(Annotation("protocol2_component", value = "instrument-2"))
 
     let process2 = Process("pv-process-2")

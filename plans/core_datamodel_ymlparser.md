@@ -54,7 +54,7 @@ The parser targets Fable compatibility (JS, Python, .NET) and uses [YAMLicious](
     <Compile Include="YML\Annotation.fs" />
     <Compile Include="YML\Sample.fs" />
     <Compile Include="YML\Data.fs" />
-    <Compile Include="YML\Plan.fs" />
+    <Compile Include="YML\Recipe.fs" />
     <Compile Include="YML\Process.fs" />
     <Compile Include="YML\Dataset.fs" />
     <Compile Include="Table.fs" />
@@ -161,14 +161,14 @@ Callers resolve `Choice1Of2 id` lazily (pass through, leave as string, or look u
 
 ## Indexed Object Sections
 
-Reusable objects can be defined once in top-level index sections and referenced elsewhere by `@id`. This avoids repeating shared `Annotation` and `Plan` objects in larger assay-style YAML files.
+Reusable objects can be defined once in top-level index sections and referenced elsewhere by `@id`. This avoids repeating shared `Annotation` and `Recipe` objects in larger assay-style YAML files.
 
 References use the same compact mapping shape as indexed objects:
 
 ```yaml
 labProtocols:
   - "@id": "#Protocol_Cell_Lysis"
-    type: Plan
+    type: Recipe
     labEquipment:
       "@id": "#Component_centrifuge_Eppendorf_5420"
 
@@ -192,7 +192,7 @@ processes:
 Indexed sections currently cover:
 
 - `annotations`: reusable `Annotation` objects, including parameter values, characteristics, factors, components, and additional properties.
-- `labProtocols`: reusable `Plan` objects that processes can reference through `executesProtocol`.
+- `labProtocols`: reusable `Recipe` objects that processes can reference through `executesProtocol`.
 
 Inline objects remain valid wherever references are accepted. `@id` values should be stable within the document; fragment identifiers are preferred for local objects, while absolute URLs are suitable for externally identified objects.
 
@@ -318,12 +318,12 @@ module <TypeName> =
 
 ---
 
-### Plan
+### Recipe
 
 **Known YAML fields:** `id`, `type`, `additionalType`, `name`, `description`, `version`, `url`, `intendedUse`, `parameters`, `labEquipment`, `additionalProperty`
 
 **Decoder:**
-- All optional; construct `Plan()` then assign
+- All optional; construct `Recipe()` then assign
 - `intendedUse` → `decodeRefOrInline DefinedTerm.decoder`
 - `parameters` → sequence of `decodeRefOrInline FormalParameter.decoder`
 - `labEquipment` → sequence of `decodeRefOrInline Annotation.decoder`
@@ -349,7 +349,7 @@ module <TypeName> =
 - `additionalType` → optional
 - `inputs` → sequence; each element is `decodeRefOrInline` of either `Sample.decoder` or `Data.decoder`; discriminate by `type` field value (`"bioschemas:Sample"` → Sample, `"schema:MediaObject"` / `"File"` → Data); string ids are kept as unresolved references
 - `outputs` → same pattern as `inputs`
-- `executesProtocol` → `decodeRefOrInline Plan.decoder`
+- `executesProtocol` → `decodeRefOrInline Recipe.decoder`
 - `parameterValue` → sequence of `decodeRefOrInline Annotation.decoder`
 - Overflow → `.SetProperty`
 
@@ -460,7 +460,7 @@ module Decode =
 | `Annotation.fs` | `ProcessCore.Yaml.Annotation` | `decoder`, `encoder`, `fromYamlString`, `toYamlString` |
 | `Sample.fs` | `ProcessCore.Yaml.Sample` | `decoder`, `encoder`, `fromYamlString`, `toYamlString` |
 | `Data.fs` | `ProcessCore.Yaml.Data` | `decoder`, `encoder`, `fromYamlString`, `toYamlString` |
-| `Plan.fs` | `ProcessCore.Yaml.Plan` | `decoder`, `encoder`, `fromYamlString`, `toYamlString` |
+| `Recipe.fs` | `ProcessCore.Yaml.Recipe` | `decoder`, `encoder`, `fromYamlString`, `toYamlString` |
 | `Process.fs` | `ProcessCore.Yaml.Process` | `decoder`, `encoder`, `fromYamlString`, `toYamlString` |
 | `Dataset.fs` | `ProcessCore.Yaml.Dataset` | `decoder`, `encoder`, `fromYamlString`, `toYamlString` |
 

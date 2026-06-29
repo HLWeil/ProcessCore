@@ -34,7 +34,7 @@ tests/ProcessCore.Tests/
             Annotation.fs
             Sample.fs
             Data.fs
-            Plan.fs
+            Recipe.fs
             Process.fs
             Dataset.fs
         Integration/
@@ -72,7 +72,7 @@ FormalParameter("temperature", nameTAN = "PATO:0000146", defaultValue = DefinedT
 
 **Fixture Data** — `Data("rawData1.csv", selector = "Sheet1", selectorFormat = "excel", encodingFormat = "text/csv")` with one `additionalProperty`.
 
-**Fixture Plan** — protocol with `name`, `description`, `version`, `url`, `intendedUse`, one parameter, one labEquipment, one additionalProperty.
+**Fixture Recipe** — protocol with `name`, `description`, `version`, `url`, `intendedUse`, one parameter, one labEquipment, one additionalProperty.
 
 **Fixture Process** — process with `name`, one sample input, one data output, `executesProtocol`, two `parameterValue` entries.
 
@@ -166,11 +166,11 @@ These should match what the encoder produces so they can also serve as encoder r
 
 ---
 
-## 6 — Plan Codec (`Codecs/Plan.fs`)
+## 6 — Recipe Codec (`Codecs/Recipe.fs`)
 
 | Test | Description |
 |------|-------------|
-| `encode minimal` | No name → `id = ""`, `type = "Plan"` |
+| `encode minimal` | No name → `id = ""`, `type = "Recipe"` |
 | `encode with name and url` | `id = url`, all provided fields present |
 | `encode with parameters sequence` | Nested FP objects in `parameters` array |
 | `encode with labEquipment sequence` | Nested PV objects |
@@ -192,14 +192,14 @@ These should match what the encoder produces so they can also serve as encoder r
 | `encode name only` | `id = name`, `type = "Process"`, no inputs/outputs/protocol |
 | `encode with sample input` | Sample inline in `inputs` array |
 | `encode with data output` | Data inline in `outputs` array |
-| `encode with executesProtocol` | Nested Plan inline |
+| `encode with executesProtocol` | Nested Recipe inline |
 | `encode with parameterValues` | Sequence of PV objects |
 | `decode name only` | Inputs/outputs empty, protocol `None` |
 | `decode sample input` | Sample decoded and added to inputs |
 | `decode data output` | Data decoded and added to outputs |
 | `decode data by "File" legacy type alias` | `type: File` → decoded as `Data` |
 | `decode io as id-references` | String refs produce no IONode entries |
-| `decode executesProtocol as inline object` | Plan decoded |
+| `decode executesProtocol as inline object` | Recipe decoded |
 | `decode executesProtocol as id-reference` | Ref → `executesProtocol = None` |
 | `decode parameterValues` | PVs decoded |
 | `back-edges not in output` | No `processOf` key |
@@ -242,7 +242,7 @@ These tests encode a fully-wired graph, decode it, and compare structure rather 
 | `linear graph round-trip` | Fixture graph from ProcessCore.Tests Fixture A: encode `DS-A` → YAML string → decode → same process names, same input/output names |
 | `nested dataset round-trip` | Fixture D: parent with two child datasets → encode → decode → child identifier and process names intact |
 | `parameterValues round-trip` | PVs with all optional fields survive encoding and decoding |
-| `protocol round-trip` | Plan with parameters, labEquipment, intendedUse all survive |
+| `protocol round-trip` | Recipe with parameters, labEquipment, intendedUse all survive |
 | `whitespace option` | `toYamlString (Some 4)` produces YAML with 4-space indentation that `fromYamlString` can parse back |
 | `Decode.fromYamlString entry point` | Top-level `Decode.fromYamlString Dataset.decoder` works equivalently to `Dataset.fromYamlString` |
 | `Encode.toYamlString entry point` | Top-level `Encode.toYamlString` works equivalently to per-module helper |
@@ -272,7 +272,7 @@ These tests call `decoder true` (i.e. `processCoreOnly = true`) directly.
 | `wrong type on DefinedTerm raises` | `type: WrongType` → `failwithf` message contains both expected and actual type names |
 | `wrong type on Sample raises` | Same |
 | `wrong type on Data raises` | Same |
-| `wrong type on Plan raises` | Same |
+| `wrong type on Recipe raises` | Same |
 | `wrong type on Process raises` | Same |
 | `wrong type on Dataset raises` | Same |
 | `missing type field passes` | YAML without a `type` key → no exception (absent is allowed) |
@@ -288,7 +288,7 @@ These tests call `decoder false` (i.e. `processCoreOnly = false`).
 | `decorated type on DefinedTerm accepted` | `type: schema:DefinedTerm` → decodes normally without error |
 | `decorated type on Sample accepted` | `type: bioschemas:Sample` → decodes as `Sample` |
 | `decorated type on Data accepted` | `type: schema:MediaObject` → decodes as `Data` |
-| `decorated type on Plan accepted` | `type: bioschemas:LabProtocol` |
+| `decorated type on Recipe accepted` | `type: bioschemas:LabProtocol` |
 | `decorated type on Process accepted` | `type: bioschemas:LabProcess` |
 | `decorated type on Dataset accepted` | `type: schema:Dataset` |
 | `completely absent type accepted` | YAML with no `type` field → decodes normally |
