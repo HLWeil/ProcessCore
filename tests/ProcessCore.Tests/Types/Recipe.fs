@@ -57,19 +57,32 @@ let tests = testList "Recipe" [
         let result = proto.TryGetParameter("rpm")
         Expect.isNone result "Should return None for missing parameter"
 
-    testCase "AddLabEquipment deduplicates" <| fun _ ->
+    testCase "AddComponent deduplicates" <| fun _ ->
         let proto = Recipe("extraction")
         let pv    = Annotation("instrument", value = "Orbitrap")
-        proto.AddLabEquipment(pv)
-        proto.AddLabEquipment(pv)
-        Expect.equal proto.LabEquipment.Count 1 "Identical PV added twice → one entry"
+        proto.AddComponent(pv)
+        proto.AddComponent(pv)
+        Expect.equal proto.Components.Count 1 "Identical PV added twice → one entry"
 
-    testCase "RemoveLabEquipment" <| fun _ ->
+    testCase "RemoveComponent" <| fun _ ->
         let proto = Recipe("extraction")
         let pv    = Annotation("instrument", value = "Orbitrap")
-        proto.AddLabEquipment(pv)
-        proto.RemoveLabEquipment(pv)
-        Expect.equal proto.LabEquipment.Count 0 "LabEquipment PV should be removed"
+        proto.AddComponent(pv)
+        proto.RemoveComponent(pv)
+        Expect.equal proto.Components.Count 0 "Component PV should be removed"
+
+    testCase "components can hold software and materials" <| fun _ ->
+        let proto = Recipe("analysis")
+        let tool = Annotation("software", value = "FragPipe")
+        let component = Annotation("enzyme", value = "Trypsin")
+        proto.AddComponent(tool)
+        proto.AddComponent(component)
+
+        Expect.equal proto.Components.Count 2 "Both components should be retained"
+        proto.RemoveComponent(tool)
+        Expect.equal proto.Components.Count 1 "Remaining component should be retained"
+        proto.RemoveComponent(component)
+        Expect.equal proto.Components.Count 0 "Component should be removed"
 
     testCase "AddAdditionalProperty deduplicates" <| fun _ ->
         let proto = Recipe("extraction")

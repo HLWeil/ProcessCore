@@ -112,6 +112,33 @@ let tests = testList "Dataset" [
         ds.AddAdditionalProperty(pv)
         Expect.equal ds.AdditionalProperty.Count 1 "Identical PV added twice → one entry"
 
+    testCase "administrative and datamap collections are retained" <| fun _ ->
+        let agent = Agent("Ada", familyName = "Lovelace")
+        let citation = ScholarlyArticle("Example citation", authors = [ agent ])
+        let dataFile = Data("results.csv")
+        let dataContext = DataContext(dataFile, explication = DefinedTerm("protein abundance"))
+        let ds =
+            Dataset(
+                "DS-admin",
+                license = "CC-BY-4.0",
+                datePublished = "2026-06-30",
+                agents = [ agent ],
+                citations = [ citation ],
+                dataContexts = [ dataContext ],
+                dataFiles = [ dataFile ])
+
+        Expect.equal ds.License (Some "CC-BY-4.0") "License should be retained"
+        Expect.equal ds.DatePublished (Some "2026-06-30") "DatePublished should be retained"
+        Expect.equal ds.Agents.Count 1 "Agent should be retained"
+        Expect.equal ds.Citations.Count 1 "Citation should be retained"
+        Expect.equal ds.DataContexts.Count 1 "DataContext should be retained"
+        Expect.equal ds.DataFiles.Count 1 "Data file should be retained"
+        Expect.equal (ds.AllAgents().Count) 1 "AllAgents should discover agent"
+        Expect.equal (ds.AllCitations().Count) 1 "AllCitations should discover citation"
+        Expect.equal (ds.AllDataFiles().Count) 1 "AllDataFiles should discover data file"
+        Expect.equal (ds.AllDataContexts().Count) 1 "AllDataContexts should discover data context"
+        Expect.equal (ds.DataContextsForData(dataFile).Count) 1 "DataContextsForData should match by data target"
+
     testCase "CollapseProcesses groups same name and equal process values" <| fun _ ->
         let nodeName (node: IONode) =
             match node with
@@ -374,3 +401,4 @@ let tests = testList "Dataset" [
         Expect.equal (nodeName downstream[0]) "Output2" "Input2 maps forward to Output2"
 
 ]
+

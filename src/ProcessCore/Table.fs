@@ -435,7 +435,7 @@ type Table(name: string, processes: ResizeArray<Process>, dataset: Dataset) =
         clone.IntendedUse <- proto.IntendedUse
         clone.AdditionalType <- proto.AdditionalType
         for fp in proto.Parameters do clone.AddParameter(fp)
-        for pv in proto.LabEquipment do clone.AddLabEquipment(this.ClonePV(pv))
+        for pv in proto.Components do clone.AddComponent(this.ClonePV(pv))
         for pv in proto.AdditionalProperty do clone.AddAdditionalProperty(this.ClonePV(pv))
         clone
 
@@ -715,10 +715,10 @@ type Table(name: string, processes: ResizeArray<Process>, dataset: Dataset) =
                 | DataNode d     -> d.AdditionalProperty :> seq<_>)
         addAnnotationColumns "CharacteristicValue" inputPVs
 
-        // ── Components (from protocol LabEquipment) ────────────────────────
+        // ── Components (from protocol Component) ────────────────────────
         let equipPVs (p: Process) =
             match p.ExecutesProtocol with
-            | Some proto -> proto.LabEquipment :> seq<_>
+            | Some proto -> proto.Components :> seq<_>
             | None       -> Seq.empty
         addAnnotationColumns "Component" equipPVs
 
@@ -881,7 +881,7 @@ type Table(name: string, processes: ResizeArray<Process>, dataset: Dataset) =
             this.SampleizeProjectedRows()
             for i in 0 .. processes.Count - 1 do
                 let proto = this.EnsureProtocol(processes.[i])
-                addPV i (fun () -> proto.LabEquipment)
+                addPV i (fun () -> proto.Components)
         | CompositeHeader.ProtocolREF ->
             if cells.Count > 0 then
                 ensureOneProcess()
@@ -962,7 +962,7 @@ type Table(name: string, processes: ResizeArray<Process>, dataset: Dataset) =
         | CompositeHeader.Component(dt) ->
             for p in processes do
                 match p.ExecutesProtocol with
-                | Some proto -> removeFirst proto.LabEquipment "Component" dt.Name
+                | Some proto -> removeFirst proto.Components "Component" dt.Name
                 | None -> ()
         | _ -> ()
 
@@ -1062,7 +1062,7 @@ type Table(name: string, processes: ResizeArray<Process>, dataset: Dataset) =
                 pv.AdditionalType <- Some "Component"
                 TableAux.ApplyCellToPV(pv, cell)
                 match proc.ExecutesProtocol with
-                | Some proto -> proto.AddLabEquipment(pv)
+                | Some proto -> proto.AddComponent(pv)
                 | None -> ()
             | CompositeHeader.ProtocolREF ->
                 match cell with
@@ -1187,13 +1187,13 @@ type Table(name: string, processes: ResizeArray<Process>, dataset: Dataset) =
                     | None -> ()
                 | CompositeHeader.Component(dt) ->
                     let proto = this.EnsureProtocol(p)
-                    match proto.LabEquipment |> Seq.tryFind (fun pv -> pv.Name = dt.Name) with
+                    match proto.Components |> Seq.tryFind (fun pv -> pv.Name = dt.Name) with
                     | Some pv -> TableAux.ApplyCellToPV(pv, cell)
                     | None    ->
                         let pv = Annotation(dt.Name)
                         pv.AdditionalType <- Some "Component"
                         TableAux.ApplyCellToPV(pv, cell)
-                        proto.AddLabEquipment(pv)
+                        proto.AddComponent(pv)
                 | CompositeHeader.ProtocolREF ->
                     match cell with
                     | CompositeCell.FreeText v -> (this.EnsureProtocol(p)).Name <- Some v

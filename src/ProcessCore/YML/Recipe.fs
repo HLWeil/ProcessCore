@@ -9,12 +9,12 @@ module Recipe =
     let private knownFields =
         Set.ofList
             [ "id"; "type"; "additionalType"; "name"; "description"; "version"
-              "url"; "intendedUse"; "parameters"; "labEquipment"; "additionalProperty" ]
+              "url"; "intendedUse"; "parameters"; "components"; "additionalProperty" ]
 
     let private knownPropertyNames =
         Set.ofList
             [ "id"; "type"; "additionaltype"; "name"; "description"; "version"
-              "url"; "intendeduse"; "parameters"; "labequipment"; "additionalproperty" ]
+              "url"; "intendeduse"; "parameters"; "components"; "additionalproperty" ]
 
     let genID (proto: Recipe) : string =
         match proto.TryGetPropertyValue("@id") with
@@ -59,8 +59,7 @@ module Recipe =
                     | Choice1Of2 id -> resolve id |> Option.iter add) v)
 
         decodeSeq "parameters"         (FormalParameter.decoder processCoreOnly) (fun _ -> None) proto.AddParameter
-        decodeSeq "labEquipment"       (Annotation.decoder processCoreOnly) resolveAnnotation proto.AddLabEquipment
-        decodeSeq "labEquipments"      (Annotation.decoder processCoreOnly) resolveAnnotation proto.AddLabEquipment
+        decodeSeq "components"          (Annotation.decoder processCoreOnly) resolveAnnotation proto.AddComponent
         decodeSeq "additionalProperty" (Annotation.decoder processCoreOnly) resolveAnnotation proto.AddAdditionalProperty
 
         applyOverflow "Recipe" processCoreOnly knownFields proto value
@@ -96,9 +95,9 @@ module Recipe =
                       |> Seq.map FormalParameter.encoder
                       |> Seq.toList
                       |> yamlSeq
-            if proto.LabEquipment.Count > 0 then
-                yield "labEquipment",
-                      proto.LabEquipment
+            if proto.Components.Count > 0 then
+                yield "components",
+                      proto.Components
                       |> Seq.map pvEncoder
                       |> Seq.toList
                       |> yamlSeq

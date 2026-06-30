@@ -43,7 +43,7 @@ let fixtureRecipe =
                 url         = "https://protocols.io/extraction-v1")
     lp.IntendedUse <- Some (DefinedTerm("cell growth"))
     lp.AddParameter(FormalParameter("temperature"))
-    lp.AddLabEquipment(Annotation("centrifuge", value = "Eppendorf 5420"))
+    lp.AddComponent(Annotation("centrifuge", value = "Eppendorf 5420"))
     lp.AddAdditionalProperty(Annotation("notes", value = "Keep on ice"))
     lp
 
@@ -136,17 +136,17 @@ labProtocols:
     -
       "@id": "#Protocol_Growth"
       type: Recipe
-      labEquipment:
+      components:
         "@id": "#Component_growth_environment_bioreactor"
     -
       "@id": "#Protocol_Cell_Lysis"
       type: Recipe
-      labEquipment:
+      components:
         "@id": "#Component_centrifuge_Eppendorf™_Centrifuge_5420"
     -
       "@id": "#Protocol_MS_Run"
       type: Recipe
-      labEquipment:
+      components:
         "@id": "#Component_mass_spectrometer_Q_Exactive_9000"
     -
       "@id": "#Protocol_Computational_Proteome_Analysis"

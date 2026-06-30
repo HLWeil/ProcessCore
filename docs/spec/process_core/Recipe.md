@@ -27,9 +27,7 @@ Decorations specialize Protocol:
 | `description` | Text | SHOULD | Short description or abstract |
 | `intendedUse` | [DefinedTerm](DefinedTerm.md), Text | SHOULD | Protocol type as ontology term |
 | `additionalProperty` | [Annotation](Annotation.md) | COULD | Extensible protocol metadata |
-| `labEquipment` | [Annotation](Annotation.md) | COULD | Equipment used in the protocol |
-| `computationalTool` | [Annotation](Annotation.md) | COULD | Software or computational tools used in the protocol |
-| `reagent` | [Annotation](Annotation.md) | COULD | Reagents used in the protocol |
+| `components` | [Annotation](Annotation.md) | COULD | Equipment, software, reagents, materials, or other components used in the protocol |
 | `version` | Text | COULD | Version identifier |
 | `url` | URL | COULD | External protocol resource |
 
@@ -43,16 +41,12 @@ flowchart TD
     ve@{ shape: stadium, label: "string" }
     ur@{ shape: stadium, label: "URL" }
     av[Annotation]
-    le[Annotation]
-    ct[Annotation]
-    re[Annotation]
+    co[Annotation]
 
     Process --executesProtocol--> Recipe
     Recipe --intendedUse--> DefinedTerm
     Recipe --additionalProperty--> av
-    Recipe --labEquipment--> le
-    Recipe --computationalTool--> ct
-    Recipe --reagent--> re
+    Recipe --components--> co
     Recipe --parameters--> FormalParameter
     Recipe --name--> na
     Recipe --description--> de

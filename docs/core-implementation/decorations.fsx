@@ -93,7 +93,7 @@ let temperature30 =
 highTemperatureSample.AddAdditionalProperty(temperature30)
 
 let growthProtocol = Recipe(name = "Growth")
-growthProtocol.AddLabEquipment(
+growthProtocol.AddComponent(
     Annotation(
         "growth environment",
         value = "bioreactor",
@@ -158,7 +158,7 @@ let growthDecoration =
       "input annotations", growthInput.AdditionalProperty |> Seq.map pvSummary |> String.concat "; "
       "output", sprintf "%s (%s)" growthOutput.Name (growthOutput.AdditionalType |> valueOrBlank)
       "output annotations", growthOutput.AdditionalProperty |> Seq.map pvSummary |> String.concat "; "
-      "protocol components", growthProtocol.LabEquipment |> Seq.map pvSummary |> String.concat "; " ]
+      "protocol components", growthProtocol.Components |> Seq.map pvSummary |> String.concat "; " ]
 
 growthDecoration
 (*** include-it ***)
@@ -303,7 +303,7 @@ roundTrippedLayout.IsSome
 | Give a core object a domain role | `AdditionalType` |
 | Attach characteristics or factors to samples/data | `node.AddAdditionalProperty` |
 | Attach process parameters | `process.AddParameterValue` |
-| Attach protocol components | `protocol.AddLabEquipment` |
+| Attach protocol components | `protocol.AddComponent` |
 | Keep extensions ontologized and queryable | `Annotation(name, value, unit, nameTAN, valueTAN, unitTAN)` |
 | Preserve metadata outside the core graph | `SetProperty`, `TryGetTypedPropertyValue` from `DynamicObj` |
 | Read/write decorated YAML | `ProcessCore.Yaml.Dataset.fromYamlString false`, `toYamlString` |

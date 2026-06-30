@@ -26,6 +26,6 @@ Reference: [ARC WR RO-Crate Profile — Workflow Protocol](../../../../reference
 | `license` | CreativeWork, URL | SHOULD | License |
 | `sdPublisher` | Agent, Organization | SHOULD | Host site |
 | `hasPart` | CreativeWork | COULD | Tools/scripts used in workflow |
-| `computationalTool` | SoftwareApplication, DefinedTerm | COULD | Software used |
+| `components` | SoftwareApplication, DefinedTerm | COULD | Software used |
 
 

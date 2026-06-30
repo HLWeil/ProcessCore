@@ -101,8 +101,8 @@ let tests = testList "Examples" [
         let assay = loadAssay(false)
         let proc = assay.Processes.[0]
         Expect.isSome proc.ExecutesProtocol "executesProtocol resolved"
-        Expect.equal proc.ExecutesProtocol.Value.LabEquipment.Count 1 "protocol equipment resolved"
-        Expect.equal proc.ExecutesProtocol.Value.LabEquipment.[0].Name "growth environment" "equipment name"
+        Expect.equal proc.ExecutesProtocol.Value.Components.Count 1 "protocol equipment resolved"
+        Expect.equal proc.ExecutesProtocol.Value.Components.[0].Name "growth environment" "equipment name"
 
     testCase "assay resolves indexed property value references" <| fun _ ->
         let assay = loadAssay(false)

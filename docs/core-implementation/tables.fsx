@@ -26,7 +26,7 @@ let source name =
 let growthProcess inputName outputName temperature =
     let protocol = Recipe()
     protocol.Name <- Some "Growth"
-    protocol.AddLabEquipment(Annotation("growth chamber", value = "chamber-1", additionalType = "Component"))
+    protocol.AddComponent(Annotation("growth chamber", value = "chamber-1", additionalType = "Component"))
 
     let output = sample outputName
     output.AddAdditionalProperty(Annotation("temperature", value = temperature, unit = "degree Celsius", additionalType = "FactorValue"))

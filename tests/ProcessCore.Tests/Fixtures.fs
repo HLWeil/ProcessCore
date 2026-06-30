@@ -327,7 +327,7 @@ let makeFixtureE () : FixtureE =
 //   UpstreamNode --[UpstreamProc]--> InputNode --[Process]--> OutputNode --[DownstreamProc]--> DownstreamNode
 //
 //   Process  has: ParamPV (ParameterValue), InputPV (input node AdditionalProperty),
-//                 OutputPV (output node AdditionalProperty), ComponentPV (protocol LabEquipment)
+//                 OutputPV (output node AdditionalProperty), ComponentPV (protocol Component)
 //   UpstreamProc   has: UpstreamOnlyPV
 //   DownstreamProc has: DownstreamOnlyPV
 // ─────────────────────────────────────────────────────────────────────────────
@@ -345,7 +345,7 @@ type FixtureFourSources =
         ParamPV          : Annotation // from ParameterValue
         InputPV          : Annotation // from input node AdditionalProperty
         OutputPV         : Annotation // from output node AdditionalProperty
-        ComponentPV      : Annotation // from protocol LabEquipment
+        ComponentPV      : Annotation // from protocol Component
         UpstreamOnlyPV   : Annotation // only on UpstreamProc
         DownstreamOnlyPV : Annotation // only on DownstreamProc
     }
@@ -366,7 +366,7 @@ let makeFixtureFourSources () : FixtureFourSources =
     // central process — all four sources
     let proto   = Recipe("four-source-protocol")
     let compPV  = Annotation("instrument",    value = "Orbitrap",  additionalType = "Component")
-    proto.AddLabEquipment(compPV)
+    proto.AddComponent(compPV)
 
     let proc    = Process("fs-four-source-process")
     proc.ExecutesProtocol <- Some proto

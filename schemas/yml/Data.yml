@@ -37,6 +37,15 @@ properties:
     type: string
     description: MIME type of the target data object or fragment (COULD)
 
+  hasPart:
+    type: array
+    description: Nested data fragments or subregions (COULD)
+    items:
+      oneOf:
+        - type: string
+          description: "@id reference to a Data object"
+        - $ref: "Data.yml"
+
   additionalProperty:
     type: array
     description: Extensible file-, fragment-, or content-level metadata (COULD)

@@ -151,12 +151,13 @@ module PathTraversal =
     let addAnnotationsFromNode (result: ResizeArray<Annotation>) (seen: HashSet<string>) (node: IONode) =
         match node with
         | SampleNode m -> for pv: Annotation in m.AdditionalProperty do addAnnotation result seen pv
-        | DataNode d     -> for pv: Annotation in d.AdditionalProperty do addAnnotation result seen pv
+        | DataNode d -> for pv: Annotation in d.AdditionalProperty do addAnnotation result seen pv
 
     let addProcessAnnotations (result: ResizeArray<Annotation>) (seen: HashSet<string>) (proc: Process) =
         for pv: Annotation in proc.ParameterValue do addAnnotation result seen pv
         match proc.ExecutesProtocol with
-        | Some (proto: Recipe) -> for pv: Annotation in proto.LabEquipment do addAnnotation result seen pv
+        | Some (proto: Recipe) ->
+            for pv: Annotation in proto.Components do addAnnotation result seen pv
         | None -> ()
 
     let addAnnotationsFromProcess (result: ResizeArray<Annotation>) (seen: HashSet<string>) (proc: Process) =
@@ -857,9 +858,9 @@ and [<AttachMembers>] Sample(name: string, ?additionalType: string, ?additionalP
 // Data
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Data file produced or consumed by processes.
+/// Data file or selected fragment produced or consumed by processes.
 /// schema.org/MediaObject or File
-and [<AttachMembers>] Data(path: string, ?selector: string, ?selectorFormat: string, ?encodingFormat: string, ?additionalType: string, ?additionalProperty: seq<Annotation>) as this =
+and [<AttachMembers>] Data(path: string, ?selector: string, ?selectorFormat: string, ?encodingFormat: string, ?additionalType: string, ?hasPart: seq<Data>, ?additionalProperty: seq<Annotation>) as this =
 
     inherit DynamicObj()
 
@@ -868,11 +869,13 @@ and [<AttachMembers>] Data(path: string, ?selector: string, ?selectorFormat: str
     let mutable _selectorFormat: string option = selectorFormat
     let mutable _encodingFormat: string option = encodingFormat
     let mutable _additionalType: string option = additionalType
+    let _hasPart: ResizeArray<Data> = ResizeArray()
     let _additionalProperty: ResizeArray<Annotation> = ResizeArray()
     let _inputOf:  HashSet<Process> = HashSet(refEqProcess)
     let _outputOf: HashSet<Process> = HashSet(refEqProcess)
 
     do
+        hasPart |> Option.iter (fun data -> for d in data do this.AddPart(d))
         additionalProperty |> Option.iter (fun pvs -> for pv in pvs do this.AddAdditionalProperty(pv))
 
     member _.Path
@@ -899,6 +902,8 @@ and [<AttachMembers>] Data(path: string, ?selector: string, ?selectorFormat: str
         with get() = _additionalType
         and set v = _additionalType <- v
 
+    member _.HasPart = _hasPart
+
     member _.AdditionalProperty = _additionalProperty
 
     /// Processes for which this data node is an input (back-edge)
@@ -913,6 +918,16 @@ and [<AttachMembers>] Data(path: string, ?selector: string, ?selectorFormat: str
 
     member _.RemoveAdditionalProperty(pv: Annotation) =
         _additionalProperty.Remove(pv) |> ignore
+
+    member this.AddPart(data: Data) =
+        if not (_hasPart |> Seq.exists (fun x -> x = data)) then
+            _hasPart.Add(data)
+
+    member _.RemovePart(data: Data) =
+        _hasPart.Remove(data) |> ignore
+
+    member _.TryGetPart(path: string) =
+        _hasPart |> Seq.tryFind (fun d -> d.Path = path)
 
     // ── Query ─────────────────────────────────────────────────────────────────
 
@@ -1005,13 +1020,65 @@ and [<AttachMembers>] Data(path: string, ?selector: string, ?selectorFormat: str
     member this.``__hash__``() =
         Fable.Core.PyInterop.emitPyExpr (this) "int($0.GetHashCode())"
     #endif
+
+/// Datamap descriptor for a data object or selected data fragment.
+and [<AttachMembers>] DataContext(data: Data, ?explication: DefinedTerm, ?objectType: DefinedTerm, ?unit: DefinedTerm, ?label: string, ?description: string, ?generatedBy: string) =
+
+    inherit DynamicObj()
+
+    let mutable _data: Data = data
+    let mutable _explication: DefinedTerm option = explication
+    let mutable _objectType: DefinedTerm option = objectType
+    let mutable _unit: DefinedTerm option = unit
+    let mutable _label: string option = label
+    let mutable _description: string option = description
+    let mutable _generatedBy: string option = generatedBy
+
+    member _.Data
+        with get() = _data
+        and set v = _data <- v
+
+    member _.Explication
+        with get() = _explication
+        and set v = _explication <- v
+
+    member _.ObjectType
+        with get() = _objectType
+        and set v = _objectType <- v
+
+    member _.Unit
+        with get() = _unit
+        and set v = _unit <- v
+
+    member _.Label
+        with get() = _label
+        and set v = _label <- v
+
+    member _.Description
+        with get() = _description
+        and set v = _description <- v
+
+    member _.GeneratedBy
+        with get() = _generatedBy
+        and set v = _generatedBy <- v
+
+    override this.Equals(obj) =
+        match obj with
+        | :? DataContext as other ->
+            this.Data = other.Data &&
+            this.Explication = other.Explication &&
+            this.ObjectType = other.ObjectType
+        | _ -> false
+
+    override this.GetHashCode() =
+        hash (this.Data, this.Explication, this.ObjectType)
 // ─────────────────────────────────────────────────────────────────────────────
 // Recipe
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// Description of a planned procedure.
 /// bioschemas.org/LabProtocol
-and [<AttachMembers>] Recipe(?name: string, ?description: string, ?version: string, ?url: string, ?intendedUse: DefinedTerm, ?additionalType: string, ?parameters: seq<FormalParameter>, ?labEquipment: seq<Annotation>, ?additionalProperty: seq<Annotation>) as this =
+and [<AttachMembers>] Recipe(?name: string, ?description: string, ?version: string, ?url: string, ?intendedUse: DefinedTerm, ?additionalType: string, ?parameters: seq<FormalParameter>, ?components: seq<Annotation>, ?additionalProperty: seq<Annotation>) as this =
 
     inherit DynamicObj()
 
@@ -1022,12 +1089,12 @@ and [<AttachMembers>] Recipe(?name: string, ?description: string, ?version: stri
     let mutable _intendedUse: DefinedTerm option = intendedUse
     let mutable _additionalType: string option = additionalType
     let _parameters: ResizeArray<FormalParameter> = ResizeArray()
-    let _labEquipment: ResizeArray<Annotation> = ResizeArray()
+    let _components: ResizeArray<Annotation> = ResizeArray()
     let _additionalProperty: ResizeArray<Annotation> = ResizeArray()
 
     do
         parameters         |> Option.iter (fun fps -> for fp in fps do this.AddParameter(fp))
-        labEquipment       |> Option.iter (fun pvs -> for pv in pvs do this.AddLabEquipment(pv))
+        components         |> Option.iter (fun pvs -> for pv in pvs do this.AddComponent(pv))
         additionalProperty |> Option.iter (fun pvs -> for pv in pvs do this.AddAdditionalProperty(pv))
 
     member _.Name
@@ -1057,7 +1124,7 @@ and [<AttachMembers>] Recipe(?name: string, ?description: string, ?version: stri
     member _.Parameters = _parameters
 
     /// Equipment, reagents, and software used in this protocol (components).
-    member _.LabEquipment = _labEquipment
+    member _.Components = _components
 
     member _.AdditionalProperty = _additionalProperty
 
@@ -1071,12 +1138,12 @@ and [<AttachMembers>] Recipe(?name: string, ?description: string, ?version: stri
     member _.TryGetParameter(name: string) =
         _parameters |> Seq.tryFind (fun fp -> fp.Name = name)
 
-    member this.AddLabEquipment(pv: Annotation) =
-        if not (_labEquipment |> Seq.exists (fun x -> x = pv)) then
-            _labEquipment.Add(pv)
+    member this.AddComponent(pv: Annotation) =
+        if not (_components |> Seq.exists (fun x -> x = pv)) then
+            _components.Add(pv)
 
-    member _.RemoveLabEquipment(pv: Annotation) =
-        _labEquipment.Remove(pv) |> ignore
+    member _.RemoveComponent(pv: Annotation) =
+        _components.Remove(pv) |> ignore
 
     member this.AddAdditionalProperty(pv: Annotation) =
         if not (_additionalProperty |> Seq.exists (fun x -> x = pv)) then
@@ -1343,13 +1410,14 @@ and [<AttachMembers>] Process(name: string, ?executesProtocol: Recipe, ?addition
         for n: IONode in _inputs do
             match n with
             | SampleNode m -> for pv: Annotation in m.AdditionalProperty do if pv.Name = name then result.Add(pv)
-            | DataNode d     -> for pv: Annotation in d.AdditionalProperty do if pv.Name = name then result.Add(pv)
+            | DataNode d -> for pv: Annotation in d.AdditionalProperty do if pv.Name = name then result.Add(pv)
         for n: IONode in _outputs do
             match n with
             | SampleNode m -> for pv: Annotation in m.AdditionalProperty do if pv.Name = name then result.Add(pv)
-            | DataNode d     -> for pv: Annotation in d.AdditionalProperty do if pv.Name = name then result.Add(pv)
+            | DataNode d -> for pv: Annotation in d.AdditionalProperty do if pv.Name = name then result.Add(pv)
         match _executesProtocol with
-        | Some proto -> for pv: Annotation in proto.LabEquipment do if pv.Name = name then result.Add(pv)
+        | Some proto ->
+            for pv: Annotation in proto.Components do if pv.Name = name then result.Add(pv)
         | None -> ()
         result
 
@@ -1371,9 +1439,9 @@ and [<AttachMembers>] Process(name: string, ?executesProtocol: Recipe, ?addition
 // Dataset
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Container and context for data and processes.
+/// Container and context for data, processes, administrative metadata, and datamap entries.
 /// schema.org/Dataset
-and [<AttachMembers>] Dataset(identifier: string, ?title: string, ?description: string, ?additionalType: string, ?processes: seq<Process>, ?hasPart: seq<Dataset>, ?additionalProperty: seq<Annotation>) as this =
+and [<AttachMembers>] Dataset(identifier: string, ?title: string, ?description: string, ?additionalType: string, ?license: string, ?datePublished: string, ?dateCreated: string, ?dateModified: string, ?processes: seq<Process>, ?hasPart: seq<Dataset>, ?dataFiles: seq<Data>, ?agents: seq<Agent>, ?citations: seq<ScholarlyArticle>, ?dataContexts: seq<DataContext>, ?additionalProperty: seq<Annotation>) as this =
 
     inherit DynamicObj()
 
@@ -1381,9 +1449,17 @@ and [<AttachMembers>] Dataset(identifier: string, ?title: string, ?description: 
     let mutable _title: string option = title
     let mutable _description: string option = description
     let mutable _additionalType: string option = additionalType
+    let mutable _license: string option = license
+    let mutable _datePublished: string option = datePublished
+    let mutable _dateCreated: string option = dateCreated
+    let mutable _dateModified: string option = dateModified
     let mutable _partOf: Dataset option = None
     let _processes: ResizeArray<Process> = ResizeArray()
     let _hasPart: ResizeArray<Dataset> = ResizeArray()
+    let _dataFiles: ResizeArray<Data> = ResizeArray()
+    let _agents: ResizeArray<Agent> = ResizeArray()
+    let _citations: ResizeArray<ScholarlyArticle> = ResizeArray()
+    let _dataContexts: ResizeArray<DataContext> = ResizeArray()
     let _additionalProperty: ResizeArray<Annotation> = ResizeArray()
     /// IONode registry — only meaningfully populated when this is the root dataset.
     let _nodeRegistry: Dictionary<string, IONode> = Dictionary<string, IONode>()
@@ -1438,6 +1514,24 @@ and [<AttachMembers>] Dataset(identifier: string, ?title: string, ?description: 
             | None -> "N"
         ]
 
+    let dataContextKey (dc: DataContext) =
+        fieldsKey [
+            dc.Data.Path
+            optionKey dc.Data.Selector
+            match dc.Explication with
+            | Some dt -> "E" + definedTermKey dt
+            | None -> "N"
+            match dc.ObjectType with
+            | Some dt -> "O" + definedTermKey dt
+            | None -> "N"
+            match dc.Unit with
+            | Some dt -> "U" + definedTermKey dt
+            | None -> "N"
+            optionKey dc.Label
+            optionKey dc.Description
+            optionKey dc.GeneratedBy
+        ]
+
     let protocolKey (proto: Recipe) =
         fieldsKey [
             optionKey proto.Name
@@ -1449,7 +1543,7 @@ and [<AttachMembers>] Dataset(identifier: string, ?title: string, ?description: 
             | Some dt -> "D" + definedTermKey dt
             | None -> "N"
             seqKey (proto.Parameters |> Seq.map formalParameterKey)
-            seqKey (proto.LabEquipment |> Seq.map annotationKey)
+            seqKey (proto.Components |> Seq.map annotationKey)
             seqKey (proto.AdditionalProperty |> Seq.map annotationKey)
         ]
 
@@ -1482,6 +1576,10 @@ and [<AttachMembers>] Dataset(identifier: string, ?title: string, ?description: 
     do
         processes          |> Option.iter (fun ps  -> for p  in ps  do this.AddProcess(p))
         hasPart            |> Option.iter (fun ds  -> for d  in ds  do this.AddPart(d))
+        dataFiles          |> Option.iter (fun ds  -> for d  in ds  do this.AddDataFile(d))
+        agents           |> Option.iter (fun ps  -> for p  in ps  do this.AddAgent(p))
+        citations          |> Option.iter (fun cs  -> for c  in cs  do this.AddCitation(c))
+        dataContexts       |> Option.iter (fun pvs -> for pv in pvs do this.AddDataContext(pv))
         additionalProperty |> Option.iter (fun pvs -> for pv in pvs do this.AddAdditionalProperty(pv))
 
     // ── Registry helpers ──────────────────────────────────────────────────────
@@ -1556,6 +1654,22 @@ and [<AttachMembers>] Dataset(identifier: string, ?title: string, ?description: 
         with get() = _additionalType
         and set v = _additionalType <- v
 
+    member _.License
+        with get() = _license
+        and set v = _license <- v
+
+    member _.DatePublished
+        with get() = _datePublished
+        and set v = _datePublished <- v
+
+    member _.DateCreated
+        with get() = _dateCreated
+        and set v = _dateCreated <- v
+
+    member _.DateModified
+        with get() = _dateModified
+        and set v = _dateModified <- v
+
     /// Back-edge: parent dataset
     member _.PartOf
         with get() = _partOf
@@ -1563,6 +1677,10 @@ and [<AttachMembers>] Dataset(identifier: string, ?title: string, ?description: 
 
     member _.Processes = _processes
     member _.HasPart = _hasPart
+    member _.DataFiles = _dataFiles
+    member _.Agents = _agents
+    member _.Citations = _citations
+    member _.DataContexts = _dataContexts
     member _.AdditionalProperty = _additionalProperty
 
     // ── Process CRUD ──────────────────────────────────────────────────────────
@@ -1665,6 +1783,37 @@ and [<AttachMembers>] Dataset(identifier: string, ?title: string, ?description: 
     member _.TryGetPart(identifier: string) =
         _hasPart |> Seq.tryFind (fun d -> d.Identifier = identifier)
 
+    member this.AddDataFile(data: Data) =
+        if not (_dataFiles |> Seq.exists (fun d -> d = data)) then
+            _dataFiles.Add(data)
+
+    member _.RemoveDataFile(data: Data) =
+        _dataFiles.Remove(data) |> ignore
+
+    member _.TryGetDataFile(path: string) =
+        _dataFiles |> Seq.tryFind (fun d -> d.Path = path)
+
+    member this.AddAgent(agent: Agent) =
+        if not (_agents |> Seq.exists (fun p -> p = agent)) then
+            _agents.Add(agent)
+
+    member _.RemoveAgent(agent: Agent) =
+        _agents.Remove(agent) |> ignore
+
+    member this.AddCitation(article: ScholarlyArticle) =
+        if not (_citations |> Seq.exists (fun c -> c = article)) then
+            _citations.Add(article)
+
+    member _.RemoveCitation(article: ScholarlyArticle) =
+        _citations.Remove(article) |> ignore
+
+    member this.AddDataContext(dataContext: DataContext) =
+        if not (_dataContexts |> Seq.exists (fun x -> x = dataContext)) then
+            _dataContexts.Add(dataContext)
+
+    member _.RemoveDataContext(dataContext: DataContext) =
+        _dataContexts.Remove(dataContext) |> ignore
+
     // ── AdditionalProperty CRUD ───────────────────────────────────────────────
 
     member this.AddAdditionalProperty(pv: Annotation) =
@@ -1704,19 +1853,24 @@ and [<AttachMembers>] Dataset(identifier: string, ?title: string, ?description: 
     member this.AllData() : ResizeArray<Data> =
         let acc = ResizeArray()
         let seen = HashSet<string>()
-        for proc in this.AllProcesses() do
-            for node in proc.Inputs do
-                match node with
-                | DataNode d ->
-                    let key = d.Path + (d.Selector |> Option.defaultValue "")
-                    if seen.Add(key) then acc.Add(d)
-                | _ -> ()
-            for node in proc.Outputs do
-                match node with
-                | DataNode d ->
-                    let key = d.Path + (d.Selector |> Option.defaultValue "")
-                    if seen.Add(key) then acc.Add(d)
-                | _ -> ()
+        let rec addData (d: Data) =
+            let key = d.Path + "|" + (d.Selector |> Option.defaultValue "")
+            if seen.Add(key) then acc.Add(d)
+            for child in d.HasPart do
+                addData child
+        let addNode (node: IONode) =
+            match node with
+            | DataNode d -> addData d
+            | _ -> ()
+        let rec collectDataset (ds: Dataset) =
+            for d in ds.DataFiles do
+                addData d
+            for proc in ds.Processes do
+                for node in proc.Inputs do addNode node
+                for node in proc.Outputs do addNode node
+            for child in ds.HasPart do
+                collectDataset child
+        collectDataset this
         acc
 
     /// All distinct IONodes (samples and data) from all processes in this dataset.
@@ -1726,6 +1880,77 @@ and [<AttachMembers>] Dataset(identifier: string, ?title: string, ?description: 
         for proc in this.AllProcesses() do
             for n: IONode in proc.Inputs  do if seen.Add(n.Key()) then acc.Add(n)
             for n: IONode in proc.Outputs do if seen.Add(n.Key()) then acc.Add(n)
+        acc
+
+    member this.AllDataFiles() : ResizeArray<Data> =
+        let acc = ResizeArray<Data>()
+        let seen = HashSet<string>()
+        let rec addData (d: Data) =
+            let key = d.Path + "|" + (d.Selector |> Option.defaultValue "")
+            if seen.Add(key) then acc.Add(d)
+            for child in d.HasPart do addData child
+        let rec collect (ds: Dataset) =
+            for d in ds.DataFiles do addData d
+            for child in ds.HasPart do collect child
+        collect this
+        acc
+
+    member this.AllAgents() : ResizeArray<Agent> =
+        let acc = ResizeArray<Agent>()
+        let seen = HashSet<string>()
+        let agentKey (p: Agent) =
+            p.Id |> Option.defaultValue (p.GivenName + "|" + (p.FamilyName |> Option.defaultValue "") + "|" + (p.Email |> Option.defaultValue ""))
+        let rec collect (ds: Dataset) =
+            for agent in ds.Agents do
+                if seen.Add(agentKey agent) then acc.Add(agent)
+            for child in ds.HasPart do collect child
+        collect this
+        acc
+
+    member this.AllCitations() : ResizeArray<ScholarlyArticle> =
+        let acc = ResizeArray<ScholarlyArticle>()
+        let seen = HashSet<string>()
+        let articleKey (article: ScholarlyArticle) =
+            article.Id |> Option.defaultValue (article.Headline + "|" + (article.Identifier |> Option.defaultValue ""))
+        let rec collect (ds: Dataset) =
+            for citation in ds.Citations do
+                if seen.Add(articleKey citation) then acc.Add(citation)
+            for child in ds.HasPart do collect child
+        collect this
+        acc
+
+    member this.AllOrganizations() : ResizeArray<Organization> =
+        let acc = ResizeArray<Organization>()
+        let seen = HashSet<string>()
+        let orgKey (org: Organization) =
+            org.Id |> Option.defaultValue org.Name
+        for agent in this.AllAgents() do
+            match agent.Affiliation with
+            | Some org when seen.Add(orgKey org) -> acc.Add(org)
+            | _ -> ()
+        for citation in this.AllCitations() do
+            for author in citation.Authors do
+                match author.Affiliation with
+                | Some org when seen.Add(orgKey org) -> acc.Add(org)
+                | _ -> ()
+        acc
+
+    member this.AllDataContexts() : ResizeArray<DataContext> =
+        let acc = ResizeArray<DataContext>()
+        let seen = HashSet<string>()
+        let rec collect (ds: Dataset) =
+            for dc in ds.DataContexts do
+                if seen.Add(dataContextKey dc) then acc.Add(dc)
+            for child in ds.HasPart do collect child
+        collect this
+        acc
+
+    member this.DataContextsForData(data: Data) : ResizeArray<DataContext> =
+        let acc = ResizeArray<DataContext>()
+        let seen = HashSet<string>()
+        for dc in this.AllDataContexts() do
+            if dc.Data = data then
+                if seen.Add(dataContextKey dc) then acc.Add(dc)
         acc
 
     // ── Root / Final nodes ────────────────────────────────────────────────────
@@ -1770,8 +1995,29 @@ and [<AttachMembers>] Dataset(identifier: string, ?title: string, ?description: 
     /// Sources: process parameters, input/output node properties, protocol components.
     /// Optional protocolName restricts to processes whose protocol name matches.
     member this.AllAnnotations(?protocolName: string) : ResizeArray<Annotation> =
-        this.AllProcesses()
-        |> PathTraversal.collectAnnotationsFromProcessesWithProtocolName protocolName
+        let result =
+            this.AllProcesses()
+            |> PathTraversal.collectAnnotationsFromProcessesWithProtocolName protocolName
+        let seen = HashSet<string>()
+        for pv in result do
+            seen.Add(PathTraversal.annotationKey pv) |> ignore
+        if protocolName.IsNone then
+            let rec collectDataset (ds: Dataset) =
+                for pv in ds.AdditionalProperty do
+                    PathTraversal.addAnnotation result seen pv
+                for citation in ds.Citations do
+                    for pv in citation.AdditionalProperty do
+                        PathTraversal.addAnnotation result seen pv
+                    for author in citation.Authors do
+                        for pv in author.AdditionalProperty do
+                            PathTraversal.addAnnotation result seen pv
+                for agent in ds.Agents do
+                    for pv in agent.AdditionalProperty do
+                        PathTraversal.addAnnotation result seen pv
+                for child in ds.HasPart do
+                    collectDataset child
+            collectDataset this
+        result
 
     /// All Annotations from all sources connected to `node` (upstream + downstream) within this dataset.
     /// Optional protocolName restricts to processes whose protocol name matches.
@@ -1860,14 +2106,15 @@ and [<AttachMembers>] Dataset(identifier: string, ?title: string, ?description: 
         let nodeMatch (n: IONode) =
             match n with
             | SampleNode m -> m.AdditionalProperty |> Seq.exists pvMatch
-            | DataNode d     -> d.AdditionalProperty |> Seq.exists pvMatch
+            | DataNode d -> d.AdditionalProperty |> Seq.exists pvMatch
         this.AllProcesses()
         |> Seq.filter (fun p ->
             (p.ParameterValue |> Seq.exists pvMatch) ||
             (p.Inputs  |> Seq.exists nodeMatch) ||
             (p.Outputs |> Seq.exists nodeMatch) ||
             (match p.ExecutesProtocol with
-             | Some proto -> proto.LabEquipment |> Seq.exists pvMatch
+             | Some proto ->
+                 (proto.Components |> Seq.exists pvMatch)
              | None -> false))
         |> ResizeArray
 
@@ -1877,14 +2124,16 @@ and [<AttachMembers>] Dataset(identifier: string, ?title: string, ?description: 
         let nodeMatch (n: IONode) =
             match n with
             | SampleNode m -> m.AdditionalProperty |> Seq.exists pvMatch
-            | DataNode d     -> d.AdditionalProperty |> Seq.exists pvMatch
+            | DataNode d -> d.AdditionalProperty |> Seq.exists pvMatch
         this.AllProcesses()
         |> Seq.filter (fun p ->
             (p.ParameterValue |> Seq.exists pvMatch) ||
             (p.Inputs  |> Seq.exists nodeMatch) ||
             (p.Outputs |> Seq.exists nodeMatch) ||
             (match p.ExecutesProtocol with
-             | Some proto -> proto.LabEquipment |> Seq.exists pvMatch
+             | Some proto ->
+                 (proto.Components |> Seq.exists pvMatch) ||
+                 (proto.AdditionalProperty |> Seq.exists pvMatch)
              | None -> false))
         |> ResizeArray
 
@@ -1919,3 +2168,4 @@ and [<AttachMembers>] Dataset(identifier: string, ?title: string, ?description: 
     member this.``__hash__``() =
         Fable.Core.PyInterop.emitPyExpr (this) "int($0.GetHashCode())"
     #endif
+

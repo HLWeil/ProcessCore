@@ -97,7 +97,7 @@ let tests = testList "RoundTrip" [
         proto.IntendedUse <- Some (DefinedTerm("cell growth", tan = "GO:0016049"))
         proto.AddParameter(FormalParameter("temperature", nameTAN = "PATO:0000146"))
         proto.AddParameter(FormalParameter("rpm"))
-        proto.AddLabEquipment(Annotation("centrifuge", value = "Eppendorf 5420"))
+        proto.AddComponent(Annotation("centrifuge", value = "Eppendorf 5420"))
         proto.AddAdditionalProperty(Annotation("notes", value = "Keep on ice"))
 
         let proc = Process("p1")
@@ -121,7 +121,7 @@ let tests = testList "RoundTrip" [
         Expect.equal dp.Parameters.Count 2                         "two parameters"
         Expect.equal dp.Parameters.[0].Name "temperature"          "param 0 name"
         Expect.equal dp.Parameters.[0].NameTAN (Some "PATO:0000146") "param 0 nameTAN"
-        Expect.equal dp.LabEquipment.Count 1                       "one labEquipment"
+        Expect.equal dp.Components.Count 1                       "one component"
         Expect.equal dp.AdditionalProperty.Count 1                 "one additionalProperty"
 
     testCase "whitespace option" <| fun _ ->

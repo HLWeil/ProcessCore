@@ -12,7 +12,7 @@ let tests = testList "AnnotationSources" [
         Expect.equal (f.Process.AnnotationsByName("temperature").Count)  1 "ParameterValue source"
         Expect.equal (f.Process.AnnotationsByName("organism").Count)     1 "Input node AdditionalProperty"
         Expect.equal (f.Process.AnnotationsByName("growth_phase").Count) 1 "Output node AdditionalProperty"
-        Expect.equal (f.Process.AnnotationsByName("instrument").Count)   1 "Protocol LabEquipment"
+        Expect.equal (f.Process.AnnotationsByName("instrument").Count)   1 "Protocol Component"
 
     testCase "IONode.AllAnnotations — all 4 sources" <| fun _ ->
         let f   = makeFixtureFourSources()

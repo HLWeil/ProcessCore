@@ -55,6 +55,15 @@ properties:
           description: "@id reference to a FormalParameter"
         - $ref: "FormalParameter.yml"
 
+  components:
+    type: array
+    description: Equipment, software, reagents, materials, or other components required or used by the protocol (COULD)
+    items:
+      oneOf:
+        - type: string
+          description: "@id reference to an Annotation"
+        - $ref: "Annotation.yml"
+
   additionalProperty:
     type: array
     description: Extensible protocol metadata (COULD)

@@ -182,4 +182,31 @@ hasPart:
         Expect.equal decoded.HasPart.[0].Identifier "child-a" "first child"
         Expect.equal decoded.HasPart.[1].Identifier "child-b" "second child"
 
+    testCase "round-trip unified administrative and datamap fields" <| fun _ ->
+        let agent = Agent("Ada", familyName = "Lovelace")
+        let citation = ScholarlyArticle("Example methods", authors = [ agent ])
+        let fragment = Data("results.csv", selector = "col=abundance", selectorFormat = "RFC7111")
+        let data = Data("results.csv", hasPart = [ fragment ])
+        let dataContext = DataContext(data, explication = DefinedTerm("protein abundance"))
+        let original =
+            Dataset(
+                "DS-unified",
+                license = "CC-BY-4.0",
+                dateCreated = "2026-06-30",
+                agents = [ agent ],
+                citations = [ citation ],
+                dataContexts = [ dataContext ],
+                dataFiles = [ data ])
+
+        let yaml = Yaml.Dataset.toYamlString None original
+        let decoded = Yaml.Dataset.fromYamlString false yaml
+
+        Expect.equal decoded.License (Some "CC-BY-4.0") "license should roundtrip"
+        Expect.equal decoded.Agents.Count 1 "agent should roundtrip"
+        Expect.equal decoded.Citations.Count 1 "citation should roundtrip"
+        Expect.equal decoded.DataContexts.Count 1 "data context should roundtrip"
+        Expect.equal decoded.DataFiles.Count 1 "data file should roundtrip"
+        Expect.equal decoded.DataFiles.[0].HasPart.Count 1 "fragment should roundtrip"
+
 ]
+

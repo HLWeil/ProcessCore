@@ -72,7 +72,7 @@ Writing can use inline objects or top-level indexes. Inline YAML is easy to insp
 let small = Dataset("yaml-demo")
 let protocol = Recipe()
 protocol.Name <- Some "Growth"
-protocol.AddLabEquipment(Annotation("growth chamber", value = "chamber-1", additionalType = "Component"))
+protocol.AddComponent(Annotation("growth chamber", value = "chamber-1", additionalType = "Component"))
 
 let source = Sample("Seedling")
 source.AdditionalType <- Some "Source"
