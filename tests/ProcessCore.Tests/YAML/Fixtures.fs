@@ -118,9 +118,9 @@ let makeNestedDataset () =
 let proteomicsAssayString = """type: Dataset
 additionalType: Assay
 identifier: measurement1
-creators:
+agents:
   -
-    type: Person
+    type: Agent
     givenName: Oliver
     affiliation:
       type: Organization
@@ -136,17 +136,17 @@ labProtocols:
     -
       "@id": "#Protocol_Growth"
       type: Recipe
-      labEquipments:
+      labEquipment:
         "@id": "#Component_growth_environment_bioreactor"
     -
       "@id": "#Protocol_Cell_Lysis"
       type: Recipe
-      labEquipments:
+      labEquipment:
         "@id": "#Component_centrifuge_Eppendorf™_Centrifuge_5420"
     -
       "@id": "#Protocol_MS_Run"
       type: Recipe
-      labEquipments:
+      labEquipment:
         "@id": "#Component_mass_spectrometer_Q_Exactive_9000"
     -
       "@id": "#Protocol_Computational_Proteome_Analysis"
@@ -557,8 +557,8 @@ additionalType: Investigation
 identifier: ara_prot_2023
 title: Validation of Proteins in Arabidopsis thaliana
 description: Some people say that Arabidopsis thaliana does not contain any proteins, but lives on vibes. This investigation aims to validate the presence of proteins in Arabidopsis thaliana using various experimental techniques, including proteomics and chill.
-creators:
-  type: Person
+agents:
+  type: Agent
   givenName: Oliver
   affiliation:
     type: Organization
@@ -587,3 +587,5 @@ additionalProperty:
     name: aim
     nameTAN: https://spec.edmcouncil.org/fibo/ontology/FND/GoalsAndObjectives/Objectives/Aim
     value: To validate the presence of proteins in Arabidopsis thaliana using various experimental techniques, including proteomics and chill."""
+
+

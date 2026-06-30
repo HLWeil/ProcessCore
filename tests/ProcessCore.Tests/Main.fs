@@ -20,6 +20,7 @@ let all =
             Types.Annotation.tests
             Types.DefinedTerm.tests
             Types.FormalParameter.tests
+            Types.Administrative.tests
             Types.Sample.tests
             Types.Data.tests
             Types.Recipe.tests

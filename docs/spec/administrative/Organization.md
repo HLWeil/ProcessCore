@@ -1,13 +1,13 @@
 ---
 title: Organization
-category: ISA Decoration
-categoryindex: 5
-index: 8
+category: Administrative Profile
+categoryindex: 6
+index: 3
 ---
 
 # Organization
 
-Entity representing an organization involved in the experimental workflow.
+Entity representing an organization involved in creating, curating, hosting, or publishing a dataset.
 
 **Schema.org type**: `schema.org/Organization`
 
@@ -16,5 +16,7 @@ Entity representing an organization involved in the experimental workflow.
 | Property | Type | Required | Description |
 |----------|------|----------|-------------|
 | `id` | Text | COULD | Unique identifier |
-| `type` | Text | MUST | `schema.org/Organization` |
+| `type` | Text | MUST | `Organization` |
 | `name` | Text | MUST | Name of the organization |
+| `url` | URL | COULD | Organization website or identifier URL |
+

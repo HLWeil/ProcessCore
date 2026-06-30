@@ -1,0 +1,32 @@
+type: Dataset
+identifier: administrative-example
+title: Administrative metadata example
+license: CC-BY-4.0
+dateCreated: "2026-06-30"
+datePublished: "2026-06-30"
+agents:
+  - type: Agent
+    givenName: Ada
+    familyName: Lovelace
+    email: ada@example.org
+    identifier: ORCID:0000-0000-0000-0001
+    affiliation:
+      type: Organization
+      name: Example Lab
+      url: https://example.org
+    jobTitle:
+      type: DefinedTerm
+      name: data steward
+citations:
+  - type: ScholarlyArticle
+    headline: Example methods for ARC data stewardship
+    identifier: doi:10.0000/example
+    creativeWorkStatus:
+      type: DefinedTerm
+      name: published
+    authors:
+      - type: Agent
+        givenName: Ada
+        familyName: Lovelace
+
+

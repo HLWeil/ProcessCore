@@ -14,8 +14,8 @@ open ProcessCore.Yaml
 //     System.IO.File.ReadAllText(System.IO.Path.Combine(examplesDir, name))
 
 // The example files use ProcessCore type strings (Dataset, Process, Sample, Data)
-// with ISA additionalType decorations. Strict mode (processCoreOnly=true) works fine;
-// extra fields (creators, labProtocols, …) go to overflow.
+// with ISA additionalType decorations. Strict mode (processCoreOnly=true) still
+// rejects non-core ISA fields, while shared administrative fields decode normally.
 
 let private loadInvestigation (processCoreOnly : bool) =
     // Yaml.Dataset.fromYamlString (readExample "investigation.yml")
@@ -53,12 +53,12 @@ let tests = testList "Examples" [
 
 
     testCase "investigation lenient mode passes" <| fun _ ->
-        // processCoreOnly=false — should not throw
-        let inv  = Yaml.Dataset.fromYamlString false ProcessCore.Yaml.Tests.Fixtures.investigationString   // fromYamlString uses decoder false
+        // processCoreOnly=false should not throw.
+        let inv  = Yaml.Dataset.fromYamlString false ProcessCore.Yaml.Tests.Fixtures.investigationString
         Expect.equal inv.Identifier "ara_prot_2023" "lenient mode decode ok"
 
     testCase "investigation strict mode throws" <| fun _ ->
-        // processCoreOnly=true — should throw
+        // processCoreOnly=true should throw.
         Expect.throws (fun () -> Yaml.Dataset.fromYamlString true ProcessCore.Yaml.Tests.Fixtures.investigationString |> ignore)
                       "strict mode decode should throw"
 
@@ -133,12 +133,9 @@ let tests = testList "Examples" [
             Expect.isTrue (d.Path.StartsWith("proteomics_result.csv")) "CPA output file"
         | SampleNode _ -> failwith "Expected DataNode for CPA output"
 
-    testCase "assay creators in overflow" <| fun _ ->
+    testCase "assay agents decode as typed administrative metadata" <| fun _ ->
         let assay = loadAssay(false)
-        let hasCreators =
-            assay.GetProperties(true)
-            |> Seq.exists (fun kv -> kv.Key = "creators")
-        Expect.isTrue hasCreators "creators stored in overflow"
+        Expect.isTrue (assay.Agents.Count > 0) "agents decoded onto Dataset.Agents"
 
     testCase "assay labProtocols in overflow" <| fun _ ->
         let assay = loadAssay(false)
@@ -148,18 +145,19 @@ let tests = testList "Examples" [
         Expect.isTrue hasRecipes "labProtocols stored in overflow"
 
     testCase "assay strict mode fails" <| fun _ ->
-        // processCoreOnly=true — should throw because of unknown fields like creators, labProtocols
+        // processCoreOnly=true should throw because of unknown ISA fields like labProtocols.
         let decode = fun () -> Yaml.Dataset.fromYamlString true ProcessCore.Yaml.Tests.Fixtures.proteomicsAssayString |> ignore
         Expect.throws decode "strict mode should throw on unknown fields"
 
     // testCase "datamap raw YAML load" <| fun _ ->
-    //     // datamap is not a Dataset — just test that the raw YAML can be parsed
+    //     // datamap is not a Dataset, just test that the raw YAML can be parsed.
     //     let yaml = readExample "datamap_proteomics.yml"
     //     let element = YAMLicious.Reader.read yaml
-    //     // The root object should have a 'datacontexts' key
+    //     // The root object should have a 'datacontexts' key.
     //     let hasDataContexts =
     //         ProcessCore.Yaml.Helpers.getMappings element
     //         |> List.exists (fun (k, _) -> k = "datacontexts")
     //     Expect.isTrue hasDataContexts "datacontexts key present in raw parse"
 
 ]
+

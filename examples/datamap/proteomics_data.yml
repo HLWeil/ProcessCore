@@ -1,0 +1,28 @@
+type: Dataset
+identifier: datamap-proteomics-example
+title: Proteomics datamap example
+dataContexts:
+  - type: DataContext
+    subjectOf: assays/proteomics/processed/proteins.csv
+    name: measurement type
+    value: protein abundance
+    pattern:
+      type: DefinedTerm
+      name: wide table
+  - type: DataContext
+    additionalType: FragmentDescriptor
+    subjectOf: assays/proteomics/processed/proteins.csv#col=abundance
+    name: abundance
+    alternateName: Abundance
+    measurementMethod: LC-MS
+    description: Protein abundance column
+dataFiles:
+  - type: Data
+    path: assays/proteomics/processed/proteins.csv
+    encodingFormat: text/csv
+    hasPart:
+      - type: Data
+        path: assays/proteomics/processed/proteins.csv
+        selector: col=abundance
+        selectorFormat: RFC7111
+

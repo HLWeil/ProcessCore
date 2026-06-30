@@ -1,6 +1,6 @@
-# ProcessCore
+# ARC Core
 
-ProcessCore is the F# implementation package for the ARC process data model. It provides a mutable in-memory model for process graphs, YAML codecs, SQLite profile helpers, graph traversal queries, and live table views over process data.
+`ProcessCore` is the F# implementation package for the ARC Core data model. It provides a mutable in-memory model for process graphs, datamap entries, administrative metadata, YAML codecs, SQLite profile helpers, graph traversal queries, and live table views over process data.
 
 Documentation: https://hlweil.github.io/ProcessCore/
 
@@ -27,10 +27,10 @@ dotnet add package ProcessCore
 
 ## What You Get
 
-- Core ARC process graph types: `Dataset`, `Process`, `Recipe`, `Sample`, `Data`, `Annotation`, `FormalParameter`, and `DefinedTerm`.
+- Unified ARC RDM types: `Dataset`, `Process`, `Recipe`, `Sample`, `Data`, `Annotation`, `FormalParameter`, `DefinedTerm`, `Agent`, `Organization`, and `ScholarlyArticle`.
 - Query helpers for connected, upstream, downstream, and path-based traversal.
-- Fragment-aware `Data` nodes with `path`, `selector`, `selectorFormat`, and pluggable selector providers.
-- YAML encode/decode support for the core model, including strict and lenient type handling.
+- Fragment-aware `Data` nodes with `path`, `selector`, `selectorFormat`, nested fragments, `DataContext` descriptors, and pluggable selector providers.
+- YAML encode/decode support for ARC Core, datamap, and administrative content, including strict and lenient type handling.
 - SQLite profile row types, codecs, repository CRUD facades, and .NET SQLite driver support.
 - A live tabular projection layer for reading and editing process graphs as tables.
 - Fable-oriented project variants for JavaScript and Python output.
@@ -70,7 +70,7 @@ let decoded =
     ProcessCore.Yaml.Dataset.fromYamlString false yaml
 ```
 
-Use `processCoreOnly = true` for strict core type checks, or `false` when reading decorated/profile-shaped ARC YAML that may contain extension fields.
+Use `processCoreOnly = true` for strict type checks, or `false` when reading decorated/profile-shaped ARC YAML that may contain extension fields.
 
 ## SQLite Profile
 
@@ -104,4 +104,6 @@ The executable SQLite schema and seed data live in `schemas/sql/` in the reposit
 
 ## Status
 
-This is an early implementation release. TypeScript and Python packaging and some aspects like administrative metadata and datamap are still under development. Also note that the core model is still evolving, so expect some breaking changes in future releases as we iterate on the design and implementation.
+This is an early implementation release. TypeScript and Python packaging are still evolving, and the data model may still see breaking changes as the profile alignment matures.
+
+

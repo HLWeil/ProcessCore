@@ -7,6 +7,8 @@ let all =
         Codecs.DefinedTerm.tests
         Codecs.FormalParameter.tests
         Codecs.Annotation.tests
+        Codecs.Administrative.tests
+        Codecs.DataContext.tests
         Codecs.Sample.tests
         Codecs.Data.tests
         Codecs.Recipe.tests

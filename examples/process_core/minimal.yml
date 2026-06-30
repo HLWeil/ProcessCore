@@ -1,7 +1,7 @@
 id: dataset:demo
 type: schema:Dataset
 identifier: demo
-title: Minimal ProcessCore example
+title: Minimal ARC Core example
 description: A small schema-shaped example using the current core YAML vocabulary.
 processes:
   - id: process:extraction
@@ -43,3 +43,4 @@ hasPart:
     type: File
     path: raw/extract.tsv
     encodingFormat: text/tab-separated-values
+

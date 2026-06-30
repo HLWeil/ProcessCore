@@ -7,7 +7,7 @@ index: 2
 
 # Investigation
 
-ISA specialization of [Dataset](../../core/Dataset.md). Represents the root container of an ISA-structured experiment, grouping studies and assays.
+ISA specialization of [Dataset](../../process_core/Dataset.md). Represents the root container of an ISA-structured experiment, grouping studies and assays.
 
 **`additionalType`**: `Investigation`
 
@@ -21,7 +21,7 @@ Reference: [ISA RO-Crate Profile — Investigation](../../../../references/isa_r
 | `datePublished` | Date | MUST | Publication or creation date |
 | `dateCreated` | Date | SHOULD | Creation date |
 | `hasPart` | [Study](Study.md), [Assay](Assay.md) | SHOULD | Contained studies and assays |
-| `contacts` | [Person](Person.md) | COULD | Investigation contacts and contributors |
+| `contacts` | [Agent](../../administrative/Agent.md) | COULD | Investigation contacts and contributors |
 | `citation` | ScholarlyArticle | COULD | Associated publications |
 
 ## Relationships
@@ -31,10 +31,11 @@ flowchart TD
 
     at@{ shape: stadium, label: "\"Investigation\"" }
 
-    Investigation --contacts--> Person
+    Investigation --contacts--> Agent
     Investigation --citation--> ScholarlyArticle
     Investigation --hasPart--> Assay
     Investigation --hasPart--> Study
     Study -.assays.-> Assay
     Investigation --additionalType--> at
 ```
+

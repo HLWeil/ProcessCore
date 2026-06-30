@@ -1,6 +1,6 @@
 ---
 title: Data
-category: Core Specification
+category: ARC Core Profile
 categoryindex: 4
 index: 6
 ---
@@ -22,6 +22,7 @@ Data files produced or consumed by processes. A Data object may represent either
 | `selector` | Text | COULD | Fragment selector that narrows the target to a subset of the data object |
 | `selectorFormat` | URL | COULD | Formal description of the selector syntax, e.g. RFC 7111 |
 | `encodingFormat` | Text | COULD | MIME type of the target data object or fragment |
+| `hasPart` | [Data](Data.md) | COULD | Nested data fragments |
 | `additionalProperty` | [Annotation](Annotation.md) | COULD | Extensible file-, fragment-, or content-level metadata |
 
 ## Relationships
@@ -40,5 +41,7 @@ flowchart TD
     Data --selector--> se
     Data --selectorFormat--> sf
     Data --encodingFormat--> ef
+    Data --hasPart--> Data
     Data --additionalProperty--> Annotation
 ```
+

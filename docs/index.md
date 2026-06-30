@@ -7,7 +7,7 @@ index: 1
 
 # ARC Data Model
 
-Specification and implementation workspace for the ARC process data model. The project defines a small ProcessCore vocabulary, derived schema representations, examples, and F# libraries for working with the SQL profile across .NET, JavaScript, and Python runtimes.
+Specification and implementation workspace for the ARC process data model. The project defines the ARC Core vocabulary, derived schema representations, examples, and F# libraries for working with the SQL profile across .NET, JavaScript, and Python runtimes.
 
 ## Start Here
 
@@ -20,7 +20,7 @@ Specification and implementation workspace for the ARC process data model. The p
 - [Reference material](project/references.md)
 - [Prior art notes](project/prior-art.md)
 
-## ProcessCore Sketch
+## ARC Core Sketch
 
 ```mermaid
 flowchart LR
@@ -30,3 +30,4 @@ flowchart LR
     process -. executes .-> recipe[Recipe]
     process --> value[Annotation]
 ```
+

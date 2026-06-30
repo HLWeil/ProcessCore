@@ -13,7 +13,7 @@ Domain specificity is added as decoration on top of that shared shape.
 
 There are two complementary ways to do this:
 
-1. Use `additionalType` and `additionalProperty` on core objects. This keeps the data close to the ProcessCore model and makes the extension queryable as typed `Annotation` annotations.
+1. Use `additionalType` and `additionalProperty` on core objects. This keeps the data close to the ARC Core model and makes the extension queryable as typed `Annotation` annotations.
 2. Use the inherited `DynamicObj` property bag for information that must be preserved but does not fit into the core model.
 
 This page shows both approaches.
@@ -228,7 +228,7 @@ samplesAt25Degrees
 (**
 ## DynamicObj Extensions
 
-All main ProcessCore classes inherit from `DynamicObj`. This gives each object a property bag for extension data that should be preserved, but that does not naturally belong in the process graph.
+All main ARC Core implementation classes inherit from `DynamicObj`. This gives each object a property bag for extension data that should be preserved, but that does not naturally belong in the process graph.
 
 Use this for metadata such as facility layout, local tracking fields, UI state, or profile-specific fields that a core-only library should not interpret.
 The example below adds an experimental facility layout to a dataset.
@@ -270,7 +270,7 @@ facilitySummary
 (*** include-it ***)
 
 (**
-The YAML writer emits DynamicObj properties as overflow fields after the known ProcessCore fields.
+The YAML writer emits DynamicObj properties as overflow fields after the known ARC Core fields.
 This keeps the data round-trippable without requiring the core model to know what an `experimentalFacilityLayout` is.
 *)
 

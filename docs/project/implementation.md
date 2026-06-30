@@ -13,25 +13,25 @@ The repository now includes F# implementation projects in addition to the markdo
 
 | Project | Role | Runtime |
 |---------|------|---------|
-| `src/ProcessCore` | In-memory ProcessCore model, YAML codecs, SQL profile, graph traversal, and table projection helpers | .NET, JavaScript, Python |
+| `src/ProcessCore` | In-memory unified ARC RDM model, YAML codecs, SQL profile, graph traversal, and table projection helpers | .NET, JavaScript, Python |
 | `tests/ProcessCore.Tests` | Shared Pyxpecto tests for core, YAML, and SQL behavior | .NET, JavaScript, Python |
 
-## ProcessCore User Documentation
+## ARC Core User Documentation
 
-The F# object model, YAML codec, graph traversal helpers, fragment selector providers, and table views are documented in the [ProcessCore user guide](ProcessCore/index.md).
+The F# object model, YAML codec, graph traversal helpers, fragment selector providers, and table views are documented in the [ARC Core user guide](../core-implementation/overview.md). The public model is unified: `Dataset` carries ARC Core, datamap, and administrative properties rather than splitting them into separate runtime profile models.
 
 ## SQL Profile
 
 The SQL profile artifacts live in `schemas/sql/`:
 
-- `001_core.sql` contains the executable SQLite DDL.
+- `001_core.sql` contains the current executable SQLite DDL for the process graph profile. Datamap and administrative SQL storage are intentionally out of scope for this transition step.
 - `seed_example.sql` contains a small seeded process graph.
 - `seeded_core.sqlite` is the generated SQLite database.
 - `design.md` explains the relational design.
 
 `ProcessCore.SQL` inside the consolidated `ProcessCore` project mirrors the SQL profile:
 
-- `Tables.fs` defines row types for tables and views.
+- `Tables.fs` defines row types for tabular representation of the underlying processes.
 - `RowCodecs.fs` converts between `SqlRow` values and row types.
 - `Repository.fs` defines table metadata and CRUD facades.
 - `Sql.fs` defines the portable SQL value shape and `ISqliteDriver`.
@@ -52,9 +52,6 @@ The JavaScript and Python adapter projects compile as .NET stubs outside their F
 ```powershell
 .\build.cmd BuildSolution
 .\build.cmd RunTests
-.\build.cmd RunTestsAll
-.\build.cmd TestJs
-.\build.cmd TestPy
 ```
 
 Repo-level Node tooling is already present:
@@ -63,4 +60,6 @@ Repo-level Node tooling is already present:
 npm run test:js
 ```
 
-Python test execution uses `uv` through the FAKE `TestPy` and `RunTestsAll` targets.
+Python test execution uses `uv` through the FAKE `RunTests` target.
+
+

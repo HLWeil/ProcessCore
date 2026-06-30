@@ -1,13 +1,13 @@
 ---
 title: Annotation
-category: Core Specification
+category: ARC Core Profile
 categoryindex: 4
 index: 7
 ---
 
 # Annotation
 
-Extensible key-value-unit triple. Annotations are the primary extension mechanism of ProcessCore. They can be attached through `additionalProperty` for cross-cutting metadata, or through dedicated relationships such as `parameterValue` when the host type already defines a more specific role.
+Extensible key-value-unit triple. Annotations are the primary extension mechanism of ARC Core. They can be attached through `additionalProperty` for cross-cutting metadata, or through dedicated relationships such as `parameterValue` when the host type already defines a more specific role.
 
 **Schema.org type**: `schema.org/PropertyValue`
 
@@ -29,7 +29,6 @@ Decoration subtypes:
 | `valueTAN` | URL | COULD | Value term annotation |
 | `unitTAN` | URL | COULD | Unit term annotation |
 | `instanceOf` | [FormalParameter](FormalParameter.md) | COULD | Links a parameter value to its formal parameter definition |
-
 ## Relationships
 
 ```mermaid
@@ -59,3 +58,4 @@ flowchart TD
     
 
 ```
+

@@ -7,7 +7,7 @@ index: 4
 
 # Workflow Protocol
 
-Workflow Run specialization of [Recipe](../../core/Recipe.md). Describes the prospective metadata of a computational workflow, combining computational and laboratory workflow descriptions.
+Workflow Run specialization of [Recipe](../../process_core/Recipe.md). Describes the prospective metadata of a computational workflow, combining computational and laboratory workflow descriptions.
 
 **`additionalType`**: `Workflow Protocol`
 
@@ -22,8 +22,10 @@ Reference: [ARC WR RO-Crate Profile — Workflow Protocol](../../../../reference
 | `inputParameters` | [FormalParameter](FormalParameter.md) | SHOULD | Workflow inputs |
 | `outputParameters` | [FormalParameter](FormalParameter.md) | SHOULD | Workflow outputs |
 | `programmingLanguage` | ComputerLanguage, Text | SHOULD | Runtime environment |
-| `creator` | Person, Organization | SHOULD | Creator/author |
+| `creator` | Agent, Organization | SHOULD | Creator/author |
 | `license` | CreativeWork, URL | SHOULD | License |
-| `sdPublisher` | Person, Organization | SHOULD | Host site |
+| `sdPublisher` | Agent, Organization | SHOULD | Host site |
 | `hasPart` | CreativeWork | COULD | Tools/scripts used in workflow |
 | `computationalTool` | SoftwareApplication, DefinedTerm | COULD | Software used |
+
+
