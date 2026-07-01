@@ -13,6 +13,10 @@
     <None Include="__init__.py" />
     <None Include="..\..\README.md" Pack="true" PackagePath="\" />
     <Content Include="ProcessCore.Common.props" Pack="true" PackagePath="fable/" />
+    <Content Include="ProcessCore.Python.fsproj" Pack="true" PackagePath="fable/" />
+    <Content Include="ProcessCore.Javascript.fsproj" Pack="true" PackagePath="fable/" />
+    <Compile Include="CrossAsync.fs" />
+    <Compile Include="FileSystemHelper.fs" />
     <Compile Include="Helper.fs" />
     <Compile Include="DefinedTerm.fs" />
     <Compile Include="FormalParameter.fs" />
