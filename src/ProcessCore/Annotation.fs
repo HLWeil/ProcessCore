@@ -75,6 +75,10 @@ type Annotation(name: string, ?value: string, ?unit: string, ?nameTAN: string, ?
         | None, Some u   -> u
         | None, None     -> ""
 
+    member this.NameEquals(term: DefinedTerm) =
+        match this.NameTAN, term.TAN with
+        | Some left, Some right -> left = right
+        | _ -> this.Name = term.Name
 
     /// Two Annotations are identical if name, value, unit, and nameTAN all match.
     override this.Equals(obj) =

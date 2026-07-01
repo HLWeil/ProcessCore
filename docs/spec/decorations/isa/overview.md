@@ -7,7 +7,7 @@ index: 1
 
 # ISA Decoration
 
-The ISA decoration maps Investigation, Study, Assay, source/sample roles, contributors, publications, and ISA annotation roles onto ProcessCore.
+The ISA decoration maps Investigation, Study, Assay, source/sample roles, and ISA annotation roles onto the unified model. Contributor, organization, and publication entities now live in the sibling [Administrative profile](../../administrative/overview.md).
 
 Reference: [ISA RO-Crate Profile](../../../../references/isa_ro_crate.md)
 
@@ -18,7 +18,9 @@ Reference: [ISA RO-Crate Profile](../../../../references/isa_ro_crate.md)
 - [Assay](Assay.md)
 - [Source](Source.md)
 - [Sample](Sample.md)
-- [Person](Person.md)
-- [Organization](Organization.md)
-- [ScholarlyArticle](ScholarlyArticle.md)
+- [Agent](../../administrative/Agent.md)
+- [Organization](../../administrative/Organization.md)
+- [ScholarlyArticle](../../administrative/ScholarlyArticle.md)
 - [Annotations](Annotations.md)
+
+

@@ -1,0 +1,73 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$id: "Agent.yml"
+title: Agent
+description: Individual contributor, agent, author, or contact.
+type: object
+
+properties:
+  id:
+    type: string
+    description: Unique identifier for the agent
+
+  type:
+    type: string
+    const: "Agent"
+    description: Fixed type discriminator
+
+  givenName:
+    type: string
+    description: Given name
+
+  familyName:
+    type: string
+    description: Family name (COULD)
+
+  email:
+    type: string
+    description: Email address (COULD)
+
+  affiliation:
+    oneOf:
+      - type: string
+        description: "@id reference to an Organization"
+      - $ref: "Organization.yml"
+    description: Affiliated organization (COULD)
+
+  identifier:
+    type: string
+    description: Persistent identifier such as ORCID (COULD)
+
+  jobTitle:
+    oneOf:
+      - type: string
+        description: "@id reference to a DefinedTerm"
+      - $ref: "DefinedTerm.yml"
+    description: Role or job title (COULD)
+
+  additionalName:
+    type: string
+    description: Additional name (COULD)
+
+  address:
+    type: string
+    description: Postal or institutional address (COULD)
+
+  telephone:
+    type: string
+    description: Telephone number (COULD)
+
+  additionalProperty:
+    type: array
+    description: Extensible agent metadata (COULD)
+    items:
+      oneOf:
+        - type: string
+          description: "@id reference to an Annotation"
+        - $ref: "Annotation.yml"
+
+required:
+  - type
+  - givenName
+
+additionalProperties: false
+

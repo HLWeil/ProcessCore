@@ -1,6 +1,6 @@
 ---
 title: FormalParameter
-category: Core Specification
+category: Process Core Profile
 categoryindex: 4
 index: 8
 ---
@@ -34,3 +34,4 @@ flowchart TD
     FormalParameter --nameTAN--> nt
     FormalParameter --defaultValue--> DefinedTerm
 ```
+

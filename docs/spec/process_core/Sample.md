@@ -1,6 +1,6 @@
 ---
 title: Sample
-category: Core Specification
+category: Process Core Profile
 categoryindex: 4
 index: 5
 ---
@@ -36,3 +36,4 @@ flowchart TD
     Sample --additionalProperty--> Annotation
     Sample --name--> na
 ```
+

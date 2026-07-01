@@ -71,15 +71,15 @@ let tests = testList "TableWrite" [
                 Expect.isSome pv "Factor PV on output sample"
             | _ -> failwith "No output sample"
 
-        testCase "AddColumn — Component stored on protocol.LabEquipment" <| fun _ ->
+        testCase "AddColumn — Component stored on protocol.Components" <| fun _ ->
             let t, proc, _ = makeBaseTable()
             let instrument = DefinedTerm("instrument")
             t.AddColumn(CompositeHeader.Component(instrument),
                         ResizeArray([| CompositeCell.FreeText "Orbitrap" |]))
             match proc.ExecutesProtocol with
             | Some proto ->
-                let pv = proto.LabEquipment |> Seq.tryFind (fun p -> p.Name = "instrument")
-                Expect.isSome pv "Component PV on protocol.LabEquipment"
+                let pv = proto.Components |> Seq.tryFind (fun p -> p.Name = "instrument")
+                Expect.isSome pv "Component PV on protocol.Components"
             | None -> failwith "No protocol"
 
         testCase "AddColumn — non-annotation header is no-op (ProtocolREF)" <| fun _ ->
@@ -152,13 +152,13 @@ let tests = testList "TableWrite" [
             let t, proc, _ = makeBaseTable()
             match proc.ExecutesProtocol with
             | Some proto ->
-                proto.AddLabEquipment(Annotation("instrument", value = "Orbitrap", additionalType = "Component"))
+                proto.AddComponent(Annotation("instrument", value = "Orbitrap", additionalType = "Component"))
             | None -> ()
             let instrument = DefinedTerm("instrument")
             t.RemoveColumn(CompositeHeader.Component(instrument))
             let hasPV =
                 match proc.ExecutesProtocol with
-                | Some proto -> proto.LabEquipment |> Seq.exists (fun p -> p.Name = "instrument")
+                | Some proto -> proto.Components |> Seq.exists (fun p -> p.Name = "instrument")
                 | None -> false
             Expect.isFalse hasPV "Component PV removed"
 
@@ -575,7 +575,7 @@ let tests = testList "TableWrite" [
             Expect.isSome p.ExecutesProtocol "protocol created"
             let pv =
                 p.ExecutesProtocol
-                |> Option.bind (fun proto -> proto.LabEquipment |> Seq.tryFind (fun pv -> pv.Name = "instrument"))
+                |> Option.bind (fun proto -> proto.Components |> Seq.tryFind (fun pv -> pv.Name = "instrument"))
             Expect.isSome pv "component stored on created protocol"
             Expect.equal pv.Value.Value (Some "Orbitrap") "component value"
 

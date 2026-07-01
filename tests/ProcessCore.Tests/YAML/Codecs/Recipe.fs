@@ -26,11 +26,11 @@ let tests = testList "Recipe" [
         Expect.isTrue (yaml.Contains("temperature")) "temperature"
         Expect.isTrue (yaml.Contains("rpm"))         "rpm"
 
-    testCase "encode with labEquipment sequence" <| fun _ ->
+    testCase "encode with component sequence" <| fun _ ->
         let proto = Recipe(name = "centrifugation")
-        proto.AddLabEquipment(Annotation("centrifuge", value = "Eppendorf 5420"))
+        proto.AddComponent(Annotation("centrifuge", value = "Eppendorf 5420"))
         let yaml = Yaml.Recipe.toYamlString None proto
-        Expect.isTrue (yaml.Contains("labEquipment")) "labEquipment key"
+        Expect.isTrue (yaml.Contains("components")) "component key"
         Expect.isTrue (yaml.Contains("centrifuge"))   "equipment name"
 
     testCase "encode with additionalProperty sequence" <| fun _ ->
@@ -103,7 +103,7 @@ parameters:
         let original = Recipe(name = "extraction", description = "desc", version = "1.0", url = "https://protocols.io/v1")
         original.IntendedUse <- Some (DefinedTerm("cell growth", tan = "GO:0016049"))
         original.AddParameter(FormalParameter("temperature", nameTAN = "PATO:0000146"))
-        original.AddLabEquipment(Annotation("centrifuge", value = "Eppendorf"))
+        original.AddComponent(Annotation("centrifuge", value = "Eppendorf"))
         original.AddAdditionalProperty(Annotation("notes", value = "On ice"))
         let yaml    = Yaml.Recipe.toYamlString None original
         let decoded = Yaml.Recipe.fromYamlString true yaml
@@ -113,7 +113,7 @@ parameters:
         Expect.equal decoded.Url         original.Url         "url"
         Expect.isSome decoded.IntendedUse                     "intendedUse present"
         Expect.equal decoded.Parameters.Count  1              "parameters count"
-        Expect.equal decoded.LabEquipment.Count 1             "labEquipment count"
+        Expect.equal decoded.Components.Count 1             "component count"
         Expect.equal decoded.AdditionalProperty.Count 1       "additionalProperty count"
 
 ]

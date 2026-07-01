@@ -1,9 +1,9 @@
 type: Dataset
 additionalType: Assay
 identifier: measurement1
-creators:
+agents:
   -
-    type: Person
+    type: Agent
     givenName: Oliver
     affiliation:
       type: Organization
@@ -19,17 +19,17 @@ labProtocols:
     -
       "@id": "#Protocol_Growth"
       type: Recipe
-      labEquipments:
+      components:
         "@id": "#Component_growth_environment_bioreactor"
     -
       "@id": "#Protocol_Cell_Lysis"
       type: Recipe
-      labEquipments:
+      components:
         "@id": "#Component_centrifuge_Eppendorf™_Centrifuge_5420"
     -
       "@id": "#Protocol_MS_Run"
       type: Recipe
-      labEquipments:
+      components:
         "@id": "#Component_mass_spectrometer_Q_Exactive_9000"
     -
       "@id": "#Protocol_Computational_Proteome_Analysis"
@@ -433,5 +433,7 @@ additionalProperty:
     nameTAN: https://schema.org/variableMeasured
     value: proteomics
     valueTAN: https://bioregistry.io/MS:1003348
+
+
 
 

@@ -1,6 +1,6 @@
 ---
 title: Process
-category: Core Specification
+category: Process Core Profile
 categoryindex: 4
 index: 3
 ---
@@ -67,3 +67,4 @@ flowchart TD
     o2 -.correspondsTo.-> r2
 
 ```
+

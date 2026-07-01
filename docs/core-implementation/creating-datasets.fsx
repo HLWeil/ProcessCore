@@ -52,8 +52,8 @@ Components are non-transformed entities in a protocol, such as machines or reage
 let centrifuge = Annotation(name = "centrifuge", value = "Eppendorf 5420")
 let buffer = Annotation(name = "buffer", value = "PBS")
 
-protocol.AddLabEquipment(centrifuge)
-protocol.AddLabEquipment(buffer)
+protocol.AddComponent(centrifuge)
+protocol.AddComponent(buffer)
 
 (**
 #### Process
@@ -143,5 +143,5 @@ finalNodes
 | Connect samples or files | `process.AddInputSample`, `process.AddOutputData` |
 | Attach process parameters | `process.AddParameterValue` |
 | Attach characteristics/factors | `node.AddAdditionalProperty` |
-| Attach protocol components | `protocol.AddLabEquipment` |
+| Attach protocol components | `protocol.AddComponent` |
 *)

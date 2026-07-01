@@ -11,12 +11,16 @@ module Dataset =
     let knownFields =
         Set.ofList
             [ "type"; "additionalType"; "identifier"; "title"; "description"
-              "processes"; "hasPart"; "additionalProperty" ]
+              "license"; "datePublished"; "dateCreated"; "dateModified"
+              "processes"; "hasPart"; "dataFiles"; "agents"; "citations"
+              "dataContexts"; "additionalProperty" ]
 
     let knownPropertyNames =
         Set.ofList
             [ "type"; "additionaltype"; "identifier"; "title"; "description"
-              "processes"; "haspart"; "additionalproperty"; "partof"
+              "license"; "datepublished"; "datecreated"; "datemodified"
+              "processes"; "haspart"; "datafiles"; "agents"
+              "citations"; "datacontexts"; "additionalproperty"; "partof"
               "propertyvalues"; "labprotocols"
               // Fable-compiled read-only instance properties — must not be re-emitted as overflow
               "noderegistrydirect"; "fragmentselectorprovidersdirect" ]
@@ -45,8 +49,21 @@ module Dataset =
         let title          = tryGetField "title"          value |> Option.map decodeString
         let description    = tryGetField "description"    value |> Option.map decodeString
         let additionalType = tryGetField "additionalType" value |> Option.map decodeString
+        let license        = tryGetField "license"        value |> Option.map decodeString
+        let datePublished  = tryGetField "datePublished"  value |> Option.map decodeString
+        let dateCreated    = tryGetField "dateCreated"    value |> Option.map decodeString
+        let dateModified   = tryGetField "dateModified"   value |> Option.map decodeString
 
-        let ds = Dataset(identifier, ?title = title, ?description = description, ?additionalType = additionalType)
+        let ds =
+            Dataset(
+                identifier,
+                ?title = title,
+                ?description = description,
+                ?additionalType = additionalType,
+                ?license = license,
+                ?datePublished = datePublished,
+                ?dateCreated = dateCreated,
+                ?dateModified = dateModified)
 
         let annotations =
             addIndexedValues "annotations" (Annotation.decoder processCoreOnly) value
@@ -57,6 +74,14 @@ module Dataset =
             addIndexedValues "labProtocols" (Recipe.decoderWithPropertyResolver processCoreOnly resolveAnnotation) value
 
         let resolveRecipe id = tryFind labProtocols id
+
+        let decodeSeq fieldName (decoder: YAMLElement -> 'a) (resolve: string -> 'a option) (add: 'a -> unit) =
+            tryGetField fieldName value
+            |> Option.iter (fun v ->
+                iterSequenceOrSingleton (fun elem ->
+                    match decodeRefOrInline decoder elem with
+                    | Choice2Of2 x -> add x
+                    | Choice1Of2 id -> resolve id |> Option.iter add) v)
 
         // processes
         tryGetField "processes" value
@@ -79,13 +104,20 @@ module Dataset =
                     | Some _ -> ()  // id reference — leave unresolved
                     | None ->
                         let typeStr = tryGetField "type" elem |> Option.map decodeString |> Option.defaultValue ""
-                        if typeStr = "Dataset" || typeStr = "" then
+                        let hasPath = tryGetField "path" elem |> Option.isSome
+                        if typeStr = "Data" || typeStr = "MediaObject" || typeStr = "File" || hasPath then
+                            let data = Data.decoderWithPropertyResolver processCoreOnly resolveAnnotation elem
+                            ds.AddDataFile(data)
+                        elif typeStr = "Dataset" || typeStr = "" then
                             // Try to decode as Dataset (nested); empty type defaults to Dataset
                             let child = decoder processCoreOnly elem
                             ds.AddPart(child)
-                        // Data nodes in hasPart are not directly representable as Dataset children;
-                        // callers should handle this via processes instead.
             | None -> ())
+
+        decodeSeq "dataFiles" (Data.decoderWithPropertyResolver processCoreOnly resolveAnnotation) (fun _ -> None) ds.AddDataFile
+        decodeSeq "agents" (Agent.decoder processCoreOnly) (fun _ -> None) ds.AddAgent
+        decodeSeq "citations" (ScholarlyArticle.decoder processCoreOnly) (fun _ -> None) ds.AddCitation
+        decodeSeq "dataContexts" (DataContext.decoder processCoreOnly) (fun _ -> None) ds.AddDataContext
 
         // additionalProperty
         tryGetField "additionalProperty" value
@@ -145,6 +177,46 @@ module Dataset =
             else
                 None
 
+        let dataFiles =
+            if ds.DataFiles.Count > 0 then
+                ds.DataFiles
+                |> Seq.map (Data.encoder encodePV)
+                |> Seq.toList
+                |> yamlSeq
+                |> Some
+            else
+                None
+
+        let agents =
+            if ds.Agents.Count > 0 then
+                ds.Agents
+                |> Seq.map Agent.encoder
+                |> Seq.toList
+                |> yamlSeq
+                |> Some
+            else
+                None
+
+        let citations =
+            if ds.Citations.Count > 0 then
+                ds.Citations
+                |> Seq.map ScholarlyArticle.encoder
+                |> Seq.toList
+                |> yamlSeq
+                |> Some
+            else
+                None
+
+        let dataContexts =
+            if ds.DataContexts.Count > 0 then
+                ds.DataContexts
+                |> Seq.map DataContext.encoder
+                |> Seq.toList
+                |> yamlSeq
+                |> Some
+            else
+                None
+
         let additionalProperties =
             if ds.AdditionalProperty.Count > 0 then
                 ds.AdditionalProperty
@@ -167,6 +239,18 @@ module Dataset =
             match ds.Description with
             | Some d -> yield "description", yamlValue d
             | None   -> ()
+            match ds.License with
+            | Some license -> yield "license", yamlValue license
+            | None -> ()
+            match ds.DatePublished with
+            | Some date -> yield "datePublished", yamlValue date
+            | None -> ()
+            match ds.DateCreated with
+            | Some date -> yield "dateCreated", yamlValue date
+            | None -> ()
+            match ds.DateModified with
+            | Some date -> yield "dateModified", yamlValue date
+            | None -> ()
             // Top-level index sections
             if protocolRegistry.Count > 0 then
                 yield "labProtocols",
@@ -188,6 +272,18 @@ module Dataset =
             if hasParts.IsSome then
                 yield "hasPart", hasParts.Value
 
+            if dataFiles.IsSome then
+                yield "dataFiles", dataFiles.Value
+
+            if agents.IsSome then
+                yield "agents", agents.Value
+
+            if citations.IsSome then
+                yield "citations", citations.Value
+
+            if dataContexts.IsSome then
+                yield "dataContexts", dataContexts.Value
+
             if additionalProperties.IsSome then
                 yield "additionalProperty", additionalProperties.Value
             yield! emitOverflow knownPropertyNames ds
@@ -202,3 +298,4 @@ module Dataset =
 
     let toYamlStringIndexed (whitespace: int option) (ds: Dataset) : string =
         writeYaml whitespace (encoder true None None ds)
+

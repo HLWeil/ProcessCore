@@ -168,14 +168,14 @@ let tests = testList "DatasetQueries" [
 
     testCase "FindProcessesByAnnotation — protocol component source" <| fun _ ->
         let proto = Recipe("instrument-protocol")
-        proto.AddLabEquipment(Annotation("instrument", value = "Orbitrap", additionalType = "Component"))
+        proto.AddComponent(Annotation("instrument", value = "Orbitrap", additionalType = "Component"))
         let proc = Process("proc-comp")
         proc.ExecutesProtocol <- Some proto
         let ds = Dataset("DS-comp")
         ds.AddProcess(proc)
         let procs = ds.FindProcessesByAnnotation("instrument", "Orbitrap")
         let names = procs |> Seq.map (fun p -> p.Name) |> Set.ofSeq
-        Expect.equal names (Set.ofList ["proc-comp"]) "found via protocol LabEquipment"
+        Expect.equal names (Set.ofList ["proc-comp"]) "found via protocol Component"
 
     // ── FindProcessesByPropertyName ───────────────────────────────────────────
 

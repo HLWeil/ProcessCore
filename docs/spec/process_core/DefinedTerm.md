@@ -1,6 +1,6 @@
 ---
 title: DefinedTerm
-category: Core Specification
+category: Process Core Profile
 categoryindex: 4
 index: 9
 ---
@@ -33,3 +33,4 @@ flowchart TD
     DefinedTerm --TAN--> ta
     DefinedTerm --inDefinedTermSet--> se
 ```
+

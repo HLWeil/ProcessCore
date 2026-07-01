@@ -1,6 +1,6 @@
 ---
 title: Recipe
-category: Core Specification
+category: Process Core Profile
 categoryindex: 4
 index: 4
 ---
@@ -20,14 +20,14 @@ Decorations specialize Protocol:
 | Property | Type | Required | Description |
 |----------|------|----------|-------------|
 | `id` | Text | COULD | URL or identifier for the protocol |
-| `type` | Text | MUST | `Process` |
+| `type` | Text | MUST | `Recipe` |
 | `additionalType` | Text | COULD | Decoration discriminator, e.g. `Recipe` |
 | `name` | Text | SHOULD | Main title |
 | `parameters` | [FormalParameter](FormalParameter.md) | COULD | Prospectively specifies parameters for which values should be given in the execution of the protocol, Maps to `input` in Bioschemas type|
 | `description` | Text | SHOULD | Short description or abstract |
 | `intendedUse` | [DefinedTerm](DefinedTerm.md), Text | SHOULD | Protocol type as ontology term |
 | `additionalProperty` | [Annotation](Annotation.md) | COULD | Extensible protocol metadata |
-| `labEquipment` | [Annotation](Annotation.md) | COULD | Equipment used in the protocol |
+| `components` | [Annotation](Annotation.md) | COULD | Equipment, software, reagents, materials, or other components used in the protocol |
 | `version` | Text | COULD | Version identifier |
 | `url` | URL | COULD | External protocol resource |
 
@@ -41,12 +41,12 @@ flowchart TD
     ve@{ shape: stadium, label: "string" }
     ur@{ shape: stadium, label: "URL" }
     av[Annotation]
-    le[Annotation]
+    co[Annotation]
 
     Process --executesProtocol--> Recipe
     Recipe --intendedUse--> DefinedTerm
     Recipe --additionalProperty--> av
-    Recipe --labEquipment--> le
+    Recipe --components--> co
     Recipe --parameters--> FormalParameter
     Recipe --name--> na
     Recipe --description--> de
@@ -54,3 +54,4 @@ flowchart TD
     Recipe --url--> ur
 
 ```
+

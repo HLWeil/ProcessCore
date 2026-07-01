@@ -7,7 +7,7 @@ index: 7
 
 # Workflow Run Annotation Subtypes
 
-Specializations of [Annotation](../../core/Annotation.md) used in the Workflow Run decoration.
+Specializations of [Annotation](../../process_core/Annotation.md) used in the Workflow Run decoration.
 
 Reference: [ARC WR RO-Crate Profile — Annotation](../../../../references/arc_wr_ro_crate.md)
 
@@ -39,3 +39,4 @@ Describes the positional index of a workflow input.
 |----------|------|----------|-------------|
 | `name` | Text | MUST | `Position` |
 | `value` | Number | MUST | Position index |
+

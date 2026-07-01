@@ -7,25 +7,25 @@ index: 1
 
 # Project Overview
 
-ARC Data Model is the workspace for the ARC process data model. It contains the markdown specification, derived schemas, example documents, reference material from upstream ARC/RO-Crate work, and F# implementation projects for ProcessCore and the SQL profile.
+ARC Data Model is the workspace for the unified ARC RDM data model. It contains the markdown specification, derived schemas, example documents, reference material from upstream ARC/RO-Crate work, and F# implementation projects for ProcessCore and the SQL profile.
 
 ## Repository Shape
 
 ```text
-ProcessCore/
-├── docs/                 fsdocs documentation pages
-│   └── spec/             normative model specification
-├── schemas/              derived SQL and YAML schema representations
-├── examples/             concrete YAML examples
-├── references/           upstream and prior implementation reference material
-├── src/                  F# libraries
-├── tests/                Pyxpecto test project
-└── build/                FAKE build targets
+ARC-Data-Model/
+|-- docs/                 fsdocs documentation pages
+|   `-- spec/             ARC Process Core, datamap, and administrative specs
+|-- schemas/              derived SQL and YAML schema representations
+|-- examples/             concrete YAML examples
+|-- references/           upstream and prior implementation reference material
+|-- src/                  F# libraries
+|-- tests/                Pyxpecto test project
+`-- build/                FAKE build targets
 ```
 
 ## Main Areas
 
-- [Specification](specification.md) describes ProcessCore and the decoration model.
+- [Specification](specification.md) describes the three unified ARC RDM profiles and decoration pages.
 - [Examples and schemas](examples-and-schemas.md) explains the current schema drafts and example status.
 - [Implementation](implementation.md) explains the F# projects, SQL profile, runtime adapters, and build commands.
 - [Reference material](references.md) lists upstream profiles and preserved implementation notes.
@@ -50,9 +50,7 @@ The FAKE build project is invoked through the root wrapper scripts:
 ```powershell
 .\build.cmd BuildSolution
 .\build.cmd RunTests
-.\build.cmd RunTestsAll
-.\build.cmd TestJs
-.\build.cmd TestPy
 ```
 
-`RunTests` covers the .NET Pyxpecto suite. `RunTestsAll` additionally transpiles and runs JavaScript and Python test output.
+`RunTests` runs the configured shared suite, including the .NET, JavaScript, and Python paths.
+

@@ -76,6 +76,13 @@
     margin-left: 0.75rem;
   }
 
+  #fsdocs-main-menu .nav-top-category > .nav-category-details > summary.nav-category-summary,
+  #menu-toggle .nav-top-category > .nav-category-details > summary.nav-category-summary {
+    font-weight: 500;
+    margin-top: var(--spacing-300);
+    text-transform: uppercase;
+  }
+
   /* Highlight.js decorates generated YAML blocks in-place. */
   pre code.hljs {
     background: transparent;
@@ -109,10 +116,30 @@
   (() => {
     // Declarative sidebar groups. Keep this list small and limited to cases
     // where the generated fsdocs category list needs a clearer hierarchy.
+    const collapsibleCategories = [
+      { category: "Project", label: "Project" },
+    ];
+
     const groupedCategories = [
       {
+        label: "Profiles",
+        overview: {
+          label: "Profiles",
+          pathSuffix: "/spec/index",
+          hrefSuffix: "/spec/index.html",
+          createIfMissing: true,
+        },
+        categories: [
+          { category: "Administrative Profile", label: "Administrative" },
+          { category: "Process Core Profile", label: "Process Core" },
+          { category: "Datamap Profile", label: "Datamap" },
+        ],
+      },
+      {
         label: "Decorations",
-        overviewPathSuffix: "/spec/decorations/overview",
+        overview: {
+          pathSuffix: "/spec/decorations/overview",
+        },
         categories: ["ISA Decoration", "Workflow Run Decoration", "Datamap Decoration"],
       },
     ];
@@ -133,6 +160,38 @@
         return "";
       }
     };
+
+    const normalizePathSuffix = (value) =>
+      (value || "")
+        .replace(/\.html$/i, "")
+        .replace(/\/index$/i, "/")
+        .toLowerCase();
+
+    const pathMatchesSuffix = (path, suffix) => {
+      const normalizedSuffix = normalizePathSuffix(suffix);
+
+      if (!path || !normalizedSuffix) {
+        return false;
+      }
+
+      return path.endsWith(normalizedSuffix) ||
+        (normalizedSuffix.endsWith("/")
+          ? path.endsWith(normalizedSuffix.slice(0, -1))
+          : path.endsWith(`${normalizedSuffix}/`));
+    };
+
+    const hrefFromSuffix = (hrefSuffix) => {
+      const root = document.documentElement.getAttribute("data-root") || "/";
+      const rootPath = root.replace(/\/?$/, "/");
+      const suffix = (hrefSuffix || "").replace(/^\/+/, "");
+
+      return `${rootPath}${suffix}`;
+    };
+
+    const normalizeCategoryDefinition = (categoryDefinition) =>
+      typeof categoryDefinition === "string"
+        ? { category: categoryDefinition, label: categoryDefinition }
+        : categoryDefinition;
 
     // A category block is the header plus all nav items until the next header.
     const collectCategoryItems = (categoryItem) => {
@@ -161,15 +220,61 @@
           normalizeLabel(item.textContent) === category
         );
 
-    // The Decorations overview is authored under the Specification category
-    // but should appear as the first item of the synthesized Decorations group.
+    // Some overview pages are authored elsewhere or omitted from fsdocs'
+    // generated menu, but should appear first in their synthesized group.
     const findNavItemByPathSuffix = (menu, pathSuffix) =>
       Array.from(menu.children)
         .find((item) =>
           item.classList.contains("nav-item") &&
           Array.from(item.querySelectorAll("a.nav-link[href]"))
-            .some((link) => normalizePath(link.getAttribute("href")).endsWith(pathSuffix))
+            .some((link) => pathMatchesSuffix(normalizePath(link.getAttribute("href")), pathSuffix))
         );
+
+    const renameNavItem = (item, label) => {
+      if (!item || !label) {
+        return;
+      }
+
+      const link = item.querySelector("a.nav-link");
+
+      if (link) {
+        link.textContent = label;
+      }
+    };
+
+    const createNavItem = (label, href, pathSuffix, currentPath) => {
+      const item = document.createElement("li");
+      const link = document.createElement("a");
+      const isActive = pathMatchesSuffix(currentPath, pathSuffix);
+
+      item.className = `nav-item ${isActive ? "active" : ""}`;
+      link.className = "nav-link";
+      link.href = href;
+      link.textContent = label;
+      item.appendChild(link);
+
+      return item;
+    };
+
+    const findOrCreateOverviewItem = (menu, overview, currentPath) => {
+      if (!overview) {
+        return null;
+      }
+
+      const existingItem = findNavItemByPathSuffix(menu, overview.pathSuffix);
+
+      if (existingItem) {
+        renameNavItem(existingItem, overview.label);
+        return existingItem;
+      }
+
+      if (!overview.createIfMissing) {
+        return null;
+      }
+
+      const hrefSuffix = overview.hrefSuffix || `${overview.pathSuffix}.html`;
+      return createNavItem(overview.label, hrefFromSuffix(hrefSuffix), overview.pathSuffix, currentPath);
+    };
 
     const findPreviousHeader = (item) => {
       let sibling = item.previousElementSibling;
@@ -189,18 +294,61 @@
       }
     };
 
-    const createCollapsibleCategory = (category, items, currentPath) => {
+    const canonicalMenuPath = (value) =>
+      normalizePath(value).replace(/\/output\//i, "/");
+
+    const removeDuplicateOtherItems = (menu) => {
+      const otherHeader = findCategoryHeader(menu, "Other");
+
+      if (!otherHeader) {
+        return;
+      }
+
+      const otherItems = collectCategoryItems(otherHeader);
+      const otherItemSet = new Set(otherItems);
+      const knownPaths = new Set();
+
+      Array.from(menu.querySelectorAll("a.nav-link[href]")).forEach((link) => {
+        const item = link.closest("li.nav-item");
+
+        if (!item || otherItemSet.has(item)) {
+          return;
+        }
+
+        const path = canonicalMenuPath(link.getAttribute("href"));
+
+        if (path) {
+          knownPaths.add(path);
+        }
+      });
+
+      otherItems.forEach((item) => {
+        const paths = Array.from(item.querySelectorAll("a.nav-link[href]"))
+          .map((link) => canonicalMenuPath(link.getAttribute("href")))
+          .filter(Boolean);
+
+        if (paths.length > 0 && paths.every((path) => knownPaths.has(path))) {
+          item.remove();
+        }
+      });
+
+      removeHeaderIfEmpty(otherHeader);
+    };
+
+    const createCollapsibleCategory = (label, items, currentPath, options = {}) => {
       const containsCurrentPage = categoryContainsCurrentPage(items, currentPath);
       const categoryItem = document.createElement("li");
       const details = document.createElement("details");
       const summary = document.createElement("summary");
       const itemList = document.createElement("ul");
 
-      categoryItem.className = "nav-category nav-subcategory nav-item";
+      categoryItem.className = options.topLevel
+        ? "nav-category nav-top-category nav-item"
+        : "nav-category nav-subcategory nav-item";
       details.className = "nav-category-details";
       details.open = containsCurrentPage;
       summary.className = "nav-link nav-category-summary";
-      summary.textContent = category;
+      summary.textContent = label;
       itemList.className = "nav-category-items";
 
       details.append(summary, itemList);
@@ -210,10 +358,29 @@
       return { item: categoryItem, containsCurrentPage };
     };
 
-    const groupDecorationCategories = (menu, group, currentPath) => {
+    const collapseSidebarCategory = (menu, categoryDefinition, currentPath) => {
+      const { category, label } = normalizeCategoryDefinition(categoryDefinition);
+      const header = findCategoryHeader(menu, category);
+
+      if (!header) {
+        return;
+      }
+
+      const items = collectCategoryItems(header);
+
+      if (items.length === 0) {
+        return;
+      }
+
+      const { item } = createCollapsibleCategory(label, items, currentPath, { topLevel: true });
+      header.replaceWith(item);
+    };
+
+    const groupSidebarCategories = (menu, group, currentPath) => {
       // Locate the original fsdocs category blocks before moving any nodes.
       const categoryBlocks = group.categories
-        .map((category) => {
+        .map(normalizeCategoryDefinition)
+        .map(({ category, label }) => {
           const header = findCategoryHeader(menu, category);
 
           if (!header) {
@@ -222,29 +389,31 @@
 
           return {
             category,
+            label,
             header,
             items: collectCategoryItems(header),
             index: Array.from(menu.children).indexOf(header),
           };
         })
-        .filter(Boolean)
-        .sort((left, right) => left.index - right.index);
+        .filter(Boolean);
 
       if (categoryBlocks.length === 0) {
         return;
       }
 
+      const firstCategoryBlock = [...categoryBlocks]
+        .sort((left, right) => left.index - right.index)[0];
       const groupHeader = document.createElement("li");
       groupHeader.className = "nav-header nav-category-group";
       groupHeader.textContent = group.label;
 
-      const overviewItem = findNavItemByPathSuffix(menu, group.overviewPathSuffix);
+      const overviewItem = findOrCreateOverviewItem(menu, group.overview, currentPath);
       const overviewSourceHeader = overviewItem ? findPreviousHeader(overviewItem) : null;
       let insertionPoint = groupHeader;
 
-      categoryBlocks[0].header.replaceWith(groupHeader);
+      firstCategoryBlock.header.replaceWith(groupHeader);
 
-      // Insert the overview before the nested decoration categories.
+      // Insert the overview before the nested categories.
       if (overviewItem) {
         insertionPoint.after(overviewItem);
         insertionPoint = overviewItem;
@@ -255,7 +424,7 @@
       }
 
       categoryBlocks.forEach((block) => {
-        const { item } = createCollapsibleCategory(block.category, block.items, currentPath);
+        const { item } = createCollapsibleCategory(block.label, block.items, currentPath);
         insertionPoint.after(item);
         insertionPoint = item;
 
@@ -270,9 +439,13 @@
 
       // Apply the same grouping to the desktop sidebar and mobile menu.
       document.querySelectorAll("#fsdocs-main-menu > ul.menu, #menu-toggle > ul.menu").forEach((menu) => {
-        groupedCategories.forEach((group) =>
-          groupDecorationCategories(menu, group, currentPath)
+        collapsibleCategories.forEach((category) =>
+          collapseSidebarCategory(menu, category, currentPath)
         );
+        groupedCategories.forEach((group) =>
+          groupSidebarCategories(menu, group, currentPath)
+        );
+        removeDuplicateOtherItems(menu);
       });
     };
 

@@ -176,4 +176,119 @@ let tests = testList "Integration" [
             let pnames = path.Processes |> Seq.map (fun p -> p.Name) |> Set.ofSeq
             Expect.isTrue (pnames.Contains("measurement")) "measurement in every path"
 
+    testCase "metadata-powered data analysis combines process annotations and datamap contexts" <| fun _ ->
+        let temperature = DefinedTerm("temperature", tan = "https://bioregistry.io/NCRO:0000029")
+        let biologicalReplicate = DefinedTerm("biological replicate group", tan = "https://bioregistry.io/DPBO:1000183")
+        let technicalReplicate = DefinedTerm("technical replicate group", tan = "https://bioregistry.io/DPBO:1000184")
+        let proteinIdentifier = DefinedTerm("protein identifier", tan = "http://purl.obolibrary.org/obo/NCIT_C165059")
+        let lfqIntensity = DefinedTerm("LFQ intensity", tan = "http://purl.obolibrary.org/obo/MS_1001902")
+
+        let ds = Dataset("metadata-powered-analysis")
+        ds.RegisterFragmentSelectorProvider(CsvFragmentSelectorProvider())
+        ds.AddDataFile(Data("proteomics_result.tsv", encodingFormat = "text/tab-separated-values"))
+        ds.AddDataContext(
+            DataContext(
+                Data("proteomics_result.tsv", selector = "#col=1", selectorFormat = CsvFragmentSelectorProvider.SelectorFormatUri, encodingFormat = "text/tab-separated-values"),
+                explication = proteinIdentifier,
+                objectType = DefinedTerm("String")))
+        ds.AddDataContext(
+            DataContext(
+                Data("proteomics_result.tsv", selector = "#col=2-5", selectorFormat = CsvFragmentSelectorProvider.SelectorFormatUri, encodingFormat = "text/tab-separated-values"),
+                explication = lfqIntensity,
+                objectType = DefinedTerm("Float")))
+
+        let source = Sample("Base culture", additionalType = "Source")
+
+        let addResult condition bioRep techRep selector =
+            let culture = Sample($"Culture {condition} C replicate {bioRep}", additionalType = "Sample")
+            culture.AddAdditionalProperty(Annotation("temperature", value = condition, unit = "degree Celsius", nameTAN = temperature.TAN.Value, additionalType = "FactorValue"))
+
+            let aliquot = Sample($"Aliquot {condition} C replicate {bioRep}.{techRep}", additionalType = "Sample")
+            aliquot.AddAdditionalProperty(Annotation("biological replicate group", value = bioRep, nameTAN = biologicalReplicate.TAN.Value, additionalType = "CharacteristicValue"))
+            aliquot.AddAdditionalProperty(Annotation("technical replicate group", value = techRep, nameTAN = technicalReplicate.TAN.Value, additionalType = "CharacteristicValue"))
+
+            let data = Data("proteomics_result.tsv", selector = selector, selectorFormat = CsvFragmentSelectorProvider.SelectorFormatUri, encodingFormat = "text/tab-separated-values")
+
+            let growth = Process($"Growth {condition} C {bioRep}.{techRep}")
+            growth.AddInputSample(source)
+            growth.AddOutputSample(culture)
+
+            let preparation = Process($"Prepare sample {condition} C {bioRep}.{techRep}")
+            preparation.AddInputSample(culture)
+            preparation.AddOutputSample(aliquot)
+
+            let analysis = Process($"Computational proteome analysis {condition} C {bioRep}.{techRep}")
+            analysis.AddInputSample(aliquot)
+            analysis.AddOutputData(data)
+
+            ds.AddProcess(growth)
+            ds.AddProcess(preparation)
+            ds.AddProcess(analysis)
+            data
+
+        let selectedA = addResult "35" "1" "1" "#col=2"
+        let selectedB = addResult "35" "1" "2" "#col=3"
+        let _otherCondition = addResult "40" "1" "1" "#col=4"
+        let _otherReplicate = addResult "35" "2" "1" "#col=5"
+
+        let hasUpstreamValue term value data =
+            ds.UpstreamAnnotationsForNode(DataNode data)
+            |> Seq.exists (fun pv -> pv.NameEquals(term) && pv.Value = Some value)
+
+        let selected =
+            ds.FinalData()
+            |> Seq.filter (fun data -> hasUpstreamValue temperature "35" data)
+            |> Seq.filter (fun data -> hasUpstreamValue biologicalReplicate "1" data)
+            |> Seq.toList
+
+        let selectedSelectors = selected |> List.map (fun data -> data.Selector.Value) |> Set.ofList
+        Expect.equal selectedSelectors (Set.ofList [ selectedA.Selector.Value; selectedB.Selector.Value ]) "condition and replicate filters should select the expected result columns"
+
+        let filePaths = selected |> List.map (fun data -> data.Path) |> Set.ofList
+        Expect.equal filePaths (Set.ofList [ "proteomics_result.tsv" ]) "selected fragments should point to one matrix file"
+
+        let indexContext =
+            ds.DataContextsForPath("proteomics_result.tsv")
+            |> Seq.find (fun dc -> dc.ExplicationEquals(proteinIdentifier))
+
+        let indexColumn =
+            indexContext.Data.Selector
+            |> Option.bind (fun selector -> CsvFragmentSelectorProvider.TryGetZeroBasedColumnIndex(selector))
+
+        Expect.equal indexColumn (Some 0) "protein identifier context should identify the first zero-based column"
+
+        let abundancePairs =
+            selected
+            |> Seq.collect (fun data ->
+                ds.DataContextsCoveringData(data)
+                |> Seq.filter (fun dc -> dc.ExplicationEquals(lfqIntensity))
+                |> Seq.map (fun dc -> data, dc))
+            |> Seq.toList
+
+        Expect.equal abundancePairs.Length 2 "both selected result columns should be covered by the LFQ Datamap context"
+
+        let selectedColumnIndices =
+            abundancePairs
+            |> List.map (fun (data, _) -> data.Selector |> Option.bind (fun selector -> CsvFragmentSelectorProvider.TryGetZeroBasedColumnIndex(selector)))
+            |> Set.ofList
+
+        Expect.equal selectedColumnIndices (Set.ofList [ Some 1; Some 2 ]) "selected data fragments should resolve to dataframe column positions"
+
+        let technicalReplicateLabels =
+            selected
+            |> List.map (fun data ->
+                ds.UpstreamAnnotationsForNode(DataNode data)
+                |> Seq.find (fun pv -> pv.NameEquals(technicalReplicate))
+                |> fun pv -> data.Selector.Value, pv.ValueText)
+            |> Set.ofList
+
+        Expect.equal technicalReplicateLabels (Set.ofList [ "#col=2", "1"; "#col=3", "2" ]) "selected columns should retain process-derived labels"
+
+        let allAbundanceData =
+            ds.DataWithDataContextByExplication(lfqIntensity)
+            |> Seq.map (fun (data, _) -> data.Selector.Value)
+            |> Set.ofSeq
+
+        Expect.equal allAbundanceData (Set.ofList [ "#col=2"; "#col=3"; "#col=4"; "#col=5" ]) "explication lookup should find every abundance data fragment"
+
 ]

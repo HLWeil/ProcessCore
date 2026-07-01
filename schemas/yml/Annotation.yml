@@ -2,7 +2,7 @@ $schema: "https://json-schema.org/draft/2020-12/schema"
 $id: "Annotation.yml"
 title: Annotation
 description: >
-  Extensible key-value-unit triple. The primary extension mechanism of ProcessCore.
+  Extensible key-value-unit triple. The primary extension mechanism of ARC Core.
   Can be attached via additionalProperty for cross-cutting metadata, or via dedicated
   relationships such as parameterValue when the host type defines a more specific role.
 type: object

@@ -1,0 +1,55 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$id: "ScholarlyArticle.yml"
+title: ScholarlyArticle
+description: Scholarly publication cited by or associated with a dataset.
+type: object
+
+properties:
+  id:
+    type: string
+    description: Unique identifier for the article
+
+  type:
+    type: string
+    const: "ScholarlyArticle"
+    description: Fixed type discriminator
+
+  headline:
+    type: string
+    description: Article title or headline
+
+  identifier:
+    type: string
+    description: Persistent identifier such as DOI (COULD)
+
+  creativeWorkStatus:
+    oneOf:
+      - type: string
+        description: "@id reference to a DefinedTerm"
+      - $ref: "DefinedTerm.yml"
+    description: Publication/status term (COULD)
+
+  authors:
+    type: array
+    description: Article authors (COULD)
+    items:
+      oneOf:
+        - type: string
+          description: "@id reference to a Agent"
+        - $ref: "Agent.yml"
+
+  additionalProperty:
+    type: array
+    description: Extensible article metadata (COULD)
+    items:
+      oneOf:
+        - type: string
+          description: "@id reference to an Annotation"
+        - $ref: "Annotation.yml"
+
+required:
+  - type
+  - headline
+
+additionalProperties: false
+

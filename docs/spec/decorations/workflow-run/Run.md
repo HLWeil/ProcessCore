@@ -7,7 +7,7 @@ index: 3
 
 # Run
 
-Workflow Run specialization of [Dataset](../../core/Dataset.md). Container describing a run folder in an ARC, documenting the execution of workflows.
+Workflow Run specialization of [Dataset](../../process_core/Dataset.md). Container describing a run folder in an ARC, documenting the execution of workflows.
 
 **`additionalType`**: `Run`
 
@@ -19,6 +19,8 @@ Reference: [ARC WR RO-Crate Profile — ARC Run](../../../../references/arc_wr_r
 |----------|------|----------|-------------|
 | `additionalType` | string | MUST | `Run` |
 | `processes` | [WorkflowInvocation](WorkflowInvocation.md) | SHOULD | Workflow invocations|
-| `performers` | [Person](../isa/Person.md) | COULD | Run performers and contributors |
+| `performers` | [Agent](../../administrative/Agent.md) | COULD | Run performers and contributors |
+
+
 
 

@@ -1,13 +1,13 @@
 ---
-title: ProcessCore
-category: Core Specification
+title: Process Core Profile
+category: Process Core Profile
 categoryindex: 4
 index: 1
 ---
 
-# ProcessCore
+# Process Core Profile
 
-ProcessCore is the foundational ARC process model. It abstracts experimental and computational workflows as process graphs that connect sample and data inputs to sample and data outputs.
+The Process Core Profile describes the fundamental entities and relationships in the ARC process model. It abstracts experimental and computational workflows as process graphs that connect sample and data inputs to sample and data outputs.
 
 ## Core Types
 
@@ -27,7 +27,7 @@ ProcessCore is the foundational ARC process model. It abstracts experimental and
 ```mermaid
 flowchart LR
     Dataset --processes--> Process
-    Dataset --hasPart--> Data
+    Dataset --dataFiles--> Data
     Dataset --hasPart--> Dataset
     Process --inputs--> Sample
     Process --"outputs"--> Data
@@ -38,3 +38,4 @@ flowchart LR
 ```
 
 For a relational view of these types, see [schemas/sql/design.md](../../../schemas/sql/design.md).
+

@@ -1,0 +1,35 @@
+type: Dataset
+identifier: datamap-proteomics-example
+title: Proteomics datamap example
+dataContexts:
+  - type: DataContext
+    data:
+      type: Data
+      path: assays/proteomics/processed/proteins.csv
+      encodingFormat: text/csv
+    explication: protein abundance table
+    explicationTAN: http://purl.obolibrary.org/obo/MS_1001902
+    objectType: wide table
+  - type: DataContext
+    data:
+      type: Data
+      path: assays/proteomics/processed/proteins.csv
+      selector: "#col=abundance"
+      selectorFormat: RFC7111
+      encodingFormat: text/csv
+    explication: protein abundance
+    explicationTAN: http://purl.obolibrary.org/obo/MSIO_0000072
+    objectType: Float
+    label: Abundance
+    description: Protein abundance column
+    generatedBy: LC-MS
+dataFiles:
+  - type: Data
+    path: assays/proteomics/processed/proteins.csv
+    encodingFormat: text/csv
+    hasPart:
+      - type: Data
+        path: assays/proteomics/processed/proteins.csv
+        selector: "#col=abundance"
+        selectorFormat: RFC7111
+

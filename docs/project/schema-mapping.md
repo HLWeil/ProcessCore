@@ -7,66 +7,72 @@ index: 6
 
 # Schema.org mapping
 
-The ProcessCore is designed to be compatible with RO-Crate, and therefore it's model structure closely follows Schema.org. Here we track the mapping between ProcessCore and Schema.org, and note any deviations or extensions.
+The ARC Core data model is designed to be compatible with RO-Crate, and therefore its model structure closely follows Schema.org. Here we track the mapping between ARC Core and Schema.org, and note any deviations or extensions.
 
 ## Dataset
 
-| PC property | Location | Schema.org Property | Mapping |
+| ARC property | Location | Schema.org Property | Mapping |
 |---|---|---|---|
 | `Dataset` | Core | schema:Dataset | - |
 |---|---|---|---|
 | `additionalType` | Core | `schema:additionalType` | - |
 | `identifier` | Core | `schema:identifier` | - |
-| `title` | Core | `schema:name` | Renaming |
-| `description` | Core | `schema:description` | - |
-| `processes` | Core | `schema:about` | Renaming |
-| `hasPart` | Core | `schema:hasPart` | - |
-| `person` | Core (Suggested) | `schema:creator`; `schema:maintainer` ; `schema:maintainer` | Complex mapping (schema.org property is chosen based on role filed inside person) |
+| `title` | Administrative | `schema:name` | Renaming |
+| `description` | Administrative | `schema:description` | - |
+| `license` | Administrative | `schema:license` | Added Property |
+| `datePublished` | Administrative | `schema:datePublished` | Added Property |
+| `dateCreated` | Administrative | `schema:dateCreated` | Added Property |
+| `dateModified` | Administrative | `schema:dateModified` | Added Property |
+| `processes` | Process Core | `schema:about` | Renaming |
+| `hasPart` | Process Core / Datamap | `schema:hasPart` | Sub-datasets and data-file membership |
+| `dataFiles` | Datamap | `schema:hasPart` | Added Property |
+| `agents` | Administrative | `schema:creator`; `schema:contributor`; `schema:maintainer` | Complex mapping (Schema.org property is chosen based on role metadata inside Agent) |
+| `citations` | Administrative | `schema:citation` | Added Property |
 | `dataContexts` | Datamap | `schema:variableMeasured` | Renaming |
 | `additionalProperty` | Core | `schema:additionalProperty` | Added Property |
 
 ## Process
 
-| PC property | Location | Schema.org Property | Mapping |
+| ARC property | Location | Schema.org Property | Mapping |
 |---|---|---|---|
-| `Process` | Core | bioschemas:LabProcess | - |
+| `Process` | Process Core | bioschemas:LabProcess | - |
 |---|---|---|---|
-| `additionalType` | Core | `schema:additionalType` | - |
-| `name` | Core | `schema:name` | - |
-| `inputs` | Core | `schema:object` | Renaming |
-| `outputs` | Core | `schema:result` | Renaming |
-| `executesProtocol` | Core | `bioschemas:executesRecipe` | Renaming |
-| `parameterValue` | Core | `bioschemas:parameterValue` | - |
+| `additionalType` | Process Core | `schema:additionalType` | - |
+| `name` | Process Core | `schema:name` | - |
+| `inputs` | Process Core | `schema:object` | Renaming |
+| `outputs` | Process Core | `schema:result` | Renaming |
+| `executesProtocol` | Process Core | `bioschemas:executesRecipe` | Renaming |
+| `parameterValue` | Process Core | `bioschemas:parameterValue` | - |
 
 ## Recipe
 
-| PC property | Location | Schema.org Property | Mapping |
+| ARC property | Location | Schema.org Property | Mapping |
 |---|---|---|---|
-| `Recipe` | Core | bioschemas:LabProtocol | - |
+| `Recipe` | Process Core | bioschemas:LabProtocol | - |
 |---|---|---|---|
-| `additionalType` | Core | `schema:additionalType` | - |
-| `name` | Core | `schema:name` | - |
-| `description` | Core | `schema:description` | - |
-| `parameters` | Core | `bioschemas:input` (?) | Renaming |
-| `intendedUse` | Core | `bioschemas:intendedUse` | - |
-| `labEquipment` | Core | `bioschemas:labEquipment` | - |
-| `version` | Core | `schema:version` | - |
-| `url` | Core | `schema:url` | - |
-| `additionalProperty` | Core | `schema:additionalProperty` | Added Property |
+| `additionalType` | Process Core | `schema:additionalType` | - |
+| `name` | Process Core | `schema:name` | - |
+| `description` | Process Core | `schema:description` | - |
+| `parameters` | Process Core | `bioschemas:input` (?) | Renaming |
+| `intendedUse` | Process Core | `bioschemas:intendedUse` | - |
+| `components` | Process Core | `bioschemas:labEquipment`; `bioschemas:computationalTool`; `bioschemas:reagent` | Unified Process Core property for protocol components |
+| `version` | Process Core | `schema:version` | - |
+| `url` | Process Core | `schema:url` | - |
+| `additionalProperty` | Process Core | `schema:additionalProperty` | Added Property |
 
 ## Sample
 
-| PC property | Location | Schema.org Property | Mapping |
+| ARC property | Location | Schema.org Property | Mapping |
 |---|---|---|---|
-| `Sample` | Core | bioschemas:Sample | Renaming |
+| `Sample` | Process Core | bioschemas:Sample | Renaming |
 |---|---|---|---|
-| `additionalType` | Core | `schema:additionalType` | - |
-| `name` | Core | `schema:name` | - |
-| `additionalProperty` | Core | `schema:additionalProperty` | - |
+| `additionalType` | Process Core | `schema:additionalType` | - |
+| `name` | Process Core | `schema:name` | - |
+| `additionalProperty` | Process Core | `schema:additionalProperty` | - |
 
 ## Data
 
-| PC property | Location | Schema.org Property | Mapping |
+| ARC property | Location | Schema.org Property | Mapping |
 |---|---|---|---|
 | `Data` | Core | schema:MediaObject | Renaming |
 |---|---|---|---|
@@ -75,11 +81,12 @@ The ProcessCore is designed to be compatible with RO-Crate, and therefore it's m
 | `selector` | Core | `@id` | Renaming and String conversion |
 | `selectorFormat` | Core | `schema:usageInfo` | Renaming |
 | `encodingFormat` | Core | `schema:encodingFormat` | - |
+| `hasPart` | Core | `schema:hasPart` | Data fragments |
 | `additionalProperty` | Core | `schema:additionalProperty` | Added Property |
 
 ## Annotation
 
-| PC property | Location | Schema.org Property | Mapping |
+| ARC property | Location | Schema.org Property | Mapping |
 |---|---|---|---|
 | `Annotation` | Core | schema:PropertyValue | - |
 |---|---|---|---|
@@ -94,17 +101,17 @@ The ProcessCore is designed to be compatible with RO-Crate, and therefore it's m
 
 ## FormalParameter
 
-| PC property | Location | Schema.org Property | Mapping |
+| ARC property | Location | Schema.org Property | Mapping |
 |---|---|---|---|
-| `FormalParameter` | Core | bioschemas:FormalParameter | - |
+| `FormalParameter` | Process Core | bioschemas:FormalParameter | - |
 |---|---|---|---|
-| `name` | Core | `schema:name` | - |
-| `nameTAN` | Core | `schema:url` | Renaming |
-| `defaultValue` | Core | `bioschemas:defaultValue` | - |
+| `name` | Process Core | `schema:name` | - |
+| `nameTAN` | Process Core | `schema:url` | Renaming |
+| `defaultValue` | Process Core | `bioschemas:defaultValue` | - |
 
 ## DefinedTerm
 
-| PC property | Location | Schema.org Property | Mapping |
+| ARC property | Location | Schema.org Property | Mapping |
 |---|---|---|---|
 | `DefinedTerm` | Core | bioschemas:DefinedTerm | - |
 |---|---|---|---|
@@ -112,30 +119,54 @@ The ProcessCore is designed to be compatible with RO-Crate, and therefore it's m
 | `TAN` | Core | `schema:termCode` | Renaming |
 | `inDefinedTermSet` | Core | `schema:inDefinedTermSet` | - |
 
-## Person
+## Agent
 
-| PC property | Location | Schema.org Property | Mapping |
+| ARC property | Location | Schema.org Property | Mapping |
 |---|---|---|---|
-| `Person` | ISA | schema:Person | - |
+| `Agent` | Administrative | schema:Agent | Renaming from Person |
 |---|---|---|---|
-| `givenName` | ISA | schema:givenName | - |
-| `familyName` | ISA | schema:familyName | - |
-| `email` | ISA | schema:email | - |
-| `affiliation` | ISA | schema:affiliation | - |
-| `identifier` | ISA | schema:identifier | - |
-| `additionalProperty` | ISA | schema:additionalProperty | - |
-| `jobTitle` | ISA | schema:jobTitle | - |
+| `givenName` | Administrative | schema:givenName | - |
+| `familyName` | Administrative | schema:familyName | - |
+| `email` | Administrative | schema:email | - |
+| `affiliation` | Administrative | schema:affiliation | - |
+| `identifier` | Administrative | schema:identifier | - |
+| `additionalProperty` | Administrative | schema:additionalProperty | - |
+| `jobTitle` | Administrative | schema:jobTitle | - |
+
+## Organization
+
+| ARC property | Location | Schema.org Property | Mapping |
+|---|---|---|---|
+| `Organization` | Administrative | schema:Organization | - |
+|---|---|---|---|
+| `name` | Administrative | schema:name | - |
+| `url` | Administrative | schema:url | - |
+
+## ScholarlyArticle
+
+| ARC property | Location | Schema.org Property | Mapping |
+|---|---|---|---|
+| `ScholarlyArticle` | Administrative | schema:ScholarlyArticle | - |
+|---|---|---|---|
+| `headline` | Administrative | schema:headline | - |
+| `identifier` | Administrative | schema:identifier | - |
+| `authors` | Administrative | schema:author | Renaming |
+| `creativeWorkStatus` | Administrative | schema:creativeWorkStatus | - |
+| `additionalProperty` | Administrative | schema:additionalProperty | - |
 
 ## DataContext
 
-| PC property | Location | Schema.org Property | Mapping |
+| ARC property | Location | Schema.org Property | Mapping |
 |---|---|---|---|
 | `DataContext` | Datamap | schema:PropertyValue | - |
 |---|---|---|---|
 | `data` | Datamap | schema:subjectOf | Renaming |
-| `explication` | Datamap | schema:value + schema:valueReference | Renaming plus merging strings into object (DefinedTerm) |
-| `objectType` | Datamap | schema:pattern (on data) | Renaming plus moving into child |
-| `unit` | Datamap | schema:unit + schema:unitCode | Renaming plus merging strings into object (DefinedTerm) |
+| `explication` | Datamap | schema:value | Renaming |
+| `explicationTAN` | Datamap | schema:valueReference | Renaming |
+| `objectType` | Datamap | schema:pattern | Renaming |
+| `objectTypeTAN` | Datamap | schema:valueReference | Renaming |
+| `unit` | Datamap | schema:unitText | Renaming |
+| `unitTAN` | Datamap | schema:unitCode | Renaming |
 | `label` | Datamap | schema:alternateName | Renaming |
 | `description` | Datamap | schema:description | - |
 | `generatedBy` | Datamap | schema:measurementMethod | Renaming |

@@ -49,4 +49,12 @@ let tests = testList "Data" [
         Expect.equal d.EncodingFormat (Some "text/csv")   "EncodingFormat should reflect setter"
         Expect.equal d.AdditionalType (Some "Raw Data")   "AdditionalType should reflect setter"
 
+    testCase "nested fragments" <| fun _ ->
+        let fragment = Data("results.csv", selector = "col=abundance", selectorFormat = "RFC7111")
+        let d = Data("results.csv")
+        d.AddPart(fragment)
+
+        Expect.equal d.HasPart.Count 1 "fragment should be retained"
+        Expect.equal d.HasPart.[0].Selector (Some "col=abundance") "fragment selector should be retained"
+
 ]

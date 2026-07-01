@@ -77,4 +77,16 @@ let tests = testList "Annotation" [
         pv.Value <- Some "Trypsin"
         Expect.equal pv.Value (Some "Trypsin") "Value should reflect mutation"
 
+    testCase "NameEquals prefers matching TANs" <| fun _ ->
+        let pv = Annotation("temperature", nameTAN = "http://example.org/temperature")
+        let term = DefinedTerm("growth temperature", tan = "http://example.org/temperature")
+        Expect.isTrue (pv.NameEquals(term)) "matching TANs should match even if labels differ"
+
+    testCase "NameEquals falls back to name" <| fun _ ->
+        let pv = Annotation("biological replicate group")
+        let same = DefinedTerm("biological replicate group")
+        let different = DefinedTerm("technical replicate group")
+        Expect.isTrue (pv.NameEquals(same)) "same name without TAN should match"
+        Expect.isFalse (pv.NameEquals(different)) "different name without TAN should not match"
+
 ]

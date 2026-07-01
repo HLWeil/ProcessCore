@@ -160,11 +160,11 @@ let tests = testList "Process" [
     testCase "AnnotationsByName - protocol component source" <| fun _ ->
         let proto = Recipe("measurement")
         let pv    = Annotation("instrument", value = "Orbitrap", additionalType = "Component")
-        proto.AddLabEquipment(pv)
+        proto.AddComponent(pv)
         let p = Process("p")
         p.ExecutesProtocol <- Some proto
         let result = p.AnnotationsByName("instrument")
-        Expect.equal result.Count 1 "Should find PV in protocol LabEquipment"
+        Expect.equal result.Count 1 "Should find PV in protocol Component"
 
     testCase "AnnotationsByName - no match returns empty" <| fun _ ->
         let p      = Process("p")

@@ -1,0 +1,64 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$id: "DataContext.yml"
+title: DataContext
+description: Datamap descriptor for a data object or selected data fragment.
+type: object
+
+properties:
+  id:
+    type: string
+    description: Unique identifier for the data context
+
+  type:
+    type: string
+    const: "DataContext"
+    description: Fixed type discriminator
+
+  data:
+    $ref: "Data.yml"
+    description: Target data object or selected data fragment
+
+  explication:
+    type: string
+    description: Ontological annotation of the fragment contents
+
+  explicationTAN:
+    type: string
+    format: uri
+    description: URI of the term annotating the explication
+
+  objectType:
+    type: string
+    description: Expected value shape or entry type of the described fragment
+
+  objectTypeTAN:
+    type: string
+    format: uri
+    description: URI of the term annotating the object type
+
+  unit:
+    type: string
+    description: Unit of measurement of the values stored in the fragment
+
+  unitTAN:
+    type: string
+    format: uri
+    description: URI of the term annotating the unit
+
+  label:
+    type: string
+    description: Short label such as a column header
+
+  description:
+    type: string
+    description: Additional free-text details
+
+  generatedBy:
+    type: string
+    description: Tool, assay, or method that produced the described data
+
+required:
+  - type
+  - data
+
+additionalProperties: false

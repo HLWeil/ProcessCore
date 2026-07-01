@@ -17,6 +17,7 @@
     <Compile Include="DefinedTerm.fs" />
     <Compile Include="FormalParameter.fs" />
     <Compile Include="Annotation.fs" />
+    <Compile Include="Administrative.fs" />
     <Compile Include="FragmentSelector.fs" />
     <Compile Include="Graph.fs" />
     <Compile Include="YML\Helpers.fs" />
@@ -29,6 +30,10 @@
     <Compile Include="YML\Data.fs" />
     <Compile Include="YML\Recipe.fs" />
     <Compile Include="YML\Process.fs" />
+    <Compile Include="YML\Organization.fs" />
+    <Compile Include="YML\Agent.fs" />
+    <Compile Include="YML\ScholarlyArticle.fs" />
+    <Compile Include="YML\DataContext.fs" />
     <Compile Include="YML\Dataset.fs" />
     <Compile Include="SQL\Sql.fs" />
     <Compile Include="SQL\Tables.fs" />
@@ -54,3 +59,4 @@
     </ItemGroup>
 
 </Project>
+

@@ -44,3 +44,8 @@ type DefinedTerm(name: string, ?tan: string, ?inDefinedTermSet: string) =
         match Helper.computeTanInfo this.TAN None with
         | Some id -> $"{id.IDSpace}:{id.LocalID}"
         | _ -> ""
+
+    member this.SemanticallyEquals(other: DefinedTerm) =
+        match this.TAN, other.TAN with
+        | Some left, Some right -> left = right
+        | _ -> this = other

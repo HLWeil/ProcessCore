@@ -21,4 +21,16 @@ let tests = testList "DefinedTerm" [
         let dt2 = DefinedTerm("cell growth")
         Expect.notEqual dt1 dt2 "One with TAN, one without → not equal"
 
+    testCase "SemanticallyEquals prefers matching TANs" <| fun _ ->
+        let left = DefinedTerm("LFQ intensity", tan = "http://purl.obolibrary.org/obo/MS_1001902")
+        let right = DefinedTerm("label-free quantification intensity", tan = "http://purl.obolibrary.org/obo/MS_1001902")
+        Expect.isTrue (left.SemanticallyEquals(right)) "matching TANs should be semantic equals"
+
+    testCase "SemanticallyEquals falls back to exact term equality" <| fun _ ->
+        let left = DefinedTerm("protein abundance")
+        let same = DefinedTerm("protein abundance")
+        let different = DefinedTerm("protein intensity")
+        Expect.isTrue (left.SemanticallyEquals(same)) "same term without TAN should match"
+        Expect.isFalse (left.SemanticallyEquals(different)) "different term without TAN should not match"
+
 ]

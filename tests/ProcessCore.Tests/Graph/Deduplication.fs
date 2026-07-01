@@ -54,12 +54,12 @@ let tests = testList "Deduplication" [
         proto.AddParameter(fp)
         Expect.equal proto.Parameters.Count 1 "Adding FP with same name twice → one entry"
 
-    testCase "AddLabEquipment: duplicate ignored" <| fun _ ->
+    testCase "AddComponent: duplicate ignored" <| fun _ ->
         let proto = Recipe("extraction")
         let pv    = Annotation("instrument", value = "Orbitrap")
-        proto.AddLabEquipment(pv)
-        proto.AddLabEquipment(pv)
-        Expect.equal proto.LabEquipment.Count 1 "Adding same PV to LabEquipment twice → one entry"
+        proto.AddComponent(pv)
+        proto.AddComponent(pv)
+        Expect.equal proto.Components.Count 1 "Adding same PV to Component twice → one entry"
 
     testCase "Share samples with same name across dataset" <| fun _ ->
 

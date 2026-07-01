@@ -13,7 +13,7 @@ Domain specificity is added as decoration on top of that shared shape.
 
 There are two complementary ways to do this:
 
-1. Use `additionalType` and `additionalProperty` on core objects. This keeps the data close to the ProcessCore model and makes the extension queryable as typed `Annotation` annotations.
+1. Use `additionalType` and `additionalProperty` on core objects. This keeps the data close to the ARC Core model and makes the extension queryable as typed `Annotation` annotations.
 2. Use the inherited `DynamicObj` property bag for information that must be preserved but does not fit into the core model.
 
 This page shows both approaches.
@@ -93,7 +93,7 @@ let temperature30 =
 highTemperatureSample.AddAdditionalProperty(temperature30)
 
 let growthProtocol = Recipe(name = "Growth")
-growthProtocol.AddLabEquipment(
+growthProtocol.AddComponent(
     Annotation(
         "growth environment",
         value = "bioreactor",
@@ -158,7 +158,7 @@ let growthDecoration =
       "input annotations", growthInput.AdditionalProperty |> Seq.map pvSummary |> String.concat "; "
       "output", sprintf "%s (%s)" growthOutput.Name (growthOutput.AdditionalType |> valueOrBlank)
       "output annotations", growthOutput.AdditionalProperty |> Seq.map pvSummary |> String.concat "; "
-      "protocol components", growthProtocol.LabEquipment |> Seq.map pvSummary |> String.concat "; " ]
+      "protocol components", growthProtocol.Components |> Seq.map pvSummary |> String.concat "; " ]
 
 growthDecoration
 (*** include-it ***)
@@ -228,7 +228,7 @@ samplesAt25Degrees
 (**
 ## DynamicObj Extensions
 
-All main ProcessCore classes inherit from `DynamicObj`. This gives each object a property bag for extension data that should be preserved, but that does not naturally belong in the process graph.
+All main ARC Core implementation classes inherit from `DynamicObj`. This gives each object a property bag for extension data that should be preserved, but that does not naturally belong in the process graph.
 
 Use this for metadata such as facility layout, local tracking fields, UI state, or profile-specific fields that a core-only library should not interpret.
 The example below adds an experimental facility layout to a dataset.
@@ -270,7 +270,7 @@ facilitySummary
 (*** include-it ***)
 
 (**
-The YAML writer emits DynamicObj properties as overflow fields after the known ProcessCore fields.
+The YAML writer emits DynamicObj properties as overflow fields after the known ARC Core fields.
 This keeps the data round-trippable without requiring the core model to know what an `experimentalFacilityLayout` is.
 *)
 
@@ -303,7 +303,7 @@ roundTrippedLayout.IsSome
 | Give a core object a domain role | `AdditionalType` |
 | Attach characteristics or factors to samples/data | `node.AddAdditionalProperty` |
 | Attach process parameters | `process.AddParameterValue` |
-| Attach protocol components | `protocol.AddLabEquipment` |
+| Attach protocol components | `protocol.AddComponent` |
 | Keep extensions ontologized and queryable | `Annotation(name, value, unit, nameTAN, valueTAN, unitTAN)` |
 | Preserve metadata outside the core graph | `SetProperty`, `TryGetTypedPropertyValue` from `DynamicObj` |
 | Read/write decorated YAML | `ProcessCore.Yaml.Dataset.fromYamlString false`, `toYamlString` |

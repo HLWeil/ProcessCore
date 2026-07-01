@@ -1,0 +1,30 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$id: "Organization.yml"
+title: Organization
+description: Organization involved in creating, curating, or hosting a dataset.
+type: object
+
+properties:
+  id:
+    type: string
+    description: Unique identifier for the organization
+
+  type:
+    type: string
+    const: "Organization"
+    description: Fixed type discriminator
+
+  name:
+    type: string
+    description: Organization name
+
+  url:
+    type: string
+    format: uri
+    description: Organization URL (COULD)
+
+required:
+  - type
+  - name
+
+additionalProperties: false

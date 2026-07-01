@@ -33,6 +33,22 @@ properties:
     type: string
     description: Short description or abstract (SHOULD)
 
+  license:
+    type: string
+    description: License identifier, URL, or label (COULD)
+
+  datePublished:
+    type: string
+    description: Publication date (COULD)
+
+  dateCreated:
+    type: string
+    description: Creation date (COULD)
+
+  dateModified:
+    type: string
+    description: Modification date (COULD)
+
   processes:
     type: array
     description: Processes contained in this dataset (SHOULD)
@@ -52,6 +68,42 @@ properties:
         - $ref: "Dataset.yml"
         - $ref: "Data.yml"
 
+  dataFiles:
+    type: array
+    description: Data files that belong to this dataset (COULD)
+    items:
+      oneOf:
+        - type: string
+          description: "@id reference to a Data object"
+        - $ref: "Data.yml"
+
+  agents:
+    type: array
+    description: People responsible for creating the dataset (COULD)
+    items:
+      oneOf:
+        - type: string
+          description: "@id reference to a Agent"
+        - $ref: "Agent.yml"
+
+  citations:
+    type: array
+    description: Scholarly articles cited by or associated with the dataset (COULD)
+    items:
+      oneOf:
+        - type: string
+          description: "@id reference to a ScholarlyArticle"
+        - $ref: "ScholarlyArticle.yml"
+
+  dataContexts:
+    type: array
+    description: Dataset-level datamap context entries (COULD)
+    items:
+      oneOf:
+        - type: string
+          description: "@id reference to a DataContext"
+        - $ref: "DataContext.yml"
+
   additionalProperty:
     type: array
     description: Extensible metadata (COULD)
@@ -67,3 +119,4 @@ required:
   - identifier
 
 additionalProperties: false
+

@@ -1,25 +1,27 @@
 ---
-title: Overview
+title: ARC Core User Guide
 category: Core Implementation
 categoryindex: 3
 index: 1
 ---
 
-# ProcessCore User Guide
+# ARC Core User Guide
 
-ProcessCore is the in-memory F# library for building, decorating, reading, querying, and editing ARC process graphs.
+`ProcessCore` is the in-memory F# library for building, decorating, reading, querying, and editing ARC Core process graphs.
 
-The core model is intentionally small:
+The ARC Core model is intentionally compact:
 
-- A `Dataset` groups process graphs and nested datasets.
+- A `Dataset` groups process graphs, nested datasets, data files, data contexts, and administrative information.
 - A `Process` connects `Sample` and `Data` input/output nodes.
 - A `Recipe` describes what the process executes.
-- A `Annotation` annotates datasets, process parameters, input/output nodes, and protocol components.
+- An `Annotation` annotates datasets, process parameters, input/output nodes, and protocol components.
+- A `DataContext` describes data files and selected data fragments with additional structural and contextual information.
+- `Agent`, `Organization`, and `ScholarlyArticle` carry administrative profile metadata.
 - `additionalType`, `additionalProperty`, and `DynamicObj` carry domain-specific extensions without changing the shared graph shape.
 
 The pages in this section are user-facing implementation guides.
 
-For normative field definitions, use the [core specification](../spec/core/overview.md). These project pages focus on using the F# library.
+For normative field definitions, use the [specification index](../spec/index.md). These project pages focus on using the F# library.
 
 For API reference, see the [API docs](../reference/index.html).
 
@@ -30,8 +32,9 @@ For API reference, see the [API docs](../reference/index.html).
 3. [Reading And Writing YAML](yaml-parsing.fsx) loads profile-shaped examples and writes inline or indexed YAML.
 4. [Querying Process Graphs](querying.fsx) traverses upstream, downstream, and connected context.
 5. [Fragment Selector Providers](fragment-selector-providers.fsx) makes file fragments first-class in traversal.
-6. [Tabular Views](tables.fsx) edits process graphs through ISA-like table projections.
-7. [Graph Identity, Back-Edges, And Scope](graph-invariants.md) explains the invariants behind shared nodes and scoped traversal.
+6. [Using DataContext](data-contexts.fsx) describes Datamap entries and shows how to combine them with process annotations.
+7. [Tabular Views](tables.fsx) edits process graphs through ISA-like table projections.
+8. [Graph Identity, Back-Edges, And Scope](graph-invariants.md) explains the invariants behind shared nodes and scoped traversal.
 
 
 
@@ -45,5 +48,8 @@ For API reference, see the [API docs](../reference/index.html).
 | Validate stricter core-shaped YAML | `ProcessCore.Yaml.Dataset.fromYamlString true` |
 | Ask provenance questions | `AllProcesses`, `UpstreamNodes`, `DownstreamAnnotations`, `PathsThrough` |
 | Work with file fragments | `Data.Selector`, `Data.SelectorFormat`, `RegisterFragmentSelectorProvider` |
+| Use Datamap context in queries | `DataContextsForPath`, `DataContextsCoveringData`, `ExplicationEquals` |
 | Edit as rows and columns | `dataset.Tables` from `ProcessCore.Table` |
 | Understand surprising traversal behavior | Node canonicalization, back-edges, and explicit process scopes |
+
+
