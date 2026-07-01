@@ -1,11 +1,11 @@
 ---
-title: Specification
+title: Profiles
 category: Specification
 categoryindex: 3
 index: 1
 ---
 
-# Specification
+# Profiles
 
 The ARC Data Model specification defines three peer profiles that together form the general ARC RDM model. The implementation uses one unified object model; the profiles describe coherent subsets of the same model surface.
 
