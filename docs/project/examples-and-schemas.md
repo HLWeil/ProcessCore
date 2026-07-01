@@ -25,6 +25,7 @@ The YAML schemas describe the current unified vocabulary. In particular, `Proces
 |----------|--------|
 | `examples/process_core/minimal.yml` | Schema-shaped ARC Core example intended to match the current YAML schema vocabulary |
 | `examples/datamap/proteomics_data.yml` | Data file, data fragment, and data context example using repo-native YAML names |
+| `examples/datamap/metadata_powered_analysis.yml` | Combined process and Datamap example for metadata-powered fragment selection |
 | `examples/administrative/dataset_administration.yml` | Agent, organization, citation, license, and date example |
 | `examples/isa/` | Legacy/profile-shaped ISA and Datamap examples kept as domain examples |
 | `examples/workflow-run/` | Placeholder for future Workflow Run examples |

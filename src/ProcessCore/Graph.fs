@@ -1062,6 +1062,18 @@ and [<AttachMembers>] DataContext(data: Data, ?explication: DefinedTerm, ?object
         with get() = _generatedBy
         and set v = _generatedBy <- v
 
+    member this.ExplicationEquals(term: DefinedTerm) =
+        this.Explication
+        |> Option.exists (fun explication -> explication.SemanticallyEquals(term))
+
+    member this.ObjectTypeEquals(term: DefinedTerm) =
+        this.ObjectType
+        |> Option.exists (fun objectType -> objectType.SemanticallyEquals(term))
+
+    member this.UnitEquals(term: DefinedTerm) =
+        this.Unit
+        |> Option.exists (fun unitTerm -> unitTerm.SemanticallyEquals(term))
+
     override this.Equals(obj) =
         match obj with
         | :? DataContext as other ->
@@ -1954,6 +1966,34 @@ and [<AttachMembers>] Dataset(identifier: string, ?title: string, ?description: 
         acc
 
     // ── Root / Final nodes ────────────────────────────────────────────────────
+
+    member this.DataContextsForPath(path: string) : ResizeArray<DataContext> =
+        let acc = ResizeArray<DataContext>()
+        let seen = HashSet<string>()
+        for dc in this.AllDataContexts() do
+            if dc.Data.Path = path then
+                if seen.Add(dataContextKey dc) then acc.Add(dc)
+        acc
+
+    member this.DataContextsCoveringData(data: Data) : ResizeArray<DataContext> =
+        let acc = ResizeArray<DataContext>()
+        let seen = HashSet<string>()
+        for dc in this.AllDataContexts() do
+            match FragmentSelectorResolution.relateDataWith this.TryGetFragmentSelectorProvider dc.Data data with
+            | Exact | Contains ->
+                if seen.Add(dataContextKey dc) then acc.Add(dc)
+            | Disjoint | Unknown -> ()
+        acc
+
+    member this.DataWithDataContextByExplication(term: DefinedTerm) : ResizeArray<Data * DataContext> =
+        let acc = ResizeArray<Data * DataContext>()
+        let seen = HashSet<string>()
+        for data in this.AllData() do
+            for dc in this.DataContextsCoveringData(data) do
+                if dc.ExplicationEquals(term) then
+                    let key = data.Path + "|" + (data.Selector |> Option.defaultValue "") + "|" + dataContextKey dc
+                    if seen.Add(key) then acc.Add(data, dc)
+        acc
 
     /// All IONodes in this dataset with no predecessor process (terminal sources).
     member this.RootNodes() : ResizeArray<IONode> =

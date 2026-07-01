@@ -239,6 +239,15 @@ let tests = testList "Fragment selectors" [
             Expect.equal provider.SelectorFormat CsvFragmentSelectorProvider.SelectorFormatUri
                 "CSV provider should advertise the RFC 7111 selector format URI"
 
+        testCase "extracts zero-based single column index" <| fun _ ->
+            Expect.equal (CsvFragmentSelectorProvider.TryGetZeroBasedColumnIndex("#col=4")) (Some 3) "single column selector should become zero-based"
+            Expect.equal (CsvFragmentSelectorProvider.TryGetZeroBasedColumnIndex("col=1")) (Some 0) "leading fragment marker is optional"
+            Expect.isNone (CsvFragmentSelectorProvider.TryGetZeroBasedColumnIndex("col=2-4")) "column ranges should not produce one index"
+            Expect.isNone (CsvFragmentSelectorProvider.TryGetZeroBasedColumnIndex("col=2;4")) "multi-column selectors should not produce one index"
+            Expect.isNone (CsvFragmentSelectorProvider.TryGetZeroBasedColumnIndex("row=4")) "row selectors should not produce a column index"
+            Expect.isNone (CsvFragmentSelectorProvider.TryGetZeroBasedColumnIndex("cell=4,2")) "cell selectors should not produce a column index"
+            Expect.isNone (CsvFragmentSelectorProvider.TryGetZeroBasedColumnIndex("col=0")) "invalid selectors should not produce an index"
+
         testCase "parses selectors with or without leading fragment marker" <| fun _ ->
             let ds = datasetWithCsvProvider ()
             let a = Data("file.csv", selector = "col=2-11", selectorFormat = CsvFragmentSelectorProvider.SelectorFormatUri)

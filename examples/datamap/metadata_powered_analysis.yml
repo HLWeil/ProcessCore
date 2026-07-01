@@ -1,0 +1,129 @@
+type: Dataset
+identifier: metadata-powered-analysis
+title: Metadata-powered proteomics analysis example
+dataFiles:
+  - type: Data
+    path: proteomics_result.tsv
+    encodingFormat: text/tab-separated-values
+dataContexts:
+  - type: DataContext
+    data:
+      type: Data
+      path: proteomics_result.tsv
+      selector: "#col=1"
+      selectorFormat: "https://datatracker.ietf.org/doc/html/rfc7111"
+      encodingFormat: text/tab-separated-values
+    explication: protein identifier
+    explicationTAN: http://purl.obolibrary.org/obo/NCIT_C165059
+    objectType: String
+  - type: DataContext
+    data:
+      type: Data
+      path: proteomics_result.tsv
+      selector: "#col=2-5"
+      selectorFormat: "https://datatracker.ietf.org/doc/html/rfc7111"
+      encodingFormat: text/tab-separated-values
+    explication: LFQ intensity
+    explicationTAN: http://purl.obolibrary.org/obo/MS_1001902
+    objectType: Float
+processes:
+  - type: Process
+    name: Growth 35 C replicate 1.1
+    inputs:
+      - type: Sample
+        additionalType: Source
+        name: Base culture
+    outputs:
+      - type: Sample
+        additionalType: Sample
+        name: Culture 35 C replicate 1
+        additionalProperty:
+          - type: Annotation
+            additionalType: FactorValue
+            name: temperature
+            nameTAN: https://bioregistry.io/NCRO:0000029
+            value: "35"
+            unit: degree Celsius
+  - type: Process
+    name: Prepare sample 35 C replicate 1.1
+    inputs:
+      - type: Sample
+        additionalType: Sample
+        name: Culture 35 C replicate 1
+    outputs:
+      - type: Sample
+        additionalType: Sample
+        name: Aliquot 35 C replicate 1.1
+        additionalProperty:
+          - type: Annotation
+            additionalType: CharacteristicValue
+            name: biological replicate group
+            nameTAN: https://bioregistry.io/DPBO:1000183
+            value: "1"
+          - type: Annotation
+            additionalType: CharacteristicValue
+            name: technical replicate group
+            nameTAN: https://bioregistry.io/DPBO:1000184
+            value: "1"
+  - type: Process
+    name: Computational proteome analysis 35 C replicate 1.1
+    inputs:
+      - type: Sample
+        additionalType: Sample
+        name: Aliquot 35 C replicate 1.1
+    outputs:
+      - type: Data
+        path: proteomics_result.tsv
+        selector: "#col=2"
+        selectorFormat: "https://datatracker.ietf.org/doc/html/rfc7111"
+        encodingFormat: text/tab-separated-values
+  - type: Process
+    name: Growth 35 C replicate 1.2
+    inputs:
+      - type: Sample
+        additionalType: Source
+        name: Base culture
+    outputs:
+      - type: Sample
+        additionalType: Sample
+        name: Culture 35 C replicate 1
+        additionalProperty:
+          - type: Annotation
+            additionalType: FactorValue
+            name: temperature
+            nameTAN: https://bioregistry.io/NCRO:0000029
+            value: "35"
+            unit: degree Celsius
+  - type: Process
+    name: Prepare sample 35 C replicate 1.2
+    inputs:
+      - type: Sample
+        additionalType: Sample
+        name: Culture 35 C replicate 1
+    outputs:
+      - type: Sample
+        additionalType: Sample
+        name: Aliquot 35 C replicate 1.2
+        additionalProperty:
+          - type: Annotation
+            additionalType: CharacteristicValue
+            name: biological replicate group
+            nameTAN: https://bioregistry.io/DPBO:1000183
+            value: "1"
+          - type: Annotation
+            additionalType: CharacteristicValue
+            name: technical replicate group
+            nameTAN: https://bioregistry.io/DPBO:1000184
+            value: "2"
+  - type: Process
+    name: Computational proteome analysis 35 C replicate 1.2
+    inputs:
+      - type: Sample
+        additionalType: Sample
+        name: Aliquot 35 C replicate 1.2
+    outputs:
+      - type: Data
+        path: proteomics_result.tsv
+        selector: "#col=3"
+        selectorFormat: "https://datatracker.ietf.org/doc/html/rfc7111"
+        encodingFormat: text/tab-separated-values

@@ -3,7 +3,7 @@
 title: Tabular Views
 category: Core Implementation
 categoryindex: 3
-index: 7
+index: 8
 ---
 
 # Tabular Views Over Process Graphs
@@ -87,7 +87,7 @@ Adding an annotation column writes `Annotation` objects into the appropriate gra
 *)
 
 growth.AddColumn(
-    CompositeHeader.Parameter("light intensity", None),
+    CompositeHeader.Parameter(DefinedTerm("light intensity")),
     ResizeArray([
         CompositeCell.Unitized("120", "umol m-2 s-1", None)
         CompositeCell.Unitized("150", "umol m-2 s-1", None)

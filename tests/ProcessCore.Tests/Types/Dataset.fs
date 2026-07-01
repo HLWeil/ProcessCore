@@ -139,6 +139,82 @@ let tests = testList "Dataset" [
         Expect.equal (ds.AllDataContexts().Count) 1 "AllDataContexts should discover data context"
         Expect.equal (ds.DataContextsForData(dataFile).Count) 1 "DataContextsForData should match by data target"
 
+    testCase "DataContext semantic term helpers" <| fun _ ->
+        let dc =
+            DataContext(
+                Data("results.csv"),
+                explication = DefinedTerm("LFQ intensity", tan = "http://purl.obolibrary.org/obo/MS_1001902"),
+                objectType = DefinedTerm("Float", tan = "http://purl.obolibrary.org/obo/NCIT_C48150"),
+                unit = DefinedTerm("arbitrary unit"))
+
+        Expect.isTrue (dc.ExplicationEquals(DefinedTerm("label-free quantification intensity", tan = "http://purl.obolibrary.org/obo/MS_1001902"))) "explication should match by TAN"
+        Expect.isTrue (dc.ObjectTypeEquals(DefinedTerm("Float", tan = "http://purl.obolibrary.org/obo/NCIT_C48150"))) "object type should match"
+        Expect.isTrue (dc.UnitEquals(DefinedTerm("arbitrary unit"))) "unit should match by exact term"
+        Expect.isFalse (dc.ExplicationEquals(DefinedTerm("protein identifier"))) "different explication should not match"
+
+    testCase "DataContextsForPath returns contexts across selectors" <| fun _ ->
+        let file = Data("results.csv")
+        let fragment = Data("results.csv", selector = "#col=2", selectorFormat = CsvFragmentSelectorProvider.SelectorFormatUri)
+        let other = Data("other.csv")
+        let ds =
+            Dataset(
+                "DS-datacontext-path",
+                dataContexts = [
+                    DataContext(file, explication = DefinedTerm("table"))
+                    DataContext(fragment, explication = DefinedTerm("abundance"))
+                    DataContext(other, explication = DefinedTerm("other"))
+                ])
+
+        let contexts = ds.DataContextsForPath("results.csv")
+        Expect.equal contexts.Count 2 "both whole-file and fragment contexts should match the path"
+
+    testCase "DataContextsCoveringData resolves exact and contained CSV fragments" <| fun _ ->
+        let ds = Dataset("DS-datacontext-covering")
+        ds.RegisterFragmentSelectorProvider(CsvFragmentSelectorProvider())
+
+        let exact = DataContext(Data("results.csv", selector = "#col=2", selectorFormat = CsvFragmentSelectorProvider.SelectorFormatUri), explication = DefinedTerm("exact"))
+        let range = DataContext(Data("results.csv", selector = "#col=2-4", selectorFormat = CsvFragmentSelectorProvider.SelectorFormatUri), explication = DefinedTerm("range"))
+        let disjoint = DataContext(Data("results.csv", selector = "#col=6", selectorFormat = CsvFragmentSelectorProvider.SelectorFormatUri), explication = DefinedTerm("disjoint"))
+        let unknown = DataContext(Data("results.csv", selector = "opaque-a", selectorFormat = "missing/provider"), explication = DefinedTerm("unknown"))
+
+        ds.AddDataContext(exact)
+        ds.AddDataContext(range)
+        ds.AddDataContext(disjoint)
+        ds.AddDataContext(unknown)
+
+        let query = Data("results.csv", selector = "#col=2", selectorFormat = CsvFragmentSelectorProvider.SelectorFormatUri)
+        let names =
+            ds.DataContextsCoveringData(query)
+            |> Seq.choose (fun dc -> dc.Explication |> Option.map (fun t -> t.Name))
+            |> Set.ofSeq
+
+        Expect.isTrue (names.Contains("exact")) "exact context should cover query data"
+        Expect.isTrue (names.Contains("range")) "containing context should cover query data"
+        Expect.isFalse (names.Contains("disjoint")) "disjoint context should not cover query data"
+        Expect.isFalse (names.Contains("unknown")) "unknown selector relation should not cover query data"
+
+    testCase "DataWithDataContextByExplication pairs data with covering contexts" <| fun _ ->
+        let ds = Dataset("DS-datacontext-explication")
+        ds.RegisterFragmentSelectorProvider(CsvFragmentSelectorProvider())
+
+        let abundance = DefinedTerm("LFQ intensity", tan = "http://purl.obolibrary.org/obo/MS_1001902")
+        let identifier = DefinedTerm("protein identifier", tan = "http://purl.obolibrary.org/obo/NCIT_C165059")
+        let data = Data("results.csv", selector = "#col=3", selectorFormat = CsvFragmentSelectorProvider.SelectorFormatUri)
+        let other = Data("results.csv", selector = "#col=8", selectorFormat = CsvFragmentSelectorProvider.SelectorFormatUri)
+        let p = Process("analysis")
+        p.AddOutputData(data)
+        p.AddOutputData(other)
+        ds.AddProcess(p)
+        ds.AddDataContext(DataContext(Data("results.csv", selector = "#col=2-4", selectorFormat = CsvFragmentSelectorProvider.SelectorFormatUri), explication = abundance))
+        ds.AddDataContext(DataContext(Data("results.csv", selector = "#col=1", selectorFormat = CsvFragmentSelectorProvider.SelectorFormatUri), explication = identifier))
+
+        let pairs = ds.DataWithDataContextByExplication(abundance)
+
+        let matchedData, matchedContext = pairs.[0]
+        Expect.equal pairs.Count 1 "only the contained abundance data should be paired"
+        Expect.equal matchedData data "paired data should be the matching process data"
+        Expect.isTrue (matchedContext.ExplicationEquals(abundance)) "paired context should carry the requested explication"
+
     testCase "CollapseProcesses groups same name and equal process values" <| fun _ ->
         let nodeName (node: IONode) =
             match node with

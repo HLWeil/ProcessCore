@@ -32,8 +32,9 @@ For API reference, see the [API docs](../reference/index.html).
 3. [Reading And Writing YAML](yaml-parsing.fsx) loads profile-shaped examples and writes inline or indexed YAML.
 4. [Querying Process Graphs](querying.fsx) traverses upstream, downstream, and connected context.
 5. [Fragment Selector Providers](fragment-selector-providers.fsx) makes file fragments first-class in traversal.
-6. [Tabular Views](tables.fsx) edits process graphs through ISA-like table projections.
-7. [Graph Identity, Back-Edges, And Scope](graph-invariants.md) explains the invariants behind shared nodes and scoped traversal.
+6. [Using DataContext](data-contexts.fsx) describes Datamap entries and shows how to combine them with process annotations.
+7. [Tabular Views](tables.fsx) edits process graphs through ISA-like table projections.
+8. [Graph Identity, Back-Edges, And Scope](graph-invariants.md) explains the invariants behind shared nodes and scoped traversal.
 
 
 
@@ -47,6 +48,7 @@ For API reference, see the [API docs](../reference/index.html).
 | Validate stricter core-shaped YAML | `ProcessCore.Yaml.Dataset.fromYamlString true` |
 | Ask provenance questions | `AllProcesses`, `UpstreamNodes`, `DownstreamAnnotations`, `PathsThrough` |
 | Work with file fragments | `Data.Selector`, `Data.SelectorFormat`, `RegisterFragmentSelectorProvider` |
+| Use Datamap context in queries | `DataContextsForPath`, `DataContextsCoveringData`, `ExplicationEquals` |
 | Edit as rows and columns | `dataset.Tables` from `ProcessCore.Table` |
 | Understand surprising traversal behavior | Node canonicalization, back-edges, and explicit process scopes |
 

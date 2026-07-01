@@ -61,6 +61,15 @@ I.e. if we ask for a path of a specific sample, we want to get all paths (i.e. d
         - Find all processes where this sample is an input or output
         - For each of these processes, find all samples that are input or output of these processes
         - Recursively repeat this for all connected processes until no new processes are found, collecting all samples along the way.
+- Data analysis: Give me the file fragments for data entities matching process metadata and Datamap semantics.
+    - Technical formulation: Filter final `Data` nodes by upstream `Annotation` values, then find `DataContext` entries whose semantic explication matches the data variable of interest and whose target data selector covers the selected `Data` fragment.
+    - CommandChain:
+        - Register a fragment selector provider such as `CsvFragmentSelectorProvider`
+        - Use `UpstreamAnnotationsForNode` and `Annotation.NameEquals` to filter data by process-derived metadata
+        - Use `DataContextsForPath`, `DataContextsCoveringData`, and `DataContext.ExplicationEquals` to find the relevant Datamap entries
+        - Pass the resulting file path and selectors to a dataframe or plotting library outside ARC Core
+
+See [Using DataContext](../core-implementation/data-contexts.fsx) for an executable walkthrough.
 
 
 

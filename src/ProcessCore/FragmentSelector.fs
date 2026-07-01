@@ -303,6 +303,12 @@ type CsvFragmentSelectorProvider() =
 
     static member SelectorFormatUri = "https://datatracker.ietf.org/doc/html/rfc7111"
 
+    static member TryGetZeroBasedColumnIndex(selector: string) =
+        match CsvFragmentSelectorParsing.tryParse selector with
+        | Some (ColumnSelector [{ First = Index first; Last = Index last }]) when first = last ->
+            Some (first - 1)
+        | _ -> None
+
     override _.SelectorFormat = CsvFragmentSelectorProvider.SelectorFormatUri
 
     override _.TryParse(text: string) =
