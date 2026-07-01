@@ -1,5 +1,5 @@
 ---
-title: Overview
+title: ARC Core User Guide
 category: Core Implementation
 categoryindex: 3
 index: 1

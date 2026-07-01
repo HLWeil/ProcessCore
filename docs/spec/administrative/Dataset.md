@@ -32,10 +32,10 @@ Decorations specialize Dataset via `additionalType`:
 | `dateCreated` | Text | COULD | Creation date |
 | `dateModified` | Text | COULD | Modification date |
 | `hasPart` | [Dataset](Dataset.md) | SHOULD | Sub-datasets |
-| `dataFiles` | [Data](Data.md) | COULD | Data files that belong to this dataset |
+| `dataFiles` | [Data](../process_core/Data.md) | COULD | Data files that belong to this dataset |
 | `agents` | [Agent](../administrative/Agent.md) | COULD | Dataset agents |
 | `citations` | [ScholarlyArticle](../administrative/ScholarlyArticle.md) | COULD | Publications cited by or associated with the dataset |
-| `additionalProperty` | [Annotation](Annotation.md) | COULD | Extensible metadata |
+| `additionalProperty` | [Annotation](../process_core/Annotation.md) | COULD | Extensible metadata |
 
 ## Relationships
 

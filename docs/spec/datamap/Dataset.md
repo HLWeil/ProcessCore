@@ -21,7 +21,7 @@ Reference: [Datamap RO-Crate Profile](../../../references/arc_datamap_ro_crate.m
 |----------|------|----------|-------------|
 | `additionalType` | string | MUST | `Datamap` |
 | `dataContexts` | [DataContext](DataContext.md) | SHOULD | List of DataContexts for annotation of data objects |
-| `dataFiles` | [Data](../process_core/Data.md) | SHOULD | Data files that are part of the dataset |
+| `dataFiles` | [Data](./Data.md) | SHOULD | Data files that are part of the dataset |
 
 ## Relationships
 

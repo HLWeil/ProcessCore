@@ -1,5 +1,5 @@
 ---
-title: Datamap Profile
+title: Datamap
 category: Datamap Profile
 categoryindex: 5
 index: 1
@@ -15,4 +15,5 @@ Reference: [ARC Datamap RO-Crate Profile](../../../references/arc_datamap_ro_cra
 
 - [Dataset](Dataset.md)
 - [DataContext](DataContext.md)
+- [Data](Data.md)
 

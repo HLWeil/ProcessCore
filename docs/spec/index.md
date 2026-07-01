@@ -14,7 +14,7 @@ The ARC Data Model specification defines three peer profiles that together form 
 1. [ARC Core](process_core/overview.md)
 2. [Datamap](datamap/overview.md)
 3. [Administrative](administrative/overview.md)
-4. [Querying](querying/use-cases.md)
+4. [Querying](../project/querying.md)
 
 ## Principles
 
@@ -31,5 +31,4 @@ The ARC Data Model specification defines three peer profiles that together form 
 | [Datamap](datamap/overview.md) | Data files, selected fragments, fragment descriptors, and dataset-level data contexts |
 | [Administrative](administrative/overview.md) | Dataset agents, affiliations, citations, licenses, dates, and administrative metadata |
 | [Decorations](decorations/overview.md) | ISA and Workflow Run mappings layered onto the unified model |
-| [Querying](querying/use-cases.md) | Query use cases and graph traversal notes |
-
+| [Querying](../project/querying.md) | Query use cases and graph traversal notes |

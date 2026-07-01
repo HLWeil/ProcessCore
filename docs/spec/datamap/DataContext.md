@@ -16,7 +16,7 @@ Reference: [ARC Datamap RO-Crate Profile](../../../references/arc_datamap_ro_cra
 | Property | Type | Required | Description |
 |----------|------|----------|-------------|
 | `type` | Text | MUST | `DataContext` in the current YAML authoring examples |
-| `data` | [Data](../process_core/Data.md) | MUST | Target data object or selected data fragment |
+| `data` | [Data](./Data.md) | MUST | Target data object or selected data fragment |
 | `explication` | [DefinedTerm](../process_core/DefinedTerm.md) | SHOULD | Ontological annotation of the fragment contents |
 | `objectType` | [DefinedTerm](../process_core/DefinedTerm.md) | COULD | Expected value shape or entry type of the described fragment, e.g. `String`, `Integer` |
 | `unit` | [DefinedTerm](../process_core/DefinedTerm.md) | COULD | Unit of measurement of the values stored in the fragment, preferably taken from Unit Ontology |
@@ -46,4 +46,3 @@ flowchart TD
     DataContext --generatedBy--> gb
 
 ```
-
