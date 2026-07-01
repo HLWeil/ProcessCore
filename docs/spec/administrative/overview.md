@@ -13,10 +13,11 @@ Reference: [ARC Administrative RO-Crate Profile](https://nfdi4plants.github.io/a
 
 ## Entity Specs
 
+- [Dataset](../Dataset.md)
 - [Agent](Agent.md)
 - [Organization](Organization.md)
 - [ScholarlyArticle](ScholarlyArticle.md)
 
-Administrative properties such as `license`, `datePublished`, `dateCreated`, `dateModified`, `agents`, and `citations` are typed properties on the shared [Dataset](../process_core/Dataset.md) model.
+Administrative properties such as `license`, `datePublished`, `dateCreated`, `dateModified`, `agents`, and `citations` are typed properties on the [Dataset](../Dataset.md) type.
 
 

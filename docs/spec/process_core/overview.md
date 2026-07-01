@@ -1,13 +1,13 @@
 ---
-title: ARC Core
-category: ARC Core Profile
+title: Process Core Profile
+category: Process Core Profile
 categoryindex: 4
 index: 1
 ---
 
-# ARC Core
+# Process Core Profile
 
-ARC Core is the foundational ARC process model. It abstracts experimental and computational workflows as process graphs that connect sample and data inputs to sample and data outputs.
+The Process Core Profile describes the fundamental entities and relationships in the ARC process model. It abstracts experimental and computational workflows as process graphs that connect sample and data inputs to sample and data outputs.
 
 ## Core Types
 

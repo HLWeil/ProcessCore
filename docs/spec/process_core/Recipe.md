@@ -1,6 +1,6 @@
 ---
 title: Recipe
-category: ARC Core Profile
+category: Process Core Profile
 categoryindex: 4
 index: 4
 ---

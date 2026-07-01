@@ -9,6 +9,8 @@ index: 2
 
 Datamap profile content on [Dataset](../process_core/Dataset.md). Represents a dataset that groups data files and fragment-level data contexts.
 
+**Schema.org type**: `schema.org/Dataset`
+
 **`additionalType`**: `Datamap`
 
 Reference: [Datamap RO-Crate Profile](../../../references/arc_datamap_ro_crate.md)
