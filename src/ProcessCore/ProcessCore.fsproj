@@ -65,7 +65,7 @@
     <Compile Include="Spreadsheet\Metadata\Workflow.fs" />
     <Compile Include="Spreadsheet\Metadata\Run.fs" />
     <Compile Include="Spreadsheet\Metadata\OntologySourceReference.fs" />
-    <Compile Include="spreadsheet\AnnotationTable.fs" />
+    <Compile Include="Spreadsheet\AnnotationTable.fs" />
     <Compile Include="Spreadsheet\DatamapTable\DatamapHeader.fs" />
     <Compile Include="Spreadsheet\DatamapTable\DatamapColumn.fs" />
     <Compile Include="Spreadsheet\DatamapTable\DatamapTable.fs" />
