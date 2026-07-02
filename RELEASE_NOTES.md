@@ -1,3 +1,7 @@
+### 0.0.4+6a94245 (Released 2026-7-2)
+* Bugfixes:
+    * [[#6a94245](https://github.com/HLWeil/ProcessCore/commit/6a94245b3e28d96494279f6a6fac825ea00a29e2)] various fixes for ARC load from Scaffold
+
 ### 0.0.3+4669efd (Released 2026-7-2)
 * Additions:
     * [[#815b119](https://github.com/HLWeil/ProcessCore/commit/815b1191a8076ccf00868cf179feb75088ee3eae)] rename some core types and properties

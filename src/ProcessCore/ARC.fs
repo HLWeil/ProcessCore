@@ -37,7 +37,7 @@ type ARC(identifier: string, ?title: string, ?description: string, ?additionalTy
         else 
             printfn $"No ARC yml file found at {p}, trying to read ARC Spreadsheet Scaffold"
             try 
-                ScaffoldReader.ARC.load (fun id -> ARC(id)) arcPath
+                ProcessCore.ScaffoldReader.ARC.load (fun id -> ARC(id)) arcPath
             with
             | ex -> failwith $"Failed to load ARC from scaffold at {arcPath}: {ex.Message}"
 
