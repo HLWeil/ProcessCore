@@ -42,7 +42,7 @@ type Organization(name: string, ?id: string, ?url: string) =
 /// Individual contributor or contact associated with a dataset or article.
 /// schema.org/Agent
 [<AttachMembers>]
-type Agent(givenName: string, ?id: string, ?familyName: string, ?email: string, ?affiliation: Organization, ?identifier: string, ?jobTitle: DefinedTerm, ?additionalName: string, ?address: string, ?telephone: string, ?additionalProperty: seq<Annotation>) as this =
+type Agent(givenName: string, ?id: string, ?familyName: string, ?email: string, ?affiliation: Organization, ?identifier: string, ?jobTitles: seq<DefinedTerm>, ?additionalName: string, ?address: string, ?telephone: string, ?additionalProperty: seq<Annotation>) as this =
 
     inherit DynamicObj()
 
@@ -52,7 +52,7 @@ type Agent(givenName: string, ?id: string, ?familyName: string, ?email: string, 
     let mutable _email: string option = email
     let mutable _affiliation: Organization option = affiliation
     let mutable _identifier: string option = identifier
-    let mutable _jobTitle: DefinedTerm option = jobTitle
+    let mutable _jobTitles: ResizeArray<DefinedTerm> = ResizeArray()
     let mutable _additionalName: string option = additionalName
     let mutable _address: string option = address
     let mutable _telephone: string option = telephone
@@ -60,6 +60,7 @@ type Agent(givenName: string, ?id: string, ?familyName: string, ?email: string, 
 
     do
         additionalProperty |> Option.iter (fun pvs -> for pv in pvs do this.AddAdditionalProperty(pv))
+        jobTitles |> Option.iter (fun jts -> for jt in jts do this.AddJobTitle(jt))
 
     member _.Id
         with get() = _id
@@ -85,9 +86,9 @@ type Agent(givenName: string, ?id: string, ?familyName: string, ?email: string, 
         with get() = _identifier
         and set v = _identifier <- v
 
-    member _.JobTitle
-        with get() = _jobTitle
-        and set v = _jobTitle <- v
+    member _.JobTitles
+        with get() = _jobTitles
+        and set v = _jobTitles <- v
 
     member _.AdditionalName
         with get() = _additionalName
@@ -109,6 +110,13 @@ type Agent(givenName: string, ?id: string, ?familyName: string, ?email: string, 
 
     member _.RemoveAdditionalProperty(pv: Annotation) =
         _additionalProperty.Remove(pv) |> ignore
+
+    member this.AddJobTitle(jobTitle: DefinedTerm) =
+        if not (_jobTitles |> Seq.exists (fun x -> x = jobTitle)) then
+            _jobTitles.Add(jobTitle)
+
+    member _.RemoveJobTitle(jobTitle: DefinedTerm) =
+        _jobTitles.Remove(jobTitle) |> ignore
 
     override this.Equals(obj) =
         match obj with

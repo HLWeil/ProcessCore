@@ -2,6 +2,7 @@ namespace rec ProcessCore
 
 open Fable.Core
 open DynamicObj
+open ProcessCore.Helper
 
 /// Ontology annotation referencing a term in a controlled vocabulary or ontology.
 /// schema.org/DefinedTerm
@@ -40,8 +41,13 @@ type DefinedTerm(name: string, ?tan: string, ?inDefinedTermSet: string) =
         hash (this.Name, this.TAN, this.InDefinedTermSet)
 
 
+    member this.TryGetTSR() =
+        match Ontology.computeTanInfo this.TAN None with
+        | Some id -> Some id.IDSpace
+        | _ -> None
+
     member this.TermAccessionShort() = 
-        match Helper.computeTanInfo this.TAN None with
+        match Ontology.computeTanInfo this.TAN None with
         | Some id -> $"{id.IDSpace}:{id.LocalID}"
         | _ -> ""
 

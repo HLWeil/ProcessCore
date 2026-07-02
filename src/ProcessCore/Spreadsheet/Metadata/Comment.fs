@@ -1,0 +1,61 @@
+namespace ProcessCore.Spreadsheet
+
+open ProcessCore
+open DynamicObj
+open System.Text.RegularExpressions
+open ProcessCore.Helper.Regex.ActivePatterns
+
+module Comment = 
+
+    
+    let commentValueKey = "commentValue"
+
+    let commentPattern = $@"Comment\s*\[<(?<{commentValueKey}>.+)>\]"
+
+    let commentPatternNoAngleBrackets = $@"Comment\s*\[(?<{commentValueKey}>.+)\]"
+
+    let create (k : string option) (v : string option) =
+        let d = DynamicObj()
+        if k.IsSome then d.SetProperty("Name", k.Value)
+        if v.IsSome then d.SetProperty("Value", v.Value)
+        d
+
+    let (|Comment|_|) (key : string) =
+        
+        match key with
+        | Regex commentPattern r ->
+            Some r.Groups.[commentValueKey].Value
+        | Regex commentPatternNoAngleBrackets r -> 
+            let v = r.Groups.[commentValueKey].Value
+            if v = "<>" then None else Some v
+        | _ -> None
+        
+   
+    let wrapCommentKey k = 
+        sprintf "Comment[%s]" k
+
+    let fromString k v =
+       let d = DynamicObj()
+       d.SetProperty("Name", k)
+       d.SetProperty("Value", v)
+       d
+
+module Remark = 
+
+    let remarkValueKey = "remarkValue"
+
+    let remarkPattern = $@"#(?<{remarkValueKey}>.+)"
+
+
+    let (|Remark|_|) (key : Option<string>) =
+        key
+        |> Option.bind (fun k ->
+            match k with
+            | Regex remarkPattern r ->
+                Some r.Groups.[remarkValueKey].Value
+            | _ -> None
+        )
+
+
+    let wrapRemark r = 
+        sprintf "#%s" r

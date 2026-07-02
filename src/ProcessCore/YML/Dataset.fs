@@ -40,7 +40,7 @@ module Dataset =
         | true, value -> Some value
         | false, _    -> None
 
-    let rec decoder (processCoreOnly: bool) (value: YAMLElement) : Dataset =
+    let rec decoderGeneric<'A when 'A :> Dataset> (createF : string -> 'A) (processCoreOnly: bool) (value: YAMLElement) : 'A =
         checkType processCoreOnly "Dataset" value
         let identifier =
             tryGetField "identifier" value |> Option.bind tryDecodeString
@@ -55,15 +55,15 @@ module Dataset =
         let dateModified   = tryGetField "dateModified"   value |> Option.map decodeString
 
         let ds =
-            Dataset(
-                identifier,
-                ?title = title,
-                ?description = description,
-                ?additionalType = additionalType,
-                ?license = license,
-                ?datePublished = datePublished,
-                ?dateCreated = dateCreated,
-                ?dateModified = dateModified)
+            createF identifier
+
+        ds.Title <- title
+        ds.Description <- description
+        ds.AdditionalType <- additionalType
+        ds.License <- license
+        ds.DatePublished <- datePublished
+        ds.DateCreated <- dateCreated
+        ds.DateModified <- dateModified
 
         let annotations =
             addIndexedValues "annotations" (Annotation.decoder processCoreOnly) value
@@ -110,7 +110,7 @@ module Dataset =
                             ds.AddDataFile(data)
                         elif typeStr = "Dataset" || typeStr = "" then
                             // Try to decode as Dataset (nested); empty type defaults to Dataset
-                            let child = decoder processCoreOnly elem
+                            let child = decoderGeneric<Dataset> (fun i -> Dataset(i)) processCoreOnly elem
                             ds.AddPart(child)
             | None -> ())
 
@@ -129,6 +129,9 @@ module Dataset =
 
         applyOverflow "Dataset" processCoreOnly knownFields ds value
         ds
+
+    let decoder (processCoreOnly: bool) (value: YAMLElement) : Dataset =
+        decoderGeneric<Dataset> (fun i -> Dataset(i)) processCoreOnly value
 
     // ── Encoders ───────────────────────────────────────────────────────────────
 
