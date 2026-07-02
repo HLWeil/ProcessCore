@@ -1,15 +1,19 @@
-namespace ARCtrl.Spreadsheet
+namespace ProcessCore.Spreadsheet
 
-open ARCtrl
-open ARCtrl.Helper
+open ProcessCore
+open ProcessCore.Helper
+open ProcessCore.Spreadsheet
 open FsSpreadsheet
-
-open Workflow
 open System.Collections.Generic
 
 module ArcWorkflow =
 
     let [<Literal>] metadataSheetName = "isa_workflow"
+    let [<Literal>] workflowLabel = "WORKFLOW"
+    let [<Literal>] contactsLabel = "WORKFLOW CONTACTS"
+
+    let [<Literal>] workflowLabelPrefix = "Workflow"
+    let [<Literal>] contactsLabelPrefix = "Workflow Person"
         
     let fromRows (rows : seq<SparseRow>) = 
 
@@ -19,7 +23,7 @@ module ArcWorkflow =
                
             match lastRow with
             | Some prefix when prefix = workflowLabel -> 
-                let currentRow, rowNumber, _, workflow = Workflow.fromRows (rowNumber + 1) en       
+                let currentRow, rowNumber, _, workflow = Workflow.fromRows (rowNumber + 1) en
                 loop currentRow (Some workflow) contacts rowNumber
 
             | Some prefix when prefix = contactsLabel -> 
@@ -27,9 +31,13 @@ module ArcWorkflow =
                 loop currentLine workflow contacts rowNumber
             | _ -> 
                 match workflow, contacts with
-                | None, contacts -> ArcWorkflow.create(Identifier.createMissingIdentifier(), contacts = ResizeArray contacts)
+                | None, contacts ->
+                    let workflow : Dataset = Dataset(Identifier.createMissingIdentifier(), additionalType = "Workflow")
+                    contacts |> Seq.iter workflow.AddAgent
+                    workflow
                 | Some workflow, contacts ->
-                    workflow.Contacts <- ResizeArray contacts
+                    let workflow : Dataset = workflow
+                    contacts |> Seq.iter workflow.AddAgent
                     workflow
         
         if en.MoveNext () then
@@ -38,47 +46,12 @@ module ArcWorkflow =
             
         else
             failwith "empty workflow metadata sheet"
-   
-    let toRows (workflow : ArcWorkflow) =
 
-        seq {
-            yield  SparseRow.fromValues [workflowLabel]
-            yield! toRows workflow
-
-            yield  SparseRow.fromValues [contactsLabel]
-            yield! Contacts.toRows (Some contactsLabelPrefix) (List.ofSeq workflow.Contacts)
-        }
-
-    let toMetadataSheet (workflow : ArcWorkflow) : FsWorksheet =
-        let sheet = FsWorksheet(metadataSheetName)
-        workflow
-        |> toRows
-        |> Seq.iteri (fun rowI r -> SparseRow.writeToSheet (rowI + 1) r sheet)    
-        sheet
-
-    let fromMetadataSheet (sheet : FsWorksheet) : ArcWorkflow =
+    let fromMetadataSheet (sheet : FsWorksheet) : Dataset =
         try
             let rows =        
                 sheet.Rows 
                 |> Seq.map SparseRow.fromFsRow
-            //let hasPrefix = 
-            //    rows
-            //    |> Seq.exists (fun row -> row |> Seq.head |> snd |> fun s -> s.StartsWith(assaysPrefix))
-            rows
-            |> fromRows
-        with 
-        | err -> failwithf "Failed while parsing metadatasheet: %s" err.Message
-
-    let toMetadataCollection (workflow : ArcWorkflow) =
-        workflow
-        |> toRows
-        |> Seq.map (fun row -> SparseRow.getAllValues row)
-
-    let fromMetadataCollection (collection : seq<seq<string option>>) : ArcWorkflow =
-        try
-            let rows =        
-                collection 
-                |> Seq.map SparseRow.fromAllValues   
             rows
             |> fromRows
         with 
@@ -93,43 +66,3 @@ module ArcWorkflow =
     let tryGetMetadataSheet (doc : FsWorkbook) =
         doc.GetWorksheets()
         |> Seq.tryFind isMetadataSheet
-
-[<AutoOpen>]
-module ArcWorkflowExtensions =
-
-    type ArcWorkflow with
-
-        /// Reads an workflow from a spreadsheet
-        static member fromFsWorkbook (doc : FsWorkbook) : ArcWorkflow = 
-            try
-                // Reading the "Workflow" metadata sheet. Here metadata 
-                let workflowMetadata = 
-                    match ArcWorkflow.tryGetMetadataSheet doc with
-                    | Option.Some sheet ->
-                        ArcWorkflow.fromMetadataSheet sheet
-                    | None -> 
-                        printfn "Cannot retrieve metadata: Workflow file does not contain \"%s\" sheet." ArcWorkflow.metadataSheetName
-                        ArcWorkflow.create(Identifier.createMissingIdentifier())
-                let sheets = doc.GetWorksheets()
-                let datamapSheet =
-                    sheets |> Seq.tryPick DatamapTable.tryFromFsWorksheet
-                workflowMetadata.Datamap <- datamapSheet
-                workflowMetadata
-            with
-            | err -> failwithf "Could not parse assay: \n%s" err.Message
-            
-
-        /// <summary>
-        /// Write a workflow to a spreadsheet
-        /// </summary>
-        /// <param name="workflow"></param>
-        static member toFsWorkbook (workflow : ArcWorkflow) =
-            let doc = new FsWorkbook()
-            let metadataSheet = ArcWorkflow.toMetadataSheet (workflow)
-            doc.AddWorksheet metadataSheet
-
-            doc
-
-        /// Write a workflow to a spreadsheet
-        member this.ToFsWorkbook () =
-            ArcWorkflow.toFsWorkbook (this)

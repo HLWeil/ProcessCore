@@ -56,6 +56,7 @@ module Protocols =
                     matrix.CommentKeys 
                     |> List.map (fun k -> 
                         Comment.fromString k (matrix.TryGetValueDefault("",(k,i))))
+                    |> ResizeArray
 
                 fromString
                     (matrix.TryGetValue(nameLabel,i))

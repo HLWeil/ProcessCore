@@ -1,8 +1,9 @@
-namespace ARCtrl.Spreadsheet
+namespace ProcessCore.Spreadsheet
 
-open ARCtrl
-open ARCtrl.Helper
+open ProcessCore
+open ProcessCore.Helper
 open FsSpreadsheet
+open DynamicObj
 open Comment
 open Remark
 open System.Collections.Generic
@@ -34,7 +35,7 @@ module ArcInvestigation =
             Description : string
             SubmissionDate : string
             PublicReleaseDate : string
-            Comments : Comment list
+            Comments : DynamicObj list
         }
 
         static member create identifier title description submissionDate publicReleaseDate comments =
@@ -67,54 +68,30 @@ module ArcInvestigation =
                 comments
 
 
-        static member ToSparseTable (investigation : ArcInvestigation) =
-            let i = 1
-            let matrix = SparseTable.Create (keys = InvestigationInfo.Labels,length=2)
-            let mutable commentKeys = []
-
-            do matrix.Matrix.Add ((identifierLabel, i),         (investigation.Identifier))
-            do matrix.Matrix.Add ((titleLabel, i),              (Option.defaultValue "" investigation.Title))
-            do matrix.Matrix.Add ((descriptionLabel, i),        (Option.defaultValue "" investigation.Description))
-            do matrix.Matrix.Add ((submissionDateLabel, i),     (Option.defaultValue "" investigation.SubmissionDate))
-            do matrix.Matrix.Add ((publicReleaseDateLabel, i),  (Option.defaultValue "" investigation.PublicReleaseDate))
-
-            investigation.Comments
-            |> ResizeArray.iter (fun comment -> 
-                let n, v = comment |> Comment.toString
-                commentKeys <- n :: commentKeys
-                matrix.Matrix.Add((n, i), v)
-            )   
-
-            {matrix with CommentKeys = commentKeys |> List.distinct |> List.rev}
-
-      
         static member fromRows lineNumber (rows : IEnumerator<SparseRow>) =
             SparseTable.FromRows(rows, InvestigationInfo.Labels, lineNumber)
             |> fun (s, ln, rs, sm) -> (s, ln, rs, InvestigationInfo.FromSparseTable sm)    
     
-        static member toRows (investigation : ArcInvestigation) =  
-            investigation
-            |> InvestigationInfo.ToSparseTable
-            |> SparseTable.ToRows
  
-    let fromParts (investigationInfo : InvestigationInfo) (ontologySourceReference : OntologySourceReference list) (publications : Publication list) (contacts : Person list) (studies : ArcStudy list) (assays : ArcAssay list) (remarks : Remark list) =
+    let fromParts (investigationInfo : InvestigationInfo) (ontologySourceReference : DynamicObj list) (publications : ScholarlyArticle list) (contacts : Agent list) (studies : Dataset list) (assays : Dataset list) (remarks : 'A list) =
         let studyIdentifiers = studies |> List.map (fun s -> s.Identifier)
-        ArcInvestigation.make 
-             investigationInfo.Identifier
-            (Option.fromValueWithDefault "" investigationInfo.Title)
-            (Option.fromValueWithDefault "" investigationInfo.Description) 
-            (Option.fromValueWithDefault "" investigationInfo.SubmissionDate) 
-            (Option.fromValueWithDefault "" investigationInfo.PublicReleaseDate)
-            (ResizeArray ontologySourceReference) 
-            (ResizeArray publications)  
-            (ResizeArray contacts)  
-            (ResizeArray assays)
-            (ResizeArray studies)
-            (ResizeArray())
-            (ResizeArray())
-            (ResizeArray studyIdentifiers)
-            (ResizeArray investigationInfo.Comments)  
-            (ResizeArray remarks)
+        let i = 
+            Dataset(
+                identifier = investigationInfo.Identifier,
+                ?title = Option.fromValueWithDefault "" investigationInfo.Title,
+                ?description = Option.fromValueWithDefault "" investigationInfo.Description,
+                additionalType = "Investigation",
+                ?dateCreated = Option.fromValueWithDefault "" investigationInfo.SubmissionDate,
+                ?datePublished = Option.fromValueWithDefault "" investigationInfo.PublicReleaseDate,
+                agents = ResizeArray contacts,
+                citations = ResizeArray publications          
+            )
+        i.SetProperty("OntologySourceReferences", ontologySourceReference)
+        i.SetProperty("StudyIdentifiers", studyIdentifiers)
+        i.SetProperty("AssayIdentifiers", assays |> List.map (fun a -> a.Identifier))
+        if investigationInfo.Comments.Length > 0 then i.SetProperty("Comments", ResizeArray investigationInfo.Comments)
+        i
+
 
     let fromRows (rows : seq<SparseRow>) =
         if Seq.isEmpty rows then failwith "isa_investigation sheet in Investigation file is empty"
@@ -144,8 +121,8 @@ module ArcInvestigation =
 
             | Some k when k = studyLabel -> 
                 let currentLine, lineNumber, newRemarks, study = Studies.fromRows (lineNumber + 1) en  
-                if study.IsSome then
-                    loop currentLine ontologySourceReferences investigationInfo publications contacts (study.Value::studies) (List.append remarks newRemarks) lineNumber
+                if study.Identifier <> "" && not (Identifier.isMissingIdentifier study.Identifier) then
+                    loop currentLine ontologySourceReferences investigationInfo publications contacts (study::studies) (List.append remarks newRemarks) lineNumber
                 else 
                     loop currentLine ontologySourceReferences investigationInfo publications contacts studies (List.append remarks newRemarks) lineNumber
 
@@ -155,13 +132,7 @@ module ArcInvestigation =
                     let currentLine = en.Current |> SparseRow.tryGetValueAt 0
                     loop currentLine ontologySourceReferences investigationInfo publications contacts studies remarks lineNumber
                 | false ->
-                    let studies, assays = 
-                        studies 
-                        |> List.unzip 
-                        |> fun (s, a) -> 
-                            s |> List.rev, 
-                            a |> List.concat |> List.distinctBy (fun a -> a.Identifier)
-                    fromParts investigationInfo ontologySourceReferences publications contacts studies assays remarks
+                    fromParts investigationInfo ontologySourceReferences publications contacts studies [] remarks
 
         let arcInvestigation =
             en.MoveNext() |> ignore
@@ -171,57 +142,19 @@ module ArcInvestigation =
         if arcInvestigation.Identifier.Equals System.String.Empty then failwith "Mandatory Investigation identifier is not present"
 
         arcInvestigation
- 
 
-    let toRows (investigation : ArcInvestigation) : seq<SparseRow> =
-        let insertRemarks (remarks : Remark list) (rows : seq<SparseRow>) = 
-            try 
-                let rm = remarks |> List.map Remark.toTuple |> Map.ofList            
-                let rec loop i l nl =
-                    match Map.tryFind i rm with
-                    | Some remark ->
-                         SparseRow.fromValues [wrapRemark remark] :: nl
-                        |> loop (i+1) l
-                    | None -> 
-                        match l with
-                        | [] -> nl
-                        | h :: t -> 
-                            loop (i+1) t (h::nl)
-                loop 1 (rows |> List.ofSeq) []
-                |> List.rev
-            with | _ -> rows |> Seq.toList
-        seq {
-            yield  SparseRow.fromValues [ontologySourceReferenceLabel]
-            yield! OntologySourceReference.toRows (List.ofSeq investigation.OntologySourceReferences)
-
-            yield  SparseRow.fromValues [investigationLabel]
-            yield! InvestigationInfo.toRows investigation
-
-            yield  SparseRow.fromValues [publicationsLabel]
-            yield! Publications.toRows (Some publicationsLabelPrefix) (List.ofSeq investigation.Publications)
-
-            yield  SparseRow.fromValues [contactsLabel]
-            yield! Contacts.toRows (Some contactsLabelPrefix) (List.ofSeq investigation.Contacts)
-
-            for studyIdentifier in investigation.RegisteredStudyIdentifiers do
-                let study = investigation.TryGetStudy(studyIdentifier) |> Option.defaultValue (ArcStudy(studyIdentifier))
-                yield  SparseRow.fromValues [studyLabel]
-                yield! Studies.toRows study None
-        }
-        |> insertRemarks (List.ofSeq investigation.Remarks)
-        |> seq
-
-    let toMetadataCollection (investigation : ArcInvestigation) =
-        toRows investigation
-        |> Seq.map (fun row -> SparseRow.getAllValues row)
-
-    let fromMetadataCollection (collection : seq<seq<string option>>) =
-        collection
-        |> Seq.map SparseRow.fromAllValues
-        |> fromRows
+    let fromMetadataSheet (sheet : FsWorksheet) : Dataset =
+        try
+            let rows =        
+                sheet.Rows 
+                |> Seq.map SparseRow.fromFsRow
+            rows
+            |> fromRows
+        with 
+        | err -> failwithf "Failed while parsing metadatasheet: %s" err.Message
 
     let isMetadataSheetName (name : string) =
-        name = metadataSheetName || name = obsoleteMetadataSheetName
+        name = metadataSheetName
 
     let isMetadataSheet (sheet : FsWorksheet) =
         isMetadataSheetName sheet.Name
@@ -229,36 +162,3 @@ module ArcInvestigation =
     let tryGetMetadataSheet (doc : FsWorkbook) =
         doc.GetWorksheets()
         |> Seq.tryFind isMetadataSheet
-
-
-[<AutoOpen>]
-module ArcInvestigationExtensions =
-
-    open ArcInvestigation
-
-    type ArcInvestigation with
-
-        static member fromFsWorkbook (doc : FsWorkbook) =  
-            try
-                match ArcInvestigation.tryGetMetadataSheet doc with
-                | Some sheet -> sheet
-                | None -> failwith "Could not find metadata sheet with sheetname \"isa_investigation\" or deprecated sheetname \"Investigation\""
-                |> FsWorksheet.getRows
-                |> Seq.map SparseRow.fromFsRow
-                |> fromRows 
-            with
-            | err -> failwithf "Could not read investigation from spreadsheet: %s" err.Message
-
-        static member toFsWorkbook (investigation : ArcInvestigation) : FsWorkbook =           
-            try
-                let wb = new FsWorkbook()
-                let sheet = FsWorksheet(metadataSheetName)
-                investigation
-                |> toRows
-                |> Seq.iteri (fun rowI r -> SparseRow.writeToSheet (rowI + 1) r sheet)                     
-                wb.AddWorksheet(sheet)
-                wb
-            with
-            | err -> failwithf "Could not write investigation to spreadsheet: %s" err.Message
-
-        member this.ToFsWorkbook() = ArcInvestigation.toFsWorkbook this

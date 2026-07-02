@@ -21,11 +21,11 @@ let tests = testList "Administrative" [
                 email = "ada@example.org",
                 affiliation = org,
                 identifier = "ORCID:0000-0000-0000-0001",
-                jobTitle = role,
+                jobTitles = [ role ],
                 additionalProperty = [ pv ])
 
         Expect.equal agent.Affiliation (Some org) "affiliation should be retained"
-        Expect.equal agent.JobTitle (Some role) "job title should be retained"
+        Expect.equal agent.JobTitles.Count 1 "job titles should be retained"
         Expect.equal agent.Identifier (Some "ORCID:0000-0000-0000-0001") "identifier should be retained"
         Expect.equal agent.AdditionalProperty.Count 1 "additional property should be retained"
 

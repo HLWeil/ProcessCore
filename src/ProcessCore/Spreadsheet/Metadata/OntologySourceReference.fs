@@ -1,10 +1,10 @@
-namespace ARCtrl.Spreadsheet
+namespace ProcessCore.Spreadsheet
 
 open FsSpreadsheet
-open ARCtrl
-open ARCtrl.Helper
-
+open ProcessCore
+open ProcessCore.Helper
 open System.Collections.Generic
+open DynamicObj
 
 module OntologySourceReference = 
 
@@ -16,18 +16,20 @@ module OntologySourceReference =
     
     let labels = [nameLabel;fileLabel;versionLabel;descriptionLabel]
 
-    let fromString description file name version comments =
-        OntologySourceReference.make
-            (description)
-            (file)
-            (name)
-            (version)
-            comments
+    let fromString (description : string option) (file : string option) (name : string option) (version : string option) (comments : DynamicObj ResizeArray) =
+        let d = DynamicObj()
+        if comments.Count > 0 then d.SetProperty("Comments",comments)
+        if description.IsSome then d.SetProperty(descriptionLabel,description.Value)
+        if file.IsSome then d.SetProperty(fileLabel,file.Value)
+        if name.IsSome then d.SetProperty(nameLabel,name.Value)
+        if version.IsSome then d.SetProperty(versionLabel,version.Value)
+        d
+
 
     let fromSparseTable (matrix : SparseTable) =
         if matrix.ColumnCount = 0 && matrix.CommentKeys.Length <> 0 then
             let comments = SparseTable.GetEmptyComments matrix
-            OntologySourceReference.create(Comments = comments)
+            fromString None None None None comments
             |> List.singleton
         else
             List.init matrix.ColumnCount (fun i -> 
@@ -46,32 +48,6 @@ module OntologySourceReference =
                     comments
             )
 
-    let toSparseTable (ontologySources: OntologySourceReference list) =
-        let matrix = SparseTable.Create (keys = labels,length=ontologySources.Length + 1)
-        let mutable commentKeys = []
-        ontologySources
-        |> List.iteri (fun i o ->
-            let i = i + 1
-            do matrix.Matrix.Add ((nameLabel,i),        (Option.defaultValue "" o.Name))
-            do matrix.Matrix.Add ((fileLabel,i),        (Option.defaultValue "" o.File))
-            do matrix.Matrix.Add ((versionLabel,i),     (Option.defaultValue "" o.Version))
-            do matrix.Matrix.Add ((descriptionLabel,i), (Option.defaultValue "" o.Description))
-
-
-            o.Comments
-            |> ResizeArray.iter (fun comment -> 
-                let n,v = comment |> Comment.toString
-                commentKeys <- n :: commentKeys
-                matrix.Matrix.Add((n,i),v)
-            )     
-        )
-        {matrix with CommentKeys = commentKeys |> List.distinct |> List.rev}
-
     let fromRows lineNumber (rows : IEnumerator<SparseRow>) =
         SparseTable.FromRows(rows,labels,lineNumber)
         |> fun (s,ln,rs,sm) -> (s,ln,rs, fromSparseTable sm)
-    
-    let toRows (termSources : OntologySourceReference list) =
-        termSources
-        |> toSparseTable
-        |> fun m -> SparseTable.ToRows(m)

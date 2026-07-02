@@ -1,7 +1,8 @@
-module ARCtrl.Spreadsheet.DatamapTable
+module ProcessCore.Spreadsheet.DatamapTable
 
-open ARCtrl
-open ArcTable
+open ProcessCore
+open ProcessCore.Table
+open ProcessCore.Helper
 open FsSpreadsheet
 
 [<Literal>]
@@ -32,12 +33,26 @@ let tryDatamapTable (sheet : FsWorksheet) =
 /// Groups and parses a collection of single columns into the according ISA composite columns
 let composeColumns (columns : seq<FsColumn>) : ResizeArray<DataContext> =
     let l = (columns |> Seq.item 0).MaxRowIndex - 1
-    let dc = ResizeArray([| for i = 0 to l - 1 do yield DataContext()|])
+    let dc = ResizeArray([| for i = 0 to l - 1 do yield DataContext(Data("dummy"))|])
     columns
     |> Seq.toList
     |> groupColumnsByHeader
     |> List.iter (DatamapColumn.setFromFsColumns dc >> ignore)
     dc
+
+let tryDataContextsFromFsWorksheet (sheet : FsWorksheet) : ResizeArray<DataContext> option =
+    try
+        match tryDatamapTable sheet with
+        | Some (t: FsTable) -> 
+            let dataContexts = 
+                t.GetColumns(sheet.CellCollection)
+                |> composeColumns
+            Some dataContexts
+        | None ->
+            None
+    with
+    | err -> failwithf "Could not parse datamap table with name \"%s\":\n%s" sheet.Name err.Message
+
 
 /// Returns the protocol described by the headers and a function for parsing the values of the matrix to the processes of this protocol
 let tryFromFsWorksheet (sheet : FsWorksheet) =
@@ -47,46 +62,9 @@ let tryFromFsWorksheet (sheet : FsWorksheet) =
             let dataContexts = 
                 t.GetColumns(sheet.CellCollection)
                 |> composeColumns
-            Datamap(dataContexts)
+            Dataset(identifier = Identifier.createMissingIdentifier(), additionalType = "Datamap", dataContexts = dataContexts)
             |> Some
         | None ->
             None
     with
     | err -> failwithf "Could not parse datamap table with name \"%s\":\n%s" sheet.Name err.Message
-
-let toFsWorksheet (table : Datamap) =
-    /// This dictionary is used to add spaces at the end of duplicate headers.
-    let stringCount = System.Collections.Generic.Dictionary<string,string>()
-    let ws = FsWorksheet("isa_datamap")
-
-    // Cancel if there are no columns
-    if table.DataContexts.Count = 0 then ws
-    else
-
-    let columns = 
-        DatamapColumn.toFsColumns table.DataContexts
-    let maxRow = columns.Head.Length
-    let maxCol = columns.Length
-    let fsTable = ws.Table("datamapTable",FsRangeAddress(FsAddress(1,1),FsAddress(maxRow,maxCol)))
-    columns
-    |> List.iteri (fun colI col ->         
-        col
-        |> List.iteri (fun rowI cell -> 
-            let value = 
-                let v = cell.ValueAsString()
-                if rowI = 0 then
-                    
-                    match Dictionary.tryGet v stringCount with
-                    | Some spaces ->
-                        stringCount.[v] <- spaces + " "
-                        v + " " + spaces
-                    | None ->
-                        stringCount.Add(cell.ValueAsString(),"")
-                        v
-                else v
-            let address = FsAddress(rowI+1,colI+1)
-            fsTable.Cell(address, ws.CellCollection).SetValueAs value
-        )  
-    )
-    ws.RescanRows()
-    ws

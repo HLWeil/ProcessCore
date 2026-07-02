@@ -1,30 +1,30 @@
-module ARCtrl.Spreadsheet.Datamap
+module ProcessCore.Spreadsheet.Datamap
 
-open ARCtrl
-open ArcTable
+open ProcessCore
+open ProcessCore.Helper
 open FsSpreadsheet
 
 /// Reads an datamap from a spreadsheet
-let fromFsWorkbook (doc : FsWorkbook) = 
+let dataContextsFromFsWorkbook (doc : FsWorkbook) = 
     try
         let worksheets = doc.GetWorksheets()
         let sheetIsEmpty (sheet : FsWorksheet) = sheet.CellCollection.Count = 0
-        let datamapTable = 
+        let dataContexts = 
             worksheets
-            |> Seq.tryPick DatamapTable.tryFromFsWorksheet
-        match datamapTable with
-        | Some table -> table
+            |> Seq.tryPick DatamapTable.tryDataContextsFromFsWorksheet
+        match dataContexts with
+        | Some dc -> dc
         | None -> 
             if worksheets |> Seq.forall sheetIsEmpty then
-                Datamap.init()
+                ResizeArray<DataContext>()
             else
                 failwith "No DatamapTable was found in any of the sheets of the workbook"
     with
     | err -> failwithf "Could not parse datamap: \n%s" err.Message
             
-let toFsWorkbook (datamap : Datamap) =
-    let doc = new FsWorkbook()
-
-    DatamapTable.toFsWorksheet datamap
-    |> doc.AddWorksheet
-    doc
+let fromFsWorkbook (doc : FsWorkbook) = 
+    try
+        dataContextsFromFsWorkbook doc
+        |> fun dataContexts -> Dataset(identifier = Identifier.createMissingIdentifier(), additionalType = "Datamap", dataContexts = dataContexts)
+    with
+    | err -> failwithf "Could not parse datamap: \n%s" err.Message

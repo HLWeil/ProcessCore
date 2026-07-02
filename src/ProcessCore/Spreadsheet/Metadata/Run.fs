@@ -1,11 +1,10 @@
-namespace ARCtrl.Spreadsheet
+namespace ProcessCore.Spreadsheet
 
-open ARCtrl
+open ProcessCore
 open Comment
 open Remark
 open System.Collections.Generic
-open ARCtrl.Helper
-open ARCtrl.Process.Conversion
+open ProcessCore.Helper
 
 
 module Run = 
@@ -36,13 +35,13 @@ module Run =
         ]
 
     
-    let fromString identifier title description (workflowIdentifiers : string option) measurementType measurementTypeTermSourceREF measurementTypeTermAccessionNumber technologyType technologyTypeTermSourceREF technologyTypeTermAccessionNumber technologyPlatform fileName comments : ArcRun =
+    let fromString identifier title description (workflowIdentifiers : string option) measurementType measurementTypeTermSourceREF measurementTypeTermAccessionNumber technologyType technologyTypeTermSourceREF technologyTypeTermAccessionNumber technologyPlatform fileName comments : Dataset =
         let workflowIdentifiers =
             match workflowIdentifiers with
             | Some wi -> wi.Split(';') |> ResizeArray
             | None -> ResizeArray()
-        let measurementType = OntologyAnnotation.create(?name = measurementType,?tan = measurementTypeTermAccessionNumber,?tsr = measurementTypeTermSourceREF)
-        let technologyType = OntologyAnnotation.create(?name = technologyType,?tan = technologyTypeTermAccessionNumber,?tsr = technologyTypeTermSourceREF)
+        let measurementType = measurementType |> Option.map (fun mt -> DefinedTerm(name = mt, ?tan = measurementTypeTermAccessionNumber))
+        let technologyType = technologyType |> Option.map (fun tt -> DefinedTerm(name = tt, ?tan = technologyTypeTermAccessionNumber))
         let identifier =
             match identifier with
             | Some identifier -> identifier
@@ -53,22 +52,15 @@ module Run =
                     | Some identifier -> identifier
                     | _ -> Identifier.createMissingIdentifier()
                 | None -> Identifier.createMissingIdentifier()
-        ArcRun.make
-            identifier
-            title
-            description
-            (Option.fromValueWithDefault (OntologyAnnotation()) measurementType)
-            (Option.fromValueWithDefault (OntologyAnnotation()) technologyType) 
-            (technologyPlatform |> Option.map JsonTypes.decomposeTechnologyPlatform)
-            workflowIdentifiers
-            (ResizeArray())             
-            None
-            (ResizeArray())
-            None
-            (ResizeArray())
-            (comments)
+        let run = Dataset(identifier, ?title = title, ?description = description, additionalType = "Run")
+        measurementType |> Option.iter (fun value -> run.SetProperty("MeasurementType", value))
+        technologyType |> Option.iter (fun value -> run.SetProperty("TechnologyType", value))
+        technologyPlatform |> Option.iter (fun value -> run.SetProperty("TechnologyPlatform", value))
+        run.SetProperty("WorkflowIdentifiers", workflowIdentifiers)
+        run.SetProperty("Comments", comments)
+        run
         
-    let fromSparseTable (matrix : SparseTable) : ArcRun =
+    let fromSparseTable (matrix : SparseTable) : Dataset =
         let i = 0
 
         let comments = 
@@ -91,45 +83,7 @@ module Run =
             (matrix.TryGetValue(technologyPlatformLabel,i))     
             (matrix.TryGetValue(fileNameLabel,i))                    
             comments
-            
-
-    let toSparseTable (run: ArcRun) =
-        let i = 1
-        let matrix = SparseTable.Create (keys = labels,length = 2)
-        let mutable commentKeys = []
-        let processedIdentifier,processedFileName =
-            if run.Identifier.StartsWith(Identifier.MISSING_IDENTIFIER) then "","" else 
-                run.Identifier, Identifier.Run.fileNameFromIdentifier run.Identifier
-        let workflowIdentifiers = String.concat ";" run.WorkflowIdentifiers
-        let mt = Option.defaultValue (OntologyAnnotation()) run.MeasurementType |> fun mt -> OntologyAnnotation.toStringObject(mt,true)
-        let tt = Option.defaultValue (OntologyAnnotation()) run.TechnologyType |> fun tt -> OntologyAnnotation.toStringObject(tt,true)
-        do matrix.Matrix.Add ((identifierLabel,i),                            processedIdentifier)
-        do matrix.Matrix.Add ((titleLabel,i),                                 (Option.defaultValue "" run.Title))
-        do matrix.Matrix.Add ((descriptionLabel,i),                           (Option.defaultValue "" run.Description))
-        do matrix.Matrix.Add ((workflowIdentifiersLabel,i),                   workflowIdentifiers)
-        do matrix.Matrix.Add ((measurementTypeLabel,i),                       mt.TermName)
-        do matrix.Matrix.Add ((measurementTypeTermAccessionNumberLabel,i),    mt.TermAccessionNumber)
-        do matrix.Matrix.Add ((measurementTypeTermSourceREFLabel,i),          mt.TermSourceREF)
-        do matrix.Matrix.Add ((technologyTypeLabel,i),                        tt.TermName)
-        do matrix.Matrix.Add ((technologyTypeTermAccessionNumberLabel,i),     tt.TermAccessionNumber)
-        do matrix.Matrix.Add ((technologyTypeTermSourceREFLabel,i),           tt.TermSourceREF)
-        do matrix.Matrix.Add ((technologyPlatformLabel,i),                    (Option.defaultValue "" (run.TechnologyPlatform |> Option.map JsonTypes.composeTechnologyPlatform)))
-        do matrix.Matrix.Add ((fileNameLabel,i),                              processedFileName)
-
-        run.Comments
-        |> ResizeArray.iter (fun comment -> 
-            let n,v = comment |> Comment.toString
-            commentKeys <- n :: commentKeys
-            matrix.Matrix.Add((n,i),v)
-        )   
-        
-        {matrix with CommentKeys = commentKeys |> List.distinct |> List.rev}
 
     let fromRows lineNumber (rows : IEnumerator<SparseRow>) =
         SparseTable.FromRows(rows,labels,lineNumber,prefix = runLabelPrefix)
         |> fun (s,ln,rs,sm) -> (s,ln,rs, fromSparseTable sm)
- 
-    let toRows (run : ArcRun) =
-        run
-        |> toSparseTable
-        |> fun m -> SparseTable.ToRows(m,prefix = runLabelPrefix)

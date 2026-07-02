@@ -14,7 +14,7 @@ module Agent =
     let private knownPropertyNames =
         Set.ofList
             [ "id"; "type"; "givenname"; "familyname"; "email"; "affiliation"; "identifier"
-              "jobtitle"; "additionalname"; "address"; "telephone"; "additionalproperty" ]
+              "jobtitles"; "additionalname"; "address"; "telephone"; "additionalproperty" ]
 
     let decoder (processCoreOnly: bool) (value: YAMLElement) : Agent =
         checkType processCoreOnly "Agent" value
@@ -32,12 +32,20 @@ module Agent =
                 | Choice2Of2 org -> Some org
                 | Choice1Of2 _ -> None)
         let identifier = tryGetField "identifier" value |> Option.map decodeString
-        let jobTitle =
-            tryGetField "jobTitle" value
-            |> Option.bind (fun v ->
-                match decodeRefOrInline (DefinedTerm.decoder processCoreOnly) v with
-                | Choice2Of2 dt -> Some dt
-                | Choice1Of2 _ -> None)
+        let jobTitles =
+            tryGetField "jobTitles" value
+            |> Option.map (fun v ->
+                match tryDecodeSequence v with
+                | Some elems ->
+                    elems
+                    |> Seq.choose (fun elem ->
+                        match decodeRefOrInline (DefinedTerm.decoder processCoreOnly) elem with
+                        | Choice2Of2 dt -> Some dt
+                        | Choice1Of2 _ -> None
+                    )
+                | None -> Seq.empty
+            )
+
         let additionalName = tryGetField "additionalName" value |> Option.map decodeString
         let address = tryGetField "address" value |> Option.map decodeString
         let telephone = tryGetField "telephone" value |> Option.map decodeString
@@ -50,7 +58,7 @@ module Agent =
                 ?email = email,
                 ?affiliation = affiliation,
                 ?identifier = identifier,
-                ?jobTitle = jobTitle,
+                ?jobTitles = jobTitles,
                 ?additionalName = additionalName,
                 ?address = address,
                 ?telephone = telephone)
@@ -84,9 +92,8 @@ module Agent =
             match agent.Identifier with
             | Some v -> yield "identifier", yamlValue v
             | None -> ()
-            match agent.JobTitle with
-            | Some v -> yield "jobTitle", DefinedTerm.encoder v
-            | None -> ()
+            if agent.JobTitles.Count > 0 then 
+                yield "jobTitles", yamlSeq (Seq.map DefinedTerm.encoder agent.JobTitles |> Seq.toList)
             match agent.AdditionalName with
             | Some v -> yield "additionalName", yamlValue v
             | None -> ()

@@ -8,60 +8,26 @@
   <Import Project="ProcessCore.Common.props" />
 
   <ItemGroup>
-
-    <Compile Include="Helper\CrossAsync.fs" />
-
-    <Compile Include="Helper\FileSystemHelper.fs" />
-
-    <Compile Include="helper\ResizeArray.fs" />
-
-    <Compile Include="helper\Option.fs" />
-
-    <Compile Include="helper\Path.fs" />
-
-    <Compile Include="helper\Regex.fs" />
-
-    <Compile Include="helper\Ontology.fs" />
-
-    <Compile Include="helper\Identifier.fs" />
-
     <None Include="index.ts" />
     <None Include="__init__.py" />
     <None Include="..\..\README.md" Pack="true" PackagePath="\" />
     <Content Include="ProcessCore.Common.props" Pack="true" PackagePath="fable/" />
     <Content Include="ProcessCore.Python.fsproj" Pack="true" PackagePath="fable/" />
     <Content Include="ProcessCore.Javascript.fsproj" Pack="true" PackagePath="fable/" />
+    <Compile Include="Helper\CrossAsync.fs" />
+    <Compile Include="Helper\FileSystemHelper.fs" />
+    <Compile Include="Helper\ResizeArray.fs" />
+    <Compile Include="Helper\Option.fs" />
+    <Compile Include="Helper\Path.fs" />
+    <Compile Include="Helper\Regex.fs" />
+    <Compile Include="Helper\Ontology.fs" />
+    <Compile Include="Helper\Identifier.fs" />
     <Compile Include="DefinedTerm.fs" />
     <Compile Include="FormalParameter.fs" />
     <Compile Include="Annotation.fs" />
     <Compile Include="Administrative.fs" />
     <Compile Include="FragmentSelector.fs" />
     <Compile Include="Graph.fs" />
-    <Compile Include="Spreadsheet\CollectionAux.fs" />
-    <Compile Include="Spreadsheet\Metadata\Conversions.fs" />
-    <Compile Include="Spreadsheet\Metadata\Comment.fs" />
-    <Compile Include="Spreadsheet\Metadata\SparseTable.fs" />
-    <Compile Include="Spreadsheet\Metadata\Contacts.fs" />
-    <Compile Include="Spreadsheet\Metadata\OntologyAnnotation.fs" />
-    <Compile Include="Spreadsheet\Metadata\DesignDescriptors.fs" />
-    <Compile Include="Spreadsheet\Metadata\Factors.fs" />
-    <Compile Include="Spreadsheet\Metadata\Protocols.fs" />
-    <Compile Include="Spreadsheet\Metadata\Publication.fs" />
-    <Compile Include="Spreadsheet\Metadata\Assays.fs" />
-    <Compile Include="Spreadsheet\Metadata\Study.fs" />
-    <Compile Include="Spreadsheet\Metadata\Workflow.fs" />
-    <Compile Include="Spreadsheet\Metadata\Run.fs" />
-    <Compile Include="Spreadsheet\Metadata\OntologySourceReference.fs" />
-    <Compile Include="Spreadsheet\DatamapTable\DatamapHeader.fs" />
-    <Compile Include="Spreadsheet\DatamapTable\DatamapColumn.fs" />
-    <Compile Include="Spreadsheet\DatamapTable\DatamapTable.fs" />
-    <Compile Include="Spreadsheet\Datamap.fs" />
-    <Compile Include="Spreadsheet\ArcAssay.fs" />
-    <Compile Include="Spreadsheet\ArcStudy.fs" />
-    <Compile Include="Spreadsheet\ArcWorkflow.fs" />
-    <Compile Include="Spreadsheet\ArcRun.fs" />
-    <Compile Include="Spreadsheet\ArcInvestigation.fs" />
-    <Compile Include="Spreadsheet\Template.fs" />
     <Compile Include="YML\Helpers.fs" />
     <Compile Include="YML\Decode.fs" />
     <Compile Include="YML\Encode.fs" />
@@ -84,6 +50,32 @@
     <Compile Include="SQL\Platform\Driver.fs" />
     <Compile Include="SQL\SqliteDriver.fs" />
     <Compile Include="Table.fs" />
+    <Folder Include="Spreadsheet\" />
+    <Compile Include="Spreadsheet\CollectionAux.fs" />
+    <Compile Include="Spreadsheet\Metadata\Conversions.fs" />
+    <Compile Include="Spreadsheet\Metadata\Comment.fs" />
+    <Compile Include="Spreadsheet\Metadata\SparseTable.fs" />
+    <Compile Include="Spreadsheet\Metadata\Contacts.fs" />
+    <Compile Include="Spreadsheet\Metadata\OntologyAnnotation.fs" />
+    <Compile Include="Spreadsheet\Metadata\DesignDescriptors.fs" />
+    <Compile Include="Spreadsheet\Metadata\Factors.fs" />
+    <Compile Include="Spreadsheet\Metadata\Protocols.fs" />
+    <Compile Include="Spreadsheet\Metadata\Publication.fs" />
+    <Compile Include="Spreadsheet\Metadata\Assays.fs" />
+    <Compile Include="Spreadsheet\Metadata\Study.fs" />
+    <Compile Include="Spreadsheet\Metadata\Workflow.fs" />
+    <Compile Include="Spreadsheet\Metadata\Run.fs" />
+    <Compile Include="Spreadsheet\Metadata\OntologySourceReference.fs" />
+    <Compile Include="spreadsheet\AnnotationTable.fs" />
+    <Compile Include="Spreadsheet\DatamapTable\DatamapHeader.fs" />
+    <Compile Include="Spreadsheet\DatamapTable\DatamapColumn.fs" />
+    <Compile Include="Spreadsheet\DatamapTable\DatamapTable.fs" />
+    <Compile Include="Spreadsheet\Datamap.fs" />
+    <Compile Include="Spreadsheet\ArcAssay.fs" />
+    <Compile Include="Spreadsheet\ArcStudy.fs" />
+    <Compile Include="Spreadsheet\ArcWorkflow.fs" />
+    <Compile Include="Spreadsheet\ArcRun.fs" />
+    <Compile Include="Spreadsheet\ArcInvestigation.fs" />
     <Compile Include="ScaffoldReader.fs" />
     <Compile Include="ARC.fs" />
   </ItemGroup>
@@ -103,9 +95,7 @@
         </PackageReference>
     </ItemGroup>
 
-    <ItemGroup>
-      <Folder Include="Spreadsheet\" />
-    </ItemGroup>
+    <ItemGroup />
 
 </Project>
 

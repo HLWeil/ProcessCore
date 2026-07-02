@@ -5,6 +5,10 @@ let [<Literal>] PathSeperator = '/'
 let [<Literal>] PathSeperatorWindows = '\\'
 let seperators = [|PathSeperator; PathSeperatorWindows|]
 
+let split(path: string) =
+    path.Split(seperators, enum<System.StringSplitOptions>(3))
+    |> Array.filter (fun p -> p <> "" && p <> ".")
+
 let combine (path1 : string) (path2 : string) : string =
     let path1_trimmed = path1.TrimEnd(seperators)
     let path2_trimmed = path2.TrimStart(seperators)
@@ -30,10 +34,6 @@ let getExtension (path : string) : string =
     System.IO.Path.GetExtension path
     #endif
 
-
-let [<Literal>] PathSeperator = '/'
-let [<Literal>] PathSeperatorWindows = '\\'
-let seperators = [|PathSeperator; PathSeperatorWindows|]
 
 // Files
 let [<Literal>] DatamapFileName = "isa.datamap.xlsx"

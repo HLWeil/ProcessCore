@@ -25,7 +25,7 @@ module Factors =
     let fromSparseTable (matrix : SparseTable) =
         if matrix.ColumnCount = 0 && matrix.CommentKeys.Length <> 0 then
             let comments = SparseTable.GetEmptyComments matrix
-            fromString "" None None None comments
+            fromString None None None None comments
             |> List.singleton
         else
             List.init matrix.ColumnCount (fun i -> 

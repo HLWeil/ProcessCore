@@ -51,14 +51,14 @@ module Workflow =
         fileNameLabel
     ]
 
-    let fromString identifier title description workflowType workflowTypeTermAccessionNumber workflowTypeTermSourceREF (subworkflowIdentifiers : string option) uri version parametersName parametersTermAccessionNumber parametersTermSourceREF componentsName componentsType componentsTypeTermAccessionNumber componentsTypeTermSourceREF fileName comments : ArcWorkflow =
+    let fromString identifier title description workflowType workflowTypeTermAccessionNumber workflowTypeTermSourceREF (subworkflowIdentifiers : string option) uri version parametersName parametersTermAccessionNumber parametersTermSourceREF componentsName componentsType componentsTypeTermAccessionNumber componentsTypeTermSourceREF fileName comments : Dataset =
         let subworkflowIdentifiers = 
             match subworkflowIdentifiers with
             | Some subworkflowIdentifiers -> 
                 subworkflowIdentifiers.Split(';') |> Seq.map (fun s -> s.Trim()) |> ResizeArray
             | None -> ResizeArray()
-        let workflowType = OntologyAnnotation.create(?name = workflowType,?tan = workflowTypeTermAccessionNumber,?tsr = workflowTypeTermSourceREF) |> Option.fromValueWithDefault (OntologyAnnotation())
-        let parameters = OntologyAnnotation.fromAggregatedStrings ';' parametersName parametersTermSourceREF parametersTermAccessionNumber |> ResizeArray
+        let workflowType = workflowType |> Option.map (fun wt -> DefinedTerm(name = wt, ?tan = workflowTypeTermAccessionNumber))
+        let parameters = DefinedTerm.fromAggregatedStrings ';' parametersName parametersTermSourceREF parametersTermAccessionNumber |> ResizeArray
         let components = Component.fromAggregatedStrings ';' componentsName componentsType componentsTypeTermSourceREF componentsTypeTermAccessionNumber |> ResizeArray
         let identifier =
             match identifier with
@@ -70,22 +70,17 @@ module Workflow =
                     | Some identifier -> identifier
                     | _ -> Identifier.createMissingIdentifier()
                 | None -> Identifier.createMissingIdentifier()
-        ArcWorkflow.make
-            identifier
-            title
-            description
-            workflowType
-            uri
-            version
-            subworkflowIdentifiers
-            parameters
-            components
-            None
-            (ResizeArray())
-            None
-            comments
+        let workflow = Dataset(identifier, ?title = title, ?description = description, additionalType = "Workflow")
+        workflowType |> Option.iter (fun value -> workflow.SetProperty("WorkflowType", value))
+        workflow.SetProperty("SubWorkflowIdentifiers", subworkflowIdentifiers)
+        workflow.SetProperty("Parameters", parameters)
+        workflow.SetProperty("Components", components)
+        uri |> Option.iter (fun value -> workflow.SetProperty("URI", value))
+        version |> Option.iter (fun value -> workflow.SetProperty("Version", value))
+        workflow.SetProperty("Comments", comments)
+        workflow
 
-    let fromSparseTable (matrix : SparseTable) =
+    let fromSparseTable (matrix : SparseTable) : Dataset =
         
         let i = 0
 
@@ -114,52 +109,6 @@ module Workflow =
             (matrix.TryGetValue(fileNameLabel,i))
             (ResizeArray comments)
 
-
-    let toSparseTable (workflow: ArcWorkflow) =
-        let i = 1
-        let matrix = SparseTable.Create (keys = labels,length = 2)
-        let mutable commentKeys = []
-        let processedIdentifier,processedFileName =
-            if workflow.Identifier.StartsWith(Identifier.MISSING_IDENTIFIER) then "","" else 
-                workflow.Identifier, Identifier.Workflow.fileNameFromIdentifier workflow.Identifier
-
-        let wt = Option.defaultValue (OntologyAnnotation()) workflow.WorkflowType |> fun tt -> OntologyAnnotation.toStringObject(tt,true)
-        let pAgg = workflow.Parameters |> Array.ofSeq |> OntologyAnnotation.toAggregatedStrings ';' 
-        let cAgg = workflow.Components |> List.ofSeq |> Component.toAggregatedStrings ';'
-        let subWorkflowsAgg = String.concat ";" workflow.SubWorkflowIdentifiers
-
-        do matrix.Matrix.Add ((identifierLabel,i),          processedIdentifier)
-        do matrix.Matrix.Add ((titleLabel,i),               (Option.defaultValue "" workflow.Title))
-        do matrix.Matrix.Add ((descriptionLabel,i),         (Option.defaultValue "" workflow.Description))
-        do matrix.Matrix.Add ((workflowTypeLabel,i),                        wt.TermName)
-        do matrix.Matrix.Add ((typeTermAccessionNumberLabel,i),             wt.TermAccessionNumber)
-        do matrix.Matrix.Add ((typeTermSourceREFLabel,i),                   wt.TermSourceREF)
-        do matrix.Matrix.Add ((subWorkflowIdentifiersLabel,i),              subWorkflowsAgg)
-        do matrix.Matrix.Add ((uriLabel,i),                                 (Option.defaultValue "" workflow.URI))
-        do matrix.Matrix.Add ((versionLabel,i),                             (Option.defaultValue "" workflow.Version))
-        do matrix.Matrix.Add ((parametersNameLabel,i),                      pAgg.TermNameAgg)
-        do matrix.Matrix.Add ((parametersTermAccessionNumberLabel,i),       pAgg.TermAccessionNumberAgg)
-        do matrix.Matrix.Add ((parametersTermSourceREFLabel,i),             pAgg.TermSourceREFAgg)
-        do matrix.Matrix.Add ((componentsNameLabel,i),                      cAgg.NameAgg)
-        do matrix.Matrix.Add ((componentsTypeLabel,i),                      cAgg.TermNameAgg)
-        do matrix.Matrix.Add ((componentsTypeTermAccessionNumberLabel,i),   cAgg.TermAccessionNumberAgg)
-        do matrix.Matrix.Add ((componentsTypeTermSourceREFLabel,i),         cAgg.TermSourceREFAgg)
-        do matrix.Matrix.Add ((fileNameLabel,i),                            processedFileName)
-
-        workflow.Comments
-        |> ResizeArray.iter (fun comment -> 
-            let n,v = comment |> Comment.toString
-            commentKeys <- n :: commentKeys
-            matrix.Matrix.Add((n,i),v)
-        )    
-
-        {matrix with CommentKeys = commentKeys |> List.distinct |> List.rev}
-
     let fromRows lineNumber (rows : IEnumerator<SparseRow>) =
         SparseTable.FromRows(rows,labels,lineNumber, prefix = workflowLabelPrefix)
         |> fun (s,ln,rs,sm) -> (s,ln,rs, fromSparseTable sm)
-    
-    let toRows (workflow: ArcWorkflow) =  
-        workflow
-        |> toSparseTable
-        |> fun st -> SparseTable.ToRows(st, prefix = workflowLabelPrefix)

@@ -23,7 +23,7 @@ let tests = testList "Administrative" [
                 email = "ada@example.org",
                 affiliation = Organization("Example Lab"),
                 identifier = "ORCID:0000-0000-0000-0001",
-                jobTitle = DefinedTerm("data steward"))
+                jobTitles = [ DefinedTerm("data steward") ])
 
         let yaml = Yaml.Agent.toYamlString None original
         let decoded = Yaml.Agent.fromYamlString true yaml
@@ -31,7 +31,7 @@ let tests = testList "Administrative" [
         Expect.equal decoded.GivenName original.GivenName "givenName should roundtrip"
         Expect.equal decoded.FamilyName original.FamilyName "familyName should roundtrip"
         Expect.equal decoded.Affiliation.Value.Name "Example Lab" "affiliation should roundtrip"
-        Expect.equal decoded.JobTitle.Value.Name "data steward" "jobTitle should roundtrip"
+        Expect.equal decoded.JobTitles.Count 1 "jobTitles should roundtrip"
 
     testCase "ScholarlyArticle roundtrip with author" <| fun _ ->
         let original =
