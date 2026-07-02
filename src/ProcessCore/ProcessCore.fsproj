@@ -15,7 +15,6 @@
     <Content Include="ProcessCore.Python.fsproj" Pack="true" PackagePath="fable/" />
     <Content Include="ProcessCore.Javascript.fsproj" Pack="true" PackagePath="fable/" />
     <Compile Include="Helper\CrossAsync.fs" />
-    <Compile Include="Helper\FileSystemHelper.fs" />
     <Compile Include="Helper\ResizeArray.fs" />
     <Compile Include="Helper\Option.fs" />
     <Compile Include="Helper\Path.fs" />

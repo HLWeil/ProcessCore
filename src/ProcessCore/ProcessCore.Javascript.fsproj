@@ -8,7 +8,6 @@
 
   <ItemGroup>
     <Compile Include="Helper\CrossAsync.fs" />
-    <Compile Include="Helper\FileSystemHelper.fs" />
     <Compile Include="Helper\ResizeArray.fs" />
     <Compile Include="Helper\Option.fs" />
     <Compile Include="Helper\Path.fs" />
@@ -47,7 +46,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Fable.Promise" />
     <PackageReference Include="Fable.Core" />
+    <PackageReference Include="Fable.Node" />
     <PackageReference Include="YAMLicious" />
     <PackageReference Include="DynamicObj" />
   </ItemGroup>

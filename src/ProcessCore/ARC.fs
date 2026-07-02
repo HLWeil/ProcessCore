@@ -18,19 +18,19 @@ type ARC(identifier: string, ?title: string, ?description: string, ?additionalTy
         YAMLicious.Reader.read yamlString 
         |> ProcessCore.Yaml.Dataset.decoderGeneric (fun i -> ARC(i)) false
 
-    #if !FABLE_COMPILER_JAVASASCRIPT && !FABLE_COMPILER_PYTHON
+    #if !FABLE_COMPILER
     member this.Write(arcPath : string) = 
         
         let p = Path.combine arcPath "arc.yml"
         let ymlString = ProcessCore.Yaml.Dataset.toYamlStringIndexed (Some 2) this
-        FileSystemHelper.writeFileTextAsync p ymlString
+        Path.writeFileTextAsync p ymlString
         |> Async.RunSynchronously
 
     static member load(arcPath : string) : ARC = 
         let p = Path.combine arcPath "arc.yml"
-        if FileSystemHelper.fileExistsAsync p |> Async.RunSynchronously then
+        if Path.fileExistsAsync p |> Async.RunSynchronously then
             try
-                let ymlString = FileSystemHelper.readFileTextAsync p |> Async.RunSynchronously
+                let ymlString = Path.readFileTextAsync p |> Async.RunSynchronously
                 ARC.fromYamlString ymlString
             with
             | ex -> failwith $"Failed to load ARC from yml at {p}: {ex.Message}"           
@@ -42,4 +42,3 @@ type ARC(identifier: string, ?title: string, ?description: string, ?additionalTy
             | ex -> failwith $"Failed to load ARC from scaffold at {arcPath}: {ex.Message}"
 
     #endif
-

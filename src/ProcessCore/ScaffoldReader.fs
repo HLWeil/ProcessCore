@@ -123,7 +123,7 @@ module ARC =
 
     let load (createF : string -> 'D) (path : string) =
         printfn $"Loading ARC from {path}"
-        let filePaths = FileSystemHelper.getAllFilePathsAsync path |> Async.RunSynchronously
+        let filePaths = Path.getAllFilePathsAsync path |> Async.RunSynchronously
         let topLevelDataset =
             filePaths
             |> Seq.pick (fun p ->
