@@ -10,9 +10,7 @@ open FsSpreadsheet.Net
 let parseTablesIntoDataset (ds : Dataset) (wb : FsWorkbook) =
     wb.GetWorksheets()
     |> Seq.iter (fun ws ->
-        match Table.tryFromFsWorksheet ds ws with
-        | Some t -> ds.HasPart.Add(ds) |> ignore
-        | None -> () // No annotation table, so we skip this sheet
+        Table.tryFromFsWorksheet ds ws |> ignore
     )
     ds.CollapseProcesses()
     ds
@@ -21,21 +19,9 @@ let datasetFromTables (name : string) (wb : FsWorkbook) =
 
     let d = Dataset(name)
 
-    wb.GetWorksheets()
-    |> Seq.iter (fun ws ->
-        match Table.tryFromFsWorksheet d ws with
-        | Some t -> d.HasPart.Add(d) |> ignore
-        | None -> () // No annotation table, so we skip this sheet
-    )
-    d.CollapseProcesses()
-    let newD = Dataset(name)
-    let processes = d.Processes |> Seq.toList
-    for p in processes do
-        d.RemoveProcess(p)
-        newD.AddProcess(p) |> ignore
-    newD
+    parseTablesIntoDataset d wb
 
-let datasetFromPath (name : string) (path : string) =
+let datasetFromPath (name : string) (path : string) : Dataset =
     let wb = FsWorkbook.fromXlsxFile(path)
     datasetFromTables name wb
 
@@ -81,10 +67,10 @@ module Workflow =
 
 module Investigation =
 
-    let tryFromFsWorkbook (wb : FsWorkbook) =
+    let tryFromFsWorkbook (createF : string -> 'D) (wb : FsWorkbook) =
         ArcInvestigation.tryGetMetadataSheet wb
         |> Option.map (fun mdSheet ->
-            ArcInvestigation.fromMetadataSheet mdSheet
+            ArcInvestigation.fromMetadataSheet createF mdSheet
         )
 
 module ARC =
@@ -135,55 +121,83 @@ module ARC =
          .Replace(Path.WorkflowFileName, Path.DatamapFileName)
          .Replace(Path.RunFileName, Path.DatamapFileName)
 
-    let load (path : string) =
+    let load (createF : string -> 'D) (path : string) =
+        printfn $"Loading ARC from {path}"
         let filePaths = FileSystemHelper.getAllFilePathsAsync path |> Async.RunSynchronously
         let topLevelDataset =
             filePaths
             |> Seq.pick (fun p ->
                 match Path.split p with
                 | InvestigationPath _ ->
-                    let wb = readWorkbook path p
-                    Investigation.tryFromFsWorkbook wb
+                    try 
+                        let wb = readWorkbook path p
+                        Investigation.tryFromFsWorkbook createF wb
+                    with
+                    | ex -> 
+                        printfn $"Failed to load investigation from {p}: {ex.Message}"
+                        None
                 | _ -> None
             )
         let enrichDatasetWithDatamap (p : string) (ds : Dataset)  =
-            let datamapPath = getDatamapPathByISAPath p
-            filePaths
-            |> Array.tryPick (fun p ->
-                if p = datamapPath then
-                    let wb = readWorkbook path p
-                    Datamap.dataContextsFromFsWorkbook wb |> Some
-                else None
-            )
-            |> fun dcs -> 
-                match dcs with
-                | Some dcs -> for dc in dcs do ds.AddDataContext(dc)
-                | None -> ()
+        
+            try
+                let datamapPath = getDatamapPathByISAPath p
+                printfn $"Reading datamap from path {datamapPath}"
+
+                filePaths
+                |> Array.tryPick (fun p ->
+                    if p = datamapPath then
+                        let wb = readWorkbook path p
+                        Datamap.dataContextsFromFsWorkbook wb |> Some
+                    else None
+                )
+                |> fun dcs -> 
+                    match dcs with
+                    | Some dcs -> for dc in dcs do ds.AddDataContext(dc)
+                    | None -> ()
+            with 
+            | ex -> printfn $"Failed to load datamap from {p}: {ex.Message}"
         filePaths
         |> Seq.choose (fun p ->
             match Path.split p with
             | AssayPath _ ->
-                readWorkbook path p |> Assay.tryFromFsWorkbook
+                printfn $"Reading assay from path {p}"
+                try readWorkbook path p |> Assay.tryFromFsWorkbook
+                with
+                | ex -> 
+                    printfn $"Failed to load assay from {p}: {ex.Message}"
+                    None
             | StudyPath _ ->
-                readWorkbook path p |> Study.tryFromFsWorkbook
+                printfn $"Reading study from path {p}"
+                try readWorkbook path p |> Study.tryFromFsWorkbook
+                with
+                | ex -> 
+                    printfn $"Failed to load study from {p}: {ex.Message}"
+                    None
             | WorkflowPath _ ->
-                readWorkbook path p |> Workflow.tryFromFsWorkbook
+                printfn $"Reading workflow from path {p}"
+                try readWorkbook path p |> Workflow.tryFromFsWorkbook
+                with
+                | ex -> 
+                    printfn $"Failed to load workflow from {p}: {ex.Message}"
+                    None
             | RunPath _ ->
-                readWorkbook path p |> Run.tryFromFsWorkbook
+                printfn $"Reading run from path {p}"
+                try readWorkbook path p |> Run.tryFromFsWorkbook
+                with
+                | ex -> 
+                    printfn $"Failed to load run from {p}: {ex.Message}"
+                    None
             | _ -> None
             |> Option.map (fun ds -> 
                 enrichDatasetWithDatamap p ds 
                 ds
             )
         )
-        |> Seq.iter (fun ds -> topLevelDataset.AddPart(ds) |> ignore)
+        |> Seq.iter (fun ds -> 
+            printfn $"Adding dataset {ds.Identifier} to top-level dataset"
+            try topLevelDataset.AddPart(ds) |> ignore
+            with
+            | ex -> printfn $"Failed to add dataset {ds.Identifier} to top-level dataset: {ex.Message}"
+        )
         topLevelDataset
-
-
-//let arcPath = @"C:\Users\HLWei\source\repos\ARCs\Ru_ChlamyHeatstress"
-
-//let dataset = ARC.load arcPath
-
-//dataset.RegisterFragmentSelectorProvider (CsvFragmentSelectorProvider())
-
-//dataset.FinalData().[0].UpstreamSamples()

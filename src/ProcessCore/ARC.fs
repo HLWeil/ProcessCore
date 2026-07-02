@@ -28,7 +28,18 @@ type ARC(identifier: string, ?title: string, ?description: string, ?additionalTy
 
     static member load(arcPath : string) : ARC = 
         let p = Path.combine arcPath "arc.yml"
-        let ymlString = FileSystemHelper.readFileTextAsync p |> Async.RunSynchronously
-        ARC.fromYamlString ymlString
+        if FileSystemHelper.fileExistsAsync p |> Async.RunSynchronously then
+            try
+                let ymlString = FileSystemHelper.readFileTextAsync p |> Async.RunSynchronously
+                ARC.fromYamlString ymlString
+            with
+            | ex -> failwith $"Failed to load ARC from yml at {p}: {ex.Message}"           
+        else 
+            printfn $"No ARC yml file found at {p}, trying to read ARC Spreadsheet Scaffold"
+            try 
+                ScaffoldReader.ARC.load (fun id -> ARC(id)) arcPath
+            with
+            | ex -> failwith $"Failed to load ARC from scaffold at {arcPath}: {ex.Message}"
+
     #endif
 

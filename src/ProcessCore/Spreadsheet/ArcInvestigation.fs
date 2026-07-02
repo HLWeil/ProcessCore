@@ -73,19 +73,16 @@ module ArcInvestigation =
             |> fun (s, ln, rs, sm) -> (s, ln, rs, InvestigationInfo.FromSparseTable sm)    
     
  
-    let fromParts (investigationInfo : InvestigationInfo) (ontologySourceReference : DynamicObj list) (publications : ScholarlyArticle list) (contacts : Agent list) (studies : Dataset list) (assays : Dataset list) (remarks : 'A list) =
+    let fromParts<'D when 'D :> Dataset> (createF : string -> 'D) (investigationInfo : InvestigationInfo) (ontologySourceReference : DynamicObj list) (publications : ScholarlyArticle list) (contacts : Agent list) (studies : Dataset list) (assays : Dataset list) (remarks : 'A list) : 'D =
         let studyIdentifiers = studies |> List.map (fun s -> s.Identifier)
-        let i = 
-            Dataset(
-                identifier = investigationInfo.Identifier,
-                ?title = Option.fromValueWithDefault "" investigationInfo.Title,
-                ?description = Option.fromValueWithDefault "" investigationInfo.Description,
-                additionalType = "Investigation",
-                ?dateCreated = Option.fromValueWithDefault "" investigationInfo.SubmissionDate,
-                ?datePublished = Option.fromValueWithDefault "" investigationInfo.PublicReleaseDate,
-                agents = ResizeArray contacts,
-                citations = ResizeArray publications          
-            )
+        let i = createF investigationInfo.Identifier
+        i.Title <- Option.fromValueWithDefault "" investigationInfo.Title
+        i.Description <- Option.fromValueWithDefault "" investigationInfo.Description
+        i.AdditionalType <- Some "Investigation"
+        i.DateCreated <- Option.fromValueWithDefault "" investigationInfo.SubmissionDate
+        i.DatePublished <- Option.fromValueWithDefault "" investigationInfo.PublicReleaseDate
+        for contact in contacts do i.AddAgent(contact)
+        for publication in publications do i.AddCitation(publication)
         i.SetProperty("OntologySourceReferences", ontologySourceReference)
         i.SetProperty("StudyIdentifiers", studyIdentifiers)
         i.SetProperty("AssayIdentifiers", assays |> List.map (fun a -> a.Identifier))
@@ -93,7 +90,7 @@ module ArcInvestigation =
         i
 
 
-    let fromRows (rows : seq<SparseRow>) =
+    let fromRows (createF : string -> 'D) (rows : seq<SparseRow>) =
         if Seq.isEmpty rows then failwith "isa_investigation sheet in Investigation file is empty"
 
         let en = rows.GetEnumerator()
@@ -132,7 +129,7 @@ module ArcInvestigation =
                     let currentLine = en.Current |> SparseRow.tryGetValueAt 0
                     loop currentLine ontologySourceReferences investigationInfo publications contacts studies remarks lineNumber
                 | false ->
-                    fromParts investigationInfo ontologySourceReferences publications contacts studies [] remarks
+                    fromParts createF investigationInfo ontologySourceReferences publications contacts studies [] remarks
 
         let arcInvestigation =
             en.MoveNext() |> ignore
@@ -143,13 +140,13 @@ module ArcInvestigation =
 
         arcInvestigation
 
-    let fromMetadataSheet (sheet : FsWorksheet) : Dataset =
+    let fromMetadataSheet (createF : string -> 'D) (sheet : FsWorksheet) =
         try
             let rows =        
                 sheet.Rows 
                 |> Seq.map SparseRow.fromFsRow
             rows
-            |> fromRows
+            |> fromRows createF
         with 
         | err -> failwithf "Failed while parsing metadatasheet: %s" err.Message
 
