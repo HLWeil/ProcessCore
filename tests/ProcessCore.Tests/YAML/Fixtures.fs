@@ -570,6 +570,7 @@ agents:
     "@type": DefinedTerm
     name: research assistant
     termCode: http://purl.org/spar/scoro/research-assistant
+  fax: 123456789
 additionalProperty:
   - type: Annotation
     name: latitude

@@ -9,7 +9,7 @@ module Agent =
     let private knownFields =
         Set.ofList
             [ "id"; "type"; "givenName"; "familyName"; "email"; "affiliation"; "identifier"
-              "jobTitle"; "additionalName"; "address"; "telephone"; "additionalProperty" ]
+              "jobTitles"; "additionalName"; "address"; "telephone"; "additionalProperty" ]
 
     let private knownPropertyNames =
         Set.ofList
