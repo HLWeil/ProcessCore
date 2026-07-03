@@ -1,3 +1,14 @@
+### 0.0.5+a302f6f (Released 2026-7-3)
+* Additions:
+    * [[#df3cd8a](https://github.com/HLWeil/ProcessCore/commit/df3cd8aedac00ca23b3f989c55fa5f464352ff7f)] extend ARC api
+    * [[#7cee354](https://github.com/HLWeil/ProcessCore/commit/7cee354611ffbae4cd257e18646720e5d8008b69)] update script
+* Bugfixes:
+    * [[#a302f6f](https://github.com/HLWeil/ProcessCore/commit/a302f6f37e70dd4eb8391b28e72fa335b1f58df9)] fix annotation resolving in dataset parsing
+    * [[#4274ed7](https://github.com/HLWeil/ProcessCore/commit/4274ed78d64f7455fbf09fd1b8d63649ab937d5b)] various spreadsheet parser fixes
+    * [[#b17a32b](https://github.com/HLWeil/ProcessCore/commit/b17a32b6a1381fb5b6ca5ed0187df20960bc7e77)] yml parser fixes
+    * [[#b76860b](https://github.com/HLWeil/ProcessCore/commit/b76860b845a845a2d9addb9eb5083625dbda67d4)] fix case of file reference in project file
+    * [[#5235ad4](https://github.com/HLWeil/ProcessCore/commit/5235ad43ea47f352e0cf7e05bc78d49d6c9e3be6)] fix javascript transpilation
+
 ### 0.0.4+6a94245 (Released 2026-7-2)
 * Bugfixes:
     * [[#6a94245](https://github.com/HLWeil/ProcessCore/commit/6a94245b3e28d96494279f6a6fac825ea00a29e2)] various fixes for ARC load from Scaffold
