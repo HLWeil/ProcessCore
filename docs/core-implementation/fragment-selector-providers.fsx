@@ -3,7 +3,7 @@
 title: Fragment Selector Providers
 category: Core Implementation
 categoryindex: 3
-index: 6
+index: 7
 ---
 
 # Fragment Selector Providers
@@ -12,7 +12,7 @@ index: 6
 *)
 
 (*** hide ***)
-#r "../../src/ProcessCore/bin/Release/netstandard2.0/ProcessCore.dll"
+#r "../../src/ProcessCore/bin/Release/netstandard2.1/ProcessCore.dll"
 #r "nuget: DynamicObj"
 open ProcessCore
 

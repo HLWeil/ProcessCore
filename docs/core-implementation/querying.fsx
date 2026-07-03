@@ -3,7 +3,7 @@
 title: Querying Process Graphs
 category: Core Implementation
 categoryindex: 3
-index: 5
+index: 6
 ---
 
 # Querying Process Graphs
@@ -13,9 +13,9 @@ This walkthrough loads the proteomics assay example and follows provenance from 
 *)
 
 (*** hide ***)
-#r "../../src/ProcessCore/bin/Release/netstandard2.0/ProcessCore.dll"
+#r "../../src/ProcessCore/bin/Release/netstandard2.1/ProcessCore.dll"
 #r "nuget: DynamicObj"
-#r "nuget: YAMLicious, 1.0.0-alpha.10"
+#r "nuget: YAMLicious"
 open ProcessCore
 
 let ymlString =

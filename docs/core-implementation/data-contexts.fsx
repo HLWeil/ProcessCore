@@ -3,7 +3,7 @@
 title: Using DataContext
 category: Core Implementation
 categoryindex: 3
-index: 7
+index: 8
 ---
 
 # Using DataContext
@@ -22,7 +22,7 @@ Typical workflows use `DataContext` to answer questions such as:
 *)
 
 (*** hide ***)
-#r "../../src/ProcessCore/bin/Release/netstandard2.0/ProcessCore.dll"
+#r "../../src/ProcessCore/bin/Release/netstandard2.1/ProcessCore.dll"
 #r "nuget: DynamicObj"
 open ProcessCore
 

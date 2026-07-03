@@ -3,7 +3,7 @@
 title: Reading And Writing YAML
 category: Core Implementation
 categoryindex: 3
-index: 4
+index: 5
 ---
 
 # Reading And Writing YAML
@@ -12,9 +12,9 @@ index: 4
 *)
 
 (*** hide ***)
-#r "../../src/ProcessCore/bin/Release/netstandard2.0/ProcessCore.dll"
+#r "../../src/ProcessCore/bin/Release/netstandard2.1/ProcessCore.dll"
 #r "nuget: DynamicObj"
-#r "nuget: YAMLicious, 1.0.0-alpha.10"
+#r "nuget: YAMLicious"
 open System
 open ProcessCore
 
