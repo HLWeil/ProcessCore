@@ -156,6 +156,30 @@ let tests = testList "RoundTrip" [
         Expect.isTrue (yaml.Contains("identifier: DS-encode")) "identifier via Encode.toYamlString"
         Expect.isTrue (yaml.Contains("type: Dataset"))         "type via Encode.toYamlString"
 
+
+    testCase "Nested Dataset with indexed parameters" <| fun _ ->
+        let outerDS = Dataset("OuterDS")
+        let ds = Dataset("DS")
+        let proc = Process("p")
+        outerDS.AddPart(ds)
+        ds.AddProcess(proc)
+        proc.AddParameterValue(Annotation("temperature", value = "37", unit = "°C"))
+        let yaml1 = Yaml.Dataset.toYamlStringIndexed (Some 2) outerDS
+        let decoded1 = Yaml.Dataset.fromYamlString false yaml1
+        let yaml2 = Yaml.Dataset.toYamlStringIndexed (Some 2) decoded1
+        Expect.equal yaml2 yaml1 "round-trip indexed YAML should match"
+
+    testCase "Dataset with indexed parameters" <| fun _ ->
+        let ds = Dataset("DS")
+        let proc = Process("p")
+        ds.AddProcess(proc)
+        proc.AddParameterValue(Annotation("temperature", value = "37", unit = "°C"))
+        let yaml1 = Yaml.Dataset.toYamlStringIndexed (Some 2) ds
+        let decoded1 = Yaml.Dataset.fromYamlString false yaml1
+        let yaml2 = Yaml.Dataset.toYamlStringIndexed (Some 2) decoded1
+        Expect.equal yaml2 yaml1 "round-trip indexed YAML should match"
+
+
     // todo
     // Disabled for now, as this fails because of ordering of properties and yml styling, rather than any actual data loss. Will re-enable once we have a more robust way to compare YAML content regardless of formatting.
     ptestCase "assay example with indexed references" <| fun _ ->

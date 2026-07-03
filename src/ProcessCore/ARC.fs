@@ -22,7 +22,7 @@ type ARC(identifier: string, ?title: string, ?description: string, ?additionalTy
 
     static member fromYamlString(yamlString: string) : ARC =
         YAMLicious.Reader.read yamlString 
-        |> ProcessCore.Yaml.Dataset.decoderGeneric (fun i -> ARC(i)) false
+        |> ProcessCore.Yaml.Dataset.decoderGeneric (fun i -> ARC(i)) None None false
 
     #if !FABLE_COMPILER
 
