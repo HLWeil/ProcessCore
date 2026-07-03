@@ -13,7 +13,7 @@ module Dataset =
             [ "type"; "additionalType"; "identifier"; "title"; "description"
               "license"; "datePublished"; "dateCreated"; "dateModified"
               "processes"; "hasPart"; "dataFiles"; "agents"; "citations"
-              "dataContexts"; "additionalProperty" ]
+              "dataContexts"; "additionalProperty"; "ArcPath" ]
 
     let knownPropertyNames =
         Set.ofList
@@ -23,7 +23,7 @@ module Dataset =
               "citations"; "datacontexts"; "additionalproperty"; "partof"
               "propertyvalues"; "labprotocols"
               // Fable-compiled read-only instance properties — must not be re-emitted as overflow
-              "noderegistrydirect"; "fragmentselectorprovidersdirect" ]
+              "noderegistrydirect"; "fragmentselectorprovidersdirect"; "ArcPath" ]
 
     let addIndexedValues fieldName decode value =
         let registry = Dictionary<string, 'a>()

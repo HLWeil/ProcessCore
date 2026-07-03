@@ -78,4 +78,24 @@ let tests = testList "DefinedTerm" [
         let dt   = Yaml.DefinedTerm.fromYamlString true yaml
         Expect.equal dt.Name "" "name defaults to empty string"
 
+    testList "Special Characters" [
+        
+        testCase "contains colon+space" <| fun _ ->
+            let dt   = DefinedTerm(name = "cell: growth")
+            let yaml = Yaml.DefinedTerm.toYamlString None dt
+            let dt' = Yaml.DefinedTerm.fromYamlString true yaml
+            Expect.equal dt.Name dt'.Name "name with colon round-trip"
+
+        testCase "contains hashtag" <| fun _ ->
+            let dt   = DefinedTerm(name = "cell#growth")
+            let yaml = Yaml.DefinedTerm.toYamlString None dt
+            let dt' = Yaml.DefinedTerm.fromYamlString true yaml
+            Expect.equal dt.Name dt'.Name "name with hashtag round-trip"
+
+        testCase "starts with asterisk" <| fun _ ->
+            let dt   = DefinedTerm(name = "*cell growth")
+            let yaml = Yaml.DefinedTerm.toYamlString None dt
+            let dt' = Yaml.DefinedTerm.fromYamlString true yaml
+            Expect.equal dt.Name dt'.Name "name starts with asterisk"
+    ]
 ]
