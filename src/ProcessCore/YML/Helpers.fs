@@ -9,6 +9,8 @@ open DynamicObj
 
 module Helpers =
 
+    let specialCharacters = Set [| ':'; '-'; '{'; '}'; '['; ']'; ','; '&'; '*'; '#'; '?'; '|'; '>'; '%'; '@'; '`' |]
+
     // ── Key normalization ──────────────────────────────────────────────────────
 
     let normalizeKey (key: string) =
@@ -115,7 +117,7 @@ module Helpers =
     // ── YAMLElement constructors ───────────────────────────────────────────────
 
     let yamlValue (s: string) =
-        let s = if s.Contains("#") then $"\"{s}\"" else s
+        let s = if s.Contains("#") || s.StartsWith("*") || s.Contains(": ") then $"\"{s}\"" else s
         YAMLElement.Value (YAMLContent.create(s, style = ScalarStyle.Plain))
 
     let yamlMap (pairs: (string * YAMLElement) list) =
@@ -168,6 +170,26 @@ module Helpers =
         | other ->
             failwithf "Unsupported YAML structure for generic overflow: %A" other
 
+    #if !FABLE_COMPILER
+    let (|SomeObj|_|) =
+        // create generalized option type
+        let ty = typedefof<option<_>>
+        fun (a:obj) ->
+            // Check for nulls otherwise 'a.GetType()' would fail
+            if isNull a 
+            then 
+                None 
+            else
+                let aty = a.GetType()
+                // Get option'.Value
+                let v = aty.GetProperty("Value")
+                if aty.IsGenericType && aty.GetGenericTypeDefinition() = ty then
+                    // return value if existing
+                    Some(v.GetValue(a, [| |]))
+                else 
+                    None
+    #endif
+
     /// Encode a DynamicObj overflow value back to YAMLElement.
     let rec genericEncodeFromObj (value: obj) : YAMLElement =
         match value with
@@ -178,6 +200,9 @@ module Helpers =
         | :? float   as f    -> yamlValue (f.ToString(CultureInfo.InvariantCulture))
         | :? decimal as d    -> yamlValue (d.ToString(CultureInfo.InvariantCulture))
         | :? DateTime as dt  -> yamlValue (dt.ToString("O", CultureInfo.InvariantCulture))
+        #if !FABLE_COMPILER
+        | SomeObj o -> genericEncodeFromObj o
+        #endif
         | :? DynamicObj as dynObj ->
             dynObj.GetProperties(true)
             |> Seq.map (fun kv -> kv.Key, genericEncodeFromObj kv.Value)

@@ -3,7 +3,7 @@
 title: Decorations
 category: Core Implementation
 categoryindex: 3
-index: 3
+index: 4
 ---
 
 # Decorations
@@ -20,7 +20,7 @@ This page shows both approaches.
 *)
 
 (*** hide ***)
-#r "../../src/ProcessCore/bin/Release/netstandard2.0/ProcessCore.dll"
+#r "../../src/ProcessCore/bin/Release/netstandard2.1/ProcessCore.dll"
 #r "nuget: DynamicObj"
 #r "nuget: YAMLicious, 1.0.0-alpha.10"
 open DynamicObj

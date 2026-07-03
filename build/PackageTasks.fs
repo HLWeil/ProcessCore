@@ -22,6 +22,9 @@ module BundleDotNet =
         System.IO.Directory.CreateDirectory(ProjectInfo.netPkgDir) |> ignore
         !! "src/*/*.fsproj"
         -- "src/bin/*"
+        |> Seq.filter (fun (p : string) ->
+            not (p.Contains("Javascript") || p.Contains("Python"))
+        )
         |> Seq.iter (Fake.DotNet.DotNet.pack (fun p ->           
             let msBuildParams =
                 {p.MSBuildParams with 

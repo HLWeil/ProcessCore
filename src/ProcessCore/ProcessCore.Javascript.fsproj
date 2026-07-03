@@ -7,7 +7,13 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="Helper.fs" />
+    <Compile Include="Helper\CrossAsync.fs" />
+    <Compile Include="Helper\ResizeArray.fs" />
+    <Compile Include="Helper\Option.fs" />
+    <Compile Include="Helper\Path.fs" />
+    <Compile Include="Helper\Regex.fs" />
+    <Compile Include="Helper\Ontology.fs" />
+    <Compile Include="Helper\Identifier.fs" />
     <Compile Include="DefinedTerm.fs" />
     <Compile Include="FormalParameter.fs" />
     <Compile Include="Annotation.fs" />
@@ -36,10 +42,13 @@
     <Compile Include="SQL\Platform\Driver.fs" />
     <Compile Include="SQL\BetterSqliteDriver.fs" />
     <Compile Include="Table.fs" />
+    <Compile Include="ARC.fs" />
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Fable.Promise" />
     <PackageReference Include="Fable.Core" />
+    <PackageReference Include="Fable.Node" />
     <PackageReference Include="YAMLicious" />
     <PackageReference Include="DynamicObj" />
   </ItemGroup>

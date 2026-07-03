@@ -3,7 +3,7 @@
 title: Creating A Dataset
 category: Core Implementation
 categoryindex: 3
-index: 2
+index: 3
 ---
 
 # Creating A Dataset
@@ -12,7 +12,7 @@ This walkthrough builds a small process graph from F# objects. The goal is to sh
 *)
 
 (*** hide ***)
-#r "../../src/ProcessCore/bin/Release/netstandard2.0/ProcessCore.dll"
+#r "../../src/ProcessCore/bin/Release/netstandard2.1/ProcessCore.dll"
 #r "nuget: DynamicObj"
 open ProcessCore
 
@@ -29,9 +29,25 @@ let mermaidBlock (text: string) =
 Start with a dataset. Administrative metadata is optional, but an identifier is the stable handle for the dataset.
 *)
 
-let dataset = Dataset("demo-dataset")
+let dataset = Dataset("demo-dataset") // or ARC("demo-dataset") for an ARC package
+
+let lab = Organization("Core Lab")
+let curator = Agent("Ada", familyName = "Lovelace", email = "ada@example.org", affiliation = lab)
+let citation = ScholarlyArticle("Minimal ProcessCore example", authors = [ curator ])
+
+let dataset = ARC("demo-dataset")
 dataset.Title <- Some "Minimal ProcessCore example"
 dataset.Description <- Some "One extraction process with nested quality control."
+dataset.License <- Some "CC-BY-4.0"
+dataset.DatePublished <- Some "2026-07-03"
+dataset.DateCreated <- Some "2026-07-03"
+dataset.DateModified <- Some "2026-07-03"
+dataset.AddAgent(curator)
+dataset.AddCitation(citation)
+
+(**
+The administrative metadata is attached to the package itself rather than the individual processes.
+*)
 
 (**
 #### Recipe
@@ -137,7 +153,8 @@ finalNodes
 
 | Task | API |
 |------|-----|
-| Create a container | `Dataset(identifier)` |
+| Create a container | `Dataset(identifier)` or `ARC(identifier)` |
+| Add package metadata | `dataset.Title`, `dataset.Description`, `dataset.License`, `dataset.DatePublished`, `dataset.AddAgent`, `dataset.AddCitation` |
 | Add a process | `dataset.AddProcess(process)` |
 | Add nested datasets | `dataset.AddPart(child)` |
 | Connect samples or files | `process.AddInputSample`, `process.AddOutputData` |

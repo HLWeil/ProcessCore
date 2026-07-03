@@ -3,7 +3,7 @@
 title: Tabular Views
 category: Core Implementation
 categoryindex: 3
-index: 8
+index: 9
 ---
 
 # Tabular Views Over Process Graphs
@@ -12,7 +12,7 @@ index: 8
 *)
 
 (*** hide ***)
-#r "../../src/ProcessCore/bin/Release/netstandard2.0/ProcessCore.dll"
+#r "../../src/ProcessCore/bin/Release/netstandard2.1/ProcessCore.dll"
 #r "nuget: DynamicObj"
 open ProcessCore
 open ProcessCore.Table

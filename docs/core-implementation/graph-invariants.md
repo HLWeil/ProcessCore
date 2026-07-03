@@ -2,7 +2,7 @@
 title: Graph Identity, Back-Edges, And Scope
 category: Core Implementation
 categoryindex: 3
-index: 9
+index: 10
 ---
 
 # Graph Identity, Back-Edges, And Scope

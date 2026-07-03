@@ -13,7 +13,7 @@ module Dataset =
             [ "type"; "additionalType"; "identifier"; "title"; "description"
               "license"; "datePublished"; "dateCreated"; "dateModified"
               "processes"; "hasPart"; "dataFiles"; "agents"; "citations"
-              "dataContexts"; "additionalProperty" ]
+              "dataContexts"; "additionalProperty"; "ArcPath"; "annotations" ]
 
     let knownPropertyNames =
         Set.ofList
@@ -21,9 +21,9 @@ module Dataset =
               "license"; "datepublished"; "datecreated"; "datemodified"
               "processes"; "haspart"; "datafiles"; "agents"
               "citations"; "datacontexts"; "additionalproperty"; "partof"
-              "propertyvalues"; "labprotocols"
+              "propertyvalues"; "labprotocols"; "annotations"
               // Fable-compiled read-only instance properties — must not be re-emitted as overflow
-              "noderegistrydirect"; "fragmentselectorprovidersdirect" ]
+              "noderegistrydirect"; "fragmentselectorprovidersdirect"; "ArcPath" ]
 
     let addIndexedValues fieldName decode value =
         let registry = Dictionary<string, 'a>()
@@ -40,7 +40,21 @@ module Dataset =
         | true, value -> Some value
         | false, _    -> None
 
-    let rec decoder (processCoreOnly: bool) (value: YAMLElement) : Dataset =
+
+    /// <summary>
+    /// Decodes a Dataset or subclass from a YAMLElement. YAML allows annotations and recipes to be defined in a top-level index section, with each containing an "@id" field. Other objects can then reference these by their "@id" instead of being defined inline. This decoder supports that pattern by first decoding the annotations and recipes into registries, and then resolving references to them when decoding processes and other properties. If resolvers are provided, they will be used to resolve references to annotations and recipes. If not, the decoder will only resolve references that were defined in the same YAML document.
+    /// </summary>
+    /// <param name="createF">Factory function to create an instance of 'A given the identifier</param>
+    /// <param name="annotationResolver">Resolver for annotations</param>
+    /// <param name="recipeResolver">Resolver for recipes</param>
+    /// <param name="processCoreOnly">Flag indicating if only process core properties should be decoded. If set to true, the decoder fails when encountering objects not defined in the core spec.</param>
+    /// <param name="value">The YAMLElement to decode</param>
+    let rec decoderGeneric<'A when 'A :> Dataset> 
+        (createF : string -> 'A)
+        (annotationResolver : (string -> Annotation option) option) 
+        (recipeResolver : (string -> Recipe option) option)
+        (processCoreOnly: bool) 
+        (value: YAMLElement) : 'A =
         checkType processCoreOnly "Dataset" value
         let identifier =
             tryGetField "identifier" value |> Option.bind tryDecodeString
@@ -55,25 +69,31 @@ module Dataset =
         let dateModified   = tryGetField "dateModified"   value |> Option.map decodeString
 
         let ds =
-            Dataset(
-                identifier,
-                ?title = title,
-                ?description = description,
-                ?additionalType = additionalType,
-                ?license = license,
-                ?datePublished = datePublished,
-                ?dateCreated = dateCreated,
-                ?dateModified = dateModified)
+            createF identifier
 
-        let annotations =
-            addIndexedValues "annotations" (Annotation.decoder processCoreOnly) value
+        ds.Title <- title
+        ds.Description <- description
+        ds.AdditionalType <- additionalType
+        ds.License <- license
+        ds.DatePublished <- datePublished
+        ds.DateCreated <- dateCreated
+        ds.DateModified <- dateModified
 
-        let resolveAnnotation id = tryFind annotations id
+        let resolveAnnotation = 
+            match annotationResolver with
+            | Some resolver -> resolver
+            | None ->
+                let annotations =
+                    addIndexedValues "annotations" (Annotation.decoder processCoreOnly) value
+                tryFind annotations
 
-        let labProtocols =
-            addIndexedValues "labProtocols" (Recipe.decoderWithPropertyResolver processCoreOnly resolveAnnotation) value
-
-        let resolveRecipe id = tryFind labProtocols id
+        let resolveRecipe =
+            match recipeResolver with
+            | Some resolver -> resolver
+            | None ->
+                let labProtocols =
+                    addIndexedValues "labProtocols" (Recipe.decoderWithPropertyResolver processCoreOnly resolveAnnotation) value
+                tryFind labProtocols
 
         let decodeSeq fieldName (decoder: YAMLElement -> 'a) (resolve: string -> 'a option) (add: 'a -> unit) =
             tryGetField fieldName value
@@ -110,7 +130,7 @@ module Dataset =
                             ds.AddDataFile(data)
                         elif typeStr = "Dataset" || typeStr = "" then
                             // Try to decode as Dataset (nested); empty type defaults to Dataset
-                            let child = decoder processCoreOnly elem
+                            let child = decoderGeneric<Dataset> (fun i -> Dataset(i)) (Some resolveAnnotation) (Some resolveRecipe) processCoreOnly elem
                             ds.AddPart(child)
             | None -> ())
 
@@ -129,6 +149,9 @@ module Dataset =
 
         applyOverflow "Dataset" processCoreOnly knownFields ds value
         ds
+
+    let decoder (processCoreOnly: bool) (value: YAMLElement) : Dataset =
+        decoderGeneric<Dataset> (fun i -> Dataset(i)) None None processCoreOnly value
 
     // ── Encoders ───────────────────────────────────────────────────────────────
 

@@ -2029,6 +2029,17 @@ and [<AttachMembers>] Dataset(identifier: string, ?title: string, ?description: 
         |> Seq.choose (fun n -> match n with | DataNode d -> Some d | _ -> None)
         |> ResizeArray
 
+    member this.TryGetSampleByName(name: string) : Sample option =
+        match _nodeRegistry.TryGetValue("M:" + name) with
+        | true, SampleNode m -> Some m
+        | _ -> None
+
+    // to-do: Implement properly
+    //member this.TryGetDataByPath(path: string, ?selector: string) : Data option =
+    //    match _nodeRegistry.TryGetValue("D:" + path + "|" + (selector |> Option.defaultValue "")) with
+    //    | true, DataNode d -> Some d
+    //    | _ -> None
+
     // ── Dataset-level property value queries ──────────────────────────────────
 
     /// All distinct Annotations from all sources across all processes in this dataset.
