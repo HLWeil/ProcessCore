@@ -44,14 +44,14 @@ module Contacts =
             ?telephone = phone
         ) 
         if fax.IsSome then a.SetProperty("Fax",fax.Value)
-        a.SetProperty("Comments",comments)
+        if comments.Count > 0 then a.SetProperty("Comments",comments)
         a
 
     let fromSparseTable (matrix : SparseTable) =
         if matrix.ColumnCount = 0 && matrix.CommentKeys.Length <> 0 then
             let comments = SparseTable.GetEmptyComments matrix
             let a = Agent("")
-            a.SetProperty("Comments",comments)
+            if comments.Count > 0 then a.SetProperty("Comments",comments)
             a
             |> List.singleton
         else

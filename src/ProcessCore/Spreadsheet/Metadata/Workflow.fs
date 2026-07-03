@@ -3,6 +3,7 @@ namespace ProcessCore.Spreadsheet
 open ProcessCore
 open System.Collections.Generic
 open ProcessCore.Helper
+open DynamicObj
 
 
 module Workflow = 
@@ -51,7 +52,7 @@ module Workflow =
         fileNameLabel
     ]
 
-    let fromString identifier title description workflowType workflowTypeTermAccessionNumber workflowTypeTermSourceREF (subworkflowIdentifiers : string option) uri version parametersName parametersTermAccessionNumber parametersTermSourceREF componentsName componentsType componentsTypeTermAccessionNumber componentsTypeTermSourceREF fileName comments : Dataset =
+    let fromString identifier title description workflowType workflowTypeTermAccessionNumber workflowTypeTermSourceREF (subworkflowIdentifiers : string option) uri version parametersName parametersTermAccessionNumber parametersTermSourceREF componentsName componentsType componentsTypeTermAccessionNumber componentsTypeTermSourceREF fileName (comments : ResizeArray<DynamicObj>) : Dataset =
         let subworkflowIdentifiers = 
             match subworkflowIdentifiers with
             | Some subworkflowIdentifiers -> 
@@ -72,12 +73,12 @@ module Workflow =
                 | None -> Identifier.createMissingIdentifier()
         let workflow = Dataset(identifier, ?title = title, ?description = description, additionalType = "Workflow")
         workflowType |> Option.iter (fun value -> workflow.SetProperty("WorkflowType", value))
-        workflow.SetProperty("SubWorkflowIdentifiers", subworkflowIdentifiers)
-        workflow.SetProperty("Parameters", parameters)
-        workflow.SetProperty("Components", components)
+        if subworkflowIdentifiers.Count > 0 then workflow.SetProperty("SubWorkflowIdentifiers", subworkflowIdentifiers)
+        if parameters.Count > 0 then workflow.SetProperty("Parameters", parameters)
+        if components.Count > 0 then workflow.SetProperty("Components", components)
         uri |> Option.iter (fun value -> workflow.SetProperty("URI", value))
         version |> Option.iter (fun value -> workflow.SetProperty("Version", value))
-        workflow.SetProperty("Comments", comments)
+        if comments.Count > 0 then workflow.SetProperty("Comments", comments)
         workflow
 
     let fromSparseTable (matrix : SparseTable) : Dataset =

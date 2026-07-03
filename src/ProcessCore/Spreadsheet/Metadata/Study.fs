@@ -82,6 +82,7 @@ module Studies =
         let assayIdentifiers = assays |> List.map (fun assay -> assay.Identifier)
         let s = Dataset(
             studyInfo.Identifier,
+            additionalType = "Study",
             ?title = Option.fromValueWithDefault "" studyInfo.Title,
             ?description = Option.fromValueWithDefault "" studyInfo.Description,
             ?dateCreated = Option.fromValueWithDefault "" studyInfo.SubmissionDate,

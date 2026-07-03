@@ -1,6 +1,7 @@
 namespace ProcessCore.Spreadsheet
 
 open ProcessCore
+open DynamicObj
 open Comment
 open Remark
 open System.Collections.Generic
@@ -28,7 +29,7 @@ module Assays =
         ]
 
     
-    let fromString identifier title description measurementType measurementTypeTermSourceREF measurementTypeTermAccessionNumber technologyType technologyTypeTermSourceREF technologyTypeTermAccessionNumber (technologyPlatform : string option) fileName comments : Dataset = 
+    let fromString identifier title description measurementType measurementTypeTermSourceREF measurementTypeTermAccessionNumber technologyType technologyTypeTermSourceREF technologyTypeTermAccessionNumber (technologyPlatform : string option) fileName (comments : ResizeArray<DynamicObj>) : Dataset = 
         let measurementType = measurementType |> Option.map (fun mt -> DefinedTerm(name = mt,?tan = measurementTypeTermAccessionNumber))
         let technologyType = technologyType |> Option.map (fun tt -> DefinedTerm(name = tt,?tan = technologyTypeTermAccessionNumber))
         let identifier =
@@ -50,7 +51,7 @@ module Assays =
         if measurementType.IsSome then assay.SetProperty("MeasurementType",measurementType.Value)
         if technologyType.IsSome then assay.SetProperty("TechnologyType",technologyType.Value)
         if technologyPlatform.IsSome then assay.SetProperty("TechnologyPlatform",technologyPlatform.Value)
-        assay.SetProperty("Comments",comments)
+        if comments.Count > 0 then assay.SetProperty("Comments",comments)
         assay
 
         

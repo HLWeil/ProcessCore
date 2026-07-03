@@ -4,6 +4,7 @@ open ProcessCore
 open ProcessCore.Helper
 open Comment
 open Remark
+open DynamicObj
 open System.Collections.Generic
 
 module Publications = 
@@ -18,7 +19,7 @@ module Publications =
 
     let labels = [pubMedIDLabel;doiLabel;authorListLabel;titleLabel;statusLabel;statusTermAccessionNumberLabel;statusTermSourceREFLabel]
 
-    let fromString pubMedID doi author title status statusTermSourceREF statusTermAccessionNumber comments =
+    let fromString pubMedID doi author title status statusTermSourceREF statusTermAccessionNumber (comments : ResizeArray<DynamicObj>) =
         
         let status = status |> Option.map (fun s -> DefinedTerm(s,?tan = statusTermAccessionNumber))
         let sa = ScholarlyArticle( 
@@ -26,14 +27,14 @@ module Publications =
             ?creativeWorkStatus = status
  
         )
-        sa.SetProperty("Comments",comments)
+        if comments.Count > 0 then sa.SetProperty("Comments",comments)
         sa
 
     let fromSparseTable (matrix : SparseTable) =
         if matrix.ColumnCount = 0 && matrix.CommentKeys.Length <> 0 then
             let comments = SparseTable.GetEmptyComments matrix
             let sa = ScholarlyArticle("")
-            sa.SetProperty("Comments",comments)
+            if comments.Count > 0 then sa.SetProperty("Comments",comments)
             sa
             |> List.singleton
         else

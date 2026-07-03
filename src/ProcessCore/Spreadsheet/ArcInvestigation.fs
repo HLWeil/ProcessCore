@@ -83,9 +83,9 @@ module ArcInvestigation =
         i.DatePublished <- Option.fromValueWithDefault "" investigationInfo.PublicReleaseDate
         for contact in contacts do i.AddAgent(contact)
         for publication in publications do i.AddCitation(publication)
-        i.SetProperty("OntologySourceReferences", ontologySourceReference)
-        i.SetProperty("StudyIdentifiers", studyIdentifiers)
-        i.SetProperty("AssayIdentifiers", assays |> List.map (fun a -> a.Identifier))
+        if ontologySourceReference.Length > 0 then i.SetProperty("OntologySourceReferences", ontologySourceReference)
+        if studyIdentifiers.Length > 0 then i.SetProperty("StudyIdentifiers", studyIdentifiers)
+        if assays.Length > 0 then i.SetProperty("AssayIdentifiers", assays |> List.map (fun a -> a.Identifier))
         if investigationInfo.Comments.Length > 0 then i.SetProperty("Comments", ResizeArray investigationInfo.Comments)
         i
 

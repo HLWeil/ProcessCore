@@ -13,7 +13,7 @@ module OntologyAnnotationSection =
         if matrix.ColumnCount = 0 && matrix.CommentKeys.Length <> 0 then
             let comments = SparseTable.GetEmptyComments matrix
             let dt = DefinedTerm("")
-            dt.SetProperty("Comments",comments)
+            if comments.Count > 0 then dt.SetProperty("Comments",comments)
             dt
             |> List.singleton
         else
@@ -29,7 +29,7 @@ module OntologyAnnotationSection =
                     name = Option.defaultValue "" (matrix.TryGetValue(label,i)),
                     ?tan = matrix.TryGetValue(labelTAN,i)
                 )
-                dt.SetProperty("Comments",comments)
+                if comments.Count > 0 then dt.SetProperty("Comments",comments)
                 dt
             )
 

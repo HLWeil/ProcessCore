@@ -1,8 +1,7 @@
 namespace ProcessCore.Spreadsheet
 
 open ProcessCore
-open Comment
-open Remark
+open DynamicObj
 open System.Collections.Generic
 open ProcessCore.Helper
 
@@ -35,7 +34,7 @@ module Run =
         ]
 
     
-    let fromString identifier title description (workflowIdentifiers : string option) measurementType measurementTypeTermSourceREF measurementTypeTermAccessionNumber technologyType technologyTypeTermSourceREF technologyTypeTermAccessionNumber technologyPlatform fileName comments : Dataset =
+    let fromString identifier title description (workflowIdentifiers : string option) measurementType measurementTypeTermSourceREF measurementTypeTermAccessionNumber technologyType technologyTypeTermSourceREF technologyTypeTermAccessionNumber technologyPlatform fileName (comments : ResizeArray<DynamicObj>) : Dataset =
         let workflowIdentifiers =
             match workflowIdentifiers with
             | Some wi -> wi.Split(';') |> ResizeArray
@@ -56,8 +55,8 @@ module Run =
         measurementType |> Option.iter (fun value -> run.SetProperty("MeasurementType", value))
         technologyType |> Option.iter (fun value -> run.SetProperty("TechnologyType", value))
         technologyPlatform |> Option.iter (fun value -> run.SetProperty("TechnologyPlatform", value))
-        run.SetProperty("WorkflowIdentifiers", workflowIdentifiers)
-        run.SetProperty("Comments", comments)
+        if workflowIdentifiers.Count > 0 then run.SetProperty("WorkflowIdentifiers", workflowIdentifiers)
+        if comments.Count > 0 then run.SetProperty("Comments", comments)
         run
         
     let fromSparseTable (matrix : SparseTable) : Dataset =

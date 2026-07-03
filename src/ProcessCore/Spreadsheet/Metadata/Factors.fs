@@ -5,6 +5,7 @@ open ProcessCore.Helper
 open Comment
 open Remark
 open System.Collections.Generic
+open DynamicObj
 
 module Factors = 
     
@@ -15,10 +16,10 @@ module Factors =
 
     let labels = [nameLabel;factorTypeLabel;typeTermAccessionNumberLabel;typeTermSourceREFLabel]
     
-    let fromString (name : string option) designType typeTermSourceREF typeTermAccessionNumber comments =
+    let fromString (name : string option) designType typeTermSourceREF typeTermAccessionNumber (comments : ResizeArray<DynamicObj>) =
         let dt = Option.defaultValue "" designType
         let factorType = Annotation(name = dt,?nameTAN = typeTermAccessionNumber, additionalType = "Factor")
-        factorType.SetProperty("Comments",comments)
+        if comments.Count > 0 then factorType.SetProperty("Comments",comments)
         if name.IsSome then factorType.SetProperty("FactorName",name.Value)
         factorType
 

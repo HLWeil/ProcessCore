@@ -39,14 +39,14 @@ module Protocols =
         let components = Component.fromAggregatedStrings ';' componentsName componentsType componentsTypeTermSourceREF componentsTypeTermAccessionNumber
 
         let r = Recipe(?name = name, ?description = description, ?version = version, ?url = uri, ?intendedUse = protocolType, parameters = parameters, components = components)
-        r.SetProperty("Comments",comments)
+        if comments.Count > 0 then r.SetProperty("Comments",comments)
         r
 
     let fromSparseTable (matrix : SparseTable) =
         if matrix.ColumnCount = 0 && matrix.CommentKeys.Length <> 0 then
             let comments = SparseTable.GetEmptyComments matrix
             let r = Recipe()
-            r.SetProperty("Comments",comments)
+            if comments.Count > 0 then r.SetProperty("Comments",comments)
             r
             |> List.singleton
         else
