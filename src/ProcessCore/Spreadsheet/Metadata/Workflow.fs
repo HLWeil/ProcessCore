@@ -113,3 +113,69 @@ module Workflow =
     let fromRows lineNumber (rows : IEnumerator<SparseRow>) =
         SparseTable.FromRows(rows,labels,lineNumber, prefix = workflowLabelPrefix)
         |> fun (s,ln,rs,sm) -> (s,ln,rs, fromSparseTable sm)
+
+    let toSparseTable (workflow: Dataset) =
+        let matrix = SparseTable.Create (keys = labels, length = 2)
+        let mutable commentKeys = []
+        let processedIdentifier, processedFileName =
+            if workflow.Identifier.StartsWith(Identifier.MISSING_IDENTIFIER) then "", ""
+            else workflow.Identifier, Identifier.Workflow.fileNameFromIdentifier workflow.Identifier
+        let workflowType =
+            workflow.TryGetPropertyValue("WorkflowType")
+            |> Option.bind (fun v -> match v with | :? DefinedTerm as dt -> Some dt | _ -> None)
+            |> Option.defaultValue (DefinedTerm(""))
+        let parameters =
+            workflow.TryGetPropertyValue("Parameters")
+            |> Option.bind (fun v -> match v with | :? ResizeArray<DefinedTerm> as values -> Some values | _ -> None)
+            |> Option.defaultValue (ResizeArray())
+        let components =
+            workflow.TryGetPropertyValue("Components")
+            |> Option.bind (fun v -> match v with | :? ResizeArray<Annotation> as values -> Some values | _ -> None)
+            |> Option.defaultValue (ResizeArray())
+        let subworkflowIdentifiers =
+            workflow.TryGetPropertyValue("SubWorkflowIdentifiers")
+            |> Option.bind (fun v -> match v with | :? ResizeArray<string> as values -> Some values | _ -> None)
+            |> Option.map (String.concat ";")
+            |> Option.defaultValue ""
+        do matrix.Matrix.Add((identifierLabel, 1), processedIdentifier)
+        do matrix.Matrix.Add((titleLabel, 1), Option.defaultValue "" workflow.Title)
+        do matrix.Matrix.Add((descriptionLabel, 1), Option.defaultValue "" workflow.Description)
+        do matrix.Matrix.Add((workflowTypeLabel, 1), workflowType.Name)
+        do matrix.Matrix.Add((typeTermAccessionNumberLabel, 1), workflowType.TAN |> Option.defaultValue "")
+        do matrix.Matrix.Add((typeTermSourceREFLabel, 1), workflowType.TryGetTSR() |> Option.defaultValue "")
+        do matrix.Matrix.Add((subWorkflowIdentifiersLabel, 1), subworkflowIdentifiers)
+        do matrix.Matrix.Add((uriLabel, 1),
+            workflow.TryGetPropertyValue("URI")
+            |> Option.bind (fun v -> match v with | :? string as s -> Some s | _ -> None)
+            |> Option.defaultValue "")
+        do matrix.Matrix.Add((versionLabel, 1),
+            workflow.TryGetPropertyValue("Version")
+            |> Option.bind (fun v -> match v with | :? string as s -> Some s | _ -> None)
+            |> Option.defaultValue "")
+        do matrix.Matrix.Add((parametersNameLabel, 1), parameters |> Seq.map (fun fp -> fp.Name) |> String.concat ";")
+        do matrix.Matrix.Add((parametersTermAccessionNumberLabel, 1), parameters |> Seq.map (fun fp -> fp.TAN |> Option.defaultValue "") |> String.concat ";")
+        do matrix.Matrix.Add((parametersTermSourceREFLabel, 1), parameters |> Seq.map (fun fp -> fp.TryGetTSR() |> Option.defaultValue "") |> String.concat ";")
+        do matrix.Matrix.Add((componentsNameLabel, 1), components |> Seq.map (fun pv -> pv.TryGetPropertyValue("componentName") |> Option.bind (fun v -> match v with | :? string as s -> Some s | _ -> None) |> Option.defaultValue "") |> String.concat ";")
+        do matrix.Matrix.Add((componentsTypeLabel, 1), components |> Seq.map (fun pv -> pv.Name) |> String.concat ";")
+        do matrix.Matrix.Add((componentsTypeTermAccessionNumberLabel, 1), components |> Seq.map (fun pv -> pv.NameTAN |> Option.defaultValue "") |> String.concat ";")
+        do matrix.Matrix.Add((componentsTypeTermSourceREFLabel, 1), components |> Seq.map (fun pv -> DefinedTerm(pv.Name, ?tan = pv.NameTAN).TryGetTSR() |> Option.defaultValue "") |> String.concat ";")
+        do matrix.Matrix.Add((fileNameLabel, 1), processedFileName)
+
+        match workflow.TryGetPropertyValue("Comments") with
+        | Some (:? ResizeArray<DynamicObj> as comments) ->
+            comments
+            |> Seq.iter (fun comment ->
+                match Comment.toString comment with
+                | Some name, Some value ->
+                    commentKeys <- name :: commentKeys
+                    matrix.Matrix.Add((name, 1), value)
+                | _ -> ()
+            )
+        | _ -> ()
+
+        { matrix with CommentKeys = commentKeys |> List.distinct |> List.rev }
+
+    let toRows (workflow: Dataset) =
+        workflow
+        |> toSparseTable
+        |> fun st -> SparseTable.ToRows(st, prefix = workflowLabelPrefix)

@@ -7,7 +7,6 @@ open ProcessCore.Table
 open FsSpreadsheet
 open FsSpreadsheet.Net
 
-
 module CompositeCell =
 
     let termFromStringCells (tsrCol : int option) (tanCol : int option ) (cellValues : array<string>) : CompositeCell=
@@ -35,6 +34,22 @@ module CompositeCell =
                 cellValues.[0], None
         let data = Data(path, ?selector = selector, ?encodingFormat = format, ?selectorFormat = selectorFormat)
         CompositeCell.Data(data)
+
+
+    let toStringCells isTerm hasUnit (cell : CompositeCell) : array<string> =
+        match cell with
+        | CompositeCell.FreeText v when hasUnit -> [|v; ""; ""; ""|]
+        | CompositeCell.FreeText v when isTerm -> [|v; ""; ""|]
+        | CompositeCell.FreeText v -> [|v|]
+
+        | CompositeCell.Term (name, tan) when hasUnit -> [|name; ""; tan |> Option.bind Ontology.tryGetTSR |> Option.defaultValue ""; Option.defaultValue "" tan|]
+        | CompositeCell.Term (name, tan) -> [|name; tan |> Option.bind Ontology.tryGetTSR |> Option.defaultValue ""; Option.defaultValue "" tan|]
+
+        | CompositeCell.Unitized (v,unit,unitTAN) -> [|v; unit; unitTAN |> Option.bind Ontology.tryGetTSR |> Option.defaultValue ""; Option.defaultValue "" unitTAN|]
+        | CompositeCell.Data d -> 
+            let format = d.EncodingFormat |> Option.defaultValue ""
+            let selectorFormat = d.SelectorFormat |> Option.defaultValue ""
+            [|d.Name; format; selectorFormat|]
 
 module ActivePattern =
 
@@ -255,6 +270,50 @@ module CompositeColumn =
             )
         fromStringCellColumns stringCellColumns
 
+    
+    let toStringCellColumns (column : CompositeColumn) : string list list =
+        let hasUnit = column.Cells |> Seq.exists (fun c -> c.IsUnitized)
+        let isTerm = column.Header.IsTermColumn
+        let isData = column.Header.IsDataColumn && column.Cells |> Seq.exists (fun c -> c.IsData)
+        let header = CompositeHeader.toStringCells hasUnit column.Header
+        let compositeCells = column.Cells |> Seq.toArray
+        let cells = column.Cells |> Seq.toArray |> Array.map (CompositeCell.toStringCells isTerm hasUnit)
+        let getCellOrDefault (ri: int) (ci: int) (cells: string [] []) = cells.[ri] |> Array.tryItem ci |> Option.defaultValue ""
+        if hasUnit then
+            [
+                [header.[0]; for i = 0 to compositeCells.Length - 1 do getCellOrDefault i 0 cells]
+                [header.[1]; for i = 0 to compositeCells.Length - 1 do getCellOrDefault i 1 cells]
+                [header.[2]; for i = 0 to compositeCells.Length - 1 do getCellOrDefault i 2 cells]
+                [header.[3]; for i = 0 to compositeCells.Length - 1 do getCellOrDefault i 3 cells]
+            ]
+        elif isTerm then
+            [
+                [header.[0]; for i = 0 to compositeCells.Length - 1 do getCellOrDefault i 0 cells]
+                [header.[1]; for i = 0 to compositeCells.Length - 1 do getCellOrDefault i 1 cells]
+                [header.[2]; for i = 0 to compositeCells.Length - 1 do getCellOrDefault i 2 cells]
+            ]
+        elif isData then
+            [
+                [header.[0]; for i = 0 to compositeCells.Length - 1 do getCellOrDefault i 0 cells]
+                [header.[1]; for i = 0 to compositeCells.Length - 1 do getCellOrDefault i 1 cells]
+                [header.[2]; for i = 0 to compositeCells.Length - 1 do getCellOrDefault i 2 cells]
+            ]
+        else
+            [
+                [header.[0]; for i = 0 to compositeCells.Length - 1 do cells.[i].[0]]
+            ]
+
+    let toFsColumns (column : CompositeColumn) : list<FsCell list> =
+        let stringCellColumns = toStringCellColumns column
+        let fsColumns = 
+            stringCellColumns
+            |> List.map (fun c -> 
+                c
+                |> List.map (fun s -> FsCell(s))
+            )
+        fsColumns
+
+
 
 // I think we really should not add FSharpAux for exactly one function.
 module Aux =
@@ -386,3 +445,49 @@ module Table =
                 None
         with
         | err -> failwithf "Could not parse table with name \"%s\":\n%s" sheet.Name err.Message
+
+    
+    let toFsWorksheet (index : int option) (table : Table) =
+        /// This dictionary is used to add spaces at the end of duplicate headers.
+        let stringCount = System.Collections.Generic.Dictionary<string,string>()
+        let ws = FsWorksheet(table.Name)
+
+        // Cancel if there are no columns
+        if table.ColumnCount = 0 then ws
+        else
+
+        let columns = 
+            table.Columns
+            |> List.ofSeq
+            |> List.sortBy classifyColumnOrder
+            |> List.collect CompositeColumn.toStringCellColumns
+        let tableRowCount =
+            let maxRow = columns |> Seq.fold (fun acc c -> max acc c.Length) 0
+            if maxRow = 1 then 2
+            else maxRow
+        let tableColumnCount = columns.Length
+        let name =
+            match index with
+            | Some i -> $"{annotationTablePrefix}{i}"
+            | None -> annotationTablePrefix
+        let fsTable = ws.Table(name,FsRangeAddress(FsAddress(1,1),FsAddress(tableRowCount,tableColumnCount)))
+        columns
+        |> List.iteri (fun colI col ->         
+            col
+            |> List.iteri (fun rowI stringCell -> 
+                let value = 
+                    if rowI = 0 then
+                    
+                        match Dictionary.tryGet stringCell stringCount with
+                        | Some spaces ->
+                            stringCount.[stringCell] <- spaces + " "
+                            stringCell + " " + spaces
+                        | None ->
+                            stringCount.Add(stringCell,"")
+                            stringCell
+                    else stringCell
+                let address = FsAddress(rowI+1,colI+1)
+                fsTable.Cell(address, ws.CellCollection).SetValueAs value
+            )  
+        )
+        ws

@@ -40,6 +40,10 @@ module Comment =
        d.SetProperty("Value", v)
        d
 
+    let toString (d : #DynamicObj) =
+        d.TryGetPropertyValue("Name") |> Option.bind (fun n -> match n with | :? string as s -> Some s | _ -> None) ,        
+        d.TryGetPropertyValue("Value") |> Option.bind (fun v -> match v with | :? string as s -> Some s | _ -> None)
+
     let getCommentsFromDynamicObj (d : #DynamicObj) =
         d.GetProperties(false)
         |> Seq.choose (fun p -> 

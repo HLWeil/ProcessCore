@@ -62,3 +62,48 @@ module Publications =
         | Some p -> SparseTable.FromRows(rows,labels,lineNumber,p)
         | None -> SparseTable.FromRows(rows,labels,lineNumber)
         |> fun (s,ln,rs,sm) -> (s,ln,rs, fromSparseTable sm)
+
+    let toSparseTable (publications: ScholarlyArticle list) =
+        let matrix = SparseTable.Create (keys = labels, length = publications.Length + 1)
+        let mutable commentKeys = []
+        publications
+        |> List.iteri (fun i p ->
+            let i = i + 1
+            let authors =
+                p.Authors
+                |> Seq.map (fun a ->
+                    match a.FamilyName, a.GivenName with
+                    | Some familyName, givenName when givenName <> "" -> $"{givenName} {familyName}"
+                    | Some familyName, _ -> familyName
+                    | None, givenName -> givenName)
+                |> String.concat ";"
+            let status = p.CreativeWorkStatus |> Option.defaultValue (DefinedTerm(""))
+            do matrix.Matrix.Add((pubMedIDLabel, i), "")
+            do matrix.Matrix.Add((doiLabel, i), "")
+            do matrix.Matrix.Add((authorListLabel, i), authors)
+            do matrix.Matrix.Add((titleLabel, i), p.Headline)
+            do matrix.Matrix.Add((statusLabel, i), status.Name)
+            do matrix.Matrix.Add((statusTermAccessionNumberLabel, i), status.TAN |> Option.defaultValue "")
+            do matrix.Matrix.Add((statusTermSourceREFLabel, i), status.TryGetTSR() |> Option.defaultValue "")
+
+            match p.TryGetPropertyValue("Comments") with
+            | Some (:? ResizeArray<DynamicObj> as comments) ->
+                comments
+                |> Seq.iter (fun comment ->
+                    match Comment.toString comment with
+                    | Some name, Some value ->
+                        commentKeys <- name :: commentKeys
+                        matrix.Matrix.Add((name, i), value)
+                    | _ -> ()
+                )
+            | _ -> ()
+        )
+        { matrix with CommentKeys = commentKeys |> List.distinct |> List.rev }
+
+    let toRows prefix (publications: ScholarlyArticle list) =
+        publications
+        |> toSparseTable
+        |> fun m ->
+            match prefix with
+            | Some p -> SparseTable.ToRows(m, p)
+            | None -> SparseTable.ToRows(m)

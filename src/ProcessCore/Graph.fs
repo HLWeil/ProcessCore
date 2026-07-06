@@ -878,6 +878,13 @@ and [<AttachMembers>] Data(path: string, ?selector: string, ?selectorFormat: str
         hasPart |> Option.iter (fun data -> for d in data do this.AddPart(d))
         additionalProperty |> Option.iter (fun pvs -> for pv in pvs do this.AddAdditionalProperty(pv))
 
+    member _.Name
+        with get() = 
+            match _selector with
+            | Some sel when sel <> "" -> _path + "#" + sel
+            | _ -> _path
+        
+
     member _.Path
         with get() = _path
         and set v = _path <- v

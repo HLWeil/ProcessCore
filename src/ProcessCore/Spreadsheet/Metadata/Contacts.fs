@@ -100,12 +100,17 @@ module Contacts =
             if p.Id.IsSome then 
                 do matrix.Matrix.Add(("ORCID",i),p.Id.Value)
                 commentKeys <- "ORCID" :: commentKeys
-            Comment.getCommentsFromDynamicObj p
-            |> Seq.iter (fun (n,v) -> 
-                if n <> "Fax" then                  
-                    commentKeys <- n :: commentKeys
-                    matrix.Matrix.Add((n,i),v)
-            )
+            match p.TryGetPropertyValue("Comments") with
+            | Some (:? ResizeArray<DynamicObj> as comments) ->
+                comments
+                |> Seq.iter (fun comment ->
+                    match Comment.toString comment with
+                    | Some name, Some value ->
+                        commentKeys <- name :: commentKeys
+                        matrix.Matrix.Add((name, i), value)
+                    | _ -> ()
+                )
+            | _ -> ()
         )
         {matrix with CommentKeys = commentKeys |> List.distinct |> List.rev} 
 

@@ -74,6 +74,38 @@ module Studies =
         static member fromRows lineNumber (rows : IEnumerator<SparseRow>) =
             SparseTable.FromRows(rows,StudyInfo.Labels,lineNumber)
             |> fun (s,ln,rs,sm) -> (s,ln,rs, StudyInfo.FromSparseTable sm)
+
+        static member ToSparseTable (study: Dataset) =
+            let matrix = SparseTable.Create (keys = StudyInfo.Labels, length = 2)
+            let mutable commentKeys = []
+            let processedIdentifier, processedFileName =
+                if study.Identifier.StartsWith(Identifier.MISSING_IDENTIFIER) then "", ""
+                else study.Identifier, Identifier.Study.fileNameFromIdentifier study.Identifier
+            do matrix.Matrix.Add((identifierLabel, 1), processedIdentifier)
+            do matrix.Matrix.Add((titleLabel, 1), Option.defaultValue "" study.Title)
+            do matrix.Matrix.Add((descriptionLabel, 1), Option.defaultValue "" study.Description)
+            do matrix.Matrix.Add((submissionDateLabel, 1), Option.defaultValue "" study.DateCreated)
+            do matrix.Matrix.Add((publicReleaseDateLabel, 1), Option.defaultValue "" study.DatePublished)
+            do matrix.Matrix.Add((fileNameLabel, 1), processedFileName)
+
+            match study.TryGetPropertyValue("Comments") with
+            | Some (:? ResizeArray<DynamicObj> as comments) ->
+                comments
+                |> Seq.iter (fun comment ->
+                    match Comment.toString comment with
+                    | Some name, Some value ->
+                        commentKeys <- name :: commentKeys
+                        matrix.Matrix.Add((name, 1), value)
+                    | _ -> ()
+                )
+            | _ -> ()
+
+            { matrix with CommentKeys = commentKeys |> List.distinct |> List.rev }
+
+        static member toRows (study: Dataset) =
+            study
+            |> StudyInfo.ToSparseTable
+            |> SparseTable.ToRows
    
     
     /// FACTORS AND PROTOCOLS ARE NOT USED ANYMORE, Lukas, 21.03.24
@@ -130,3 +162,60 @@ module Studies =
     
         let currentLine,lineNumber,remarks,item = StudyInfo.fromRows lineNumber en  
         loop currentLine item [] [] [] [] [] [] remarks lineNumber
+
+    let toSparseTable (study: Dataset) =
+        StudyInfo.ToSparseTable study
+
+    let toRows (study: Dataset) (assays: Dataset list option) =
+        let designDescriptors =
+            study.TryGetPropertyValue("StudyDesignDescriptors")
+            |> Option.bind (fun v -> match v with | :? ResizeArray<DefinedTerm> as values -> Some values | _ -> None)
+            |> Option.defaultValue (ResizeArray())
+        let publications = study.Citations |> Seq.toList
+        let contacts = study.Agents |> Seq.toList
+        let protocols =
+            study.Processes
+            |> Seq.choose (fun p -> p.ExecutesProtocol)
+            |> Seq.toList
+        let factors =
+            study.Processes
+            |> Seq.collect (fun p ->
+                seq {
+                    for node in p.Outputs do
+                        match node with
+                        | SampleNode sample -> yield! sample.AdditionalProperty
+                        | DataNode data -> yield! data.AdditionalProperty
+                })
+            |> Seq.filter (fun pv -> pv.AdditionalType = Some "FactorValue")
+            |> Seq.toList
+        let assays =
+            match assays with
+            | Some items -> items
+            | None ->
+                match study.TryGetPropertyValue("AssayIdentifiers") with
+                | Some (:? ResizeArray<string> as ids) ->
+                    ids
+                    |> Seq.map (fun id -> Dataset(id, additionalType = "Assay"))
+                    |> Seq.toList
+                | _ -> []
+        seq {
+            yield! StudyInfo.toRows study
+
+            yield SparseRow.fromValues [designDescriptorsLabel]
+            yield! DesignDescriptors.toRows (Some designDescriptorsLabelPrefix) (List.ofSeq designDescriptors)
+
+            yield SparseRow.fromValues [publicationsLabel]
+            yield! Publications.toRows (Some publicationsLabelPrefix) publications
+
+            yield SparseRow.fromValues [factorsLabel]
+            yield! Factors.toRows (Some factorsLabelPrefix) factors
+
+            yield SparseRow.fromValues [assaysLabel]
+            yield! Assays.toRows (Some assaysLabelPrefix) assays
+
+            yield SparseRow.fromValues [protocolsLabel]
+            yield! Protocols.toRows (Some protocolsLabelPrefix) protocols
+
+            yield SparseRow.fromValues [contactsLabel]
+            yield! Contacts.toRows (Some contactsLabelPrefix) contacts
+        }
