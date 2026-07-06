@@ -40,6 +40,17 @@ module Comment =
        d.SetProperty("Value", v)
        d
 
+    let getCommentsFromDynamicObj (d : #DynamicObj) =
+        d.GetProperties(false)
+        |> Seq.choose (fun p -> 
+            match p.Key with
+            | Comment k -> 
+                match p.Value with
+                | :? string as v -> Some (k, v)
+                | _ -> None
+            | _ -> None
+        )
+
 module Remark = 
 
     let remarkValueKey = "remarkValue"

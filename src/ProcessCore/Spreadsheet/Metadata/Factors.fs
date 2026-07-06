@@ -45,8 +45,39 @@ module Factors =
                     comments
             )
 
+    let toSparseTable (factors: Annotation seq) =
+        let matrix = SparseTable.Create (keys = labels,length=Seq.length factors + 1)
+        let mutable commentKeys = []
+        factors
+        |> Seq.iteri (fun i f ->
+            let i = i + 1
+            let name = f.TryGetPropertyValue("FactorName") |> Option.map string
+            let tan = f.NameTAN |> Option.defaultValue ""
+            let tsr = f.NameTAN |> Option.bind Ontology.tryGetTSR |> Option.defaultValue ""
+            do matrix.Matrix.Add ((nameLabel,i),                    (Option.defaultValue "" name))
+            do matrix.Matrix.Add ((factorTypeLabel,i),              f.Name)
+            do matrix.Matrix.Add ((typeTermAccessionNumberLabel,i), tan)
+            do matrix.Matrix.Add ((typeTermSourceREFLabel,i),       tsr)
+
+            Comment.getCommentsFromDynamicObj f
+            |> Seq.iter (fun (n,v) -> 
+                if n <> "FactorName" then                  
+                    commentKeys <- n :: commentKeys
+                    matrix.Matrix.Add((n,i),v)
+            )
+        )
+        {matrix with CommentKeys = commentKeys |> List.distinct |> List.rev} 
+
     let fromRows (prefix : string option) lineNumber (rows : IEnumerator<SparseRow>) =
         match prefix with
         | Some p -> SparseTable.FromRows(rows,labels,lineNumber,p)
         | None -> SparseTable.FromRows(rows,labels,lineNumber)
         |> fun (s,ln,rs,sm) -> (s,ln,rs, fromSparseTable sm)
+
+    let toRows prefix (factors : Annotation seq) =
+        factors
+        |> toSparseTable
+        |> fun m -> 
+            match prefix with 
+            | Some prefix -> SparseTable.ToRows(m,prefix)
+            | None -> SparseTable.ToRows(m)

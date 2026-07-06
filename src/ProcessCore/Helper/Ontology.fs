@@ -12,4 +12,7 @@ let computeTanInfo (tan : string option) (tsr : string option) =
                 Some {| IDSpace = tsr; LocalID = tan |}
     | None -> None
 
-
+let tryGetTSR (tan : string) =
+   computeTanInfo (Some tan) None
+   |> Option.map (fun ta -> ta.IDSpace)
+   
