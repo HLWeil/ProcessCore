@@ -44,16 +44,20 @@ module Comment =
         d.TryGetPropertyValue("Name") |> Option.bind (fun n -> match n with | :? string as s -> Some s | _ -> None) ,        
         d.TryGetPropertyValue("Value") |> Option.bind (fun v -> match v with | :? string as s -> Some s | _ -> None)
 
-    let getCommentsFromDynamicObj (d : #DynamicObj) =
-        d.GetProperties(false)
-        |> Seq.choose (fun p -> 
-            match p.Key with
-            | Comment k -> 
-                match p.Value with
-                | :? string as v -> Some (k, v)
-                | _ -> None
-            | _ -> None
-        )
+    let getCommentsFromDynamicObj (d : #DynamicObj) : ResizeArray<DynamicObj>=
+        match d.TryGetPropertyValue("Comments") with
+        | Some (:? ResizeArray<DynamicObj> as comments) ->
+            comments
+        | _ -> ResizeArray()
+        //d.GetProperties(false)
+        //|> Seq.choose (fun p -> 
+        //    match p.Key with
+        //    | Comment k -> 
+        //        match p.Value with
+        //        | :? string as v -> Some (k, v)
+        //        | _ -> None
+        //    | _ -> None
+        //)
 
 module Remark = 
 

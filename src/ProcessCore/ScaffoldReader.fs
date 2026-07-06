@@ -5,7 +5,7 @@ open ProcessCore.Helper
 open ProcessCore.Spreadsheet
 open FsSpreadsheet
 open FsSpreadsheet.Net
-
+open ProcessCore.Table
 
 let parseTablesIntoDataset (ds : Dataset) (wb : FsWorkbook) =
     wb.GetWorksheets()
@@ -35,6 +35,14 @@ module Assay =
             a
         )
 
+    let toFsWorkbook (assay : Dataset) =
+        let doc = new FsWorkbook()
+        let metadataSheet = ArcAssay.toMetadataSheet (assay)
+        doc.AddWorksheet metadataSheet
+
+        assay.Tables.GetTables()
+        |> Seq.iteri (fun i -> Table.toFsWorksheet (Some i) >> doc.AddWorksheet)
+        doc
 
 module Study =
 
@@ -46,6 +54,26 @@ module Study =
             arcStudy
         )
 
+    let toFsWorkbook (study : Dataset)  =
+        let doc = new FsWorkbook()
+        let metadataSheet = ArcStudy.toMetadataSheet study None
+        doc.AddWorksheet metadataSheet
+
+        study.Tables.GetTables()
+        |> Seq.iteri (fun i -> Table.toFsWorksheet (Some i) >> doc.AddWorksheet)
+
+        doc
+
+    let toFsWorkbookWithAssays (study : Dataset) (assays : Dataset list) =
+        let doc = new FsWorkbook()
+        let metadataSheet = ArcStudy.toMetadataSheet study (Some assays)
+        doc.AddWorksheet metadataSheet
+
+        study.Tables.GetTables()
+        |> Seq.iteri (fun i -> Table.toFsWorksheet (Some i) >> doc.AddWorksheet)
+
+        doc
+
 module Run =
 
     let tryFromFsWorkbook (wb : FsWorkbook) =
@@ -56,6 +84,16 @@ module Run =
             arcRun
         )
 
+    let toFsWorkbook (run : Dataset) =
+            let doc = new FsWorkbook()
+            let metadataSheet = ArcRun.toMetadataSheet (run)
+            doc.AddWorksheet metadataSheet
+
+            run.Tables.GetTables()
+            |> Seq.iteri (fun i -> Table.toFsWorksheet (Some i) >> doc.AddWorksheet)
+
+            doc
+
 
 module Workflow =
 
@@ -65,6 +103,14 @@ module Workflow =
             ArcWorkflow.fromMetadataSheet mdSheet
         )
 
+    let toFsWorkbook (workflow : Dataset) = 
+        let doc = new FsWorkbook()
+        let metadataSheet = ArcWorkflow.toMetadataSheet workflow
+        doc.AddWorksheet metadataSheet
+
+        doc
+
+
 module Investigation =
 
     let tryFromFsWorkbook (createF : string -> 'D) (wb : FsWorkbook) =
@@ -72,6 +118,18 @@ module Investigation =
         |> Option.map (fun mdSheet ->
             ArcInvestigation.fromMetadataSheet createF mdSheet
         )
+    
+    let toFsWorkbook (investigation : Dataset) : FsWorkbook =           
+        try
+            let wb = new FsWorkbook()
+            let sheet = FsWorksheet(ArcInvestigation.metadataSheetName)
+            investigation
+            |> ArcInvestigation.toRows
+            |> Seq.iteri (fun rowI r -> SparseRow.writeToSheet (rowI + 1) r sheet)                     
+            wb.AddWorksheet(sheet)
+            wb
+        with
+        | err -> failwithf "Could not write investigation to spreadsheet: %s" err.Message
 
 module ARC =
 
@@ -110,9 +168,25 @@ module ARC =
             Some path
         | _ -> None
 
+    let getAssayPath (identifier : string) = 
+        Path.combineMany [Path.AssaysFolderName; identifier; Path.AssayFileName]
+
+    let getAtudyPath (identifier : string) = 
+        Path.combineMany [Path.StudiesFolderName; identifier; Path.StudyFileName]
+
+    let getRunPath (identifier : string) = 
+        Path.combineMany [Path.RunsFolderName; identifier; Path.RunFileName]
+
+    let getWorkflowPath (identifier : string) = 
+        Path.combineMany [Path.WorkflowsFolderName; identifier; Path.WorkflowFileName]
+
     let readWorkbook (arcPath : string) (wbPath : string) =
         let path = Path.combine arcPath wbPath
         FsWorkbook.fromXlsxFile(path)
+
+    let writeWorkbook (arcPath : string) (wbPath : string) (wb : FsWorkbook) =
+        let path = Path.combine arcPath wbPath
+        FsWorkbook.toXlsxFile(path) wb
 
     let getDatamapPathByISAPath (p : string) = 
         p.Replace(Path.InvestigationFileName, Path.DatamapFileName)
@@ -201,3 +275,44 @@ module ARC =
             | ex -> printfn $"Failed to add dataset {ds.Identifier} to top-level dataset: {ex.Message}"
         )
         topLevelDataset
+
+    let write (arcPath : string) (arc : #Dataset) =
+        arc.HasPart
+        |> Seq.iter (fun d ->
+            match d.AdditionalType with
+            | Some "Assay" -> 
+                let p = getAssayPath d.Identifier
+                let wb = Assay.toFsWorkbook d
+                writeWorkbook arcPath p wb
+                if d.DataContexts.Count > 0 then
+                    let p = getDatamapPathByISAPath p
+                    let wb = Datamap.toFsWorkbook d
+                    writeWorkbook arcPath p wb   
+            | Some "Study" ->
+                let p = getAtudyPath d.Identifier
+                let wb = Study.toFsWorkbook d
+                writeWorkbook arcPath p wb
+                if d.DataContexts.Count > 0 then
+                    let p = getDatamapPathByISAPath p
+                    let wb = Datamap.toFsWorkbook d
+                    writeWorkbook arcPath p wb
+            | Some "Run" ->
+                let p = getRunPath d.Identifier
+                let wb = Run.toFsWorkbook d
+                writeWorkbook arcPath p wb
+                if d.DataContexts.Count > 0 then
+                    let p = getDatamapPathByISAPath p
+                    let wb = Datamap.toFsWorkbook d
+                    writeWorkbook arcPath p wb
+            | Some "Workflow" ->
+                let p = getWorkflowPath d.Identifier
+                let wb = Workflow.toFsWorkbook d
+                writeWorkbook arcPath p wb
+                if d.DataContexts.Count > 0 then
+                    let p = getDatamapPathByISAPath p
+                    let wb = Datamap.toFsWorkbook d
+                    writeWorkbook arcPath p wb
+            | _ -> ()                             
+        )
+        Investigation.toFsWorkbook arc
+        |> writeWorkbook arcPath Path.InvestigationFileName

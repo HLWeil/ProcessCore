@@ -13,6 +13,7 @@ type ARC(identifier: string, ?title: string, ?description: string, ?additionalTy
     #if !FABLE_COMPILER
     
     let mutable _arcPath : string option = None
+    let mutable _isSpreadsheetScaffold : bool = false
 
     #endif
 
@@ -30,7 +31,12 @@ type ARC(identifier: string, ?title: string, ?description: string, ?additionalTy
         with get() = _arcPath
         and set(value) = _arcPath <- value
 
+    member this.IsSpreadsheetScaffold
+        with get() = _isSpreadsheetScaffold
+        and set(value) = _isSpreadsheetScaffold <- value
+
     member this.Write(arcPath : string) = 
+        _isSpreadsheetScaffold <- false
         _arcPath <- Some arcPath
         let p = Path.combine arcPath "arc.yml"
         let ymlString = ProcessCore.Yaml.Dataset.toYamlStringIndexed (Some 2) this
@@ -64,7 +70,9 @@ type ARC(identifier: string, ?title: string, ?description: string, ?additionalTy
             else 
                 printfn $"No ARC yml file found at {p}, trying to read ARC Spreadsheet Scaffold"
                 try 
-                    ProcessCore.ScaffoldReader.ARC.load (fun id -> ARC(id)) arcPath
+                    let arc = ProcessCore.ScaffoldReader.ARC.load (fun id -> ARC(id)) arcPath
+                    arc.IsSpreadsheetScaffold <- true
+                    arc
                 with
                 | ex -> failwith $"Failed to load ARC from scaffold at {arcPath}: {ex.Message}"
         arc.ArcPath <- Some arcPath

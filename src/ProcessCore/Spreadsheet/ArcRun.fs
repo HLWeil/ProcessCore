@@ -65,3 +65,25 @@ module ArcRun =
     let tryGetMetadataSheet (doc : FsWorkbook) =
         doc.GetWorksheets()
         |> Seq.tryFind isMetadataSheet
+
+    let toRows (run : Dataset) =
+
+        seq {
+            yield  SparseRow.fromValues [runLabel]
+            yield! Run.toRows run
+
+            yield  SparseRow.fromValues [performersLabel]
+            yield! Contacts.toRows (Some performersLabelPrefix) (List.ofSeq run.Agents)
+        }
+
+    let toMetadataSheet (run : Dataset) : FsWorksheet =
+        let sheet = FsWorksheet(metadataSheetName)
+        run
+        |> toRows
+        |> Seq.iteri (fun rowI r -> SparseRow.writeToSheet (rowI + 1) r sheet)    
+        sheet
+
+    let toMetadataCollection (run : Dataset) =
+        run
+        |> toRows
+        |> Seq.map (fun row -> SparseRow.getAllValues row)

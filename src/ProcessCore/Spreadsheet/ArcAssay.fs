@@ -83,3 +83,25 @@ module ArcAssay =
     let tryGetMetadataSheet (doc : FsWorkbook) =
         doc.GetWorksheets()
         |> Seq.tryFind isMetadataSheet
+     
+
+    let toRows (assay : Dataset) =
+        seq {          
+            yield  SparseRow.fromValues [assaysLabel]
+            yield! Assays.toRows (Some assaysPrefix) [assay]
+
+            yield SparseRow.fromValues [contactsLabel]
+            yield! Contacts.toRows (Some contactsPrefix) assay.Agents
+        }
+
+    let toMetadataSheet (assay : Dataset) : FsWorksheet =
+        let sheet = FsWorksheet(metadataSheetName)
+        assay
+        |> toRows
+        |> Seq.iteri (fun rowI r -> SparseRow.writeToSheet (rowI + 1) r sheet)    
+        sheet
+
+    let toMetadataCollection (assay : Dataset) =
+        assay
+        |> toRows
+        |> Seq.map (fun row -> SparseRow.getAllValues row)

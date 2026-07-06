@@ -72,7 +72,37 @@ module ArcInvestigation =
             SparseTable.FromRows(rows, InvestigationInfo.Labels, lineNumber)
             |> fun (s, ln, rs, sm) -> (s, ln, rs, InvestigationInfo.FromSparseTable sm)    
     
+
+        static member ToSparseTable (investigation : Dataset) =
+            let i = 1
+            let matrix = SparseTable.Create (keys = InvestigationInfo.Labels,length=2)
+            let mutable commentKeys = []
+
+            do matrix.Matrix.Add ((identifierLabel, i),         (investigation.Identifier))
+            do matrix.Matrix.Add ((titleLabel, i),              (Option.defaultValue "" investigation.Title))
+            do matrix.Matrix.Add ((descriptionLabel, i),        (Option.defaultValue "" investigation.Description))
+            do matrix.Matrix.Add ((submissionDateLabel, i),     (Option.defaultValue "" investigation.DateCreated))
+            do matrix.Matrix.Add ((publicReleaseDateLabel, i),  (Option.defaultValue "" investigation.DatePublished))
+
+            match investigation.TryGetPropertyValue("Comments") with
+            | Some (:? ResizeArray<DynamicObj> as comments) ->
+                comments
+                |> Seq.iter (fun comment ->
+                    match Comment.toString comment with
+                    | Some name, Some value ->
+                        commentKeys <- name :: commentKeys
+                        matrix.Matrix.Add((name, i), value)
+                    | _ -> ()
+                )
+            | _ -> ()
+
+            {matrix with CommentKeys = commentKeys |> List.distinct |> List.rev}
  
+        static member toRows (investigation : Dataset) =  
+            investigation
+            |> InvestigationInfo.ToSparseTable
+            |> SparseTable.ToRows
+
     let fromParts<'D when 'D :> Dataset> (createF : string -> 'D) (investigationInfo : InvestigationInfo) (ontologySourceReference : DynamicObj list) (publications : ScholarlyArticle list) (contacts : Agent list) (studies : Dataset list) (assays : Dataset list) (remarks : 'A list) : 'D =
         let studyIdentifiers = studies |> List.map (fun s -> s.Identifier)
         let i = createF investigationInfo.Identifier
@@ -85,7 +115,7 @@ module ArcInvestigation =
         for publication in publications do i.AddCitation(publication)
         if ontologySourceReference.Length > 0 then i.SetProperty("OntologySourceReferences", ontologySourceReference)
         if studyIdentifiers.Length > 0 then i.SetProperty("StudyIdentifiers", studyIdentifiers)
-        if assays.Length > 0 then i.SetProperty("AssayIdentifiers", assays |> List.map (fun a -> a.Identifier))
+        //if assays.Length > 0 then i.SetProperty("AssayIdentifiers", assays |> List.map (fun a -> a.Identifier))
         if investigationInfo.Comments.Length > 0 then i.SetProperty("Comments", ResizeArray investigationInfo.Comments)
         i
 
@@ -159,3 +189,35 @@ module ArcInvestigation =
     let tryGetMetadataSheet (doc : FsWorkbook) =
         doc.GetWorksheets()
         |> Seq.tryFind isMetadataSheet
+
+    let toRows (investigation : Dataset) : seq<SparseRow> =
+        seq {
+            yield  SparseRow.fromValues [ontologySourceReferenceLabel]
+            yield! 
+                match investigation.TryGetPropertyValue("OntologySourceReferences") with
+                | Some (:? ResizeArray<DynamicObj> as osr) -> OntologySourceReference.toRows (List.ofSeq osr)
+                | _ -> OntologySourceReference.toRows List.empty
+
+            yield  SparseRow.fromValues [investigationLabel]
+            yield! InvestigationInfo.toRows investigation
+
+            yield  SparseRow.fromValues [publicationsLabel]
+            yield! Publications.toRows (Some publicationsLabelPrefix) (List.ofSeq investigation.Citations)
+
+            yield  SparseRow.fromValues [contactsLabel]
+            yield! Contacts.toRows (Some contactsLabelPrefix) (List.ofSeq investigation.Agents)
+
+
+            match investigation.TryGetPropertyValue("StudyIdentifiers") with
+            | Some (:? ResizeArray<string> as si) -> 
+                for studyIdentifier in si do
+                    let study = investigation.TryGetPart(studyIdentifier) |> Option.defaultValue (Dataset(studyIdentifier))
+                    yield  SparseRow.fromValues [studyLabel]
+                    yield! Studies.toRows study None
+            | _ -> ()
+        }
+        |> seq
+
+    let toMetadataCollection (investigation : Dataset) =
+        toRows investigation
+        |> Seq.map (fun row -> SparseRow.getAllValues row)

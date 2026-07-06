@@ -59,12 +59,17 @@ module Factors =
             do matrix.Matrix.Add ((typeTermAccessionNumberLabel,i), tan)
             do matrix.Matrix.Add ((typeTermSourceREFLabel,i),       tsr)
 
-            Comment.getCommentsFromDynamicObj f
-            |> Seq.iter (fun (n,v) -> 
-                if n <> "FactorName" then                  
-                    commentKeys <- n :: commentKeys
-                    matrix.Matrix.Add((n,i),v)
-            )
+            match f.TryGetPropertyValue("Comments") with
+            | Some (:? ResizeArray<DynamicObj> as comments) ->
+                comments
+                |> Seq.iter (fun comment ->
+                    match Comment.toString comment with
+                    | Some name, Some value ->
+                        commentKeys <- name :: commentKeys
+                        matrix.Matrix.Add((name, i), value)
+                    | _ -> ()
+                )
+            | _ -> ()
         )
         {matrix with CommentKeys = commentKeys |> List.distinct |> List.rev} 
 

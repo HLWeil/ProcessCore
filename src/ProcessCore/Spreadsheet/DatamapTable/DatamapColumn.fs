@@ -23,16 +23,15 @@ let setFromFsColumns (dc : ResizeArray<DataContext>) (columns : list<FsColumn>) 
 let toFsColumns (dc : ResizeArray<DataContext>) : FsCell list list =
     let commentKeys = 
         dc 
-        |> Seq.collect (fun dc ->
-            match dc.TryGetPropertyValue("Comments") with
-            | Some (:? ResizeArray<DynamicObj> as comments) ->
-                comments
-                |> Seq.map (fun comment ->
-                    match Comment.toString comment with
-                    | Some name, _ ->
-                        name
-                )
-            | _ -> Seq.empty               
+        |> Seq.collect (
+            Comment.getCommentsFromDynamicObj
+            >> Seq.choose (fun comment ->
+                match Comment.toString comment with
+                | Some name, _ ->
+                    Some name
+                | _ -> None
+            )
+                      
         )
         |> Seq.distinct
         |> Seq.toList
@@ -63,6 +62,14 @@ let toFsColumns (dc : ResizeArray<DataContext>) : FsCell list list =
             FsCell(dc.Data.SelectorFormat |> Option.defaultValue "")        
         ]
     let createRow (dc : DataContext) = 
+        let comments = 
+            Comment.getCommentsFromDynamicObj dc
+            |> Seq.choose (fun c ->
+                match Comment.toString c with
+                | Some name, value -> Some (name, Option.defaultValue "" value)
+                | _ -> None
+            )
+            |> Map.ofSeq
         [
             yield! (createData dc)
             yield! (createTerm dc.Explication)
@@ -74,11 +81,7 @@ let toFsColumns (dc : ResizeArray<DataContext>) : FsCell list list =
             yield! (
                 commentKeys
                 |> List.map (fun key -> 
-                    dc.Comments 
-                    |> Seq.tryFind (fun c -> 
-                        Option.defaultValue "" c.Name = key) 
-                    |> Option.bind (fun c -> c.Value)
-                    |> Option.defaultValue ""
+                    comments[key]
                     |> FsCell
                 )
             )  

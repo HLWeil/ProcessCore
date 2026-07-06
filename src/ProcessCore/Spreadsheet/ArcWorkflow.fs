@@ -66,3 +66,25 @@ module ArcWorkflow =
     let tryGetMetadataSheet (doc : FsWorkbook) =
         doc.GetWorksheets()
         |> Seq.tryFind isMetadataSheet
+
+    let toRows (workflow : Dataset) =
+
+        seq {
+            yield  SparseRow.fromValues [workflowLabel]
+            yield! Workflow.toRows workflow
+
+            yield  SparseRow.fromValues [contactsLabel]
+            yield! Contacts.toRows (Some contactsLabelPrefix) (List.ofSeq workflow.Agents)
+        }
+
+    let toMetadataSheet (workflow : Dataset) : FsWorksheet =
+        let sheet = FsWorksheet(metadataSheetName)
+        workflow
+        |> toRows
+        |> Seq.iteri (fun rowI r -> SparseRow.writeToSheet (rowI + 1) r sheet)    
+        sheet
+
+    let toMetadataCollection (workflow : Dataset) =
+        workflow
+        |> toRows
+        |> Seq.map (fun row -> SparseRow.getAllValues row)

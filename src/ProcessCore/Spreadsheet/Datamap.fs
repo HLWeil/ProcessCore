@@ -28,3 +28,11 @@ let fromFsWorkbook (doc : FsWorkbook) =
         |> fun dataContexts -> Dataset(identifier = Identifier.createMissingIdentifier(), additionalType = "Datamap", dataContexts = dataContexts)
     with
     | err -> failwithf "Could not parse datamap: \n%s" err.Message
+
+
+let toFsWorkbook (datamap : Dataset) =
+    let doc = new FsWorkbook()
+
+    DatamapTable.toFsWorksheet datamap
+    |> doc.AddWorksheet
+    doc

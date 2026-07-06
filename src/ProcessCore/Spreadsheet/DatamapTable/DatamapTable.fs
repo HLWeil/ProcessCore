@@ -68,3 +68,40 @@ let tryFromFsWorksheet (sheet : FsWorksheet) =
             None
     with
     | err -> failwithf "Could not parse datamap table with name \"%s\":\n%s" sheet.Name err.Message
+
+let toFsWorksheet (table : Dataset) =
+    /// This dictionary is used to add spaces at the end of duplicate headers.
+    let stringCount = System.Collections.Generic.Dictionary<string,string>()
+    let ws = FsWorksheet("isa_datamap")
+
+    // Cancel if there are no columns
+    if table.DataContexts.Count = 0 then ws
+    else
+
+    let columns = 
+        DatamapColumn.toFsColumns table.DataContexts
+    let maxRow = columns.Head.Length
+    let maxCol = columns.Length
+    let fsTable = ws.Table("datamapTable",FsRangeAddress(FsAddress(1,1),FsAddress(maxRow,maxCol)))
+    columns
+    |> List.iteri (fun colI col ->         
+        col
+        |> List.iteri (fun rowI cell -> 
+            let value = 
+                let v = cell.ValueAsString()
+                if rowI = 0 then
+                    
+                    match Dictionary.tryGet v stringCount with
+                    | Some spaces ->
+                        stringCount.[v] <- spaces + " "
+                        v + " " + spaces
+                    | None ->
+                        stringCount.Add(cell.ValueAsString(),"")
+                        v
+                else v
+            let address = FsAddress(rowI+1,colI+1)
+            fsTable.Cell(address, ws.CellCollection).SetValueAs value
+        )  
+    )
+    ws.RescanRows()
+    ws
