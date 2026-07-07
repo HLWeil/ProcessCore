@@ -32,6 +32,10 @@ module Contacts =
                 | Some (:? string as n) when n = "ORCID" -> c.TryGetPropertyValue("Value") |> Option.map string
                 | _ -> None
             )
+            |> fun o ->
+                match o with
+                | Some "" | None -> None
+                | Some v -> Some v
         let comments = 
             comments
             |> Seq.filter (fun c -> 
@@ -105,9 +109,6 @@ module Contacts =
             do matrix.Matrix.Add ((rolesTermAccessionNumberLabel,i),    rAgg.TermAccessionNumberAgg)
             do matrix.Matrix.Add ((rolesTermSourceREFLabel,i),          rAgg.TermSourceREFAgg)
             
-            if p.Id.IsSome then 
-                do matrix.Matrix.Add(("ORCID",i),p.Id.Value)
-                commentKeys <- "ORCID" :: commentKeys
             match p.TryGetPropertyValue("Comments") with
             | Some (:? ResizeArray<DynamicObj> as comments) ->
                 comments
@@ -119,6 +120,9 @@ module Contacts =
                     | _ -> ()
                 )
             | _ -> ()
+            if p.Id.IsSome then 
+                do matrix.Matrix.Add(("ORCID",i),p.Id.Value)
+                commentKeys <- "ORCID" :: commentKeys
         )
         {matrix with CommentKeys = commentKeys |> List.distinct |> List.rev} 
 

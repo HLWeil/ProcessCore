@@ -19,7 +19,7 @@ module Publications =
 
     let labels = [pubMedIDLabel;doiLabel;authorListLabel;titleLabel;statusLabel;statusTermAccessionNumberLabel;statusTermSourceREFLabel]
 
-    let fromString pubMedID doi author title status statusTermSourceREF statusTermAccessionNumber (comments : ResizeArray<DynamicObj>) =
+    let fromString (pubMedID : string option) (doi : string option) (author : string option) (title : string option) (status : string option) (statusTermSourceREF : string option) (statusTermAccessionNumber : string option) (comments : ResizeArray<DynamicObj>) =
         
         let status = status |> Option.map (fun s -> DefinedTerm(s,?tan = statusTermAccessionNumber))
         let sa = ScholarlyArticle( 
@@ -28,6 +28,9 @@ module Publications =
  
         )
         if comments.Count > 0 then sa.SetProperty("Comments",comments)
+        if pubMedID.IsSome then sa.SetProperty(pubMedIDLabel,pubMedID.Value)
+        if doi.IsSome then sa.SetProperty(doiLabel,doi.Value)
+        if author.IsSome then sa.SetProperty(authorListLabel,author.Value)
         sa
 
     let fromSparseTable (matrix : SparseTable) =
@@ -69,18 +72,21 @@ module Publications =
         publications
         |> List.iteri (fun i p ->
             let i = i + 1
-            let authors =
-                p.Authors
-                |> Seq.map (fun a ->
-                    match a.FamilyName, a.GivenName with
-                    | Some familyName, givenName when givenName <> "" -> $"{givenName} {familyName}"
-                    | Some familyName, _ -> familyName
-                    | None, givenName -> givenName)
-                |> String.concat ";"
+            //let authors =
+            //    p.Authors
+            //    |> Seq.map (fun a ->
+            //        match a.FamilyName, a.GivenName with
+            //        | Some familyName, givenName when givenName <> "" -> $"{givenName} {familyName}"
+            //        | Some familyName, _ -> familyName
+            //        | None, givenName -> givenName)
+            //    |> String.concat ";"
             let status = p.CreativeWorkStatus |> Option.defaultValue (DefinedTerm(""))
-            do matrix.Matrix.Add((pubMedIDLabel, i), "")
-            do matrix.Matrix.Add((doiLabel, i), "")
-            do matrix.Matrix.Add((authorListLabel, i), authors)
+            let pubMedID = p.TryGetPropertyValue(pubMedIDLabel) |> Option.map string
+            let doi = p.TryGetPropertyValue(doiLabel) |> Option.map string
+            let author = p.TryGetPropertyValue(authorListLabel) |> Option.map string
+            do matrix.Matrix.Add((pubMedIDLabel, i), Option.defaultValue "" pubMedID)
+            do matrix.Matrix.Add((doiLabel, i), Option.defaultValue "" doi)
+            do matrix.Matrix.Add((authorListLabel, i), Option.defaultValue "" author)
             do matrix.Matrix.Add((titleLabel, i), p.Headline)
             do matrix.Matrix.Add((statusLabel, i), status.Name)
             do matrix.Matrix.Add((statusTermAccessionNumberLabel, i), status.TAN |> Option.defaultValue "")

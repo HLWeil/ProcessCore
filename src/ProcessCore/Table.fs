@@ -31,6 +31,18 @@ type IOType =
         | "Data"                                    -> Data
         | _                                         -> FreeText str // use str to not store `str.ToLower()`
 
+    member this.asInput = 
+        let stringCreate x = $"Input [{x.ToString()}]"
+        match this with
+        | FreeText s -> stringCreate s
+        | anyelse -> stringCreate anyelse
+
+    member this.asOutput = 
+        let stringCreate x = $"Output [{x.ToString()}]"
+        match this with
+        | FreeText s -> stringCreate s
+        | anyelse -> stringCreate anyelse
+
 // ─────────────────────────────────────────────────────────────────────────────
 // CompositeHeader
 // ─────────────────────────────────────────────────────────────────────────────
@@ -242,6 +254,25 @@ type CompositeHeader =
     //     | Characteristic oa -> Characteristic (oa.Copy())
     //     | Component oa -> Component (oa.Copy())
     //     | _ -> this
+
+    override this.ToString() =
+        match this with
+        | Parameter dt -> sprintf "Parameter [%s]" dt.Name
+        | Factor dt -> sprintf "Factor [%s]" dt.Name
+        | Characteristic dt -> sprintf "Characteristic [%s]" dt.Name
+        | Component dt -> sprintf "Component [%s]" dt.Name
+        | ProtocolREF -> "Protocol REF"
+        | ProtocolType -> "Protocol Type"
+        | ProtocolDescription -> "Protocol Description"
+        | ProtocolUri -> "Protocol URI"
+        | ProtocolVersion -> "Protocol Version"
+        | Performer -> "Performer"
+        | Date -> "Date"
+        | Input io              -> io.asInput
+        | Output io             -> io.asOutput
+        | Comment key           -> $"Comment [{key}]"
+        | FreeText str          -> str
+
 // ─────────────────────────────────────────────────────────────────────────────
 // CompositeCell
 // ─────────────────────────────────────────────────────────────────────────────

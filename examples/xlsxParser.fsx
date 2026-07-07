@@ -22,67 +22,23 @@ open ProcessCore.Spreadsheet
 
 
 
-let arcPath = @"C:\Users\HLWei\source\repos\ARCs\Ru_ChlamyHeatstress"
+//let arcPath = @"C:\Users\HLWei\source\repos\Ru_ChlamyHeatstress"
 
-let arc = ARC.load arcPath
+//let arc = ARC.load arcPath
 
-arc.Update()
+//arc.ArcPath <- Some (Path.combine __SOURCE_DIRECTORY__ @"testARC")
+////arc.IsSpreadsheetScaffold
 
-
-ar^^
-
-let s = 
-    arc.AllSamples()
-    |> Seq.find (fun s -> s.Name = "run_35_A")
-
-arc.RegisterFragmentSelectorProvider (CsvFragmentSelectorProvider())
-
-let d = 
-    arc.AllData()
-    |> Seq.find (fun d -> d.Selector.IsSome)
-
-arc.DataContextsCoveringData(d).[0].
+//arc.Update()
 
 
-ProcessCore.Yaml.Dataset.toYamlStringIndexed (Some 2) (arc.HasPart[3])
-|> ProcessCore.Yaml.Dataset.fromYamlString false
+let invIn = @"C:\Users\HLWei\source\repos\ARC-Data-Model\tests\ProcessCore.Tests\TestObjects\fct_gcqtof_assay.xlsx"
+let invOut = @"C:\Users\HLWei\source\repos\ARC-Data-Model\tests\ProcessCore.Tests\TestResults\fct_gcqtof_assay_out.xlsx"
 
 
-arc.RemovePart(arc.HasPart[0])
+let wb = Path.readFileXlsxAsync invIn |> Async.RunSynchronously
+let i = ScaffoldReader.Assay.tryFromFsWorkbook wb
+let wb2 = ScaffoldReader.Assay.toFsWorkbook i.Value
+Path.writeFileXlsxAsync invOut wb2 |> Async.RunSynchronously
 
-arc
-|> Yaml.Dataset.toYamlStringIndexed (Some 2)
-|> ProcessCore.Yaml.Dataset.fromYamlString false
-
-
-arc.toYamlString(2)
-|> ARC.fromYamlString
-
-
-arc.toYamlString(2)
-|> Yaml.Dataset.fromYamlString false
-
-
-let yaml = 
-    arc.toYamlString(2)
-    |> YAMLicious.Reader.read
-
-yaml
-|> Yaml.Dataset.decoderGeneric (fun i -> Dataset(i)) false
-
-yaml
-|> Yaml.Dataset.decoderGeneric (fun i -> ARC(i)) false
-
-arc
-|> Yaml.Dataset.toYamlStringIndexed (Some 2)
-
-|> ARC.fromYamlString
-
-
-
-
-
-|> fun s -> System.IO.File.WriteAllText(@"C:\Users\HLWei\source\repos\ARCs\Ru_ChlamyHeatstress\datasetTest.yaml", s)
-
-arc.toYamlString(2)
-|> fun s -> System.IO.File.WriteAllText(@"C:\Users\HLWei\source\repos\ARCs\Ru_ChlamyHeatstress\arcTest.yaml", s)
+i.Value.Tables.GetTableAt(0).Headers[3]

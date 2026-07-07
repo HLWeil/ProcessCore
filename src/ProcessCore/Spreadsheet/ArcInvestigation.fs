@@ -104,7 +104,8 @@ module ArcInvestigation =
             |> SparseTable.ToRows
 
     let fromParts<'D when 'D :> Dataset> (createF : string -> 'D) (investigationInfo : InvestigationInfo) (ontologySourceReference : DynamicObj list) (publications : ScholarlyArticle list) (contacts : Agent list) (studies : Dataset list) (assays : Dataset list) (remarks : 'A list) : 'D =
-        let studyIdentifiers = studies |> List.map (fun s -> s.Identifier)
+        let studyIdentifiers = studies |> List.map (fun s -> s.Identifier) |> ResizeArray
+        let ontologySourceReference = ontologySourceReference |> ResizeArray
         let i = createF investigationInfo.Identifier
         i.Title <- Option.fromValueWithDefault "" investigationInfo.Title
         i.Description <- Option.fromValueWithDefault "" investigationInfo.Description
@@ -113,8 +114,8 @@ module ArcInvestigation =
         i.DatePublished <- Option.fromValueWithDefault "" investigationInfo.PublicReleaseDate
         for contact in contacts do i.AddAgent(contact)
         for publication in publications do i.AddCitation(publication)
-        if ontologySourceReference.Length > 0 then i.SetProperty("OntologySourceReferences", ontologySourceReference)
-        if studyIdentifiers.Length > 0 then i.SetProperty("StudyIdentifiers", studyIdentifiers)
+        if ontologySourceReference.Count > 0 then i.SetProperty("OntologySourceReferences", ontologySourceReference)
+        if studyIdentifiers.Count > 0 then i.SetProperty("StudyIdentifiers", studyIdentifiers)
         //if assays.Length > 0 then i.SetProperty("AssayIdentifiers", assays |> List.map (fun a -> a.Identifier))
         if investigationInfo.Comments.Length > 0 then i.SetProperty("Comments", ResizeArray investigationInfo.Comments)
         i

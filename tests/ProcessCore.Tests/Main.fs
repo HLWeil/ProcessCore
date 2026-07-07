@@ -39,6 +39,7 @@ let all =
             Table.TableRead.tests
             Table.TableWrite.tests
             Table.TablesApi.tests
+            Spreadsheet.Workbooks.tests
             ProcessCore.Yaml.Tests.All.all
             ProcessCore.SQL.Tests.All.all
         ]

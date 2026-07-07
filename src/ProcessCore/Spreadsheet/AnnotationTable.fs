@@ -70,22 +70,22 @@ module ActivePattern =
             |> Some
         | [|AC name; TSRColumnHeader term1; TANColumnHeader term2|] ->
             let term = mergeIDInfo term1.IDSpace term1.LocalID term2.IDSpace term2.LocalID
-            let ont = DefinedTerm(name, term.TermSourceRef, term.TermAccessionNumber)
+            let ont = DefinedTerm(name, term.TermAccessionNumber)
             (f ont, CompositeCell.termFromStringCells (Some 1) (Some 2))
             |> Some
         | [|AC name; TANColumnHeader term2; TSRColumnHeader term1|] ->
             let term = mergeIDInfo term1.IDSpace term1.LocalID term2.IDSpace term2.LocalID
-            let ont = DefinedTerm(name, term.TermSourceRef, term.TermAccessionNumber)
+            let ont = DefinedTerm(name, term.TermAccessionNumber)
             (f ont, CompositeCell.termFromStringCells (Some 2) (Some 1))
             |> Some
         | [|AC name; UnitColumnHeader _; TSRColumnHeader term1; TANColumnHeader term2|] ->
             let term = mergeIDInfo term1.IDSpace term1.LocalID term2.IDSpace term2.LocalID
-            let ont = DefinedTerm(name, term.TermSourceRef, term.TermAccessionNumber)
+            let ont = DefinedTerm(name, term.TermAccessionNumber)
             (f ont, CompositeCell.unitizedFromStringCells 1 (Some 2) (Some 3))
             |> Some
         | [|AC name; UnitColumnHeader _; TANColumnHeader term2; TSRColumnHeader term1|] ->
             let term = mergeIDInfo term1.IDSpace term1.LocalID term2.IDSpace term2.LocalID
-            let ont = DefinedTerm(name, term.TermSourceRef, term.TermAccessionNumber)
+            let ont = DefinedTerm(name, term.TermAccessionNumber)
             (f ont, CompositeCell.unitizedFromStringCells 1 (Some 3) (Some 2))
             |> Some
         | _ -> None

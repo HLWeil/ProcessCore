@@ -6,6 +6,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Include="Helper.fs" />
     <Compile Include="Fixtures.fs" />
     <Compile Include="Types/Annotation.fs" />
     <Compile Include="Types/DefinedTerm.fs" />
@@ -29,6 +30,8 @@
     <Compile Include="Table/TableRead.fs" />
     <Compile Include="Table/TableWrite.fs" />
     <Compile Include="Table/TablesApi.fs" />
+    <Folder Include="Spreadsheet\" />
+    <Compile Include="spreadsheet\Workbooks.fs" />
     <Compile Include="Integration.fs" />
     <Compile Include="YAML/Fixtures.fs" />
     <Compile Include="YAML/Codecs/DefinedTerm.fs" />
@@ -63,5 +66,7 @@
     <ProjectReference Condition="'$(FABLE_COMPILER_PYTHON)' == 'true'" Include="..\..\src\ProcessCore\ProcessCore.Python.fsproj" />
     <PackageReference Include="Fable.Pyxpecto" />
   </ItemGroup>
+
+  <ItemGroup />
 </Project>
 
