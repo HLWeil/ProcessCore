@@ -31,6 +31,13 @@ type IOType =
         | "Data"                                    -> Data
         | _                                         -> FreeText str // use str to not store `str.ToLower()`
 
+    override this.ToString() =
+        match this with
+        | Source -> "Source Name"
+        | Sample -> "Sample Name"
+        | Data -> "Data"
+        | FreeText s -> s
+
     member this.asInput = 
         let stringCreate x = $"Input [{x.ToString()}]"
         match this with

@@ -42,3 +42,5 @@ let wb2 = ScaffoldReader.Assay.toFsWorkbook i.Value
 Path.writeFileXlsxAsync invOut wb2 |> Async.RunSynchronously
 
 i.Value.Tables.GetTableAt(0).Headers[3]
+
+i.Value.Tables.GetTableAt(1).Processes.Count
