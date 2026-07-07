@@ -9,13 +9,13 @@ module Data =
     let private knownFields =
         Set.ofList
             [ "type"; "additionalType"; "path"; "selector"
-              "selectorFormat"; "usageInfo"; "encodingFormat"; "hasPart"; "additionalProperty" ]
+              "selectorFormat"; "usageInfo"; "encodingFormat"; "hasPart"; "additionalProperty" ; "name" ]
 
     let private knownPropertyNames =
         Set.ofList
             [ "type"; "additionaltype"; "path"; "selector"
               "selectorformat"; "usageinfo"; "encodingformat"; "haspart"; "additionalproperty"
-              "inputof"; "outputof" ]
+              "inputof"; "outputof"; "name" ]
 
     let rec decoderWithPropertyResolver (processCoreOnly: bool) (resolveAnnotation: string -> Annotation option) (value: YAMLElement) : Data =
         checkType processCoreOnly "Data" value

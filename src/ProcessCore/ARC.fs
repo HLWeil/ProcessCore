@@ -53,6 +53,8 @@ type ARC(identifier: string, ?title: string, ?description: string, ?additionalTy
                 match this.ArcPath with
                 | Some p -> p
                 | None -> failwith "ARC path is not set. Please provide an arcPath or set the ArcPath property."
+        if _isSpreadsheetScaffold then 
+            ScaffoldReader.ARC.write arcPath this
         let p = Path.combine arcPath "arc.yml"
         let ymlString = ProcessCore.Yaml.Dataset.toYamlStringIndexed (Some 2) this
         Path.writeFileTextAsync p ymlString

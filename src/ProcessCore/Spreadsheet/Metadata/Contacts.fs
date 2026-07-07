@@ -32,6 +32,14 @@ module Contacts =
                 | Some (:? string as n) when n = "ORCID" -> c.TryGetPropertyValue("Value") |> Option.map string
                 | _ -> None
             )
+        let comments = 
+            comments
+            |> Seq.filter (fun c -> 
+                match c.TryGetPropertyValue("Name") with
+                | Some (:? string as n) when n <> "ORCID" -> true
+                | _ -> false
+            )
+            |> ResizeArray
         let a = Agent(
             givenName = Option.defaultValue "" firstName,
             ?id = orcid,

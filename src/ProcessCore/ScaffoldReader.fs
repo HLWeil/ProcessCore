@@ -171,7 +171,7 @@ module ARC =
     let getAssayPath (identifier : string) = 
         Path.combineMany [Path.AssaysFolderName; identifier; Path.AssayFileName]
 
-    let getAtudyPath (identifier : string) = 
+    let getStudyPath (identifier : string) = 
         Path.combineMany [Path.StudiesFolderName; identifier; Path.StudyFileName]
 
     let getRunPath (identifier : string) = 
@@ -281,7 +281,9 @@ module ARC =
         |> Seq.iter (fun d ->
             match d.AdditionalType with
             | Some "Assay" -> 
+                printfn $"Writing assay {d.Identifier}"
                 let p = getAssayPath d.Identifier
+                Path.ensureDirectoryOfFileAsync (Path.combine arcPath p) |> Async.RunSynchronously
                 let wb = Assay.toFsWorkbook d
                 writeWorkbook arcPath p wb
                 if d.DataContexts.Count > 0 then
@@ -289,7 +291,9 @@ module ARC =
                     let wb = Datamap.toFsWorkbook d
                     writeWorkbook arcPath p wb   
             | Some "Study" ->
-                let p = getAtudyPath d.Identifier
+                printfn $"Writing study {d.Identifier}"
+                let p = getStudyPath d.Identifier
+                Path.ensureDirectoryOfFileAsync (Path.combine arcPath p) |> Async.RunSynchronously
                 let wb = Study.toFsWorkbook d
                 writeWorkbook arcPath p wb
                 if d.DataContexts.Count > 0 then
@@ -297,7 +301,9 @@ module ARC =
                     let wb = Datamap.toFsWorkbook d
                     writeWorkbook arcPath p wb
             | Some "Run" ->
+                printfn $"Writing run {d.Identifier}"
                 let p = getRunPath d.Identifier
+                Path.ensureDirectoryOfFileAsync (Path.combine arcPath p) |> Async.RunSynchronously
                 let wb = Run.toFsWorkbook d
                 writeWorkbook arcPath p wb
                 if d.DataContexts.Count > 0 then
@@ -305,7 +311,9 @@ module ARC =
                     let wb = Datamap.toFsWorkbook d
                     writeWorkbook arcPath p wb
             | Some "Workflow" ->
+                printfn $"Writing workflow {d.Identifier}"
                 let p = getWorkflowPath d.Identifier
+                Path.ensureDirectoryOfFileAsync (Path.combine arcPath p) |> Async.RunSynchronously
                 let wb = Workflow.toFsWorkbook d
                 writeWorkbook arcPath p wb
                 if d.DataContexts.Count > 0 then
