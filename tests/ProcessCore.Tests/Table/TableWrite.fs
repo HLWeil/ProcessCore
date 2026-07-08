@@ -581,4 +581,128 @@ let tests = testList "TableWrite" [
 
     ]
 
+    testList "Collapsed Processes" [
+        ftestCase "Differing Param Value Singular Input" (fun _ ->
+                        
+            let inputs = 
+                CompositeColumn(
+                    header = CompositeHeader.Input IOType.Sample,
+                    cells = ResizeArray [
+                        CompositeCell.FreeText "Std. Mix 5µM"
+                        CompositeCell.FreeText "blank 1"
+                        CompositeCell.FreeText "DB23"
+                    ]
+                )
+
+            let param = 
+                CompositeColumn(
+                    header = CompositeHeader.Parameter(DefinedTerm(name = "MS sample type", tan = "DPBO:0000045")),
+                    cells = ResizeArray [
+                        CompositeCell.Term("",None)
+                        CompositeCell.Term("",None)
+                        CompositeCell.Term("material sample", Some "https://bioregistry.io/OBI:0000747")
+                    ]
+                )
+
+            let outputs = 
+                CompositeColumn(
+                    header = CompositeHeader.Output IOType.Sample,
+                    cells = ResizeArray [
+                        CompositeCell.FreeText "150112_03"
+                        CompositeCell.FreeText "150112_15"
+                        CompositeCell.FreeText "150112_55"
+                    ]
+                )
+
+            let columns = 
+                [| inputs; param; outputs |]
+                |> ResizeArray
+
+            let d = Dataset("MyDataset")
+
+            let t = Table("SheetName", ResizeArray(),d)
+
+            columns
+            |> Seq.iter (fun c -> t.AddColumn(c.Header, c.Cells))
+
+            Expect.equal 3 d.Processes.Count "3 processes before collapse"
+
+            d.CollapseProcesses()
+
+            Expect.equal 2 d.Processes.Count "2 processes after collapse"
+            Expect.equal 3 (d.Tables.GetTableAt(0).RowCount) "3 rows in collapsed table"
+            Expect.equal 2 (d.Tables.GetTableAt(0).Processes.Count) "2 processes in collapsed table"
+
+            d.Tables.GetTableAt(0) |> ignore
+
+            Expect.equal 2 d.Processes.Count "2 processes after collapse and table retrieval"
+            Expect.equal 3 (d.Tables.GetTableAt(0).RowCount) "3 rows in collapsed table and table retrieval"
+            Expect.equal 2 (d.Tables.GetTableAt(0).Processes.Count) "2 processes in collapsed table and table retrieval"
+        )
+        ftestCase "Differing Param Value Merged Inputs" (fun _ ->
+
+            let inputs = 
+                CompositeColumn(
+                    header = CompositeHeader.Input IOType.Sample,
+                    cells = ResizeArray [
+                        CompositeCell.FreeText "Std. Mix 5µM"
+                        CompositeCell.FreeText "Std. Mix 5µM"
+                        CompositeCell.FreeText "blank 1"
+                        CompositeCell.FreeText "blank 1"
+                        CompositeCell.FreeText "DB23"
+                        CompositeCell.FreeText "DB23"
+                    ]
+                )
+
+            let param = 
+                CompositeColumn(
+                    header = CompositeHeader.Parameter(DefinedTerm(name = "MS sample type", tan = "DPBO:0000045")),
+                    cells = 
+                        (List.init 6 (fun i -> 
+                            if i <= 3 then CompositeCell.Term("",None)
+                            else CompositeCell.Term("material sample", Some "https://bioregistry.io/OBI:0000747")
+                        ) |> ResizeArray)
+                )
+
+            let outputs = 
+                CompositeColumn(
+                    header = CompositeHeader.Output IOType.Sample,
+                    cells = ResizeArray [
+                        CompositeCell.FreeText "150112_03"
+                        CompositeCell.FreeText "150112_04"
+                        CompositeCell.FreeText "150112_15"
+                        CompositeCell.FreeText "150112_16"
+                        CompositeCell.FreeText "150112_55"
+                        CompositeCell.FreeText "150112_56"
+                    ]
+                )
+
+            let columns = 
+                [| inputs; param; outputs |]
+                |> ResizeArray
+
+            let d = Dataset("MyDataset")
+
+            let t = Table("SheetName", ResizeArray(),d)
+
+            columns
+            |> Seq.iter (fun c -> t.AddColumn(c.Header, c.Cells))
+
+            Expect.equal 6 d.Processes.Count "6 processes before collapse"
+
+            d.CollapseProcesses()
+
+            Expect.equal 2 d.Processes.Count "2 processes after collapse"
+            Expect.equal 6 (d.Tables.GetTableAt(0).RowCount) "6 rows in collapsed table"
+            Expect.equal 2 (d.Tables.GetTableAt(0).Processes.Count) "2 processes in collapsed table"
+
+            sprintf "%O" (d.Tables.GetTableAt(0)) |> ignore
+
+            Expect.equal 2 d.Processes.Count "2 processes after collapse and table retrieval"
+            Expect.equal 6 (d.Tables.GetTableAt(0).RowCount) "6 rows in collapsed table and table retrieval"
+            Expect.equal 2 (d.Tables.GetTableAt(0).Processes.Count) "2 processes in collapsed table and table retrieval"
+
+        )
+    ]
+
 ]
