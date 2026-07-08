@@ -582,7 +582,7 @@ let tests = testList "TableWrite" [
     ]
 
     testList "Collapsed Processes" [
-        ftestCase "Differing Param Value Singular Input" (fun _ ->
+        testCase "Differing Param Value Singular Input" (fun _ ->
                         
             let inputs = 
                 CompositeColumn(
@@ -638,7 +638,108 @@ let tests = testList "TableWrite" [
             Expect.equal (d.Tables.GetTableAt(0).RowCount) 3 "3 rows in collapsed table"
             Expect.equal (d.Tables.GetTableAt(0).Processes.Count) 2 "2 processes in collapsed table"
         )
-        ftestCase "Differing Param Value Merged Inputs" (fun _ ->
+
+        testCase "Collapsed table read does not expand processes" (fun _ ->
+            let inputs =
+                CompositeColumn(
+                    header = CompositeHeader.Input IOType.Sample,
+                    cells = ResizeArray [
+                        CompositeCell.FreeText "Std. Mix 5µM"
+                        CompositeCell.FreeText "blank 1"
+                        CompositeCell.FreeText "DB23"
+                    ]
+                )
+
+            let param =
+                CompositeColumn(
+                    header = CompositeHeader.Parameter(DefinedTerm(name = "MS sample type", tan = "DPBO:0000045")),
+                    cells = ResizeArray [
+                        CompositeCell.Term("", None)
+                        CompositeCell.Term("", None)
+                        CompositeCell.Term("material sample", Some "https://bioregistry.io/OBI:0000747")
+                    ]
+                )
+
+            let outputs =
+                CompositeColumn(
+                    header = CompositeHeader.Output IOType.Sample,
+                    cells = ResizeArray [
+                        CompositeCell.FreeText "150112_03"
+                        CompositeCell.FreeText "150112_15"
+                        CompositeCell.FreeText "150112_55"
+                    ]
+                )
+
+            let d = Dataset("MyDataset")
+            let t = Table("SheetName", ResizeArray(), d)
+
+            [| inputs; param; outputs |]
+            |> Seq.iter (fun c -> t.AddColumn(c.Header, c.Cells))
+
+            d.CollapseProcesses()
+
+            let collapsed = d.Tables.GetTableAt(0)
+            Expect.equal collapsed.Processes.Count 2 "2 processes after collapse"
+            Expect.equal collapsed.RowCount 3 "3 rows after collapse"
+
+            collapsed.Columns[0].Cells |> ignore
+
+            Expect.equal collapsed.Processes.Count 2 "reading cells does not expand processes"
+            Expect.equal collapsed.RowCount 3 "row count stays projected"
+        )
+
+        testCase "Collapsed table row update does not expand processes" (fun _ ->
+            let inputs =
+                CompositeColumn(
+                    header = CompositeHeader.Input IOType.Sample,
+                    cells = ResizeArray [
+                        CompositeCell.FreeText "Std. Mix 5µM"
+                        CompositeCell.FreeText "blank 1"
+                        CompositeCell.FreeText "DB23"
+                    ]
+                )
+
+            let param =
+                CompositeColumn(
+                    header = CompositeHeader.Parameter(DefinedTerm(name = "MS sample type", tan = "DPBO:0000045")),
+                    cells = ResizeArray [
+                        CompositeCell.Term("", None)
+                        CompositeCell.Term("", None)
+                        CompositeCell.Term("material sample", Some "https://bioregistry.io/OBI:0000747")
+                    ]
+                )
+
+            let outputs =
+                CompositeColumn(
+                    header = CompositeHeader.Output IOType.Sample,
+                    cells = ResizeArray [
+                        CompositeCell.FreeText "150112_03"
+                        CompositeCell.FreeText "150112_15"
+                        CompositeCell.FreeText "150112_55"
+                    ]
+                )
+
+            let d = Dataset("MyDataset")
+            let t = Table("SheetName", ResizeArray(), d)
+
+            [| inputs; param; outputs |]
+            |> Seq.iter (fun c -> t.AddColumn(c.Header, c.Cells))
+
+            d.CollapseProcesses()
+
+            let collapsed = d.Tables.GetTableAt(0)
+            let headers = collapsed.Headers
+            let cells = ResizeArray(Seq.init headers.Count (fun _ -> CompositeCell.FreeText ""))
+            let inputIdx = headers |> Seq.findIndex (fun h -> match h with CompositeHeader.Input _ -> true | _ -> false)
+            cells.[inputIdx] <- CompositeCell.FreeText "Updated input"
+
+            collapsed.UpdateRow(0, cells)
+
+            Expect.equal collapsed.Processes.Count 2 "row update does not expand processes"
+            Expect.equal collapsed.RowCount 3 "row count stays projected after update"
+        )
+
+        testCase "Differing Param Value Merged Inputs" (fun _ ->
 
             let inputs = 
                 CompositeColumn(
