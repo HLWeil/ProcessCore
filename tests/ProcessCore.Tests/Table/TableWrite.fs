@@ -451,6 +451,30 @@ let tests = testList "TableWrite" [
                 Expect.equal d2.Path "raw2.csv" "FreeText cell converted to data path"
             | other -> failwithf "Expected data outputs but got %A" other
 
+        testCase "AddColumn Output reuses synthetic outputs created by Factor" <| fun _ ->
+            let t, _ = makeTable "Annotate" [||]
+
+            t.AddColumn(
+                CompositeHeader.Input IOType.Source,
+                ResizeArray([| CompositeCell.FreeText "Source1"; CompositeCell.FreeText "Source2" |])
+            )
+            t.AddColumn(
+                CompositeHeader.Factor(DefinedTerm("growth phase")),
+                ResizeArray([| CompositeCell.FreeText "log"; CompositeCell.FreeText "stationary" |])
+            )
+            t.AddColumn(
+                CompositeHeader.Output IOType.Sample,
+                ResizeArray([| CompositeCell.FreeText "Out1"; CompositeCell.FreeText "Out2" |])
+            )
+
+            Expect.equal t.RowCount 2 "output write must not duplicate projected rows"
+            Expect.equal t.Processes.Count 2 "one process per projected row"
+            match t.Processes.[0].Outputs.[0], t.Processes.[1].Outputs.[0] with
+            | SampleNode o1, SampleNode o2 ->
+                Expect.equal o1.Name "Out1" "first output name reused"
+                Expect.equal o2.Name "Out2" "second output name reused"
+            | other -> failwithf "Expected sample outputs but got %A" other
+
         testCase "AddColumn Input fills missing cells with empty sample nodes" <| fun _ ->
             let p1 = Process("Import")
             let p2 = Process("Import")

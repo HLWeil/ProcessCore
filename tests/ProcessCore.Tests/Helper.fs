@@ -225,7 +225,7 @@ module Expect =
         sequenceEqual (f actual) (f expected) $"{message}. Worksheet does not match"
 
     let workBookEqual (actual : FsWorkbook) (expected : FsWorkbook) message = 
-        Seq.iter2 (fun a e -> workSheetEqual a e message) (actual.GetWorksheets()) (expected.GetWorksheets())
+        Seq.iteri2 (fun i a e -> try workSheetEqual a e message with exn -> failwithf $"{message}. Error occurred while comparing worksheet {i}: {exn.Message}") (actual.GetWorksheets()) (expected.GetWorksheets())
 
 
     let columnsEqual (actual : FsCell seq seq) (expected : FsCell seq seq) message =     

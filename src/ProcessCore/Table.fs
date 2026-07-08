@@ -883,7 +883,11 @@ type Table(name: string, processes: ResizeArray<Process>, dataset: Dataset) =
             else
                 this.SampleizeProjectedRows()
                 for i in 0 .. processes.Count - 1 do
-                    processes.[i].AddInput(this.NodeFromCell(ioType, this.CellAt(cells, i), sprintf "%s_%d" name i))
+                    let p = processes.[i]
+                    let cell = this.CellAt(cells, i)
+                    match p.Inputs |> Seq.tryHead with
+                    | Some node -> this.ApplyCellToNode(node, ioType, cell, true, p)
+                    | None -> p.AddInput(this.NodeFromCell(ioType, cell, sprintf "%s_%d" name i))
         | CompositeHeader.Output ioType ->
             if processes.Count = 0 then
                 let p = Process(name)
@@ -895,7 +899,11 @@ type Table(name: string, processes: ResizeArray<Process>, dataset: Dataset) =
             else
                 this.SampleizeProjectedRows()
                 for i in 0 .. processes.Count - 1 do
-                    processes.[i].AddOutput(this.NodeFromCell(ioType, this.CellAt(cells, i), sprintf "%s_%d_out" name i))
+                    let p = processes.[i]
+                    let cell = this.CellAt(cells, i)
+                    match p.Outputs |> Seq.tryHead with
+                    | Some node -> this.ApplyCellToNode(node, ioType, cell, false, p)
+                    | None -> p.AddOutput(this.NodeFromCell(ioType, cell, sprintf "%s_%d_out" name i))
         | CompositeHeader.Parameter _ ->
             ensureOneProcess()
             this.SampleizeProjectedRows()

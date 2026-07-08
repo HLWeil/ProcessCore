@@ -111,7 +111,6 @@ module Studies =
     /// FACTORS AND PROTOCOLS ARE NOT USED ANYMORE, Lukas, 21.03.24
     // We made these changes as merging duplicated top level metadata with the underlying Table sequence is time consuming, complex and error prone
     let fromParts (studyInfo:StudyInfo) (designDescriptors:DefinedTerm list) (publications: ScholarlyArticle list) (factors: Annotation list) (assays: Dataset list) (protocols : Recipe list) (contacts: Agent list) =
-        let assayIdentifiers = assays |> List.map (fun assay -> assay.Identifier)
         let s = Dataset(
             studyInfo.Identifier,
             additionalType = "Study",
@@ -124,7 +123,9 @@ module Studies =
         ) 
         if designDescriptors.Length > 0 then s.SetProperty("StudyDesignDescriptors", ResizeArray designDescriptors)
         if studyInfo.Comments.Length > 0 then s.SetProperty("Comments", ResizeArray studyInfo.Comments)
-        if assayIdentifiers.Length > 0 then s.SetProperty("AssayIdentifiers", ResizeArray assayIdentifiers)
+        if factors.Length > 0 then s.SetProperty("StudyFactors", ResizeArray factors)
+        if assays.Length > 0 then s.SetProperty("Assays", ResizeArray assays)
+        if protocols.Length > 0 then s.SetProperty("Protocols", ResizeArray protocols)
         s
 
     let fromRows lineNumber (en:IEnumerator<SparseRow>) = 
@@ -174,30 +175,43 @@ module Studies =
         let publications = study.Citations |> Seq.toList
         let contacts = study.Agents |> Seq.toList
         let protocols =
-            study.Processes
-            |> Seq.choose (fun p -> p.ExecutesProtocol)
-            |> Seq.toList
+            match study.TryGetPropertyValue("Protocols") with
+            | Some (:? ResizeArray<Recipe> as values) -> values |> Seq.toList
+            | _ -> []
+            //study.Processes
+            //|> Seq.choose (fun p -> p.ExecutesProtocol)
+            //|> Seq.toList
         let factors =
-            study.Processes
-            |> Seq.collect (fun p ->
-                seq {
-                    for node in p.Outputs do
-                        match node with
-                        | SampleNode sample -> yield! sample.AdditionalProperty
-                        | DataNode data -> yield! data.AdditionalProperty
-                })
-            |> Seq.filter (fun pv -> pv.AdditionalType = Some "FactorValue")
-            |> Seq.toList
+            match study.TryGetPropertyValue("StudyFactors") with
+            | Some (:? ResizeArray<Annotation> as values) -> values |> Seq.toList
+            | _ -> 
+                study.AllAnnotations()
+                |> Seq.filter (fun a -> a.AdditionalType = Some "Factor")
+                |> Seq.distinct
+                |> Seq.toList
         let assays =
             match assays with
             | Some items -> items
             | None ->
-                match study.TryGetPropertyValue("AssayIdentifiers") with
-                | Some (:? ResizeArray<string> as ids) ->
-                    ids
-                    |> Seq.map (fun id -> Dataset(id, additionalType = "Assay"))
-                    |> Seq.toList
+                match study.TryGetPropertyValue("Assays") with
+                | Some (:? ResizeArray<Dataset> as values) -> values |> Seq.toList
                 | _ -> []
+                //match study.TryGetPropertyValue("AssayIdentifiers") with
+                //| Some (:? ResizeArray<string> as ids) ->
+                //    match study.PartOf with
+                //    | Some parent ->
+                //        ids
+                //        |> Seq.map (fun id ->
+                //            match parent.TryGetPart(id) with
+                //            | Some assay -> assay
+                //            | None -> Dataset(id, additionalType = "Assay")                       
+                //        )
+                //        |> Seq.toList
+                //    | None -> 
+                //        ids
+                //        |> Seq.map (fun id -> Dataset(id, additionalType = "Assay"))
+                //        |> Seq.toList
+                //| _ -> []
         seq {
             yield! StudyInfo.toRows study
 
