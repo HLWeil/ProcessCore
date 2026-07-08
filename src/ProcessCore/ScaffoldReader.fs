@@ -13,6 +13,7 @@ let parseTablesIntoDataset (ds : Dataset) (wb : FsWorkbook) =
         Table.tryFromFsWorksheet ds ws |> ignore
     )
     ds.CollapseProcesses()
+    ds.Tables.GetTables() |> Seq.iter (fun t -> t.ColumnCount |> ignore)
     ds
 
 let datasetFromTables (name : string) (wb : FsWorkbook) =

@@ -3,7 +3,7 @@ module ProcessCore.Tests.Table.TableWrite
 open Fable.Pyxpecto
 open ProcessCore
 open ProcessCore.Table
-
+open TestingUtils
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
 /// Build a minimal single-process table: Source1 --[proc]--> Sample1, with a protocol
@@ -625,19 +625,18 @@ let tests = testList "TableWrite" [
             columns
             |> Seq.iter (fun c -> t.AddColumn(c.Header, c.Cells))
 
-            Expect.equal 3 d.Processes.Count "3 processes before collapse"
+            Expect.equal d.Processes.Count 3 "3 processes before collapse"
+            Expect.sequenceEqual inputs.Cells d.Tables.GetTableAt(0).Columns[0].Cells "Input column before collapse"
 
             d.CollapseProcesses()
 
-            Expect.equal 2 d.Processes.Count "2 processes after collapse"
-            Expect.equal 3 (d.Tables.GetTableAt(0).RowCount) "3 rows in collapsed table"
-            Expect.equal 2 (d.Tables.GetTableAt(0).Processes.Count) "2 processes in collapsed table"
+            Expect.equal d.Processes.Count 2 "2 processes after collapse"
 
-            d.Tables.GetTableAt(0) |> ignore
+            Expect.sequenceEqual d.Tables.GetTableAt(0).Columns[0].Cells inputs.Cells "Input column preserved after collapse"
 
-            Expect.equal 2 d.Processes.Count "2 processes after collapse and table retrieval"
-            Expect.equal 3 (d.Tables.GetTableAt(0).RowCount) "3 rows in collapsed table and table retrieval"
-            Expect.equal 2 (d.Tables.GetTableAt(0).Processes.Count) "2 processes in collapsed table and table retrieval"
+            Expect.equal d.Processes.Count 2 "2 processes after collapse and cells called"
+            Expect.equal (d.Tables.GetTableAt(0).RowCount) 3 "3 rows in collapsed table"
+            Expect.equal (d.Tables.GetTableAt(0).Processes.Count) 2 "2 processes in collapsed table"
         )
         ftestCase "Differing Param Value Merged Inputs" (fun _ ->
 
