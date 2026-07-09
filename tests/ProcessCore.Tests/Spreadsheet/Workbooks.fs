@@ -18,7 +18,7 @@ let tests = testList "Workbooks" [
         Path.combine __SOURCE_DIRECTORY__ "../TestObjects"
         #endif
 
-    testCaseAsync "FacultativeCAM Investigation Read Write" (crossAsync {
+    testCaseCrossAsync "FacultativeCAM Investigation Read Write" (crossAsync {
         let p = Path.combine testBaseFolder "fct_investigation.xlsx"
         let! wb = Path.readFileXlsxAsync p 
         let ao = ScaffoldReader.Investigation.tryFromFsWorkbook (ARC) wb
@@ -26,7 +26,7 @@ let tests = testList "Workbooks" [
         let wb2 = ScaffoldReader.Investigation.toFsWorkbook a
         Expect.workBookEqual wb2 wb "Workbooks should be equal after read/write"  
     })
-    testCaseAsync "FacultativeCAM Study stri Read Write" (crossAsync {
+    testCaseCrossAsync "FacultativeCAM Study stri Read Write" (crossAsync {
         let p = Path.combine testBaseFolder "fct_stri_study.xlsx"
         let! wb = Path.readFileXlsxAsync p 
         let ao = ScaffoldReader.Study.tryFromFsWorkbook wb
@@ -34,7 +34,7 @@ let tests = testList "Workbooks" [
         let wb2 = ScaffoldReader.Study.toFsWorkbook a
         Expect.workBookEqual wb2 wb "Workbooks should be equal after read/write"  
     })
-    testCaseAsync "FacultativeCAM Assay GCqTOF Read Write" (crossAsync {
+    testCaseCrossAsync "FacultativeCAM Assay GCqTOF Read Write" (crossAsync {
         let p = Path.combine testBaseFolder "fct_gcqtof_assay.xlsx"
         let! wb = Path.readFileXlsxAsync p 
         let ao = ScaffoldReader.Assay.tryFromFsWorkbook wb
@@ -42,7 +42,7 @@ let tests = testList "Workbooks" [
         let wb2 = ScaffoldReader.Assay.toFsWorkbook a
         Expect.workBookEqual wb2 wb "Workbooks should be equal after read/write"  
     })
-    testCaseAsync "Ru_ChlamyHeatstress Datamap Proteomics Read Write" (crossAsync {
+    testCaseCrossAsync "Ru_ChlamyHeatstress Datamap Proteomics Read Write" (crossAsync {
         let p = Path.combine testBaseFolder "ruch_proteomics_datamap.xlsx"
         let! wb = Path.readFileXlsxAsync p 
         let d = Spreadsheet.Datamap.fromFsWorkbook wb

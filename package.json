@@ -8,7 +8,8 @@
     "test:js": "npm run transpile:js-tests && node build/out/js-tests/Main.js --fail-on-focused-tests"
   },
   "dependencies": {
-    "better-sqlite3": "^12.9.0"
+    "better-sqlite3": "^12.9.0",
+    "@nfdi4plants/exceljs": "^0.4.0"
   },
   "devDependencies": {
     "typescript": "~5.8.3",

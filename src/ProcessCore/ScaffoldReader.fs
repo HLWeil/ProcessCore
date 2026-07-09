@@ -4,7 +4,6 @@ open ProcessCore
 open ProcessCore.Helper
 open ProcessCore.Spreadsheet
 open FsSpreadsheet
-open FsSpreadsheet.Net
 open ProcessCore.Table
 
 let parseTablesIntoDataset (ds : Dataset) (wb : FsWorkbook) =
@@ -16,15 +15,17 @@ let parseTablesIntoDataset (ds : Dataset) (wb : FsWorkbook) =
     ds.Tables.GetTables() |> Seq.iter (fun t -> t.ColumnCount |> ignore)
     ds
 
-let datasetFromTables (name : string) (wb : FsWorkbook) =
+let datasetFromWorkbook (name : string) (wb : FsWorkbook) =
 
     let d = Dataset(name)
 
     parseTablesIntoDataset d wb
 
+#if !FABLE_COMPILER_JAVASCRIPT && !FABLE_COMPILER_TYPESCRIPT
 let datasetFromPath (name : string) (path : string) : Dataset =
-    let wb = FsWorkbook.fromXlsxFile(path)
-    datasetFromTables name wb
+    let wb = Path.readFileXlsx(path)
+    datasetFromWorkbook name wb
+#endif
 
 module Assay =
 
@@ -181,20 +182,22 @@ module ARC =
     let getWorkflowPath (identifier : string) = 
         Path.combineMany [Path.WorkflowsFolderName; identifier; Path.WorkflowFileName]
 
-    let readWorkbook (arcPath : string) (wbPath : string) =
-        let path = Path.combine arcPath wbPath
-        FsWorkbook.fromXlsxFile(path)
-
-    let writeWorkbook (arcPath : string) (wbPath : string) (wb : FsWorkbook) =
-        let path = Path.combine arcPath wbPath
-        FsWorkbook.toXlsxFile(path) wb
-
     let getDatamapPathByISAPath (p : string) = 
         p.Replace(Path.InvestigationFileName, Path.DatamapFileName)
          .Replace(Path.AssayFileName, Path.DatamapFileName)
          .Replace(Path.StudyFileName, Path.DatamapFileName)
          .Replace(Path.WorkflowFileName, Path.DatamapFileName)
          .Replace(Path.RunFileName, Path.DatamapFileName)
+
+    #if !FABLE_COMPILER_JAVASCRIPT && !FABLE_COMPILER_TYPESCRIPT
+
+    let readWorkbook (arcPath : string) (wbPath : string) =
+        let path = Path.combine arcPath wbPath
+        Path.readFileXlsx(path)
+
+    let writeWorkbook (arcPath : string) (wbPath : string) (wb : FsWorkbook) =
+        let path = Path.combine arcPath wbPath
+        Path.writeFileXlsx(path) wb
 
     let load (createF : string -> 'D) (path : string) =
         printfn $"Loading ARC from {path}"
@@ -325,3 +328,5 @@ module ARC =
         )
         Investigation.toFsWorkbook arc
         |> writeWorkbook arcPath Path.InvestigationFileName
+
+    #endif

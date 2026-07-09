@@ -381,6 +381,15 @@ let writeFileXlsxAsync (path : string) (wb : FsWorkbook) : CrossAsync<unit> =
     }
     #endif
 
+#if !FABLE_COMPILER_JAVASCRIPT && !FABLE_COMPILER_TYPESCRIPT
+let writeFileXlsx (path : string) (wb : FsWorkbook) : unit =
+    FsWorkbook.toXlsxFile path wb
+
+let readFileXlsx (path : string) : FsWorkbook =
+    FsWorkbook.fromXlsxFile path
+
+#endif
+
 
 let trim (path : string) : string =
     if path.StartsWith("./") then

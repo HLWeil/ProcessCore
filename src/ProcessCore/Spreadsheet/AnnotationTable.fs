@@ -5,20 +5,19 @@ open ProcessCore
 open ProcessCore.Helper
 open ProcessCore.Table
 open FsSpreadsheet
-open FsSpreadsheet.Net
 
 module CompositeCell =
 
     let termFromStringCells (tsrCol : int option) (tanCol : int option ) (cellValues : array<string>) : CompositeCell=
         let tan = Option.map (fun i -> cellValues.[i]) tanCol
         let tsr = Option.map (fun i -> cellValues.[i]) tsrCol
-        CompositeCell.Term(name = cellValues.[0], ?tan = tan)
+        CompositeCell.Term(cellValues.[0], tan)
 
     let unitizedFromStringCells (unitCol : int) (tsrCol : int option ) (tanCol : int option) (cellValues : array<string>) : CompositeCell =
         let unit = cellValues.[unitCol]
         let tan = Option.map (fun i -> cellValues.[i]) tanCol
         let tsr = Option.map (fun i -> cellValues.[i]) tsrCol
-        CompositeCell.Unitized(cellValues.[0],unit, ?unitTAN = tan)
+        CompositeCell.Unitized(cellValues.[0],unit, tan)
 
     let freeTextFromStringCells (cellValues : array<string>) : CompositeCell =
         CompositeCell.FreeText cellValues.[0]
