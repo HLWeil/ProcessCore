@@ -32,6 +32,7 @@
     <Compile Include="Table/TablesApi.fs" />
     <Folder Include="Spreadsheet\" />
     <Compile Include="spreadsheet\Workbooks.fs" />
+    <Compile Include="spreadsheet\Scaffold.fs" />
     <Compile Include="Integration.fs" />
     <Compile Include="YAML/Fixtures.fs" />
     <Compile Include="YAML/Codecs/DefinedTerm.fs" />
@@ -56,6 +57,7 @@
     <Compile Include="SQL/DotNetDriverTests.fs" />
     <Compile Include="SQL/RepositoryCrudTests.fs" />
     <Compile Include="SQL/Tests.fs" />
+    <Compile Include="ARC.fs" />
     <Compile Include="Main.fs" />
   </ItemGroup>
 

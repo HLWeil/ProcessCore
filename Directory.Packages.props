@@ -14,10 +14,9 @@
     <PackageVersion Include="Fable.Node"            Version="1.2.0" />
     <PackageVersion Include="Fable.Promise"         Version="3.2.0" />
     <PackageVersion Include="Fable.Pyxpecto"        Version="2.0.0" />
-    <PackageVersion Include="FsSpreadsheet"         Version="7.0.0-alpha.1" />
-    <PackageVersion Include="FsSpreadsheet.Net"     Version="7.0.0-alpha.1" />
-    <PackageVersion Include="FsSpreadsheet.Py"      Version="7.0.0-alpha.1" />
-    <PackageVersion Include="FsSpreadsheet.Js"      Version="7.0.0-alpha.1" />
+    <PackageVersion Include="FsSpreadsheet.Net"     Version="7.0.0" />
+    <PackageVersion Include="FsSpreadsheet.Py"      Version="7.0.0" />
+    <PackageVersion Include="FsSpreadsheet.Js"      Version="7.0.0" />
     <PackageVersion Include="Siren"                 Version="0.3.2" />
     <PackageVersion Include="NJsonSchema"           Version="10.8.0" />
     <PackageVersion Include="Microsoft.Data.Sqlite" Version="10.0.6" />

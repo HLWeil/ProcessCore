@@ -79,7 +79,6 @@
     <PackageReference Include="Fable.Node" />
     <PackageReference Include="YAMLicious" />
     <PackageReference Include="DynamicObj" />
-    <PackageReference Include="FsSpreadsheet" />
     <PackageReference Include="FsSpreadsheet.Js" />
   </ItemGroup>
 

@@ -83,7 +83,6 @@
     <PackageReference Include="Fable.Core" />
     <PackageReference Include="YAMLicious" />
     <PackageReference Include="DynamicObj" />
-    <PackageReference Include="FsSpreadsheet" />
     <PackageReference Include="FsSpreadsheet.Net" />
     <PackageReference Include="Microsoft.Data.Sqlite" />
   </ItemGroup>
