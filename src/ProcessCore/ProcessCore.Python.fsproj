@@ -1,10 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>netstandard2.0</TargetFramework>
-    <Nullable>enable</Nullable>
-    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <DefineConstants>FABLE_COMPILER_PYTHON;FABLE_COMPILER</DefineConstants>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
+
+  <Import Project="ProcessCore.Common.props" />
 
   <ItemGroup>
     <Compile Include="Helper\CrossAsync.fs" />
@@ -42,6 +43,34 @@
     <Compile Include="SQL\Platform\Driver.fs" />
     <Compile Include="SQL\PythonSqliteDriver.fs" />
     <Compile Include="Table.fs" />
+    <Compile Include="Table.fs" />
+    <Folder Include="Spreadsheet\" />
+    <Compile Include="Spreadsheet\CollectionAux.fs" />
+    <Compile Include="Spreadsheet\Metadata\Conversions.fs" />
+    <Compile Include="Spreadsheet\Metadata\Comment.fs" />
+    <Compile Include="Spreadsheet\Metadata\SparseTable.fs" />
+    <Compile Include="Spreadsheet\Metadata\Contacts.fs" />
+    <Compile Include="Spreadsheet\Metadata\OntologyAnnotation.fs" />
+    <Compile Include="Spreadsheet\Metadata\DesignDescriptors.fs" />
+    <Compile Include="Spreadsheet\Metadata\Factors.fs" />
+    <Compile Include="Spreadsheet\Metadata\Protocols.fs" />
+    <Compile Include="Spreadsheet\Metadata\Publication.fs" />
+    <Compile Include="Spreadsheet\Metadata\Assays.fs" />
+    <Compile Include="Spreadsheet\Metadata\Study.fs" />
+    <Compile Include="Spreadsheet\Metadata\Workflow.fs" />
+    <Compile Include="Spreadsheet\Metadata\Run.fs" />
+    <Compile Include="Spreadsheet\Metadata\OntologySourceReference.fs" />
+    <Compile Include="Spreadsheet\AnnotationTable.fs" />
+    <Compile Include="Spreadsheet\DatamapTable\DatamapHeader.fs" />
+    <Compile Include="Spreadsheet\DatamapTable\DatamapColumn.fs" />
+    <Compile Include="Spreadsheet\DatamapTable\DatamapTable.fs" />
+    <Compile Include="Spreadsheet\Datamap.fs" />
+    <Compile Include="Spreadsheet\ArcAssay.fs" />
+    <Compile Include="Spreadsheet\ArcStudy.fs" />
+    <Compile Include="Spreadsheet\ArcWorkflow.fs" />
+    <Compile Include="Spreadsheet\ArcRun.fs" />
+    <Compile Include="Spreadsheet\ArcInvestigation.fs" />
+    <Compile Include="ScaffoldReader.fs" />
     <Compile Include="ARC.fs" />
   </ItemGroup>
 
@@ -49,6 +78,7 @@
     <PackageReference Include="Fable.Core" />
     <PackageReference Include="YAMLicious" />
     <PackageReference Include="DynamicObj" />
+    <PackageReference Include="FsSpreadsheet.Py" />
   </ItemGroup>
 
 </Project>

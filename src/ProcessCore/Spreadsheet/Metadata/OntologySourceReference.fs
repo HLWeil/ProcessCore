@@ -51,3 +51,37 @@ module OntologySourceReference =
     let fromRows lineNumber (rows : IEnumerator<SparseRow>) =
         SparseTable.FromRows(rows,labels,lineNumber)
         |> fun (s,ln,rs,sm) -> (s,ln,rs, fromSparseTable sm)
+
+    let toSparseTable (ontologySources: DynamicObj list) =
+        let matrix = SparseTable.Create (keys = labels, length = ontologySources.Length + 1)
+        let mutable commentKeys = []
+        ontologySources
+        |> List.iteri (fun i (o: DynamicObj) ->
+            let i = i + 1
+            let getString name =
+                o.TryGetPropertyValue(name)
+                |> Option.bind (fun v -> match v with | :? string as s -> Some s | _ -> None)
+                |> Option.defaultValue ""
+            do matrix.Matrix.Add ((nameLabel, i), getString nameLabel)
+            do matrix.Matrix.Add ((fileLabel, i), getString fileLabel)
+            do matrix.Matrix.Add ((versionLabel, i), getString versionLabel)
+            do matrix.Matrix.Add ((descriptionLabel, i), getString descriptionLabel)
+
+            match o.TryGetPropertyValue("Comments") with
+            | Some (:? ResizeArray<DynamicObj> as comments) ->
+                comments
+                |> Seq.iter (fun comment ->
+                    match Comment.toString comment with
+                    | Some name, Some value ->
+                        commentKeys <- name :: commentKeys
+                        matrix.Matrix.Add((name, i), value)
+                    | _ -> ()
+                )
+            | _ -> ()
+        )
+        { matrix with CommentKeys = commentKeys |> List.distinct |> List.rev }
+
+    let toRows (ontologySources: DynamicObj list) =
+        ontologySources
+        |> toSparseTable
+        |> fun m -> SparseTable.ToRows(m)

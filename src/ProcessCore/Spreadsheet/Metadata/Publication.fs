@@ -19,7 +19,7 @@ module Publications =
 
     let labels = [pubMedIDLabel;doiLabel;authorListLabel;titleLabel;statusLabel;statusTermAccessionNumberLabel;statusTermSourceREFLabel]
 
-    let fromString pubMedID doi author title status statusTermSourceREF statusTermAccessionNumber (comments : ResizeArray<DynamicObj>) =
+    let fromString (pubMedID : string option) (doi : string option) (author : string option) (title : string option) (status : string option) (statusTermSourceREF : string option) (statusTermAccessionNumber : string option) (comments : ResizeArray<DynamicObj>) =
         
         let status = status |> Option.map (fun s -> DefinedTerm(s,?tan = statusTermAccessionNumber))
         let sa = ScholarlyArticle( 
@@ -28,6 +28,9 @@ module Publications =
  
         )
         if comments.Count > 0 then sa.SetProperty("Comments",comments)
+        if pubMedID.IsSome then sa.SetProperty(pubMedIDLabel,pubMedID.Value)
+        if doi.IsSome then sa.SetProperty(doiLabel,doi.Value)
+        if author.IsSome then sa.SetProperty(authorListLabel,author.Value)
         sa
 
     let fromSparseTable (matrix : SparseTable) =
@@ -62,3 +65,51 @@ module Publications =
         | Some p -> SparseTable.FromRows(rows,labels,lineNumber,p)
         | None -> SparseTable.FromRows(rows,labels,lineNumber)
         |> fun (s,ln,rs,sm) -> (s,ln,rs, fromSparseTable sm)
+
+    let toSparseTable (publications: ScholarlyArticle list) =
+        let matrix = SparseTable.Create (keys = labels, length = publications.Length + 1)
+        let mutable commentKeys = []
+        publications
+        |> List.iteri (fun i p ->
+            let i = i + 1
+            //let authors =
+            //    p.Authors
+            //    |> Seq.map (fun a ->
+            //        match a.FamilyName, a.GivenName with
+            //        | Some familyName, givenName when givenName <> "" -> $"{givenName} {familyName}"
+            //        | Some familyName, _ -> familyName
+            //        | None, givenName -> givenName)
+            //    |> String.concat ";"
+            let status = p.CreativeWorkStatus |> Option.defaultValue (DefinedTerm(""))
+            let pubMedID = p.TryGetPropertyValue(pubMedIDLabel) |> Option.map string
+            let doi = p.TryGetPropertyValue(doiLabel) |> Option.map string
+            let author = p.TryGetPropertyValue(authorListLabel) |> Option.map string
+            do matrix.Matrix.Add((pubMedIDLabel, i), Option.defaultValue "" pubMedID)
+            do matrix.Matrix.Add((doiLabel, i), Option.defaultValue "" doi)
+            do matrix.Matrix.Add((authorListLabel, i), Option.defaultValue "" author)
+            do matrix.Matrix.Add((titleLabel, i), p.Headline)
+            do matrix.Matrix.Add((statusLabel, i), status.Name)
+            do matrix.Matrix.Add((statusTermAccessionNumberLabel, i), status.TAN |> Option.defaultValue "")
+            do matrix.Matrix.Add((statusTermSourceREFLabel, i), status.TryGetTSR() |> Option.defaultValue "")
+
+            match p.TryGetPropertyValue("Comments") with
+            | Some (:? ResizeArray<DynamicObj> as comments) ->
+                comments
+                |> Seq.iter (fun comment ->
+                    match Comment.toString comment with
+                    | Some name, Some value ->
+                        commentKeys <- name :: commentKeys
+                        matrix.Matrix.Add((name, i), value)
+                    | _ -> ()
+                )
+            | _ -> ()
+        )
+        { matrix with CommentKeys = commentKeys |> List.distinct |> List.rev }
+
+    let toRows prefix (publications: ScholarlyArticle list) =
+        publications
+        |> toSparseTable
+        |> fun m ->
+            match prefix with
+            | Some p -> SparseTable.ToRows(m, p)
+            | None -> SparseTable.ToRows(m)

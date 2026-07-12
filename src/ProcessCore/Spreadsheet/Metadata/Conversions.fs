@@ -48,12 +48,12 @@ module DefinedTerm =
             |> ResizeArray
 
     /// Returns the aggregated ISATab OntologyAnnotation Name, ontology source and Accession number from a list of ISAJson OntologyAnnotation objects
-    let toAggregatedStrings (separator:char) (oas : DefinedTerm []) =
+    let toAggregatedStrings (separator:char) (oas : DefinedTerm seq) =
         let mutable first = true
-        if oas = [||] then {|TermNameAgg = ""; TermAccessionNumberAgg = ""; TermSourceREFAgg = ""|}       
+        if Seq.isEmpty oas then {|TermNameAgg = ""; TermAccessionNumberAgg = ""; TermSourceREFAgg = ""|}       
         else
             oas
-            |> Array.fold (fun (nameAgg,tsrAgg,tanAgg) term -> 
+            |> Seq.fold (fun (nameAgg,tsrAgg,tanAgg) term -> 
                 let name,tsr,tan = term.Name, Option.defaultValue "" (term.TryGetTSR()), Option.defaultValue "" term.TAN
                 if first then 
                     first <- false
@@ -72,6 +72,11 @@ module Component =
         annotation.SetProperty("componentName", name)
         annotation
 
+    let annotationToISAString (annotation:Annotation) =
+        let name = annotation.TryGetPropertyValue("componentName") |> Option.bind (fun v -> match v with | :? string as s -> Some s | _ -> None) |> Option.defaultValue ""
+        let term = DefinedTerm(name = annotation.NameText, ?tan = annotation.NameTAN)
+        name, term
+
     /// Returns a list of ISAJson Component objects from ISATab aggregated strings
     let fromAggregatedStrings (separator:char) (names:string) (terms:string) (source:string) (accessions:string) =
         let l = DefinedTerm.getLengthOfAggregatedStrings separator [|names;terms;source;accessions|]
@@ -84,7 +89,31 @@ module Component =
             Array.map4 (fun a b c d -> annotationFromISAString(a,b,c,d)) names terms sources accessions
             |> List.ofArray
 
+                /// Returns the aggregated ISATAb Component Name, Ontology Annotation value, Accession number and ontology source from a list of ISAJson Component objects
+    let toAggregatedStrings (separator:char) (cs : Annotation seq) =
+        let mutable first = true
+        if Seq.length cs = 0 then {|NameAgg = ""; TermNameAgg = "";  TermAccessionNumberAgg = "";  TermSourceREFAgg = ""; |}
+        else
+            cs
+            |> Seq.map annotationToISAString
+            |> Seq.fold (fun (nameAgg,termAgg,tsrAgg,tanAgg) (name,term) ->     
+                let tsr = term.TryGetTSR() |> Option.defaultValue ""
+                let tan = term.TAN |> Option.defaultValue ""
+                if first then 
+                    first <- false
+                    name,term.Name,tsr,tan
+                else 
+                sprintf "%s%c%s" nameAgg    separator name,
+                sprintf "%s%c%s" termAgg    separator term.Name,
+                sprintf "%s%c%s" tsrAgg     separator tsr,
+                sprintf "%s%c%s" tanAgg     separator tan
+            ) ("","","","")
+            |> fun (nameAgg,termAgg,tsrAgg,tanAgg) -> {|NameAgg = nameAgg; TermNameAgg = termAgg; TermAccessionNumberAgg = tanAgg; TermSourceREFAgg = tsrAgg|}
+
 module ProtocolParameter =
+
+    let fpToTerm (fp:FormalParameter) =
+        DefinedTerm(name = fp.Name, ?tan = fp.NameTAN)
 
     /// Returns a list of ISAJson ProtocolParameter objects from ISATab aggregated strings
     let fromAggregatedStrings (separator:char) (terms:string) (source:string) (accessions:string) =
@@ -93,4 +122,21 @@ module ProtocolParameter =
             FormalParameter(name = dt.Name, ?nameTAN = dt.TAN)
         )
 
-    
+    let toAggregatedStrings (separator:char) (pps : FormalParameter seq) =
+        let mutable first = true
+        if Seq.length pps = 0 then {|TermNameAgg = ""; TermAccessionNumberAgg = ""; TermSourceREFAgg = ""|}
+        else
+            pps
+            |> Seq.map fpToTerm
+            |> Seq.fold (fun (nameAgg,tsrAgg,tanAgg) term -> 
+                let tsr = term.TryGetTSR() |> Option.defaultValue ""
+                let tan = term.TAN |> Option.defaultValue ""
+                if first then 
+                    first <- false
+                    term.Name,tsr, tan
+                else 
+                    sprintf "%s%c%s" nameAgg    separator term.Name,
+                    sprintf "%s%c%s" tsrAgg     separator tsr,
+                    sprintf "%s%c%s" tanAgg     separator tan
+            ) ("","","")
+            |> fun (nameAgg,tsrAgg,tanAgg) -> {|TermNameAgg = nameAgg; TermAccessionNumberAgg = tanAgg; TermSourceREFAgg = tsrAgg|}

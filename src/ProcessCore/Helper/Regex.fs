@@ -92,7 +92,9 @@ module Pattern =
     /// Watch this closely, this could hit some edge cases we do not want to cover.
     let TermAnnotationURIPattern_MS_RO_PO = $@".*252F(?<{MatchGroups.idspace}>\w+?)_(?<{MatchGroups.localID}>\w+)"
 
-
+    // http://purl.org/spar/scoro/research-assistant
+    let TermAnnotationURIPattern_stringTSR = $@"http://purl\.org/spar/(?<{MatchGroups.idspace}>\w+)/(?<{MatchGroups.localID}>[\w-]+)"
+    
 
     /// This pattern is used to match both Input and Output columns and capture the IOType as `iotype` group.
     let IOTypePattern = $@"(Input|Output)\s*\[(?<{MatchGroups.iotype}>.+)\]"
@@ -221,7 +223,8 @@ module ActivePatterns =
         | Regex Pattern.TermAnnotationShortPattern value 
         | Regex Pattern.TermAnnotationURIPattern value 
         | Regex Pattern.TermAnnotationURIPattern_lessRestrictive value 
-        | Regex Pattern.TermAnnotationURIPattern_MS_RO_PO value ->
+        | Regex Pattern.TermAnnotationURIPattern_MS_RO_PO value 
+        | Regex Pattern.TermAnnotationURIPattern_stringTSR value ->
             let idspace = value.Groups.[Pattern.MatchGroups.idspace].Value
             let localID = value.Groups.[Pattern.MatchGroups.localID].Value
             {|IDSpace = idspace; LocalID = localID|}
@@ -314,7 +317,8 @@ let tryParseTermAnnotation (str:string) =
     | Regex TermAnnotationShortPattern value 
     | Regex TermAnnotationURIPattern value 
     | Regex TermAnnotationURIPattern_lessRestrictive value 
-    | Regex TermAnnotationURIPattern_MS_RO_PO value ->
+    | Regex TermAnnotationURIPattern_MS_RO_PO value 
+    | Regex TermAnnotationURIPattern_stringTSR value ->
         let idspace = value.Groups.[Pattern.MatchGroups.idspace].Value
         let localid = value.Groups.[Pattern.MatchGroups.localID].Value
         {|IDSpace = idspace; LocalID = localid|}

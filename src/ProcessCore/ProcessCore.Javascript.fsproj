@@ -1,12 +1,15 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>netstandard2.0</TargetFramework>
-    <Nullable>enable</Nullable>
-    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <PackageTags>ARC;F#;FSharp;dotnet;.Net;bioinformatics;biology;fable-library;datascience;dataplant;nfdi;metadata;fable-javascript</PackageTags>
+    <DefineConstants>FABLE_COMPILER_JAVASCRIPT;FABLE_COMPILER;FABLE_COMPILER_TYPESCRIPT</DefineConstants>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
 
+  <Import Project="ProcessCore.Common.props" />
+
   <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
     <Compile Include="Helper\CrossAsync.fs" />
     <Compile Include="Helper\ResizeArray.fs" />
     <Compile Include="Helper\Option.fs" />
@@ -42,6 +45,34 @@
     <Compile Include="SQL\Platform\Driver.fs" />
     <Compile Include="SQL\BetterSqliteDriver.fs" />
     <Compile Include="Table.fs" />
+    <Compile Include="Table.fs" />
+    <Folder Include="Spreadsheet\" />
+    <Compile Include="Spreadsheet\CollectionAux.fs" />
+    <Compile Include="Spreadsheet\Metadata\Conversions.fs" />
+    <Compile Include="Spreadsheet\Metadata\Comment.fs" />
+    <Compile Include="Spreadsheet\Metadata\SparseTable.fs" />
+    <Compile Include="Spreadsheet\Metadata\Contacts.fs" />
+    <Compile Include="Spreadsheet\Metadata\OntologyAnnotation.fs" />
+    <Compile Include="Spreadsheet\Metadata\DesignDescriptors.fs" />
+    <Compile Include="Spreadsheet\Metadata\Factors.fs" />
+    <Compile Include="Spreadsheet\Metadata\Protocols.fs" />
+    <Compile Include="Spreadsheet\Metadata\Publication.fs" />
+    <Compile Include="Spreadsheet\Metadata\Assays.fs" />
+    <Compile Include="Spreadsheet\Metadata\Study.fs" />
+    <Compile Include="Spreadsheet\Metadata\Workflow.fs" />
+    <Compile Include="Spreadsheet\Metadata\Run.fs" />
+    <Compile Include="Spreadsheet\Metadata\OntologySourceReference.fs" />
+    <Compile Include="Spreadsheet\AnnotationTable.fs" />
+    <Compile Include="Spreadsheet\DatamapTable\DatamapHeader.fs" />
+    <Compile Include="Spreadsheet\DatamapTable\DatamapColumn.fs" />
+    <Compile Include="Spreadsheet\DatamapTable\DatamapTable.fs" />
+    <Compile Include="Spreadsheet\Datamap.fs" />
+    <Compile Include="Spreadsheet\ArcAssay.fs" />
+    <Compile Include="Spreadsheet\ArcStudy.fs" />
+    <Compile Include="Spreadsheet\ArcWorkflow.fs" />
+    <Compile Include="Spreadsheet\ArcRun.fs" />
+    <Compile Include="Spreadsheet\ArcInvestigation.fs" />
+    <Compile Include="ScaffoldReader.fs" />
     <Compile Include="ARC.fs" />
   </ItemGroup>
 
@@ -51,7 +82,16 @@
     <PackageReference Include="Fable.Node" />
     <PackageReference Include="YAMLicious" />
     <PackageReference Include="DynamicObj" />
+    <PackageReference Include="FsSpreadsheet.Js" />
   </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Fable.Package.SDK">
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+            <PrivateAssets>all</PrivateAssets>
+        </PackageReference>
+    </ItemGroup>
+
 
 </Project>
 

@@ -1,11 +1,11 @@
 module ProcessCore.ScaffoldReader
 
 open ProcessCore
+open ProcessCore.CrossAsync
 open ProcessCore.Helper
 open ProcessCore.Spreadsheet
 open FsSpreadsheet
-open FsSpreadsheet.Net
-
+open ProcessCore.Table
 
 let parseTablesIntoDataset (ds : Dataset) (wb : FsWorkbook) =
     wb.GetWorksheets()
@@ -13,17 +13,20 @@ let parseTablesIntoDataset (ds : Dataset) (wb : FsWorkbook) =
         Table.tryFromFsWorksheet ds ws |> ignore
     )
     ds.CollapseProcesses()
+    ds.Tables.GetTables() |> Seq.iter (fun t -> t.ColumnCount |> ignore)
     ds
 
-let datasetFromTables (name : string) (wb : FsWorkbook) =
+let datasetFromWorkbook (name : string) (wb : FsWorkbook) =
 
     let d = Dataset(name)
 
     parseTablesIntoDataset d wb
 
+#if !FABLE_COMPILER_JAVASCRIPT && !FABLE_COMPILER_TYPESCRIPT
 let datasetFromPath (name : string) (path : string) : Dataset =
-    let wb = FsWorkbook.fromXlsxFile(path)
-    datasetFromTables name wb
+    let wb = Path.readFileXlsx(path)
+    datasetFromWorkbook name wb
+#endif
 
 module Assay =
 
@@ -35,6 +38,14 @@ module Assay =
             a
         )
 
+    let toFsWorkbook (assay : Dataset) =
+        let doc = new FsWorkbook()
+        let metadataSheet = ArcAssay.toMetadataSheet (assay)
+        doc.AddWorksheet metadataSheet
+
+        assay.Tables.GetTables()
+        |> Seq.iteri (fun i -> Table.toFsWorksheet (Some i) >> doc.AddWorksheet)
+        doc
 
 module Study =
 
@@ -46,6 +57,26 @@ module Study =
             arcStudy
         )
 
+    let toFsWorkbook (study : Dataset)  =
+        let doc = new FsWorkbook()
+        let metadataSheet = ArcStudy.toMetadataSheet study None
+        doc.AddWorksheet metadataSheet
+
+        study.Tables.GetTables()
+        |> Seq.iteri (fun i -> Table.toFsWorksheet (Some i) >> doc.AddWorksheet)
+
+        doc
+
+    let toFsWorkbookWithAssays (study : Dataset) (assays : Dataset list) =
+        let doc = new FsWorkbook()
+        let metadataSheet = ArcStudy.toMetadataSheet study (Some assays)
+        doc.AddWorksheet metadataSheet
+
+        study.Tables.GetTables()
+        |> Seq.iteri (fun i -> Table.toFsWorksheet (Some i) >> doc.AddWorksheet)
+
+        doc
+
 module Run =
 
     let tryFromFsWorkbook (wb : FsWorkbook) =
@@ -56,6 +87,16 @@ module Run =
             arcRun
         )
 
+    let toFsWorkbook (run : Dataset) =
+            let doc = new FsWorkbook()
+            let metadataSheet = ArcRun.toMetadataSheet (run)
+            doc.AddWorksheet metadataSheet
+
+            run.Tables.GetTables()
+            |> Seq.iteri (fun i -> Table.toFsWorksheet (Some i) >> doc.AddWorksheet)
+
+            doc
+
 
 module Workflow =
 
@@ -65,6 +106,14 @@ module Workflow =
             ArcWorkflow.fromMetadataSheet mdSheet
         )
 
+    let toFsWorkbook (workflow : Dataset) = 
+        let doc = new FsWorkbook()
+        let metadataSheet = ArcWorkflow.toMetadataSheet workflow
+        doc.AddWorksheet metadataSheet
+
+        doc
+
+
 module Investigation =
 
     let tryFromFsWorkbook (createF : string -> 'D) (wb : FsWorkbook) =
@@ -72,6 +121,18 @@ module Investigation =
         |> Option.map (fun mdSheet ->
             ArcInvestigation.fromMetadataSheet createF mdSheet
         )
+    
+    let toFsWorkbook (investigation : Dataset) : FsWorkbook =           
+        try
+            let wb = new FsWorkbook()
+            let sheet = FsWorksheet(ArcInvestigation.metadataSheetName)
+            investigation
+            |> ArcInvestigation.toRows
+            |> Seq.iteri (fun rowI r -> SparseRow.writeToSheet (rowI + 1) r sheet)                     
+            wb.AddWorksheet(sheet)
+            wb
+        with
+        | err -> failwithf "Could not write investigation to spreadsheet: %s" err.Message
 
 module ARC =
 
@@ -110,9 +171,17 @@ module ARC =
             Some path
         | _ -> None
 
-    let readWorkbook (arcPath : string) (wbPath : string) =
-        let path = Path.combine arcPath wbPath
-        FsWorkbook.fromXlsxFile(path)
+    let getAssayPath (identifier : string) = 
+        Path.combineMany [Path.AssaysFolderName; identifier; Path.AssayFileName]
+
+    let getStudyPath (identifier : string) = 
+        Path.combineMany [Path.StudiesFolderName; identifier; Path.StudyFileName]
+
+    let getRunPath (identifier : string) = 
+        Path.combineMany [Path.RunsFolderName; identifier; Path.RunFileName]
+
+    let getWorkflowPath (identifier : string) = 
+        Path.combineMany [Path.WorkflowsFolderName; identifier; Path.WorkflowFileName]
 
     let getDatamapPathByISAPath (p : string) = 
         p.Replace(Path.InvestigationFileName, Path.DatamapFileName)
@@ -120,6 +189,169 @@ module ARC =
          .Replace(Path.StudyFileName, Path.DatamapFileName)
          .Replace(Path.WorkflowFileName, Path.DatamapFileName)
          .Replace(Path.RunFileName, Path.DatamapFileName)
+
+    let readWorkbookAsync (arcPath : string) (wbPath : string) =
+        let path = Path.combine arcPath wbPath
+        Path.readFileXlsxAsync(path)
+
+    let writeWorkbookAsync (arcPath : string) (wbPath : string) (wb : FsWorkbook) =
+        let path = Path.combine arcPath wbPath
+        Path.writeFileXlsxAsync(path) wb
+
+
+
+    let loadAsync (createF : string -> 'D) (path : string) =
+        printfn $"Loading ARC from {path}"
+        crossAsync {
+            let! filePaths = Path.getAllFilePathsAsync path
+            let! topLevelDataset =
+                filePaths
+                |> CrossAsync.tryPick (fun p ->
+                    match Path.split p with
+                    | InvestigationPath _ ->
+                        try 
+                            readWorkbookAsync path p
+                            |> CrossAsync.map (Investigation.tryFromFsWorkbook createF)
+                        with
+                        | ex -> 
+                            printfn $"Failed to load investigation from {p}: {ex.Message}"
+                            crossAsync { return None }
+                    | _ -> crossAsync { return None }
+                )
+            let topLevelDataset =
+                match topLevelDataset with
+                | Some ds -> ds
+                | None -> failwith "No investigation found in the ARC path."
+            let enrichDatasetWithDatamap (p : string) (ds : Dataset)  =
+                crossAsync {
+                    try
+                        let datamapPath = getDatamapPathByISAPath p
+                        printfn $"Reading datamap from path {datamapPath}"
+
+                        let! dcs =
+                            filePaths
+                            |> CrossAsync.tryPick (fun p ->
+                                if p = datamapPath then
+                                    readWorkbookAsync path p
+                                    |> CrossAsync.map (Datamap.dataContextsFromFsWorkbook >> Some)
+                                else crossAsync { return None }
+                            )
+                        match dcs with
+                        | Some dcs -> for dc in dcs do ds.AddDataContext(dc)
+                        | None -> ()
+                    with 
+                    | ex -> printfn $"Failed to load datamap from {p}: {ex.Message}"
+                }
+            let! subSets =
+                filePaths
+                |> CrossAsync.choose (fun p ->
+                    match Path.split p with
+                    | AssayPath _ ->
+                        printfn $"Reading assay from path {p}"
+                        try readWorkbookAsync path p |> CrossAsync.map Assay.tryFromFsWorkbook
+                        with
+                        | ex -> 
+                            printfn $"Failed to load assay from {p}: {ex.Message}"
+                            crossAsync { return None }
+                    | StudyPath _ ->
+                        printfn $"Reading study from path {p}"
+                        try readWorkbookAsync path p |> CrossAsync.map Study.tryFromFsWorkbook
+                        with
+                        | ex -> 
+                            printfn $"Failed to load study from {p}: {ex.Message}"
+                            crossAsync { return None }
+                    | WorkflowPath _ ->
+                        printfn $"Reading workflow from path {p}"
+                        try readWorkbookAsync path p |> CrossAsync.map Workflow.tryFromFsWorkbook
+                        with
+                        | ex -> 
+                            printfn $"Failed to load workflow from {p}: {ex.Message}"
+                            crossAsync { return None }
+                    | RunPath _ ->
+                        printfn $"Reading run from path {p}"
+                        try readWorkbookAsync path p |> CrossAsync.map Run.tryFromFsWorkbook
+                        with
+                        | ex -> 
+                            printfn $"Failed to load run from {p}: {ex.Message}"
+                            crossAsync { return None }
+                    | _ -> crossAsync { return None }
+                    |> CrossAsync.bind ((fun ds ->                    
+                        crossAsync { 
+                            if ds.IsSome then
+                                do! enrichDatasetWithDatamap p ds.Value
+                            return ds 
+                        }
+                    ))
+                )
+            for ds in subSets do
+                printfn $"Adding dataset {ds.Identifier} to top-level dataset"
+                try topLevelDataset.AddPart(ds) |> ignore
+                with
+                | ex -> printfn $"Failed to add dataset {ds.Identifier} to top-level dataset: {ex.Message}"
+            
+            return topLevelDataset
+        }
+        
+
+    let writeAsync (arcPath : string) (arc : #Dataset) : CrossAsync<unit>=
+        crossAsync {         
+            for d in arc.HasPart do
+                match d.AdditionalType with
+                | Some "Assay" -> 
+                    printfn $"Writing assay {d.Identifier}"
+                    let p = getAssayPath d.Identifier
+                    do!Path.ensureDirectoryOfFileAsync (Path.combine arcPath p)
+                    let wb = Assay.toFsWorkbook d
+                    do! writeWorkbookAsync arcPath p wb
+                    if d.DataContexts.Count > 0 then
+                        let p = getDatamapPathByISAPath p
+                        let wb = Datamap.toFsWorkbook d
+                        do! writeWorkbookAsync arcPath p wb   
+                | Some "Study" ->
+                    printfn $"Writing study {d.Identifier}"
+                    let p = getStudyPath d.Identifier
+                    do! Path.ensureDirectoryOfFileAsync (Path.combine arcPath p)
+                    let wb = Study.toFsWorkbook d
+                    do! writeWorkbookAsync arcPath p wb
+                    if d.DataContexts.Count > 0 then
+                        let p = getDatamapPathByISAPath p
+                        let wb = Datamap.toFsWorkbook d
+                        do! writeWorkbookAsync arcPath p wb
+                | Some "Run" ->
+                    printfn $"Writing run {d.Identifier}"
+                    let p = getRunPath d.Identifier
+                    do! Path.ensureDirectoryOfFileAsync (Path.combine arcPath p)
+                    let wb = Run.toFsWorkbook d
+                    do! writeWorkbookAsync arcPath p wb
+                    if d.DataContexts.Count > 0 then
+                        let p = getDatamapPathByISAPath p
+                        let wb = Datamap.toFsWorkbook d
+                        do! writeWorkbookAsync arcPath p wb
+                | Some "Workflow" ->
+                    printfn $"Writing workflow {d.Identifier}"
+                    let p = getWorkflowPath d.Identifier
+                    do! Path.ensureDirectoryOfFileAsync (Path.combine arcPath p)
+                    let wb = Workflow.toFsWorkbook d
+                    do! writeWorkbookAsync arcPath p wb
+                    if d.DataContexts.Count > 0 then
+                        let p = getDatamapPathByISAPath p
+                        let wb = Datamap.toFsWorkbook d
+                        do! writeWorkbookAsync arcPath p wb
+                | _ -> ()                             
+            do!
+                Investigation.toFsWorkbook arc
+                |> writeWorkbookAsync arcPath Path.InvestigationFileName
+        }
+
+    #if !FABLE_COMPILER_JAVASCRIPT && !FABLE_COMPILER_TYPESCRIPT
+
+    let readWorkbook (arcPath : string) (wbPath : string) =
+        let path = Path.combine arcPath wbPath
+        Path.readFileXlsx(path)
+
+    let writeWorkbook (arcPath : string) (wbPath : string) (wb : FsWorkbook) =
+        let path = Path.combine arcPath wbPath
+        Path.writeFileXlsx(path) wb
 
     let load (createF : string -> 'D) (path : string) =
         printfn $"Loading ARC from {path}"
@@ -201,3 +433,54 @@ module ARC =
             | ex -> printfn $"Failed to add dataset {ds.Identifier} to top-level dataset: {ex.Message}"
         )
         topLevelDataset
+
+    let write (arcPath : string) (arc : #Dataset) =
+        arc.HasPart
+        |> Seq.iter (fun d ->
+            match d.AdditionalType with
+            | Some "Assay" -> 
+                printfn $"Writing assay {d.Identifier}"
+                let p = getAssayPath d.Identifier
+                Path.ensureDirectoryOfFileAsync (Path.combine arcPath p) |> Async.RunSynchronously
+                let wb = Assay.toFsWorkbook d
+                writeWorkbook arcPath p wb
+                if d.DataContexts.Count > 0 then
+                    let p = getDatamapPathByISAPath p
+                    let wb = Datamap.toFsWorkbook d
+                    writeWorkbook arcPath p wb   
+            | Some "Study" ->
+                printfn $"Writing study {d.Identifier}"
+                let p = getStudyPath d.Identifier
+                Path.ensureDirectoryOfFileAsync (Path.combine arcPath p) |> Async.RunSynchronously
+                let wb = Study.toFsWorkbook d
+                writeWorkbook arcPath p wb
+                if d.DataContexts.Count > 0 then
+                    let p = getDatamapPathByISAPath p
+                    let wb = Datamap.toFsWorkbook d
+                    writeWorkbook arcPath p wb
+            | Some "Run" ->
+                printfn $"Writing run {d.Identifier}"
+                let p = getRunPath d.Identifier
+                Path.ensureDirectoryOfFileAsync (Path.combine arcPath p) |> Async.RunSynchronously
+                let wb = Run.toFsWorkbook d
+                writeWorkbook arcPath p wb
+                if d.DataContexts.Count > 0 then
+                    let p = getDatamapPathByISAPath p
+                    let wb = Datamap.toFsWorkbook d
+                    writeWorkbook arcPath p wb
+            | Some "Workflow" ->
+                printfn $"Writing workflow {d.Identifier}"
+                let p = getWorkflowPath d.Identifier
+                Path.ensureDirectoryOfFileAsync (Path.combine arcPath p) |> Async.RunSynchronously
+                let wb = Workflow.toFsWorkbook d
+                writeWorkbook arcPath p wb
+                if d.DataContexts.Count > 0 then
+                    let p = getDatamapPathByISAPath p
+                    let wb = Datamap.toFsWorkbook d
+                    writeWorkbook arcPath p wb
+            | _ -> ()                             
+        )
+        Investigation.toFsWorkbook arc
+        |> writeWorkbook arcPath Path.InvestigationFileName
+
+    #endif

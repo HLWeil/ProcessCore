@@ -4,6 +4,7 @@ open ProcessCore
 open ProcessCore.Table
 open ProcessCore.Helper
 open FsSpreadsheet
+open DynamicObj
 open DatamapHeader.ActivePattern
 
 let setFromFsColumns (dc : ResizeArray<DataContext>) (columns : list<FsColumn>) : ResizeArray<DataContext> =
@@ -17,3 +18,77 @@ let setFromFsColumns (dc : ResizeArray<DataContext>) (columns : list<FsColumn>) 
         |> cellParser (dc.[i])
         |> ignore
     dc
+
+
+let toFsColumns (dc : ResizeArray<DataContext>) : FsCell list list =
+    let commentKeys = 
+        dc 
+        |> Seq.collect (
+            Comment.getCommentsFromDynamicObj
+            >> Seq.choose (fun comment ->
+                match Comment.toString comment with
+                | Some name, _ ->
+                    Some name
+                | _ -> None
+            )
+                      
+        )
+        |> Seq.distinct
+        |> Seq.toList
+    let headers = 
+        DatamapHeader.toFsCells commentKeys
+    let createTerm (oa : DefinedTerm option) = 
+        match oa with
+        | Some oa ->
+            [
+                oa.Name  |> FsCell
+                oa.TAN |> Option.bind Ontology.tryGetTSR |> Option.defaultValue "" |> FsCell
+                oa.TAN |> Option.defaultValue "" |> FsCell
+            ]
+        | None ->
+            [
+            FsCell("")
+            FsCell("")
+            FsCell("")
+        ]
+    let createText (s : string option) = 
+        [
+            FsCell(s |> Option.defaultValue "")    
+        ]
+    let createData (dc : DataContext) =
+        [
+            FsCell(dc.Data.Name)
+            FsCell(dc.Data.EncodingFormat |> Option.defaultValue "")
+            FsCell(dc.Data.SelectorFormat |> Option.defaultValue "")        
+        ]
+    let createRow (dc : DataContext) = 
+        let comments = 
+            Comment.getCommentsFromDynamicObj dc
+            |> Seq.choose (fun c ->
+                match Comment.toString c with
+                | Some name, value -> Some (name, Option.defaultValue "" value)
+                | _ -> None
+            )
+            |> Map.ofSeq
+        [
+            yield! (createData dc)
+            yield! (createTerm dc.Explication)
+            yield! (createTerm dc.Unit)
+            yield! (createTerm dc.ObjectType)
+            yield! (createText dc.Description)
+            yield! (createText dc.GeneratedBy)
+            yield! (createText dc.Label)
+            yield! (
+                commentKeys
+                |> List.map (fun key -> 
+                    comments[key]
+                    |> FsCell
+                )
+            )  
+        ]
+    [
+        headers
+        for dc in dc do
+            createRow dc
+    ]
+    |> List.transpose

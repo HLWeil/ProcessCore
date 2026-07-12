@@ -17,3 +17,4 @@ tests/**/py
 src/**/ts
 src/**/py
 dist/
+**/TestResults/**

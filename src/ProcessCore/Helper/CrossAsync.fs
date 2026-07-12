@@ -18,6 +18,31 @@ type CrossAsync<'T> =
     Async<'T>
 #endif
 
+let tryPick (chooser : 'T -> CrossAsync<'U option>) (tasks : 'T seq) : CrossAsync<'U option> =
+    let rec loop (en : System.Collections.Generic.IEnumerator<'T>) =
+        crossAsync {
+            if en.MoveNext() then
+                let! r = chooser en.Current
+                match r with
+                | Some v -> return Some v
+                | None -> return! loop en
+            else return None
+        }
+    loop (tasks.GetEnumerator())
+
+let choose (chooser : 'T -> CrossAsync<'U option>) (tasks : 'T seq) : CrossAsync<'U []> =
+    let rec loop (en : System.Collections.Generic.IEnumerator<'T>) =
+        crossAsync {
+            if en.MoveNext() then
+                let! r = chooser en.Current
+                let! following = loop en
+                match r with
+                | Some v -> return Array.append [|v|] following
+                | None -> return following
+            else return [||]
+        }
+    loop (tasks.GetEnumerator())
+
 let startSequential (starterF : 'T -> CrossAsync<'U>) (tasks : 'T seq) : CrossAsync<'U []> =
     let rec loop (en : System.Collections.Generic.IEnumerator<'T>) =
         crossAsync {
@@ -28,6 +53,9 @@ let startSequential (starterF : 'T -> CrossAsync<'U>) (tasks : 'T seq) : CrossAs
             else return [||]
         }
     loop (tasks.GetEnumerator())
+
+
+    
 
 let all (tasks : CrossAsync<'T> seq) : CrossAsync<'T []> =
     #if FABLE_COMPILER_JAVASCRIPT || FABLE_COMPILER_TYPESCRIPT
@@ -40,6 +68,12 @@ let map f v =
     crossAsync {
         let! v = v
         return f v
+    }
+
+let bind f v =
+    crossAsync {
+        let! v = v
+        return! f v
     }
 
 let asAsync (v:CrossAsync<'T>) =

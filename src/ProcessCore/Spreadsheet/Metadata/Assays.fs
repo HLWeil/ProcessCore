@@ -90,4 +90,58 @@ module Assays =
     let fromRows (prefix : string option) lineNumber (rows : IEnumerator<SparseRow>) =
         SparseTable.FromRows(rows,labels,lineNumber,?prefix = prefix)
         |> fun (s,ln,rs,sm) -> (s,ln,rs, fromSparseTable sm)
+
+    let toSparseTable (assays: Dataset list) =
+        let matrix = SparseTable.Create (keys = labels, length = assays.Length + 1)
+        let mutable commentKeys = []
+        assays
+        |> List.iteri (fun i assay ->
+            let i = i + 1
+            let measurementType =
+                assay.TryGetPropertyValue("MeasurementType")
+                |> Option.bind (fun v -> match v with | :? DefinedTerm as dt -> Some dt | _ -> None)
+            let technologyType =
+                assay.TryGetPropertyValue("TechnologyType")
+                |> Option.bind (fun v -> match v with | :? DefinedTerm as dt -> Some dt | _ -> None)
+            let technologyPlatform =
+                assay.TryGetPropertyValue("TechnologyPlatform")
+                |> Option.bind (fun v -> match v with | :? string as s -> Some s | _ -> None)
+            let processedFileName =
+                if Identifier.isMissingIdentifier assay.Identifier then ""
+                else Identifier.Assay.fileNameFromIdentifier assay.Identifier
+            let mt = measurementType |> Option.defaultValue (DefinedTerm(""))
+            let tt = technologyType |> Option.defaultValue (DefinedTerm(""))
+            do matrix.Matrix.Add((identifierLabel, i), Identifier.removeMissingIdentifier assay.Identifier)
+            do matrix.Matrix.Add((titleLabel, i), Option.defaultValue "" assay.Title)
+            do matrix.Matrix.Add((descriptionLabel, i), Option.defaultValue "" assay.Description)
+            do matrix.Matrix.Add((measurementTypeLabel, i), mt.Name)
+            do matrix.Matrix.Add((measurementTypeTermAccessionNumberLabel, i), mt.TAN |> Option.defaultValue "")
+            do matrix.Matrix.Add((measurementTypeTermSourceREFLabel, i), mt.TryGetTSR() |> Option.defaultValue "")
+            do matrix.Matrix.Add((technologyTypeLabel, i), tt.Name)
+            do matrix.Matrix.Add((technologyTypeTermAccessionNumberLabel, i), tt.TAN |> Option.defaultValue "")
+            do matrix.Matrix.Add((technologyTypeTermSourceREFLabel, i), tt.TryGetTSR() |> Option.defaultValue "")
+            do matrix.Matrix.Add((technologyPlatformLabel, i), Option.defaultValue "" technologyPlatform)
+            do matrix.Matrix.Add((fileNameLabel, i), processedFileName)
+
+            match assay.TryGetPropertyValue("Comments") with
+            | Some (:? ResizeArray<DynamicObj> as comments) ->
+                comments
+                |> Seq.iter (fun comment ->
+                    match Comment.toString comment with
+                    | Some name, Some value ->
+                        commentKeys <- name :: commentKeys
+                        matrix.Matrix.Add((name, i), value)
+                    | _ -> ()
+                )
+            | _ -> ()
+        )
+        { matrix with CommentKeys = commentKeys |> List.distinct |> List.rev }
+
+    let toRows prefix (assays : Dataset list) =
+        assays
+        |> toSparseTable
+        |> fun m ->
+            match prefix with
+            | Some p -> SparseTable.ToRows(m, p)
+            | None -> SparseTable.ToRows(m)
  

@@ -31,6 +31,25 @@ type IOType =
         | "Data"                                    -> Data
         | _                                         -> FreeText str // use str to not store `str.ToLower()`
 
+    override this.ToString() =
+        match this with
+        | Source -> "Source Name"
+        | Sample -> "Sample Name"
+        | Data -> "Data"
+        | FreeText s -> s
+
+    member this.asInput = 
+        let stringCreate x = $"Input [{x.ToString()}]"
+        match this with
+        | FreeText s -> stringCreate s
+        | anyelse -> stringCreate anyelse
+
+    member this.asOutput = 
+        let stringCreate x = $"Output [{x.ToString()}]"
+        match this with
+        | FreeText s -> stringCreate s
+        | anyelse -> stringCreate anyelse
+
 // ─────────────────────────────────────────────────────────────────────────────
 // CompositeHeader
 // ─────────────────────────────────────────────────────────────────────────────
@@ -242,6 +261,25 @@ type CompositeHeader =
     //     | Characteristic oa -> Characteristic (oa.Copy())
     //     | Component oa -> Component (oa.Copy())
     //     | _ -> this
+
+    override this.ToString() =
+        match this with
+        | Parameter dt -> sprintf "Parameter [%s]" dt.Name
+        | Factor dt -> sprintf "Factor [%s]" dt.Name
+        | Characteristic dt -> sprintf "Characteristic [%s]" dt.Name
+        | Component dt -> sprintf "Component [%s]" dt.Name
+        | ProtocolREF -> "Protocol REF"
+        | ProtocolType -> "Protocol Type"
+        | ProtocolDescription -> "Protocol Description"
+        | ProtocolUri -> "Protocol URI"
+        | ProtocolVersion -> "Protocol Version"
+        | Performer -> "Performer"
+        | Date -> "Date"
+        | Input io              -> io.asInput
+        | Output io             -> io.asOutput
+        | Comment key           -> $"Comment [{key}]"
+        | FreeText str          -> str
+
 // ─────────────────────────────────────────────────────────────────────────────
 // CompositeCell
 // ─────────────────────────────────────────────────────────────────────────────
@@ -598,8 +636,8 @@ type Table(name: string, processes: ResizeArray<Process>, dataset: Dataset) =
     ///   ProtocolVersion → Characteristics → Components → Parameters → Factors → Output
     member this.Decompose() : ResizeArray<CompositeColumn> =
         let cols = ResizeArray<CompositeColumn>()
-        this.SampleizeProjectedRows()
-        if processes.Count = 0 then cols
+        let rows = this.ProjectedRows()
+        if rows.Count = 0 then cols
         else
 
         // ── helpers ────────────────────────────────────────────────────────
@@ -616,23 +654,23 @@ type Table(name: string, processes: ResizeArray<Process>, dataset: Dataset) =
                             seen.[pv.Name] <- idx
             seen |> Seq.sortBy (fun kv -> kv.Value) |> Seq.map (fun kv -> kv.Key) |> ResizeArray
 
-        // First process used as representative for protocol/IO structure
-        let rep = processes.[0]
-
         // ── Input column ───────────────────────────────────────────────────
-        let hasInput = processes |> Seq.exists (fun p -> p.Inputs.Count > 0)
+        let hasInput = rows |> Seq.exists (fun (p, inputIndex, _) -> this.SelectedInput(p, inputIndex).IsSome)
         if hasInput then
             let ioType =
-                match rep.Inputs |> Seq.tryHead with
-                | Some (SampleNode m) -> TableAux.SampleIOType m
-                | Some (DataNode _)     -> IOType.Data
-                | None                  -> IOType.Sample
+                rows
+                |> Seq.tryPick (fun (p, inputIndex, _) ->
+                    match this.SelectedInput(p, inputIndex) with
+                    | Some (SampleNode m) -> Some (TableAux.SampleIOType m)
+                    | Some (DataNode _)    -> Some IOType.Data
+                    | None                 -> None)
+                |> Option.defaultValue IOType.Sample
             let cells = ResizeArray<CompositeCell>()
-            for p in processes do
-                match p.Inputs |> Seq.tryHead with
+            for (p, inputIndex, _) in rows do
+                match this.SelectedInput(p, inputIndex) with
                 | Some (SampleNode m) -> cells.Add(TableAux.SampleCell m)
-                | Some (DataNode d)     -> cells.Add(TableAux.DataCell d)
-                | None                  -> cells.Add(CompositeCell.FreeText "")
+                | Some (DataNode d)   -> cells.Add(TableAux.DataCell d)
+                | None                -> cells.Add(CompositeCell.FreeText "")
             cols.Add(CompositeColumn(CompositeHeader.Input ioType, cells))
 
         // ── Protocol columns ───────────────────────────────────────────────
@@ -640,7 +678,7 @@ type Table(name: string, processes: ResizeArray<Process>, dataset: Dataset) =
         if hasProtocol then
             // REF
             let refCells = ResizeArray<CompositeCell>()
-            for p in processes do
+            for (p, _, _) in rows do
                 let v = p.ExecutesProtocol |> Option.bind (fun pr -> pr.Name) |> Option.defaultValue ""
                 refCells.Add(CompositeCell.FreeText v)
             cols.Add(CompositeColumn(CompositeHeader.ProtocolREF, refCells))
@@ -648,7 +686,7 @@ type Table(name: string, processes: ResizeArray<Process>, dataset: Dataset) =
             let typeCells = ResizeArray<CompositeCell>()
             let hasType = processes |> Seq.exists (fun p -> p.ExecutesProtocol |> Option.bind (fun pr -> pr.IntendedUse) |> Option.isSome)
             if hasType then
-                for p in processes do
+                for (p, _, _) in rows do
                     let cell =
                         match p.ExecutesProtocol |> Option.bind (fun pr -> pr.IntendedUse) with
                         | Some dt -> CompositeCell.Term(dt.Name, dt.TAN)
@@ -659,7 +697,7 @@ type Table(name: string, processes: ResizeArray<Process>, dataset: Dataset) =
             let hasDes = processes |> Seq.exists (fun p -> p.ExecutesProtocol |> Option.bind (fun pr -> pr.Description) |> Option.isSome)
             if hasDes then
                 let desCells = ResizeArray<CompositeCell>()
-                for p in processes do
+                for (p, _, _) in rows do
                     let v = p.ExecutesProtocol |> Option.bind (fun pr -> pr.Description) |> Option.defaultValue ""
                     desCells.Add(CompositeCell.FreeText v)
                 cols.Add(CompositeColumn(CompositeHeader.ProtocolDescription, desCells))
@@ -667,7 +705,7 @@ type Table(name: string, processes: ResizeArray<Process>, dataset: Dataset) =
             let hasUri = processes |> Seq.exists (fun p -> p.ExecutesProtocol |> Option.bind (fun pr -> pr.Url) |> Option.isSome)
             if hasUri then
                 let uriCells = ResizeArray<CompositeCell>()
-                for p in processes do
+                for (p, _, _) in rows do
                     let v = p.ExecutesProtocol |> Option.bind (fun pr -> pr.Url) |> Option.defaultValue ""
                     uriCells.Add(CompositeCell.FreeText v)
                 cols.Add(CompositeColumn(CompositeHeader.ProtocolUri, uriCells))
@@ -675,24 +713,24 @@ type Table(name: string, processes: ResizeArray<Process>, dataset: Dataset) =
             let hasVer = processes |> Seq.exists (fun p -> p.ExecutesProtocol |> Option.bind (fun pr -> pr.Version) |> Option.isSome)
             if hasVer then
                 let verCells = ResizeArray<CompositeCell>()
-                for p in processes do
+                for (p, _, _) in rows do
                     let v = p.ExecutesProtocol |> Option.bind (fun pr -> pr.Version) |> Option.defaultValue ""
                     verCells.Add(CompositeCell.FreeText v)
                 cols.Add(CompositeColumn(CompositeHeader.ProtocolVersion, verCells))
 
         // ── Annotation helper: build one column per unique PV name ─────────
-        let addAnnotationColumns (additionalType: string) (getPVs: Process -> seq<Annotation>) =
+        let addAnnotationColumns (additionalType: string) (getPVs: Process * int option * int option -> seq<Annotation>) =
             // Gather distinct names ordered by ColumnIndex of first occurrence
             let seen = System.Collections.Generic.Dictionary<string, int>()
-            for p in processes do
-                for pv: Annotation in getPVs p do
+            for row in rows do
+                for pv: Annotation in getPVs row do
                     if pv.AdditionalType = Some additionalType && not (seen.ContainsKey(pv.Name)) then
                         seen.[pv.Name] <- TableAux.TryGetColumnIndex pv |> Option.defaultValue System.Int32.MaxValue
             let orderedNames = seen |> Seq.sortBy (fun kv -> kv.Value) |> Seq.map (fun kv -> kv.Key) |> ResizeArray
             for pvName in orderedNames do
                 // representative PV for header
                 let repPV =
-                    processes
+                    rows
                     |> Seq.collect getPVs
                     |> Seq.tryFind (fun pv -> pv.AdditionalType = Some additionalType && pv.Name = pvName)
                 match repPV with
@@ -700,53 +738,56 @@ type Table(name: string, processes: ResizeArray<Process>, dataset: Dataset) =
                 | Some rPV ->
                     let header = TableAux.PVToHeader rPV
                     let cells = ResizeArray<CompositeCell>()
-                    for p in processes do
-                        let pv = getPVs p |> Seq.tryFind (fun pv -> pv.AdditionalType = Some additionalType && pv.Name = pvName)
+                    for row in rows do
+                        let pv = getPVs row |> Seq.tryFind (fun pv -> pv.AdditionalType = Some additionalType && pv.Name = pvName)
                         match pv with
                         | Some pv -> cells.Add(TableAux.PVToCell pv)
                         | None    -> cells.Add(CompositeCell.FreeText "")
                     cols.Add(CompositeColumn(header, cells))
 
         // ── Characteristics (from input nodes) ─────────────────────────────
-        let inputPVs (p: Process) =
-            p.Inputs |> Seq.collect (fun n ->
-                match n with
-                | SampleNode m -> m.AdditionalProperty :> seq<_>
-                | DataNode d     -> d.AdditionalProperty :> seq<_>)
+        let inputPVs (p: Process, inputIndex: int option, _) =
+            match this.SelectedInput(p, inputIndex) with
+            | Some (SampleNode m) -> m.AdditionalProperty :> seq<_>
+            | Some (DataNode d)   -> d.AdditionalProperty :> seq<_>
+            | None                -> Seq.empty
         addAnnotationColumns "CharacteristicValue" inputPVs
 
         // ── Components (from protocol Component) ────────────────────────
-        let equipPVs (p: Process) =
+        let equipPVs (p: Process, _, _) =
             match p.ExecutesProtocol with
             | Some proto -> proto.Components :> seq<_>
             | None       -> Seq.empty
         addAnnotationColumns "Component" equipPVs
 
         // ── Parameters (from process ParameterValue) ───────────────────────
-        addAnnotationColumns "ParameterValue" (fun p -> p.ParameterValue :> seq<_>)
+        addAnnotationColumns "ParameterValue" (fun (p, _, _) -> p.ParameterValue :> seq<_>)
 
         // ── Factors (from output nodes) ────────────────────────────────────
-        let outputPVs (p: Process) =
-            p.Outputs |> Seq.collect (fun n ->
-                match n with
-                | SampleNode m -> m.AdditionalProperty :> seq<_>
-                | DataNode d     -> d.AdditionalProperty :> seq<_>)
+        let outputPVs (p: Process, _, outputIndex: int option) =
+            match this.SelectedOutput(p, outputIndex) with
+            | Some (SampleNode m) -> m.AdditionalProperty :> seq<_>
+            | Some (DataNode d)   -> d.AdditionalProperty :> seq<_>
+            | None                -> Seq.empty
         addAnnotationColumns "FactorValue" outputPVs
 
         // ── Output column ──────────────────────────────────────────────────
-        let hasOutput = processes |> Seq.exists (fun p -> p.Outputs.Count > 0)
+        let hasOutput = rows |> Seq.exists (fun (p, _, outputIndex) -> this.SelectedOutput(p, outputIndex).IsSome)
         if hasOutput then
             let ioType =
-                match rep.Outputs |> Seq.tryHead with
-                | Some (SampleNode m) -> TableAux.SampleIOType m
-                | Some (DataNode _)     -> IOType.Data
-                | None                  -> IOType.Sample
+                rows
+                |> Seq.tryPick (fun (p, _, outputIndex) ->
+                    match this.SelectedOutput(p, outputIndex) with
+                    | Some (SampleNode m) -> Some (TableAux.SampleIOType m)
+                    | Some (DataNode _)    -> Some IOType.Data
+                    | None                -> None)
+                |> Option.defaultValue IOType.Sample
             let cells = ResizeArray<CompositeCell>()
-            for p in processes do
-                match p.Outputs |> Seq.tryHead with
+            for (p, _, outputIndex) in rows do
+                match this.SelectedOutput(p, outputIndex) with
                 | Some (SampleNode m) -> cells.Add(TableAux.SampleCell m)
-                | Some (DataNode d)     -> cells.Add(TableAux.DataCell d)
-                | None                  -> cells.Add(CompositeCell.FreeText "")
+                | Some (DataNode d)   -> cells.Add(TableAux.DataCell d)
+                | None                -> cells.Add(CompositeCell.FreeText "")
             cols.Add(CompositeColumn(CompositeHeader.Output ioType, cells))
 
         cols
@@ -842,7 +883,11 @@ type Table(name: string, processes: ResizeArray<Process>, dataset: Dataset) =
             else
                 this.SampleizeProjectedRows()
                 for i in 0 .. processes.Count - 1 do
-                    processes.[i].AddInput(this.NodeFromCell(ioType, this.CellAt(cells, i), sprintf "%s_%d" name i))
+                    let p = processes.[i]
+                    let cell = this.CellAt(cells, i)
+                    match p.Inputs |> Seq.tryHead with
+                    | Some node -> this.ApplyCellToNode(node, ioType, cell, true, p)
+                    | None -> p.AddInput(this.NodeFromCell(ioType, cell, sprintf "%s_%d" name i))
         | CompositeHeader.Output ioType ->
             if processes.Count = 0 then
                 let p = Process(name)
@@ -854,7 +899,11 @@ type Table(name: string, processes: ResizeArray<Process>, dataset: Dataset) =
             else
                 this.SampleizeProjectedRows()
                 for i in 0 .. processes.Count - 1 do
-                    processes.[i].AddOutput(this.NodeFromCell(ioType, this.CellAt(cells, i), sprintf "%s_%d_out" name i))
+                    let p = processes.[i]
+                    let cell = this.CellAt(cells, i)
+                    match p.Outputs |> Seq.tryHead with
+                    | Some node -> this.ApplyCellToNode(node, ioType, cell, false, p)
+                    | None -> p.AddOutput(this.NodeFromCell(ioType, cell, sprintf "%s_%d_out" name i))
         | CompositeHeader.Parameter _ ->
             ensureOneProcess()
             this.SampleizeProjectedRows()
@@ -1129,10 +1178,10 @@ type Table(name: string, processes: ResizeArray<Process>, dataset: Dataset) =
 
     /// Replace all cells in the row at `rowIndex` by updating the underlying process node.
     member this.UpdateRow(rowIndex: int, cells: ResizeArray<CompositeCell>) =
-        this.SampleizeProjectedRows()
-        if rowIndex >= 0 && rowIndex < processes.Count then
+        let rows = this.ProjectedRows()
+        if rowIndex >= 0 && rowIndex < rows.Count then
             let headers = this.CurrentHeaders()
-            let p       = processes.[rowIndex]
+            let p, inputIndex, outputIndex = rows.[rowIndex]
             for colIdx in 0 .. headers.Count - 1 do
                 let header = headers.[colIdx]
                 let cell   = if colIdx < cells.Count then cells.[colIdx] else CompositeCell.FreeText ""
@@ -1146,16 +1195,16 @@ type Table(name: string, processes: ResizeArray<Process>, dataset: Dataset) =
                         TableAux.ApplyCellToPV(pv, cell)
                         p.AddParameterValue(pv)
                 | CompositeHeader.Input ioType ->
-                    match p.Inputs |> Seq.tryHead with
+                    match this.SelectedInput(p, inputIndex) with
                     | Some node -> this.ApplyCellToNode(node, ioType, cell, true, p)
                     | None -> p.AddInput(this.NodeFromCell(ioType, cell, sprintf "%s_%d" name rowIndex))
                 | CompositeHeader.Output ioType ->
-                    match p.Outputs |> Seq.tryHead with
+                    match this.SelectedOutput(p, outputIndex) with
                     | Some node -> this.ApplyCellToNode(node, ioType, cell, false, p)
                     | None -> p.AddOutput(this.NodeFromCell(ioType, cell, sprintf "%s_%d_out" name rowIndex))
                 | CompositeHeader.Characteristic(dt) ->
                     let pvList =
-                        match p.Inputs |> Seq.tryHead with
+                        match this.SelectedInput(p, inputIndex) with
                         | Some (SampleNode m) -> Some m.AdditionalProperty
                         | Some (DataNode d)     -> Some d.AdditionalProperty
                         | None                  -> None
@@ -1171,7 +1220,7 @@ type Table(name: string, processes: ResizeArray<Process>, dataset: Dataset) =
                     | None -> ()
                 | CompositeHeader.Factor(dt) ->
                     let pvList =
-                        match p.Outputs |> Seq.tryHead with
+                        match this.SelectedOutput(p, outputIndex) with
                         | Some (SampleNode m) -> Some m.AdditionalProperty
                         | Some (DataNode d)     -> Some d.AdditionalProperty
                         | None                  -> None

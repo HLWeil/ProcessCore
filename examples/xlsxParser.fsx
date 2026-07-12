@@ -6,9 +6,8 @@
 
 #r @"..\src\ProcessCore\bin\Release\netstandard2.1\ProcessCore.dll"
 
-//#r "nuget: ProcessCore, 0.0.4"
+// #r "nuget: ProcessCore, 0.0.4"
 //#r "nuget: ARCtrl"
-
 
 open ProcessCore
 open ProcessCore.Table
@@ -22,67 +21,29 @@ open ProcessCore.Spreadsheet
 
 
 
-let arcPath = @"C:\Users\HLWei\source\repos\ARCs\Ru_ChlamyHeatstress"
+//let arcPath = @"C:\Users\HLWei\source\repos\Ru_ChlamyHeatstress"
 
-let arc = ARC.load arcPath
+//let arc = ARC.load arcPath
 
-arc.Update()
+//arc.ArcPath <- Some (Path.combine __SOURCE_DIRECTORY__ @"testARC")
+////arc.IsSpreadsheetScaffold
 
-
-ar^^
-
-let s = 
-    arc.AllSamples()
-    |> Seq.find (fun s -> s.Name = "run_35_A")
-
-arc.RegisterFragmentSelectorProvider (CsvFragmentSelectorProvider())
-
-let d = 
-    arc.AllData()
-    |> Seq.find (fun d -> d.Selector.IsSome)
-
-arc.DataContextsCoveringData(d).[0].
+//arc.Update()
 
 
-ProcessCore.Yaml.Dataset.toYamlStringIndexed (Some 2) (arc.HasPart[3])
-|> ProcessCore.Yaml.Dataset.fromYamlString false
+let invIn = @"C:\Users\HLWei\source\repos\ARC_tools\ARC-Data-Model\tests\ProcessCore.Tests\TestObjects\fct_stri_study.xlsx"
+let invOut = @"C:\Users\HLWei\source\repos\ARC_tools\ARC-Data-Model\tests\ProcessCore.Tests\TestResults\fct_stri_study_out.xlsx"
 
 
-arc.RemovePart(arc.HasPart[0])
+let wb = Path.readFileXlsxAsync invIn |> Async.RunSynchronously
+let i = ScaffoldReader.Study.tryFromFsWorkbook wb
+let wb2 = ScaffoldReader.Study.toFsWorkbook i.Value
+Path.writeFileXlsxAsync invOut wb2 |> Async.RunSynchronously
 
-arc
-|> Yaml.Dataset.toYamlStringIndexed (Some 2)
-|> ProcessCore.Yaml.Dataset.fromYamlString false
+i.Value.Tables.GetTableAt(0).Headers[3]
 
+i.Value.Tables.GetTableAt(1).Processes.Count
 
-arc.toYamlString(2)
-|> ARC.fromYamlString
+i.Value.Processes.Count
 
-
-arc.toYamlString(2)
-|> Yaml.Dataset.fromYamlString false
-
-
-let yaml = 
-    arc.toYamlString(2)
-    |> YAMLicious.Reader.read
-
-yaml
-|> Yaml.Dataset.decoderGeneric (fun i -> Dataset(i)) false
-
-yaml
-|> Yaml.Dataset.decoderGeneric (fun i -> ARC(i)) false
-
-arc
-|> Yaml.Dataset.toYamlStringIndexed (Some 2)
-
-|> ARC.fromYamlString
-
-
-
-
-
-|> fun s -> System.IO.File.WriteAllText(@"C:\Users\HLWei\source\repos\ARCs\Ru_ChlamyHeatstress\datasetTest.yaml", s)
-
-arc.toYamlString(2)
-|> fun s -> System.IO.File.WriteAllText(@"C:\Users\HLWei\source\repos\ARCs\Ru_ChlamyHeatstress\arcTest.yaml", s)
+i.Value

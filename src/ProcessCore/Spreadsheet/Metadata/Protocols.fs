@@ -81,3 +81,49 @@ module Protocols =
         | Some p -> SparseTable.FromRows(rows,labels,lineNumber,p)
         | None -> SparseTable.FromRows(rows,labels,lineNumber)
         |> fun (s,ln,rs,sm) -> (s,ln,rs, fromSparseTable sm)
+
+    let toSparseTable (protocols: Recipe list) =
+        let matrix = SparseTable.Create (keys = labels, length = protocols.Length + 1)
+        let mutable commentKeys = []
+        protocols
+        |> List.iteri (fun i p ->
+            let i = i + 1
+            let protocolType = p.IntendedUse |> Option.defaultValue (DefinedTerm(""))
+            let parameters = ProtocolParameter.toAggregatedStrings ';' p.Parameters
+            let components = Component.toAggregatedStrings ';' p.Components
+            do matrix.Matrix.Add ((nameLabel, i), Option.defaultValue "" p.Name)
+            do matrix.Matrix.Add ((protocolTypeLabel, i), protocolType.Name)
+            do matrix.Matrix.Add ((typeTermAccessionNumberLabel, i), protocolType.TAN |> Option.defaultValue "")
+            do matrix.Matrix.Add ((typeTermSourceREFLabel, i), protocolType.TryGetTSR() |> Option.defaultValue "")
+            do matrix.Matrix.Add ((descriptionLabel, i), Option.defaultValue "" p.Description)
+            do matrix.Matrix.Add ((uriLabel, i), Option.defaultValue "" p.Url)
+            do matrix.Matrix.Add ((versionLabel, i), Option.defaultValue "" p.Version)
+            do matrix.Matrix.Add ((parametersNameLabel, i), parameters.TermNameAgg)
+            do matrix.Matrix.Add ((parametersTermAccessionNumberLabel, i), parameters.TermAccessionNumberAgg)
+            do matrix.Matrix.Add ((parametersTermSourceREFLabel, i), parameters.TermSourceREFAgg)
+            do matrix.Matrix.Add ((componentsNameLabel, i), components.NameAgg)
+            do matrix.Matrix.Add ((componentsTypeLabel, i), components.TermNameAgg)
+            do matrix.Matrix.Add ((componentsTypeTermAccessionNumberLabel, i), components.TermAccessionNumberAgg)
+            do matrix.Matrix.Add ((componentsTypeTermSourceREFLabel, i), components.TermSourceREFAgg)
+
+            match p.TryGetPropertyValue("Comments") with
+            | Some (:? ResizeArray<DynamicObj> as comments) ->
+                comments
+                |> Seq.iter (fun comment ->
+                    match Comment.toString comment with
+                    | Some name, Some value ->
+                        commentKeys <- name :: commentKeys
+                        matrix.Matrix.Add((name, i), value)
+                    | _ -> ()
+                )
+            | _ -> ()
+        )
+        { matrix with CommentKeys = commentKeys |> List.distinct |> List.rev }
+
+    let toRows prefix (protocols : Recipe list) =
+        protocols
+        |> toSparseTable
+        |> fun m ->
+            match prefix with
+            | Some p -> SparseTable.ToRows(m, p)
+            | None -> SparseTable.ToRows(m)

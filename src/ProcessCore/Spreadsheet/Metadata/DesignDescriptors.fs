@@ -18,3 +18,9 @@ module DesignDescriptors =
 
     let fromRows (prefix : string option) lineNumber (rows : IEnumerator<SparseRow>) =
         OntologyAnnotationSection.fromRows prefix designTypeLabel designTypeTermSourceREFLabel designTypeTermAccessionNumberLabel lineNumber rows
+
+    let toSparseTable (designs: DefinedTerm seq) =
+        OntologyAnnotationSection.toSparseTable designTypeLabel designTypeTermSourceREFLabel designTypeTermAccessionNumberLabel designs
+
+    let toRows (prefix : string option) (designs : DefinedTerm seq) =
+        OntologyAnnotationSection.toRows prefix designTypeLabel designTypeTermSourceREFLabel designTypeTermAccessionNumberLabel designs

@@ -46,3 +46,20 @@ module ArcStudy =
     let tryGetMetadataSheet (doc : FsWorkbook) =
         doc.GetWorksheets()
         |> Seq.tryFind isMetadataSheet
+
+    let toMetadataSheet (study : Dataset) (assays : Dataset list option) : FsWorksheet =
+        //let toRows (study:ArcStudy) assays =
+        //    seq {          
+        //        yield  SparseRow.fromValues [studiesLabel]
+        //        yield! Studies.StudyInfo.toRows study
+        //    }
+        let sheet = FsWorksheet(metadataSheetName)
+        Studies.toRows study assays
+        |> Seq.append [SparseRow.fromValues [studiesLabel]]
+        |> Seq.iteri (fun rowI r -> SparseRow.writeToSheet (rowI + 1) r sheet)    
+        sheet
+
+    let toMetadataCollection (study : Dataset) (assays : Dataset list option) =
+        Studies.toRows study assays
+        |> Seq.append [SparseRow.fromValues [studiesLabel]]
+        |> Seq.map (fun row -> SparseRow.getAllValues row)

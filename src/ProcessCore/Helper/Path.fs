@@ -1,6 +1,7 @@
 module ProcessCore.Helper.Path
 
 open ProcessCore
+open FsSpreadsheet
 open CrossAsync
 open Fable.Core
 open Fable
@@ -59,7 +60,7 @@ let [<Literal>] StudiesResourcesFolderName = "resources"
 
 #if FABLE_COMPILER_JAVASCRIPT || FABLE_COMPILER_TYPESCRIPT
 open Fable.Core.JsInterop
-//open FsSpreadsheet.Js
+open FsSpreadsheet.Js
 
 let inline dynamicNodeImportOrThrow (memberName: string) (moduleName: string) (props: obj): Fable.Core.JS.Promise<'b> =
     emitJsExpr (memberName, moduleName, props) """(async () => {
@@ -129,7 +130,7 @@ type PathModule =
 
 #endif
 #if FABLE_COMPILER_PYTHON
-//open FsSpreadsheet.Py
+open FsSpreadsheet.Py
 open Fable.Core.PyInterop
 
 importAll "shutil"
@@ -138,9 +139,9 @@ import "Path" "pathlib"
 
 #endif
 
-//#if !FABLE_COMPILER
-//open FsSpreadsheet.Net
-//#endif
+#if !FABLE_COMPILER
+open FsSpreadsheet.Net
+#endif
 
 let directoryExistsAsync (path : string) : CrossAsync<bool> =
     #if FABLE_COMPILER_JAVASCRIPT || FABLE_COMPILER_TYPESCRIPT
@@ -260,14 +261,14 @@ let readFileBinaryAsync (path : string) : CrossAsync<byte []> =
     }
     #endif
 
-//let readFileXlsxAsync (path : string) : CrossAsync<FsWorkbook> =
-//    #if FABLE_COMPILER_JAVASCRIPT || FABLE_COMPILER_TYPESCRIPT
-//    FsWorkbook.fromXlsxFile path
-//    #else
-//    crossAsync {
-//        return FsWorkbook.fromXlsxFile path
-//    }
-//    #endif
+let readFileXlsxAsync (path : string) : CrossAsync<FsWorkbook> =
+    #if FABLE_COMPILER_JAVASCRIPT || FABLE_COMPILER_TYPESCRIPT
+    FsWorkbook.fromXlsxFile path
+    #else
+    crossAsync {
+        return FsWorkbook.fromXlsxFile path
+    }
+    #endif
 
 let moveFileAsync (oldPath : string) (newPath : string) : CrossAsync<unit> =
     #if FABLE_COMPILER_JAVASCRIPT || FABLE_COMPILER_TYPESCRIPT
@@ -371,14 +372,23 @@ let writeFileBinaryAsync (path : string) (bytes : byte []) : CrossAsync<unit> =
     }
     #endif
 
-//let writeFileXlsxAsync (path : string) (wb : FsWorkbook) : CrossAsync<unit> =
-//    #if FABLE_COMPILER_JAVASCRIPT || FABLE_COMPILER_TYPESCRIPT
-//        FsWorkbook.toXlsxFile path wb
-//    #else
-//    crossAsync {
-//        FsWorkbook.toXlsxFile path wb
-//    }
-//    #endif
+let writeFileXlsxAsync (path : string) (wb : FsWorkbook) : CrossAsync<unit> =
+    #if FABLE_COMPILER_JAVASCRIPT || FABLE_COMPILER_TYPESCRIPT
+        FsWorkbook.toXlsxFile path wb
+    #else
+    crossAsync {
+        FsWorkbook.toXlsxFile path wb
+    }
+    #endif
+
+#if !FABLE_COMPILER_JAVASCRIPT && !FABLE_COMPILER_TYPESCRIPT
+let writeFileXlsx (path : string) (wb : FsWorkbook) : unit =
+    FsWorkbook.toXlsxFile path wb
+
+let readFileXlsx (path : string) : FsWorkbook =
+    FsWorkbook.fromXlsxFile path
+
+#endif
 
 
 let trim (path : string) : string =

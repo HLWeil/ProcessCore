@@ -1,3 +1,24 @@
+### 0.0.7+2804132 (Released 2026-7-12)
+* Additions:
+    * [[#2804132](https://github.com/HLWeil/ProcessCore/commit/280413235bdd945205aaa77c53852b340c91b135)] update docs and skip python tests for now
+    * [[#e40c132](https://github.com/HLWeil/ProcessCore/commit/e40c132ff8ced5c4ef1f785c1aefc42dcbf935f1)] implement async arc io for javascript
+    * [[#04b9f61](https://github.com/HLWeil/ProcessCore/commit/04b9f6126362a9bd310ec16446022848bf4d780c)] work towards fable compatibility of scaffold io
+
+### 0.0.6+c5749ea (Released 2026-7-8)
+* Additions:
+    * [[#968f5cc](https://github.com/HLWeil/ProcessCore/commit/968f5cc2708fe34c2a01b05f5ab1796317cc91f2)] continue working on scaffold parsing
+    * [[#c24c88a](https://github.com/HLWeil/ProcessCore/commit/c24c88ae6bd303ef606caa09e3886481e380fdcc)] finish up first version of spreadsheet scaffold writer
+    * [[#840de32](https://github.com/HLWeil/ProcessCore/commit/840de32e0ac1fc8969f8358c6cda9521cf19949f)] continue working on scaffold writer
+    * [[#e507669](https://github.com/HLWeil/ProcessCore/commit/e507669e45505c2b6a073a09d9ce59c9945355db)] start with scaffold writer
+    * [[#add0cd8](https://github.com/HLWeil/ProcessCore/commit/add0cd89be26abb146a9e136e089fe1e91ff3b65)] update docs with ARC and administrative metadata changes
+* Bugfixes:
+    * [[#c5749ea](https://github.com/HLWeil/ProcessCore/commit/c5749ea1aac4db263917f66aadf3688674e1e856)] final fixes for scaffold parser
+    * [[#9875b6e](https://github.com/HLWeil/ProcessCore/commit/9875b6e8fd6d5a00a10c38430a3b51a3d261d5b8)] fix assay scaffold writing
+    * [[#8e148c1](https://github.com/HLWeil/ProcessCore/commit/8e148c1eef21886756f0d54af10c18da7cbcc31c)] continue working on scaffold parser fixing
+    * [[#81dc6c0](https://github.com/HLWeil/ProcessCore/commit/81dc6c085e8b54ddbdc50582459f3bcb9b40f35a)] continue fixing scaffold io
+    * [[#3745a6a](https://github.com/HLWeil/ProcessCore/commit/3745a6afe045a5d71dd32360f8353cb0f3246d95)] test and start fixing scaffold io
+    * [[#9be18ed](https://github.com/HLWeil/ProcessCore/commit/9be18eda6586fe7e0c04919030097765e3f0be85)] first fixes for ARC Spreadsheet Scaffold writer
+
 ### 0.0.5+a302f6f (Released 2026-7-3)
 * Additions:
     * [[#df3cd8a](https://github.com/HLWeil/ProcessCore/commit/df3cd8aedac00ca23b3f989c55fa5f464352ff7f)] extend ARC api

@@ -39,8 +39,11 @@ let all =
             Table.TableRead.tests
             Table.TableWrite.tests
             Table.TablesApi.tests
+            Spreadsheet.Workbooks.tests
+            Spreadsheet.Scaffold.tests
             ProcessCore.Yaml.Tests.All.all
             ProcessCore.SQL.Tests.All.all
+            ARC.tests
         ]
 
 #if FABLE_COMPILER_JAVASCRIPT || FABLE_COMPILER_TYPESCRIPT
