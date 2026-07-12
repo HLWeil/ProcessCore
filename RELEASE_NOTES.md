@@ -1,3 +1,9 @@
+### 0.0.7+2804132 (Released 2026-7-12)
+* Additions:
+    * [[#2804132](https://github.com/HLWeil/ProcessCore/commit/280413235bdd945205aaa77c53852b340c91b135)] update docs and skip python tests for now
+    * [[#e40c132](https://github.com/HLWeil/ProcessCore/commit/e40c132ff8ced5c4ef1f785c1aefc42dcbf935f1)] implement async arc io for javascript
+    * [[#04b9f61](https://github.com/HLWeil/ProcessCore/commit/04b9f6126362a9bd310ec16446022848bf4d780c)] work towards fable compatibility of scaffold io
+
 ### 0.0.6+c5749ea (Released 2026-7-8)
 * Additions:
     * [[#968f5cc](https://github.com/HLWeil/ProcessCore/commit/968f5cc2708fe34c2a01b05f5ab1796317cc91f2)] continue working on scaffold parsing

@@ -1,12 +1,15 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>netstandard2.0</TargetFramework>
-    <Nullable>enable</Nullable>
-    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <PackageTags>ARC;F#;FSharp;dotnet;.Net;bioinformatics;biology;fable-library;datascience;dataplant;nfdi;metadata;fable-javascript</PackageTags>
+    <DefineConstants>FABLE_COMPILER_JAVASCRIPT;FABLE_COMPILER;FABLE_COMPILER_TYPESCRIPT</DefineConstants>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
 
+  <Import Project="ProcessCore.Common.props" />
+
   <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
     <Compile Include="Helper\CrossAsync.fs" />
     <Compile Include="Helper\ResizeArray.fs" />
     <Compile Include="Helper\Option.fs" />
@@ -81,6 +84,14 @@
     <PackageReference Include="DynamicObj" />
     <PackageReference Include="FsSpreadsheet.Js" />
   </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Fable.Package.SDK">
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+            <PrivateAssets>all</PrivateAssets>
+        </PackageReference>
+    </ItemGroup>
+
 
 </Project>
 
