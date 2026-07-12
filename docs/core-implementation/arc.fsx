@@ -24,22 +24,83 @@ open ProcessCore
 
 ## Load, Write and Serialize
 
-`Write`, `Update`, and `load` keep the conventional `arc.yml` file in sync with the package root.
+`ARC` exposes file-system entry points for the two supported on-disk representations:
 
-If no `arc.yml` exists, `load` will try to fall back to reading `xlsx` files defines in the ARC Specification v3.x.x.
+- YAML packages, stored as `arc.yml` in the ARC root.
+- Spreadsheet scaffolds, stored as the collection of workbook files defined by the ARC scaffold layout.
 
+The async methods are:
+
+- `ARC.load` to load an ARC package from disk.
+- `arc.Write` to write the current ARC as YAML.
+- `arc.Update` to persist the current ARC back to its existing location.
+
+`load` prefers `arc.yml` when it exists. If the file is missing, it falls back to the spreadsheet scaffold reader.
 *)
 
 let arc = ARC.load (__SOURCE_DIRECTORY__ + "/../../examples/arc/demo-arc")
 
 arc.AddAgent(Agent("Bruce", familyName = "Wayne"))
 
-arc.Update()
+do arc.Update()
 
 (**
-`ARC.toYamlString` writes the ARC package as indexed YAML. `ARC.fromYamlString` rebuilds a new `ARC` object from that document.
+#### Write path determination
+
+The `ArcPath` property stores the package root that was loaded or last written. 
 
 *)
+
+arc.ArcPath <- Some "new-arc-path"
+arc.Update()
+
+//or
+
+arc.Update("new-arc-path")
+
+(**
+#### Representation Rules
+
+`IsSpreadsheetScaffold` records which on-disk representation was loaded. `Update` uses this property to decide how to save.
+
+Use the representation flag as follows:
+
+- `IsSpreadsheetScaffold = true` means the package was loaded from spreadsheet files and should be updated with the scaffold writer.
+- `IsSpreadsheetScaffold = false` means the package should be written as YAML in `arc.yml`.
+
+`WriteAsync` always writes YAML. It also clears `IsSpreadsheetScaffold`, so calling it converts a scaffold-loaded package into a YAML-backed package on disk.
+`UpdateAsync` preserves the current representation choice:
+*)
+
+arc.IsSpreadsheetScaffold <- true
+arc.Update() // uses the scaffold writer
+
+arc.IsSpreadsheetScaffold <- false
+arc.Update() // uses the YAML writer
+
+(**
+#### Working With Async Methods
+
+All three main io methods have async versions. Use `loadAsync` to load an ARC package from disk, `WriteAsync` to write the current ARC as YAML, and `UpdateAsync` to persist the current ARC back to its existing location.
+
+In Javascript, only these async methods are available and will be transpiled to promises, so use them in all cases for cross-platform code.
+*)
+
+open CrossAsync
+
+crossAsync {
+    let! arc = ARC.loadAsync (__SOURCE_DIRECTORY__ + "/../../examples/arc/demo-arc")
+    do! arc.UpdateAsync()
+    do! arc.WriteAsync("new-arc-path")
+}
+
+(**
+
+## YAML Serialization
+
+`ARC.toYamlString` writes the ARC package as indexed YAML. `ARC.fromYamlString` rebuilds a new `ARC` object from that document.
+*)
+
 
 let arcYaml = arc.toYamlString(2)
 let arcRoundTrip = ARC.fromYamlString arcYaml
@@ -80,8 +141,10 @@ The package keeps the same graph shape as `Dataset`, with some addtional file sy
 | Task | API |
 |------|-----|
 | Create an ARC | `ARC(identifier)` |
+| Load an ARC from disk | `ARC.load`, `ARC.loadAsync` |
+| Save as YAML on disk | `arc.Write`, `arc.WriteAsync` |
+| Refresh in place on disk | `arc.Update`, `arc.UpdateAsync` |
 | Add package metadata | `arc.Title`, `arc.Description`, `arc.License`, `arc.DatePublished`, `arc.DateCreated`, `arc.DateModified` |
 | Record package contributors | `arc.AddAgent`, `arc.AddCitation` |
 | Serialize ARC YAML | `arc.toYamlString`, `ARC.fromYamlString` |
-| Persist an ARC package on disk | `arc.Write`, `arc.Update`, `ARC.load` |
 *)
