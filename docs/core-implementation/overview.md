@@ -37,12 +37,28 @@ The `ProcessCore` library is available as a NuGet package for .NET and currently
 dotnet add package ProcessCore
 ```
 
+```fsharp
+#r "nuget: ProcessCore" // in scripts
+
+open ProcessCore
+
+let d = Dataset("MyDataset")
+```
+
 #### JavaScript
 
 <a href="https://www.nuget.org/packages/ProcessCore.Javascript"><img alt="Nuget" src="https://img.shields.io/nuget/v/ProcessCore.Javascript?logo=nuget&color=%234fb3d9&label=ProcessCore.Javascript"></a>
 
 ```
 dotnet add package ProcessCore.Javascript
+```
+
+```fsharp
+#r "nuget: ProcessCore.Javascript" // in scripts
+
+open ProcessCore
+
+let d = Dataset("MyDataset")
 ```
 
 ## Recommended Path
