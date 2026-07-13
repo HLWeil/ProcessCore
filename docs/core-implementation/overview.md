@@ -26,6 +26,25 @@ For normative field definitions, use the [specification index](../spec/index.md)
 
 For API reference, see the [API docs](../reference/index.html).
 
+## Loading the library
+
+The `ProcessCore` library is available as a NuGet package for .NET and currently a NuGet package for JavaScript transpilation.
+
+#### .NET
+<a href="https://www.nuget.org/packages/ProcessCore"><img alt="Nuget" src="https://img.shields.io/nuget/v/ProcessCore?logo=nuget&color=%234fb3d9&label=ProcessCore"></a>
+
+```
+dotnet add package ProcessCore
+```
+
+#### JavaScript
+
+<a href="https://www.nuget.org/packages/ProcessCore.Javascript"><img alt="Nuget" src="https://img.shields.io/nuget/v/ProcessCore.Javascript?logo=nuget&color=%234fb3d9&label=ProcessCore.Javascript"></a>
+
+```
+dotnet add package ProcessCore.Javascript
+```
+
 ## Recommended Path
 
 1. [ARC Layer](arc.fsx) shows package-level metadata and ARC YAML persistence.

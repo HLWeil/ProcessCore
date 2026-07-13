@@ -9,6 +9,7 @@
 
   <PropertyGroup>
     <Authors>nfdi4plants, Lukas Weil, Kevin Schneider</Authors>
+    <RepositoryUrl>https://github.com/HLWeil/ProcessCore</RepositoryUrl>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
   </PropertyGroup>
 
