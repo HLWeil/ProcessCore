@@ -1,6 +1,5 @@
 module ProcessCore.Tests.ARC
 
-
 open Fable.Pyxpecto
 open ProcessCore
 open CrossAsync
@@ -9,18 +8,31 @@ open ProcessCore.Tests.Fixtures
 open TestingUtils
 open ProcessCore.Table
 
+let testBaseFolder =
+    #if FABLE_COMPILER_JAVASCRIPT || FABLE_COMPILER_TYPESCRIPT
+    "./tests/ProcessCore.Tests"
+    #else
+    __SOURCE_DIRECTORY__
+    #endif
+
+let testObjectsFolder = Path.combine testBaseFolder "TestObjects"
+
+let testResultsFolder = 
+    #if FABLE_COMPILER_JAVASCRIPT || FABLE_COMPILER_TYPESCRIPT
+    Path.combineMany [testBaseFolder; "TestResults"; "js"]
+    #endif
+    #if FABLE_COMPILER_PYTHON
+    Path.combineMany [testBaseFolder; "TestResults"; "py"]
+    #endif
+    #if !FABLE_COMPILER
+    Path.combineMany [testBaseFolder; "TestResults"; "net"]
+    #endif
+
 
 let tests = testList "ARC" [
 
-    let testBaseFolder =
-        #if FABLE_COMPILER_JAVASCRIPT || FABLE_COMPILER_TYPESCRIPT
-        "./tests/ProcessCore.Tests/TestObjects"
-        #else
-        Path.combine __SOURCE_DIRECTORY__ "TestObjects"
-        #endif
-
     testCaseCrossAsync "loadAsync_scaffold" (crossAsync {
-        let testARCPath = Path.combine testBaseFolder "testARC"
+        let testARCPath = Path.combine testObjectsFolder "testARC"
         let! arc = ARC.loadAsync testARCPath
 
         Expect.equal arc.Identifier "Facultative-CAM-in-Talinum" "ARC should have correct identifier"
@@ -38,5 +50,59 @@ let tests = testList "ARC" [
         let studyAT = Expect.wantSome study.AdditionalType "Study has additional type"
         Expect.equal studyAT "Study" "Study has correct additional type"
     })
+
+    testCaseCrossAsync "loadAsync_scaffold_updateAsyncUnchanged" (crossAsync {
+        let testARCPath = Path.combine testObjectsFolder "testARC"
+        let! arc = ARC.loadAsync testARCPath
+        let tempDir = Path.combine testResultsFolder "TestARC_unchanged"
+        do! arc.UpdateAsync tempDir
+        let! arc2 = ARC.loadAsync tempDir
+        Expect.equal arc2.Identifier arc.Identifier "Identifiers should match"
+        Expect.equal arc2.AdditionalType arc.AdditionalType "Additional types should match"
+        Expect.hasLength (arc2.Agents) (Seq.length arc.Agents) "Number of agents should match"
+        Expect.hasLength (arc2.HasPart) (Seq.length arc.HasPart) "Number of parts should match"
+    })
+
+    testCaseCrossAsync "loadAsync_scaffold_updateAsyncChanged" (crossAsync {
+        let testARCPath = Path.combine testObjectsFolder "testARC"
+        let! arc = ARC.loadAsync testARCPath
+        let previousAgentsCount = Seq.length arc.Agents
+        arc.AddAgent (Agent(givenName = "My", familyName = "Dude"))
+        let tempDir = Path.combine testResultsFolder "TestARC_changed"
+        do! arc.UpdateAsync tempDir
+
+        //check that xlsx has been written
+        let! ymlExists = Path.fileExistsAsync (Path.combine tempDir "arc.yml") 
+        Expect.isFalse ymlExists "arc.yml should not exist in scaffold"
+        let! xlsxExists = Path.fileExistsAsync (Path.combine tempDir "isa.investigation.xlsx")
+        Expect.isTrue xlsxExists "isa.investigation.xlsx should exist in scaffold"
+
+        let! arc2 = ARC.loadAsync tempDir
+        Expect.equal arc2.Identifier arc.Identifier "Identifiers should match"
+        Expect.equal arc2.AdditionalType arc.AdditionalType "Additional types should match"
+        Expect.hasLength (arc2.Agents) (previousAgentsCount + 1) "Number of agents should match"
+        Expect.hasLength (arc2.HasPart) (Seq.length arc.HasPart) "Number of parts should match"
+    })
+
+    testCaseCrossAsync "loadAsync_scaffold_updateYAML" (crossAsync {
+        let testARCPath = Path.combine testObjectsFolder "testARC"
+        let! arc = ARC.loadAsync testARCPath
+        arc.IsSpreadsheetScaffold <- false
+        let tempDir = Path.combine testResultsFolder "TestARC_yml"
+        do! arc.UpdateAsync tempDir
+
+        //check that yml has been written
+        let! ymlExists = Path.fileExistsAsync (Path.combine tempDir "arc.yml")
+        Expect.isTrue ymlExists "arc.yml should exist in scaffold"
+        let! xlsxExists = Path.fileExistsAsync (Path.combine tempDir "isa.investigation.xlsx")
+        Expect.isFalse xlsxExists "isa.investigation.xlsx should not exist in scaffold"
+
+        let! arc2 = ARC.loadAsync tempDir
+        Expect.equal arc2.Identifier arc.Identifier "Identifiers should match"
+        Expect.equal arc2.AdditionalType arc.AdditionalType "Additional types should match"
+        Expect.hasLength (arc2.Agents) (Seq.length arc.Agents) "Number of agents should match"
+        Expect.hasLength (arc2.HasPart) (Seq.length arc.HasPart) "Number of parts should match"
+    })
+
     ]
 

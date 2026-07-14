@@ -33,32 +33,38 @@ type ARC(identifier: string, ?title: string, ?description: string, ?additionalTy
 
     /// Writes the ARC to the specified path as arc.yml. If the ARC was loaded from a spreadsheet scaffold, it will still write as a YAML file.
     member this.WriteAsync(arcPath : string) : CrossAsync<unit> = 
-        _isSpreadsheetScaffold <- false
-        _arcPath <- Some arcPath
-        let p = Path.combine arcPath "arc.yml"
-        let ymlString = ProcessCore.Yaml.Dataset.toYamlStringIndexed (Some 2) this
-        Path.writeFileTextAsync p ymlString
+        crossAsync {
+            do! Path.ensureDirectoryAsync arcPath
+            _isSpreadsheetScaffold <- false
+            _arcPath <- Some arcPath
+            let p = Path.combine arcPath "arc.yml"
+            let ymlString = ProcessCore.Yaml.Dataset.toYamlStringIndexed (Some 2) this
+            do! Path.writeFileTextAsync p ymlString
+        }
 
     /// Updates the ARC at the specified path. If the ARC was loaded from a spreadsheet scaffold, it will update it as a scaffold.
     ///
     /// If no path is provided, it will use the ArcPath property. If neither is set, it will throw an exception.
     member this.UpdateAsync(?arcPath : string) : CrossAsync<unit> = 
-        let arcPath = 
-            match arcPath with
-            | Some p -> 
-                _arcPath <- Some p; 
-                p
-            | None -> 
-                match this.ArcPath with
-                | Some p -> p
-                | None -> failwith "ARC path is not set. Please provide an arcPath or set the ArcPath property."
-        if _isSpreadsheetScaffold then 
-            ScaffoldReader.ARC.writeAsync arcPath this
-        else 
-            let p = Path.combine arcPath "arc.yml"
-            let ymlString = ProcessCore.Yaml.Dataset.toYamlStringIndexed (Some 2) this
-            Path.writeFileTextAsync p ymlString
+        crossAsync {
+            let arcPath = 
+                match arcPath with
+                | Some p -> 
+                    _arcPath <- Some p; 
+                    p
+                | None -> 
+                    match this.ArcPath with
+                    | Some p -> p
+                    | None -> failwith "ARC path is not set. Please provide an arcPath or set the ArcPath property."
+            do! Path.ensureDirectoryAsync arcPath
+            if _isSpreadsheetScaffold then 
+                do! ScaffoldReader.ARC.writeAsync arcPath this
+            else 
+                let p = Path.combine arcPath "arc.yml"
+                let ymlString = ProcessCore.Yaml.Dataset.toYamlStringIndexed (Some 2) this
+                do! Path.writeFileTextAsync p ymlString
 
+        }
     /// Loads an ARC from the specified path. It first looks for an arc.yml file. If not found, it attempts to load from a spreadsheet scaffold.
     /// If neither is found, it throws an exception.
     static member loadAsync(arcPath : string) : CrossAsync<ARC> = 

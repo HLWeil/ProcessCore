@@ -117,7 +117,7 @@ module Helpers =
     // ── YAMLElement constructors ───────────────────────────────────────────────
 
     let yamlValue (s: string) =
-        let s = if s.Contains("#") || s.StartsWith("*") || s.Contains(": ") then $"\"{s}\"" else s
+        let s = if s.Contains("#") || s.StartsWith("*") || s.Contains(": ") || s = "-" then $"\"{s}\"" else s
         YAMLElement.Value (YAMLContent.create(s, style = ScalarStyle.Plain))
 
     let yamlMap (pairs: (string * YAMLElement) list) =

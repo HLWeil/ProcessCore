@@ -146,6 +146,7 @@ let clean =
         ++ "tests/**/bin"
         ++ "tests/**/obj"
         ++ "dist"
+        ++ "tests/ProcessCore.Tests/TestResults/"
         |> Shell.cleanDirs
     }
 

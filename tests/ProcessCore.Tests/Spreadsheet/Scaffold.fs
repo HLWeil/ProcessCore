@@ -10,17 +10,30 @@ open TestingUtils
 open ProcessCore.Table
 
 
-let tests = testList "Workbooks" [
+let testBaseFolder =
+    #if FABLE_COMPILER_JAVASCRIPT || FABLE_COMPILER_TYPESCRIPT
+    "./tests/ProcessCore.Tests"
+    #else
+    Path.combine __SOURCE_DIRECTORY__ ".."
+    #endif
 
-    let testBaseFolder =
-        #if FABLE_COMPILER_JAVASCRIPT || FABLE_COMPILER_TYPESCRIPT
-        "./tests/ProcessCore.Tests/TestObjects"
-        #else
-        Path.combine __SOURCE_DIRECTORY__ "../TestObjects"
-        #endif
+let testObjectsFolder = Path.combine testBaseFolder "TestObjects"
+
+let testResultsFolder = 
+    #if FABLE_COMPILER_JAVASCRIPT || FABLE_COMPILER_TYPESCRIPT
+    Path.combineMany [testBaseFolder; "../TestResults"; "js"]
+    #endif
+    #if FABLE_COMPILER_PYTHON
+    Path.combineMany [testBaseFolder; "../TestResults"; "py"]
+    #endif
+    #if !FABLE_COMPILER
+    Path.combineMany [testBaseFolder; "../TestResults"; "net"]
+    #endif
+
+let tests = testList "Scaffold" [
 
     testCaseCrossAsync "ReadTestARC" (crossAsync {
-        let testARCPath = Path.combine testBaseFolder "testARC"
+        let testARCPath = Path.combine testObjectsFolder "testARC"
         let! arc = ScaffoldReader.ARC.loadAsync (ARC) testARCPath
 
         Expect.equal arc.Identifier "Facultative-CAM-in-Talinum" "ARC should have correct identifier"
