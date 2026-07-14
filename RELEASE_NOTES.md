@@ -1,3 +1,9 @@
+### 0.0.8+beb0750 (Released 2026-7-14)
+* Additions:
+    * [[#beb0750](https://github.com/HLWeil/ProcessCore/commit/beb07508e68ecae6632aeacac64459401be17b82)] test and improve stability of ARC io
+    * [[#dd506d5](https://github.com/HLWeil/ProcessCore/commit/dd506d55af7ebda0ebce2ce4266fef905ff5b590)] add open in docs
+    * [[#565d513](https://github.com/HLWeil/ProcessCore/commit/565d5138fc341a3a39dc6af7fa46fdfad2a345e1)] update docs with repo url and nuget links
+
 ### 0.0.7+2804132 (Released 2026-7-12)
 * Additions:
     * [[#2804132](https://github.com/HLWeil/ProcessCore/commit/280413235bdd945205aaa77c53852b340c91b135)] update docs and skip python tests for now
