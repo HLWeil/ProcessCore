@@ -101,12 +101,12 @@ growthProtocol.AddComponent(
         valueTAN = "https://bioregistry.io/OBI:0001046",
         additionalType = "Component"))
 
-let growthAt25 = Process("Growth", executesProtocol = growthProtocol)
+let growthAt25 = Process("Growth", executesRecipe = growthProtocol)
 growthAt25.SetInputSample(source)
 growthAt25.SetOutputSample(roomTemperatureSample)
 assay.AddProcess(growthAt25)
 
-let growthAt30 = Process("Growth", executesProtocol = growthProtocol)
+let growthAt30 = Process("Growth", executesRecipe = growthProtocol)
 growthAt30.SetInputSample(source)
 growthAt30.SetOutputSample(highTemperatureSample)
 assay.AddProcess(growthAt30)

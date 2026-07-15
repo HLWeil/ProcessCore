@@ -7,7 +7,7 @@ index: 3
 
 # Process
 
-Core transformation node in the process graph. A Process connects inputs to outputs and references the Protocol that was executed.
+Core transformation node in the process graph. A Process connects inputs to outputs and references the Recipe that was executed.
 
 **Schema.org type**: `bioschemas.org/LabProcess`
 
@@ -25,7 +25,7 @@ Decorations specialize Process:
 | `name` | Text | MUST | Name of the process |
 | `inputs` | [Sample](Sample.md), [Data](Data.md) | SHOULD | Input(s) of the process |
 | `outputs` | [Sample](Sample.md), [Data](Data.md) | SHOULD | Output(s) of the process |
-| `executesProtocol` | [Recipe](Recipe.md) | SHOULD | Protocol that was executed |
+| `executesRecipe` | [Recipe](Recipe.md) | SHOULD | Recipe that was executed |
 | `parameterValue` | [Annotation](Annotation.md) | SHOULD | Parameter key-value pairs |
 
 ## Relationships
@@ -38,7 +38,7 @@ flowchart TD
     Dataset --processes--> Process
     Process --inputs--> Sample/Data
     Process --"outputs"--> Sample/Data
-    Process --executesProtocol--> Recipe
+    Process --executesRecipe--> Recipe
     Process --parameterValue--> Annotation
     Process --name--> na
 ```

@@ -88,7 +88,7 @@ let tests = testList "RoundTrip" [
         Expect.equal pvs.[2].Name    "enzyme"             "pv2 name"
         Expect.equal pvs.[2].Value   (Some "Trypsin")     "pv2 value"
 
-    testCase "protocol round-trip" <| fun _ ->
+    testCase "recipe round-trip" <| fun _ ->
         let proto = Recipe(
                         name        = "extraction",
                         description = "Standard extraction",
@@ -101,7 +101,7 @@ let tests = testList "RoundTrip" [
         proto.AddAdditionalProperty(Annotation("notes", value = "Keep on ice"))
 
         let proc = Process("p1")
-        proc.ExecutesProtocol <- Some proto
+        proc.ExecutesRecipe <- Some proto
         let ds = Dataset("DS-proto")
         ds.AddProcess(proc)
 
@@ -109,12 +109,12 @@ let tests = testList "RoundTrip" [
         let decoded = Yaml.Dataset.fromYamlString false yaml
 
         let p      = decoded.Processes.[0]
-        Expect.isSome p.ExecutesProtocol "executesProtocol present"
-        let dp = p.ExecutesProtocol.Value
-        Expect.equal dp.Name        (Some "extraction")            "protocol name"
-        Expect.equal dp.Description (Some "Standard extraction")   "protocol description"
-        Expect.equal dp.Version     (Some "1.0")                   "protocol version"
-        Expect.equal dp.Url         (Some "https://protocols.io/extraction-v1") "protocol url"
+        Expect.isSome p.ExecutesRecipe "executesRecipe present"
+        let dp = p.ExecutesRecipe.Value
+        Expect.equal dp.Name        (Some "extraction")            "recipe name"
+        Expect.equal dp.Description (Some "Standard extraction")   "recipe description"
+        Expect.equal dp.Version     (Some "1.0")                   "recipe version"
+        Expect.equal dp.Url         (Some "https://protocols.io/extraction-v1") "recipe url"
         Expect.isSome dp.IntendedUse                               "intendedUse present"
         Expect.equal dp.IntendedUse.Value.Name "cell growth"       "intendedUse name"
         Expect.equal dp.IntendedUse.Value.TAN (Some "GO:0016049")  "intendedUse TAN"

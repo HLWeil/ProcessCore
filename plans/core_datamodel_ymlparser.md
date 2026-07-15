@@ -170,8 +170,8 @@ Reusable objects can be defined once in top-level index sections and referenced 
 References use the same compact mapping shape as indexed objects:
 
 ```yaml
-labProtocols:
-  - "@id": "#Protocol_Cell_Lysis"
+recipes:
+  - "@id": "#Recipe_Cell_Lysis"
     type: Recipe
     components:
       - "@id": "#Component_centrifuge_Eppendorf_5420"
@@ -187,8 +187,8 @@ annotations:
 processes:
   - type: Process
     name: Cell Lysis
-    executesProtocol:
-      "@id": "#Protocol_Cell_Lysis"
+    executesRecipe:
+      "@id": "#Recipe_Cell_Lysis"
     parameterValue:
       - "@id": "#ParameterValue_time_10_minute"
 ```
@@ -196,7 +196,7 @@ processes:
 Indexed sections currently cover:
 
 - `annotations`: reusable `Annotation` objects, including parameter values, characteristics, factors, components, and additional properties.
-- `labProtocols`: reusable `Recipe` objects that processes can reference through `executesProtocol`.
+- `recipes`: reusable `Recipe` objects that processes can reference through `executesRecipe`.
 
 Inline objects remain valid wherever references are accepted. `@id` values should be stable within the document; fragment identifiers are preferred for local objects, while absolute URLs are suitable for externally identified objects.
 
@@ -346,14 +346,14 @@ module <TypeName> =
 
 ### Process
 
-**Known YAML fields:** `id`, `type`, `additionalType`, `name`, `inputs`, `outputs`, `executesProtocol`, `parameterValue`
+**Known YAML fields:** `id`, `type`, `additionalType`, `name`, `inputs`, `outputs`, `executesRecipe`, `parameterValue`
 
 **Decoder:**
 - `decoder`, `decoderWithResolvers`, and `fromYamlString` return `ResizeArray<Process>` because one YAML mapping may encode several in-memory edges.
-- `name` is required and copied to every expanded `Process(name)`; `additionalType`, the resolved `executesProtocol`, `parameterValue`, and overflow properties are likewise copied.
+- `name` is required and copied to every expanded `Process(name)`; `additionalType`, the resolved `executesRecipe`, `parameterValue`, and overflow properties are likewise copied.
 - `inputs` and `outputs` are decoded into positional arrays of `IONode option`. Inline values discriminate `Sample` and `Data` by `type`; `File` remains a legacy alias for `Data`, and missing type defaults to `Sample`. An unresolved id reference preserves its position as `None`.
 - Create `max(inputs.Count, outputs.Count, 1)` processes. Process `i` receives `inputs[i]` and `outputs[i]` when present, otherwise `None`. Thus equal arrays become paired edges, unequal arrays are padded, and an empty mapping becomes one metadata-only process.
-- Clone mutable protocol, parameter, and term objects for each expanded process so editing one edge does not mutate its siblings.
+- Clone mutable recipe, parameter, and term objects for each expanded process so editing one edge does not mutate its siblings.
 - Apply overflow with the normal strict/lenient rules to every expanded process.
 
 > **Back-edges** (`ProcessOf`, `InputOf`, and `OutputOf`) are never deserialized directly. The process decoder establishes endpoint back-edges locally; the `Dataset` decoder calls `AddProcess` for every expanded process to set ownership and canonicalize nodes through the root registry.
@@ -362,7 +362,7 @@ module <TypeName> =
 - `type`: `"Process"`; `name` is required and `additionalType` is emitted when present
 - standalone `encoder` writes the singular endpoints as omitted or one-element `inputs`/`outputs` sequences (inline; omit back-edge fields)
 - `encoderMany` writes a non-empty, already-equivalent process group as one mapping by appending singular endpoints to the plural arrays in encounter order
-- `executesProtocol` inline if present
+- `executesRecipe` inline if present
 - `parameterValue` sequence (omit if empty)
 - Overflow properties
 
@@ -370,12 +370,12 @@ module <TypeName> =
 
 ### Dataset
 
-**Known YAML fields:** `type`, `additionalType`, `identifier`, `title`, `description`, `license`, `datePublished`, `dateCreated`, `dateModified`, `processes`, `hasPart`, `dataFiles`, `agents`, `citations`, `dataContexts`, `additionalProperty`, `ArcPath`, and the indexed `annotations` section. Lenient documents may additionally carry `labProtocols` and other decoration fields through overflow handling.
+**Known YAML fields:** `type`, `additionalType`, `identifier`, `title`, `description`, `license`, `datePublished`, `dateCreated`, `dateModified`, `processes`, `hasPart`, `dataFiles`, `agents`, `citations`, `dataContexts`, `additionalProperty`, `ArcPath`, and the indexed `annotations` section. Lenient documents may additionally carry `recipes` and other decoration fields through overflow handling.
 
 **Decoder:**
 - `identifier` (required) → `Dataset(identifier)`
 - Decode the optional administrative scalars (`title`, `description`, `additionalType`, license, and publication/creation/modification dates) directly onto the dataset.
-- `processes` → sequence of mappings or references. A mapping is passed to the collection-returning Process decoder, and every expanded result is flattened into the dataset through `AddProcess`; resolvable indexed annotations/protocols are supplied to the process decoder.
+- `processes` → sequence of mappings or references. A mapping is passed to the collection-returning Process decoder, and every expanded result is flattened into the dataset through `AddProcess`; resolvable indexed annotations/recipes are supplied to the process decoder.
 - `hasPart` → inline Dataset or Data values discriminated by `type`/`path`; datasets use `AddPart`, while data values enter `DataFiles`. Empty type defaults to Dataset. Unresolved string references are skipped.
 - Decode the explicit `dataFiles`, `agents`, `citations`, and `dataContexts` collections with their corresponding codecs and add methods.
 - `additionalProperty` → sequence of `decodeRefOrInline Annotation.decoder`
@@ -385,9 +385,9 @@ module <TypeName> =
 - `identifier`: the dataset identifier (there is no generated dataset `id` field)
 - `type`: `"Dataset"`
 - All present optional administrative scalars
-- Group `Processes` only at this boundary. Equivalence is the structural non-I/O encoding (`name`, `additionalType`, protocol, parameters, overflow) plus the exact endpoint-presence shape `(Input.IsSome, Output.IsSome)`. Preserve first-group order and process encounter order, then encode each group with `Process.encoderMany`.
+- Group `Processes` only at this boundary. Equivalence is the structural non-I/O encoding (`name`, `additionalType`, recipe, parameters, overflow) plus the exact endpoint-presence shape `(Input.IsSome, Output.IsSome)`. Preserve first-group order and process encounter order, then encode each group with `Process.encoderMany`.
 - Keep both-sided, input-only, output-only, and endpoint-free processes in separate groups so omitted entries never shift positional pairing.
-- In indexed mode, grouped process payloads still emit annotation and protocol references and populate the top-level registries.
+- In indexed mode, grouped process payloads still emit annotation and recipe references and populate the top-level registries.
 - `hasPart` as sequence (inline)
 - `dataFiles`, `agents`, `citations`, and `dataContexts` as sequences when non-empty
 - `additionalProperty` as sequence (omit if empty)

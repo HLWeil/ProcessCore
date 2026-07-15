@@ -7,7 +7,7 @@ index: 8
 
 # FormalParameter
 
-Describes the shape and type of protocol inputs/outputs, providing prospective provenance.
+Describes the shape and type of recipe inputs/outputs, providing prospective provenance.
 
 **Schema.org type**: `bioschemas.org/FormalParameter`
 

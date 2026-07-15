@@ -41,7 +41,7 @@ The ARC Core data model is designed to be compatible with RO-Crate, and therefor
 | `name` | Process Core | `schema:name` | - |
 | `inputs` | Process Core | `schema:object` | Renaming |
 | `outputs` | Process Core | `schema:result` | Renaming |
-| `executesProtocol` | Process Core | `bioschemas:executesRecipe` | Renaming |
+| `executesRecipe` | Process Core | `bioschemas:executesRecipe` | - |
 | `parameterValue` | Process Core | `bioschemas:parameterValue` | - |
 
 ## Recipe

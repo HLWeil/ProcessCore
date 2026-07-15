@@ -74,7 +74,7 @@ FormalParameter("temperature", nameTAN = "PATO:0000146", defaultValue = DefinedT
 
 **Fixture Recipe** — recipe with `name`, `description`, `version`, `url`, `intendedUse`, one parameter, one component, and one additionalProperty.
 
-**Fixture Process** — process with `name`, one sample input, one data output, `executesProtocol`, two `parameterValue` entries.
+**Fixture Process** — process with `name`, one sample input, one data output, `executesRecipe`, two `parameterValue` entries.
 
 **Fixture Dataset** — `Dataset("DS-1")` containing the fixture Process and one nested child `Dataset("DS-1/assay")`.
 
@@ -189,12 +189,12 @@ These should match what the encoder produces so they can also serve as encoder r
 
 | Test | Description |
 |------|-------------|
-| `encode name only` | `type = "Process"`, name present, no inputs/outputs/protocol |
+| `encode name only` | `type = "Process"`, name present, no inputs/outputs/recipe |
 | `encode with sample input` | Singular sample is inline in a one-element `inputs` array |
 | `encode with data output` | Singular data is inline in a one-element `outputs` array |
-| `encode with executesProtocol` | Nested Recipe inline |
+| `encode with executesRecipe` | Nested Recipe inline |
 | `encode with parameterValues` | Sequence of PV objects |
-| `decode name only` | Returns one process with `Input = None`, `Output = None`, protocol `None` |
+| `decode name only` | Returns one process with `Input = None`, `Output = None`, recipe `None` |
 | `decode sample input` | Returns one process whose singular input is the sample |
 | `decode data output` | Returns one process whose singular output is the data |
 | `decode equal collapsed lanes` | Two inputs and two outputs return two processes paired by index |
@@ -203,14 +203,14 @@ These should match what the encoder produces so they can also serve as encoder r
 | `decode empty arrays` | `max(0, 0, 1)` creates one metadata-only process |
 | `decode data by "File" legacy type alias` | `type: File` → decoded as `Data` |
 | `decode io as id-references` | Unresolved string refs become `None` but retain their positional lane |
-| `decode executesProtocol as inline object` | Recipe decoded |
-| `decode executesProtocol as id-reference` | Ref → `executesProtocol = None` |
+| `decode executesRecipe as inline object` | Recipe decoded |
+| `decode executesRecipe as id-reference` | Ref → `executesRecipe = None` |
 | `decode parameterValues` | PVs decoded |
-| `expanded mutable metadata is independent` | Editing a protocol or parameter on one expanded process does not mutate its siblings |
+| `expanded mutable metadata is independent` | Editing a recipe or parameter on one expanded process does not mutate its siblings |
 | `back-edges not in output` | No `processOf` key |
 | `round-trip name only` | |
 | `standalone round-trip with endpoints` | Standalone encoder emits at most one item per endpoint array and decoder returns a one-item process collection |
-| `round-trip with protocol and parameters` | |
+| `round-trip with recipe and parameters` | |
 
 ---
 
@@ -222,7 +222,7 @@ These should match what the encoder produces so they can also serve as encoder r
 | `encode with processes` | Nested Process objects in `processes` array; equivalent singular edges are grouped into compact mappings |
 | `encode groups equal non-I/O state and shape` | Equivalent both-sided edges become parallel `inputs`/`outputs` arrays in encounter order |
 | `encode separates endpoint shapes` | Both-sided, input-only, output-only, and metadata-only edges are emitted as different mappings |
-| `encode separates non-equivalent state` | Name, additional type, protocol, parameters, or overflow differences prevent grouping |
+| `encode separates non-equivalent state` | Name, additional type, recipe, parameters, or overflow differences prevent grouping |
 | `encode preserves group encounter order` | Mapping order follows the first edge in each group; lane order follows process order |
 | `encode with hasPart` | Nested child Dataset in `hasPart` array |
 | `encode with additionalProperty` | PV sequence |
@@ -238,7 +238,7 @@ These should match what the encoder produces so they can also serve as encoder r
 | `back-edges not in output` | No `partOf` or `processOf` keys in YAML |
 | `round-trip minimal` | |
 | `round-trip with processes` | Expanded process count, singular endpoints, endpoint shapes, and lane order survive encode → decode |
-| `indexed grouped process round-trip` | Collapsed groups retain resolvable annotation/protocol references and indexed registries |
+| `indexed grouped process round-trip` | Collapsed groups retain resolvable annotation/recipe references and indexed registries |
 | `round-trip nested hasPart` | Nested datasets survive encode → decode |
 
 ---
@@ -252,7 +252,7 @@ These tests encode a fully-wired graph, decode it, and compare structure rather 
 | `linear graph round-trip` | Fixture graph from ProcessCore.Tests Fixture A: encode `DS-A` → YAML string → decode → same process names, same input/output names |
 | `nested dataset round-trip` | Fixture D: parent with two child datasets → encode → decode → child identifier and process names intact |
 | `parameterValues round-trip` | PVs with all optional fields survive encoding and decoding |
-| `protocol round-trip` | Recipe with parameters, components, and intendedUse survives |
+| `recipe round-trip` | Recipe with parameters, components, and intendedUse survives |
 | `whitespace option` | `toYamlString (Some 4)` produces YAML with 4-space indentation that `fromYamlString` can parse back |
 | `Decode.fromYamlString entry point` | Top-level `Decode.fromYamlString Dataset.decoder` works equivalently to `Dataset.fromYamlString` |
 | `Encode.toYamlString entry point` | Top-level `Encode.toYamlString` works equivalently to per-module helper |
@@ -335,11 +335,11 @@ The three example files were reviewed against the YML schemas in `schemas/yml/`.
 | `id` | Overflow only | absent | ✅ Not mapped to any property; would flow to overflow if present |
 | `identifier` | Required | `"measurement1"` | ✅ |
 | `creators` | Not in core schema | present | ❌ Overflow |
-| `labProtocols` | Not in schema (no top-level protocol list) | present | ❌ Overflow |
+| `recipes` | Not in schema (no top-level recipe list) | present | ❌ Overflow |
 | `annotations` | Not in schema (no top-level annotations) | present | ❌ Overflow |
 | `processes[*].inputs` | Schema uses `inputs` | `inputs` | ✅ |
 | `processes[*].outputs` | Schema uses `outputs` | `outputs` | ✅ |
-| `processes[*].executesProtocol` | Schema uses `executesProtocol` | `executesProtocol` | ✅ |
+| `processes[*].executesRecipe` | Schema uses `executesRecipe` | `executesRecipe` | ✅ |
 | `processes[*].parameterValue` (singular) | Schema uses `parameterValue` | `parameterValue` | ✅ |
 | `Sample.additionalProperty` (singular) | Schema uses `additionalProperty` | `additionalProperty` | ✅ |
 | `type: Sample` + `additionalType: Source` | Schema uses `type: Sample` with `additionalType` | `type: Sample`, `additionalType: Source` | ✅ |
@@ -382,5 +382,5 @@ These fixtures are intended for use as **inline string literals** in the test pr
 | `assay process output name` | `"Cultivation Flask RT"` |
 | `assay output additionalProperty` | One PV with `Name = "temperature"`, `Value = Some "25"` |
 | `original investigation.yml lenient parse` | Load file content; parse with `Dataset.decoder false`; no exception; `identifier = "ara_prot_2023"`, `title` and `additionalProperty` decoded; `creators` in overflow |
-| `original assay_proteomics.yml lenient parse` | Load file content; parse with `Dataset.decoder false`; no exception; `identifier = "measurement1"`; all 20 processes decoded with typed inputs/outputs; `creators`, `labProtocols`, `annotations` in overflow |
+| `original assay_proteomics.yml lenient parse` | Load file content; parse with `Dataset.decoder false`; no exception; `identifier = "measurement1"`; all 20 processes decoded with typed inputs/outputs; `creators`, `recipes`, `annotations` in overflow |
 | `original datamap_proteomics.yml raw YAML load` | File can be read by `YAMLicious.Reader.read` without exception; top-level key `datacontexts` accessible as overflow on a bare `DynamicObj` |

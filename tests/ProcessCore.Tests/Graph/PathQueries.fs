@@ -98,7 +98,7 @@ let tests = testList "PathQueries" [
         Expect.isTrue (names.Contains "temperature")  "parameter source"
         Expect.isTrue (names.Contains "organism")     "input node source"
         Expect.isTrue (names.Contains "growth_phase") "output node source"
-        Expect.isTrue (names.Contains "instrument")   "protocol component source"
+        Expect.isTrue (names.Contains "instrument")   "recipe component source"
 
     testCase "Path.AnnotationsByName" <| fun _ ->
         let f    = makeFixtureA()
@@ -107,15 +107,15 @@ let tests = testList "PathQueries" [
         Expect.equal pvs.Count 1 "exactly one temperature PV"
         Expect.equal pvs.[0].Value (Some "37") "value is 37"
 
-    // ── Path.ProtocolParameters ───────────────────────────────────────────────
+    // ── Path.RecipeParameters ───────────────────────────────────────────────
 
-    testCase "Path.ProtocolParameters" <| fun _ ->
+    testCase "Path.RecipeParameters" <| fun _ ->
         let f    = makeFixtureA()
         let path = Path(ResizeArray<Process>([| f.P1; f.P2; f.P3 |]))
-        let fps  = path.ProtocolParameters()
-        // p1 has temperature+rpm, p2 has no FPs defined in fixture, p3 no protocol
+        let fps  = path.RecipeParameters()
+        // p1 has temperature+rpm, p2 has no FPs defined in fixture, p3 no recipe
         let names = fps |> Seq.map (fun fp -> fp.Name) |> Set.ofSeq
-        Expect.isTrue (names.Contains "temperature") "temperature FP from p1 protocol"
-        Expect.isTrue (names.Contains "rpm")         "rpm FP from p1 protocol"
+        Expect.isTrue (names.Contains "temperature") "temperature FP from p1 recipe"
+        Expect.isTrue (names.Contains "rpm")         "rpm FP from p1 recipe"
 
 ]

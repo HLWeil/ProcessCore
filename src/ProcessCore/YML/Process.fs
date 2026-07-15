@@ -9,12 +9,12 @@ module Process =
     let private knownFields =
         Set.ofList
             [ "id"; "type"; "additionalType"; "name"; "inputs"; "outputs"
-              "executesProtocol"; "parameterValue" ]
+              "executesRecipe"; "executesProtocol"; "parameterValue" ]
 
     let private knownPropertyNames =
         Set.ofList
             [ "id"; "type"; "additionaltype"; "name"; "input"; "output"; "inputs"; "outputs"
-              "executesprotocol"; "parametervalue"; "processof" ]
+              "executesrecipe"; "executesprotocol"; "parametervalue"; "processof" ]
 
     let private cloneDefinedTerm (term: DefinedTerm) =
         DefinedTerm(term.Name, ?tan = term.TAN, ?inDefinedTermSet = term.InDefinedTermSet)
@@ -60,16 +60,17 @@ module Process =
     let private decodeIONode (processCoreOnly: bool) (value: YAMLElement) : IONode option =
         decodeIONodeWithPropertyResolver processCoreOnly (fun _ -> None) value
 
-    let decoderWithResolvers (processCoreOnly: bool) (resolveAnnotation: string -> Annotation option) (resolveProtocol: string -> Recipe option) (value: YAMLElement) : ResizeArray<Process> =
+    let decoderWithResolvers (processCoreOnly: bool) (resolveAnnotation: string -> Annotation option) (resolveRecipe: string -> Recipe option) (value: YAMLElement) : ResizeArray<Process> =
         checkType processCoreOnly "Process" value
         let name           = requireField "name"          value |> decodeString
         let additionalType = tryGetField "additionalType" value |> Option.map decodeString
-        let executesProtocol =
-            tryGetField "executesProtocol" value
+        let executesRecipe =
+            (tryGetField "executesRecipe" value
+             |> Option.orElseWith (fun () -> tryGetField "executesProtocol" value))
             |> Option.bind (fun v ->
                 match decodeRefOrInline (Recipe.decoderWithPropertyResolver processCoreOnly resolveAnnotation) v with
                 | Choice2Of2 proto -> Some proto
-                | Choice1Of2 id    -> resolveProtocol id)
+                | Choice1Of2 id    -> resolveRecipe id)
 
         let decodeIOSeq fieldName =
             let nodes = ResizeArray<IONode option>()
@@ -99,7 +100,7 @@ module Process =
                 Process(
                     name,
                     ?additionalType = additionalType,
-                    ?executesProtocol = executesProtocol)
+                    ?executesRecipe = executesRecipe)
             if i < inputs.Count then inputs.[i] |> Option.iter proc.SetInput
             if i < outputs.Count then outputs.[i] |> Option.iter proc.SetOutput
             for parameterValue in parameterValues do
@@ -117,7 +118,7 @@ module Process =
         | SampleNode m -> Sample.encoder pvEncoder m
         | DataNode d     -> Data.encoder pvEncoder d
 
-    let encoderMany (pvEncoder : Annotation -> YAMLElement) (protEncoder : Recipe -> YAMLElement) (processes: seq<Process>) : YAMLElement =
+    let encoderMany (pvEncoder : Annotation -> YAMLElement) (recipeEncoder : Recipe -> YAMLElement) (processes: seq<Process>) : YAMLElement =
         let processes = processes |> Seq.toArray
         let proc = processes.[0]
         [
@@ -134,8 +135,8 @@ module Process =
             if not (Seq.isEmpty outputs) then
                 yield "outputs",
                       outputs |> Seq.map (encodeIONode pvEncoder) |> Seq.toList |> yamlSeq
-            match proc.ExecutesProtocol with
-            | Some proto -> yield "executesProtocol", protEncoder proto
+            match proc.ExecutesRecipe with
+            | Some proto -> yield "executesRecipe", recipeEncoder proto
             | None       -> ()
             if proc.ParameterValue.Count > 0 then
                 yield "parameterValue",
@@ -147,8 +148,8 @@ module Process =
         ]
         |> yamlMap
 
-    let encoder (pvEncoder : Annotation -> YAMLElement) (protEncoder : Recipe -> YAMLElement) (proc: Process) : YAMLElement =
-        encoderMany pvEncoder protEncoder [proc]
+    let encoder (pvEncoder : Annotation -> YAMLElement) (recipeEncoder : Recipe -> YAMLElement) (proc: Process) : YAMLElement =
+        encoderMany pvEncoder recipeEncoder [proc]
 
     /// Structural key for the non-I/O process state used only by dataset YAML grouping.
     let groupingKey (proc: Process) =

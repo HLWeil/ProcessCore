@@ -179,7 +179,7 @@ module Studies =
             | Some (:? ResizeArray<Recipe> as values) -> values |> Seq.toList
             | _ -> []
             //study.Processes
-            //|> Seq.choose (fun p -> p.ExecutesProtocol)
+            //|> Seq.choose (fun p -> p.ExecutesRecipe)
             //|> Seq.toList
         let factors =
             match study.TryGetPropertyValue("StudyFactors") with

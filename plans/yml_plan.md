@@ -62,7 +62,7 @@ The Process codec returns a collection, even for the standalone `fromYamlString`
 1. Decode `inputs` and `outputs` independently while preserving array positions. Inline `Sample`/`Data` objects become nodes; an unresolved id reference occupies its lane as `None`.
 2. Let `edgeCount = max(inputs.Count, outputs.Count, 1)`.
 3. Create one process for each index `0 .. edgeCount - 1`. Assign the input and output at that index when present and use `None` for the shorter side.
-4. Copy `name`, `additionalType`, resolved protocol, parameter values, and lenient overflow properties to every process. Clone mutable nested protocol/annotation values so expanded edges can be edited independently.
+4. Copy `name`, `additionalType`, resolved recipe, parameter values, and lenient overflow properties to every process. Clone mutable nested recipe/annotation values so expanded edges can be edited independently.
 5. Dataset decoding flattens every returned collection and calls `Dataset.AddProcess`, which establishes ownership, endpoint back-edges, and root-registry canonicalization.
 
 Examples:
@@ -80,9 +80,9 @@ Examples:
 Standalone Process encoding is deliberately literal: it emits omitted or one-element `inputs`/`outputs` arrays for its singular endpoints. Dataset encoding owns compact grouping:
 
 1. Traverse `Dataset.Processes` in encounter order.
-2. Group processes whose non-I/O state is structurally equal: name, additional type, executed protocol, parameter values, and overflow state must match.
+2. Group processes whose non-I/O state is structurally equal: name, additional type, executed recipe, parameter values, and overflow state must match.
 3. Include endpoint-presence shape in the key. Both-sided, input-only, output-only, and endpoint-free edges never share a group; this prevents omission from changing lane alignment.
 4. Preserve the first occurrence of each group and the within-group process order.
-5. Emit one YAML Process mapping per group. Append each singular input and output to the plural arrays in that order. Indexed annotation and protocol references continue to be generated while groups are encoded.
+5. Emit one YAML Process mapping per group. Append each singular input and output to the plural arrays in that order. Indexed annotation and recipe references continue to be generated while groups are encoded.
 
 The grouping key is serialization-only and does not deduplicate model processes: two equivalent edges remain two meaningful process instances after decoding and normal dataset CRUD. A decode → dataset encode → decode round trip must preserve the expanded graph, endpoint shape, and lane order even when the textual grouping changes.

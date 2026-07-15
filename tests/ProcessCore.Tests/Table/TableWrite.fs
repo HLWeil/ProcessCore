@@ -14,7 +14,7 @@ let makeBaseTable () =
     let proc   = Process("Growth")
     proc.SetInputSample(source)
     proc.SetOutputSample(sample)
-    proc.ExecutesProtocol <- Some proto
+    proc.ExecutesRecipe <- Some proto
     let ds = Dataset("DS")
     ds.AddProcess(proc)
     Table("Growth", ResizeArray([| proc |]), ds), proc, ds
@@ -76,7 +76,7 @@ let tests = testList "TableWrite" [
             let instrument = DefinedTerm("instrument")
             t.AddColumn(CompositeHeader.Component(instrument),
                         ResizeArray([| CompositeCell.FreeText "Orbitrap" |]))
-            match proc.ExecutesProtocol with
+            match proc.ExecutesRecipe with
             | Some proto ->
                 let pv = proto.Components |> Seq.tryFind (fun p -> p.Name = "instrument")
                 Expect.isSome pv "Component PV on protocol.Components"
@@ -150,14 +150,14 @@ let tests = testList "TableWrite" [
 
         testCase "RemoveColumn — removes Component from protocol" <| fun _ ->
             let t, proc, _ = makeBaseTable()
-            match proc.ExecutesProtocol with
+            match proc.ExecutesRecipe with
             | Some proto ->
                 proto.AddComponent(Annotation("instrument", value = "Orbitrap", additionalType = "Component"))
             | None -> ()
             let instrument = DefinedTerm("instrument")
             t.RemoveColumn(CompositeHeader.Component(instrument))
             let hasPV =
-                match proc.ExecutesProtocol with
+                match proc.ExecutesRecipe with
                 | Some proto -> proto.Components |> Seq.exists (fun p -> p.Name = "instrument")
                 | None -> false
             Expect.isFalse hasPV "Component PV removed"
@@ -239,7 +239,7 @@ let tests = testList "TableWrite" [
             cells.[refIdx] <- CompositeCell.FreeText "newProtocol"
             t.AddRow(cells = cells)
             let newProc = t.Processes.[1]
-            match newProc.ExecutesProtocol with
+            match newProc.ExecutesRecipe with
             | Some proto ->
                 // Protocol was cloned, then ProtocolREF cell overrides Name
                 Expect.equal proto.Name (Some "newProtocol") "protocol name set from ProtocolREF cell"
@@ -254,7 +254,7 @@ let tests = testList "TableWrite" [
             cells.[refIdx] <- CompositeCell.FreeText "extraction"
             t.AddRow(cells = cells)
             let newProc = t.Processes.[1]
-            match newProc.ExecutesProtocol with
+            match newProc.ExecutesRecipe with
             | Some proto -> Expect.equal proto.Name (Some "extraction") "protocol name cloned"
             | None       -> failwith "protocol not cloned"
 
@@ -528,14 +528,14 @@ let tests = testList "TableWrite" [
                 ResizeArray([| CompositeCell.FreeText "extraction"; CompositeCell.FreeText "measurement" |])
             )
 
-            Expect.equal (p1.ExecutesProtocol |> Option.bind (fun p -> p.Name)) (Some "extraction") "first protocol name"
-            Expect.equal (p2.ExecutesProtocol |> Option.bind (fun p -> p.Name)) (Some "measurement") "second protocol name"
+            Expect.equal (p1.ExecutesRecipe |> Option.bind (fun p -> p.Name)) (Some "extraction") "first protocol name"
+            Expect.equal (p2.ExecutesRecipe |> Option.bind (fun p -> p.Name)) (Some "measurement") "second protocol name"
 
         testCase "UpdateRow updates protocol metadata columns" <| fun _ ->
             let p = Process("Protocolize")
             let proto = Recipe("old")
             proto.Description <- Some "old description"
-            p.ExecutesProtocol <- Some proto
+            p.ExecutesRecipe <- Some proto
             let t, _ = makeTable "Protocolize" [| p |]
 
             let headers = t.Headers
@@ -558,9 +558,9 @@ let tests = testList "TableWrite" [
                 ResizeArray([| CompositeCell.FreeText "Orbitrap" |])
             )
 
-            Expect.isSome p.ExecutesProtocol "protocol created"
+            Expect.isSome p.ExecutesRecipe "protocol created"
             let pv =
-                p.ExecutesProtocol
+                p.ExecutesRecipe
                 |> Option.bind (fun proto -> proto.Components |> Seq.tryFind (fun pv -> pv.Name = "instrument"))
             Expect.isSome pv "component stored on created protocol"
             Expect.equal pv.Value.Value (Some "Orbitrap") "component value"

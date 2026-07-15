@@ -12,7 +12,7 @@ let tests = testList "AnnotationSources" [
         Expect.equal (f.Process.AnnotationsByName("temperature").Count)  1 "ParameterValue source"
         Expect.equal (f.Process.AnnotationsByName("organism").Count)     1 "Input node AdditionalProperty"
         Expect.equal (f.Process.AnnotationsByName("growth_phase").Count) 1 "Output node AdditionalProperty"
-        Expect.equal (f.Process.AnnotationsByName("instrument").Count)   1 "Protocol Component"
+        Expect.equal (f.Process.AnnotationsByName("instrument").Count)   1 "Recipe Component"
 
     testCase "IONode.AllAnnotations — all 4 sources" <| fun _ ->
         let f   = makeFixtureFourSources()
@@ -21,7 +21,7 @@ let tests = testList "AnnotationSources" [
         Expect.isTrue (names.Contains "temperature")  "ParameterValue should be included"
         Expect.isTrue (names.Contains "organism")     "Input node property should be included"
         Expect.isTrue (names.Contains "growth_phase") "Output node property should be included"
-        Expect.isTrue (names.Contains "instrument")   "Protocol component should be included"
+        Expect.isTrue (names.Contains "instrument")   "Recipe component should be included"
 
     testCase "UpstreamAnnotations — filters to upstream only" <| fun _ ->
         // The OutputNode is between the central process and the downstream process.
@@ -46,15 +46,15 @@ let tests = testList "AnnotationSources" [
         Expect.isTrue  (names.Contains "temperature")
             "ParameterValue on central process should be included"
 
-    testCase "UpstreamAnnotations with protocolName filter" <| fun _ ->
-        // Walk upstream from OutputNode filtered to protocol "four-source-protocol".
-        // Only the central process has that protocol, so only its PVs appear.
+    testCase "UpstreamAnnotations with recipeName filter" <| fun _ ->
+        // Walk upstream from OutputNode filtered to recipe "four-source-recipe".
+        // Only the central process has that recipe, so only its PVs appear.
         let f    = makeFixtureFourSources()
-        let pvs  = (SampleNode f.OutputNode).UpstreamAnnotations(protocolName = "four-source-protocol")
+        let pvs  = (SampleNode f.OutputNode).UpstreamAnnotations(recipeName = "four-source-recipe")
         let names = pvs |> Seq.map (fun pv -> pv.Name) |> Set.ofSeq
         Expect.isTrue  (names.Contains "temperature") "Central process PV should appear"
         Expect.isFalse (names.Contains "upstream_param")
-            "UpstreamProc has no matching protocol name — its PV should be filtered out"
+            "UpstreamProc has no matching recipe name — its PV should be filtered out"
 
     testCase "Deduplication across sources" <| fun _ ->
         // Put the same PV on both the process ParameterValue and the input node
@@ -79,6 +79,6 @@ let tests = testList "AnnotationSources" [
         Expect.isTrue (names.Contains "temperature")  "ParameterValue via Path"
         Expect.isTrue (names.Contains "organism")     "Input node property via Path"
         Expect.isTrue (names.Contains "growth_phase") "Output node property via Path"
-        Expect.isTrue (names.Contains "instrument")   "Protocol component via Path"
+        Expect.isTrue (names.Contains "instrument")   "Recipe component via Path"
 
 ]

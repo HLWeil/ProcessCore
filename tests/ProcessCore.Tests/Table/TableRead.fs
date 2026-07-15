@@ -49,7 +49,7 @@ let tests = testList "TableRead" [
 
     testCase "single process — protocol ref column present when protocol set" <| fun _ ->
         let t, proc, _ = makeSingleProcessTable()
-        proc.ExecutesProtocol <- Some (Recipe("myProtocol"))
+        proc.ExecutesRecipe <- Some (Recipe("myProtocol"))
         let headers = t.Headers
         let hasRef  = headers |> Seq.exists (fun h -> h = CompositeHeader.ProtocolREF)
         Expect.isTrue hasRef "ProtocolREF column present"
@@ -84,7 +84,7 @@ let tests = testList "TableRead" [
         let t, proc, _ = makeSingleProcessTable()
         let proto = Recipe("extraction")
         proto.AddComponent(Annotation("instrument", value = "Orbitrap", additionalType = "Component"))
-        proc.ExecutesProtocol <- Some proto
+        proc.ExecutesRecipe <- Some proto
         let headers = t.Headers
         let hasComp = headers |> Seq.exists (fun h -> match h with | CompositeHeader.Component(dt) when dt.Name = "instrument" -> true | _ -> false)
         Expect.isTrue hasComp "Component column for instrument"
@@ -99,7 +99,7 @@ let tests = testList "TableRead" [
         let proc = Process("Growth")
         proc.SetInputSample(source)
         proc.SetOutputSample(sample)
-        proc.ExecutesProtocol <- Some proto
+        proc.ExecutesRecipe <- Some proto
         proc.AddParameterValue(Annotation("temperature", value = "37", unit = "°C", additionalType = "ParameterValue"))
         let ds = Dataset("DS")
         ds.AddProcess(proc)
@@ -222,7 +222,7 @@ let tests = testList "TableRead" [
         let t, proc, _ = makeSingleProcessTable()
         let proto = Recipe("proto")
         proto.AddComponent(Annotation("instrument", value = "Orbitrap", additionalType = "Component"))
-        proc.ExecutesProtocol <- Some proto
+        proc.ExecutesRecipe <- Some proto
         let compCols = t.GetComponentColumns()
         Expect.equal compCols.Count 1 "one component column"
         match compCols.[0].Header with

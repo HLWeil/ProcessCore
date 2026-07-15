@@ -23,7 +23,7 @@ processes:
         type: File
         path: raw/extract.tsv
         encodingFormat: text/tab-separated-values
-    executesProtocol:
+    executesRecipe:
       id: protocol:extraction
       type: bioschemas:LabProtocol
       name: Protein extraction

@@ -21,7 +21,7 @@ flowchart LR
     Dataset --hasPart--> Dataset
     Process --inputs--> Sample
     Process --"outputs"--> Data
-    Process --executesProtocol--> Recipe
+    Process --executesRecipe--> Recipe
     Process --parameterValue--> Annotation
     Recipe --parameters--> FormalParameter
     Recipe --components--> Annotation
@@ -73,11 +73,11 @@ For process I/O, the current core and YAML schema names are:
 
 - `inputs`
 - `outputs`
-- `executesProtocol`
+- `executesRecipe`
 - `parameterValue`
 - `additionalProperty`
 
-Some legacy/profile-shaped examples and upstream references use RO-Crate or Bioschemas names such as `object`, `result`, and `executesRecipe`. See [Examples and schemas](examples-and-schemas.md) for how those files are treated.
+Some legacy/profile-shaped examples and upstream references use RO-Crate or Bioschemas names such as `object` and `result`. See [Examples and schemas](examples-and-schemas.md) for how those files are treated.
 
 ## Querying
 

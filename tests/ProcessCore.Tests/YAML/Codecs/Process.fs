@@ -29,13 +29,13 @@ let tests = testList "Process" [
         Expect.isTrue (yaml.Contains("outputs"))     "outputs key"
         Expect.isTrue (yaml.Contains("results.csv")) "data path"
 
-    testCase "encode with executesProtocol" <| fun _ ->
+    testCase "encode with executesRecipe" <| fun _ ->
         let proto = Recipe(name = "extraction")
         let proc  = Process("p1")
-        proc.ExecutesProtocol <- Some proto
+        proc.ExecutesRecipe <- Some proto
         let yaml  = Yaml.Process.toYamlString None proc
-        Expect.isTrue (yaml.Contains("executesProtocol")) "executesProtocol key"
-        Expect.isTrue (yaml.Contains("extraction"))       "protocol name"
+        Expect.isTrue (yaml.Contains("executesRecipe")) "executesRecipe key"
+        Expect.isTrue (yaml.Contains("extraction"))       "recipe name"
 
     testCase "encode with parameterValues" <| fun _ ->
         let proc = Process("p1")
@@ -105,21 +105,21 @@ outputs:
         Expect.isNone proc.Input "id ref input skipped"
         Expect.isNone proc.Output "id ref output skipped"
 
-    testCase "decode executesProtocol as inline object" <| fun _ ->
+    testCase "decode executesRecipe as inline object" <| fun _ ->
         let yaml = """type: Process
 name: p1
-executesProtocol:
+executesRecipe:
   type: Recipe
   name: extraction
 """
         let proc = decodeOne true yaml
-        Expect.isSome proc.ExecutesProtocol "executesProtocol is Some"
-        Expect.equal proc.ExecutesProtocol.Value.Name (Some "extraction") "protocol name"
+        Expect.isSome proc.ExecutesRecipe "executesRecipe is Some"
+        Expect.equal proc.ExecutesRecipe.Value.Name (Some "extraction") "recipe name"
 
-    testCase "decode executesProtocol as id-reference" <| fun _ ->
-        let yaml = "type: Process\nname: p1\nexecutesProtocol: some-proto-id\n"
+    testCase "decode executesRecipe as id-reference" <| fun _ ->
+        let yaml = "type: Process\nname: p1\nexecutesRecipe: some-proto-id\n"
         let proc = decodeOne true yaml
-        Expect.equal proc.ExecutesProtocol None "id ref leaves ExecutesProtocol as None"
+        Expect.equal proc.ExecutesRecipe None "id ref leaves ExecutesRecipe as None"
 
     testCase "decode parameterValues" <| fun _ ->
         let yaml = """type: Process
@@ -158,15 +158,15 @@ parameterValue:
         | SampleNode m -> Expect.equal m.Name "Source1" "input name"
         | _ -> failwith "Expected SampleNode"
 
-    testCase "round-trip with protocol and parameters" <| fun _ ->
+    testCase "round-trip with recipe and parameters" <| fun _ ->
         let proto = Recipe(name = "extraction")
         proto.AddParameter(FormalParameter("temperature"))
         let original = Process("p1")
-        original.ExecutesProtocol <- Some proto
+        original.ExecutesRecipe <- Some proto
         original.AddParameterValue(Annotation("temperature", value = "37", unit = "°C"))
         let yaml    = Yaml.Process.toYamlString None original
         let decoded = decodeOne true yaml
-        Expect.isSome decoded.ExecutesProtocol              "executesProtocol present"
+        Expect.isSome decoded.ExecutesRecipe              "executesRecipe present"
         Expect.equal decoded.ParameterValue.Count 1         "parameterValue count"
         Expect.equal decoded.ParameterValue.[0].Value (Some "37") "param value"
 

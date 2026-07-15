@@ -22,7 +22,7 @@ module Dataset =
               "license"; "datepublished"; "datecreated"; "datemodified"
               "processes"; "haspart"; "datafiles"; "agents"
               "citations"; "datacontexts"; "additionalproperty"; "partof"
-              "propertyvalues"; "labprotocols"; "annotations"; "samples"; "recipes"
+              "propertyvalues"; "annotations"; "samples"; "recipes"; "labprotocols"
               // Fable-compiled read-only instance properties — must not be re-emitted as overflow
               "noderegistrydirect"; "nodepinsdirect"; "reciperegistrydirect"; "recipepinsdirect"
               "fragmentselectorprovidersdirect"; "arcpath"; "isspreadsheetscaffold" ]
@@ -95,8 +95,9 @@ module Dataset =
             match recipeResolver with
             | Some resolver -> resolver
             | None ->
-                let labProtocols = Dictionary<string, Recipe>()
-                tryGetField "labProtocols" value
+                let recipes = Dictionary<string, Recipe>()
+                (tryGetField "recipes" value
+                 |> Option.orElseWith (fun () -> tryGetField "labProtocols" value))
                 |> Option.iter (fun values ->
                     iterSequenceOrSingleton (fun elem ->
                         let decoded = Recipe.decoderWithPropertyResolver processCoreOnly resolveAnnotation elem
@@ -105,9 +106,9 @@ module Dataset =
                             |> Option.map (fun store -> store ds decoded)
                             |> Option.defaultValue decoded
                         match tryGetField "@id" elem |> Option.bind tryDecodeString with
-                        | Some id -> labProtocols.[normalizeId id] <- canonical
+                        | Some id -> recipes.[normalizeId id] <- canonical
                         | None -> ()) values)
-                tryFind labProtocols
+                tryFind recipes
 
         let decodeSeq fieldName (decoder: YAMLElement -> 'a) (resolve: string -> 'a option) (add: 'a -> unit) =
             tryGetField fieldName value
@@ -184,7 +185,10 @@ module Dataset =
 
         let fields =
             if storeSample.IsSome || storeRecipe.IsSome then
-                knownFields |> Set.add "samples" |> Set.add "labProtocols"
+                knownFields
+                |> Set.add "samples"
+                |> Set.add "recipes"
+                |> Set.add "labProtocols"
             else
                 knownFields
         applyOverflow "Dataset" processCoreOnly fields ds value
@@ -214,7 +218,7 @@ module Dataset =
     let rec private encoderCore
         (useIndexedMode: bool)
         (pvEncoder : (Annotation -> YAMLElement) option)
-        (protEncoder : (Recipe -> YAMLElement) option)
+        (recipeEncoder : (Recipe -> YAMLElement) option)
         (storedSamples : seq<Sample> option)
         (storedRecipes : seq<Recipe> option)
         (ds: Dataset) : YAMLElement =
@@ -231,19 +235,19 @@ module Dataset =
             else
                 (Option.defaultValue Annotation.encoder pvEncoder) pv
 
-        let protocolRegistry = Dictionary<string, Recipe>()
-        let encodeProtocol (proto: Recipe) =
+        let recipeRegistry = Dictionary<string, Recipe>()
+        let encodeRecipe (proto: Recipe) =
             if useIndexedMode then
                 let id = Recipe.genID proto
                 proto.SetProperty("@id", id)
-                if not <| protocolRegistry.ContainsKey(id) then
-                    protocolRegistry.[id] <- proto
+                if not <| recipeRegistry.ContainsKey(id) then
+                    recipeRegistry.[id] <- proto
                 encodeRef id
             else
-                (Option.defaultValue (Recipe.encoder encodePV) protEncoder) proto
+                (Option.defaultValue (Recipe.encoder encodePV) recipeEncoder) proto
 
         storedRecipes
-        |> Option.iter (Seq.iter (fun recipe -> encodeProtocol recipe |> ignore))
+        |> Option.iter (Seq.iter (fun recipe -> encodeRecipe recipe |> ignore))
 
         let sameProcessState (a: Process) (b: Process) =
             let shape (p: Process) = p.Input.IsSome, p.Output.IsSome
@@ -256,7 +260,7 @@ module Dataset =
                     match groups |> Seq.tryFind (fun group -> sameProcessState group.[0] proc) with
                     | Some group -> group.Add(proc)
                     | None -> groups.Add(ResizeArray([proc]))
-                groups |> Seq.map (Process.encoderMany encodePV encodeProtocol)
+                groups |> Seq.map (Process.encoderMany encodePV encodeRecipe)
                 |> Seq.toList
                 |> yamlSeq
                 |> Some
@@ -266,7 +270,7 @@ module Dataset =
         let hasParts =
             if ds.HasPart.Count > 0 then
                 ds.HasPart
-                |> Seq.map (encoderCore false (Some encodePV) (Some encodeProtocol) None None)
+                |> Seq.map (encoderCore false (Some encodePV) (Some encodeRecipe) None None)
                 |> Seq.toList
                 |> yamlSeq
                 |> Some
@@ -354,9 +358,9 @@ module Dataset =
             | Some date -> yield "dateModified", yamlValue date
             | None -> ()
             // Top-level index sections
-            if protocolRegistry.Count > 0 then
-                yield "labProtocols",
-                    protocolRegistry.Values
+            if recipeRegistry.Count > 0 then
+                yield "recipes",
+                    recipeRegistry.Values
                     |> Seq.map (fun kv -> Recipe.encoder encodePV kv)
                     |> Seq.toList
                     |> yamlSeq
@@ -397,9 +401,9 @@ module Dataset =
     let encoder
         (useIndexedMode: bool)
         (pvEncoder : (Annotation -> YAMLElement) option)
-        (protEncoder : (Recipe -> YAMLElement) option)
+        (recipeEncoder : (Recipe -> YAMLElement) option)
         (ds: Dataset) : YAMLElement =
-        encoderCore useIndexedMode pvEncoder protEncoder None None ds
+        encoderCore useIndexedMode pvEncoder recipeEncoder None None ds
 
     let encoderWithStores (samples: seq<Sample>) (recipes: seq<Recipe>) (ds: Dataset) : YAMLElement =
         encoderCore true None None (Some samples) (Some recipes) ds

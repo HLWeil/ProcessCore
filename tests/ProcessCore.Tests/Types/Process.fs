@@ -117,17 +117,17 @@ let tests = testList "Process" [
         Expect.isNone (p.OutputSample()) "Data replaces the sample output"
         Expect.equal (p.OutputData()) (Some d) "Data output is correct"
 
-    testCase "ProtocolParameters returns empty without protocol" <| fun _ ->
+    testCase "RecipeParameters returns empty without recipe" <| fun _ ->
         let p = Process("p")
-        Expect.equal (p.ProtocolParameters().Count) 0 "No protocol → empty parameter list"
+        Expect.equal (p.RecipeParameters().Count) 0 "No recipe → empty parameter list"
 
-    testCase "ProtocolParameters delegates to protocol" <| fun _ ->
+    testCase "RecipeParameters delegates to recipe" <| fun _ ->
         let proto = Recipe("extraction")
         proto.AddParameter(FormalParameter("temperature"))
         proto.AddParameter(FormalParameter("rpm"))
         let p = Process("p")
-        p.ExecutesProtocol <- Some proto
-        Expect.equal (p.ProtocolParameters().Count) 2 "Should return parameters from protocol"
+        p.ExecutesRecipe <- Some proto
+        Expect.equal (p.RecipeParameters().Count) 2 "Should return parameters from recipe"
 
     testCase "AnnotationsByName - parameter source" <| fun _ ->
         let p  = Process("p")
@@ -154,14 +154,14 @@ let tests = testList "Process" [
         let result = p.AnnotationsByName("growth_phase")
         Expect.equal result.Count 1 "Should find PV in output node AdditionalProperty"
 
-    testCase "AnnotationsByName - protocol component source" <| fun _ ->
+    testCase "AnnotationsByName - recipe component source" <| fun _ ->
         let proto = Recipe("measurement")
         let pv    = Annotation("instrument", value = "Orbitrap", additionalType = "Component")
         proto.AddComponent(pv)
         let p = Process("p")
-        p.ExecutesProtocol <- Some proto
+        p.ExecutesRecipe <- Some proto
         let result = p.AnnotationsByName("instrument")
-        Expect.equal result.Count 1 "Should find PV in protocol Component"
+        Expect.equal result.Count 1 "Should find PV in recipe Component"
 
     testCase "AnnotationsByName - no match returns empty" <| fun _ ->
         let p      = Process("p")

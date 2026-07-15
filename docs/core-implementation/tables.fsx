@@ -32,7 +32,7 @@ let growthProcess inputName outputName temperature =
     output.AddAdditionalProperty(Annotation("temperature", value = temperature, unit = "degree Celsius", additionalType = "FactorValue"))
 
     let p = Process("Growth")
-    p.ExecutesProtocol <- Some protocol
+    p.ExecutesRecipe <- Some protocol
     p.SetInputSample(source inputName)
     p.SetOutputSample(output)
     p.AddParameterValue(Annotation("duration", value = "7", unit = "day", additionalType = "ParameterValue"))

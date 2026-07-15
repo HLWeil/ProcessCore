@@ -22,9 +22,9 @@ module Recipe =
         | _ ->
             let name = proto.Name |> Option.map makeIdSlug |> Option.defaultValue "unnamed"
             match proto.Version, proto.Url with
-            | Some version, _ -> "#Protocol_" + name + "_version_" + makeIdSlug version
+            | Some version, _ -> "#Recipe_" + name + "_version_" + makeIdSlug version
             | None, Some url -> url
-            | None, None -> "#Protocol_" + name
+            | None, None -> "#Recipe_" + name
 
 
     let decoderWithPropertyResolver (processCoreOnly: bool) (resolveAnnotation: string -> Annotation option) (value: YAMLElement) : Recipe =

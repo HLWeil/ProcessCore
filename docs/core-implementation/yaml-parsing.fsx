@@ -66,7 +66,7 @@ strictModeResult
 (*** include-it ***)
 
 (**
-Writing can use inline objects or top-level indexes. Inline YAML is easy to inspect. Indexed YAML deduplicates repeated property values and protocols into `annotations` and `labProtocols` sections.
+Writing can use inline objects or top-level indexes. Inline YAML is easy to inspect. Indexed YAML deduplicates repeated property values and recipes into `annotations` and `recipes` sections.
 *)
 
 let small = Dataset("yaml-demo")
@@ -83,7 +83,7 @@ sample.AdditionalType <- Some "Sample"
 sample.AddAdditionalProperty(Annotation("temperature", value = "25", unit = "degree Celsius", additionalType = "FactorValue"))
 
 let growth = Process("Growth")
-growth.ExecutesProtocol <- Some protocol
+growth.ExecutesRecipe <- Some protocol
 growth.SetInputSample(source)
 growth.SetOutputSample(sample)
 growth.AddParameterValue(Annotation("duration", value = "7", unit = "day", additionalType = "ParameterValue"))

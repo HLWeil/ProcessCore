@@ -97,12 +97,12 @@ let tests = testList "Examples" [
         Expect.equal p.ParameterValue.[1].Name "sonicator" "second parameter value name"
         Expect.equal p.ParameterValue.[2].Name "technical replicate group" "third parameter value name"
 
-    testCase "assay resolves indexed protocol references" <| fun _ ->
+    testCase "assay resolves indexed recipe references" <| fun _ ->
         let assay = loadAssay(false)
         let proc = assay.Processes.[0]
-        Expect.isSome proc.ExecutesProtocol "executesProtocol resolved"
-        Expect.equal proc.ExecutesProtocol.Value.Components.Count 1 "protocol equipment resolved"
-        Expect.equal proc.ExecutesProtocol.Value.Components.[0].Name "growth environment" "equipment name"
+        Expect.isSome proc.ExecutesRecipe "executesRecipe resolved"
+        Expect.equal proc.ExecutesRecipe.Value.Components.Count 1 "recipe equipment resolved"
+        Expect.equal proc.ExecutesRecipe.Value.Components.[0].Name "growth environment" "equipment name"
 
     testCase "assay resolves indexed property value references" <| fun _ ->
         let assay = loadAssay(false)
@@ -137,15 +137,15 @@ let tests = testList "Examples" [
         let assay = loadAssay(false)
         Expect.isTrue (assay.Agents.Count > 0) "agents decoded onto Dataset.Agents"
 
-    testCase "assay labProtocols in overflow" <| fun _ ->
+    testCase "assay recipes in overflow" <| fun _ ->
         let assay = loadAssay(false)
         let hasRecipes =
             assay.GetProperties(true)
-            |> Seq.exists (fun kv -> kv.Key = "labProtocols")
-        Expect.isTrue hasRecipes "labProtocols stored in overflow"
+            |> Seq.exists (fun kv -> kv.Key = "recipes")
+        Expect.isTrue hasRecipes "recipes stored in overflow"
 
     testCase "assay strict mode fails" <| fun _ ->
-        // processCoreOnly=true should throw because of unknown ISA fields like labProtocols.
+        // processCoreOnly=true should throw because of unknown ISA fields like recipes.
         let decode = fun () -> Yaml.Dataset.fromYamlString true ProcessCore.Yaml.Tests.Fixtures.proteomicsAssayString |> ignore
         Expect.throws decode "strict mode should throw on unknown fields"
 

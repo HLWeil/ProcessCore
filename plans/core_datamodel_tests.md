@@ -64,9 +64,9 @@ Source1 --[p1]--> Sample1 --[p2]--> Sample2 --[p3]--> rawData1.csv
 ```
 
 - Three `Process` instances: `p1`, `p2`, `p3`
-- `p1`: input `Sample("Source1", AdditionalType="Source")`, output `Sample("Sample1", AdditionalType="Sample")`; protocol `"extraction"` with `IntendedUse = DefinedTerm("cell growth")`; `ParameterValue` `[temperature=37°C (unit), rpm=200 (unitized)]`
-- `p2`: input `Sample("Sample1")`, output `Sample("Sample2")`; protocol `"digestion"`; `ParameterValue` `[enzyme="Trypsin" (term, with TAN)]`
-- `p3`: input `Sample("Sample2")`, output `Data("rawData1.csv")`; no protocol
+- `p1`: input `Sample("Source1", AdditionalType="Source")`, output `Sample("Sample1", AdditionalType="Sample")`; recipe `"extraction"` with `IntendedUse = DefinedTerm("cell growth")`; `ParameterValue` `[temperature=37°C (unit), rpm=200 (unitized)]`
+- `p2`: input `Sample("Sample1")`, output `Sample("Sample2")`; recipe `"digestion"`; `ParameterValue` `[enzyme="Trypsin" (term, with TAN)]`
+- `p3`: input `Sample("Sample2")`, output `Data("rawData1.csv")`; no recipe
 - All three collected in a single `Dataset("DS-A")`
 
 ### Fixture B — Branching Graph
@@ -87,7 +87,7 @@ Source1 --[p1]--> Sample1 --[p3a]--\
 Source2 --[p2]--> Sample2 --[p3b]--/
 ```
 
-- Two input paths converge by using two distinct singular processes (`p3a` and `p3b`) with equal name/protocol state and a shared `FinalSample` output.
+- Two input paths converge by using two distinct singular processes (`p3a` and `p3b`) with equal name/recipe state and a shared `FinalSample` output.
 - All four processes are retained in `Dataset("DS-C")`; neither normal CRUD nor graph querying collapses them.
 
 ### Fixture D — Nested Datasets
@@ -188,12 +188,12 @@ Dataset("parent")
 | `GetParameterValue throws if missing` | Raises exception |
 | `InputSample / InputData filters correctly` | Singular input helper returns `Some` only for the matching node type |
 | `OutputSample / OutputData` | Same for the singular output |
-| `ProtocolParameters returns empty without protocol` | No protocol → empty |
-| `ProtocolParameters delegates to protocol` | Returns protocol parameters |
+| `RecipeParameters returns empty without recipe` | No recipe → empty |
+| `RecipeParameters delegates to recipe` | Returns recipe parameters |
 | `AnnotationsByName — parameter source` | PV in `ParameterValue` with matching name returned |
 | `AnnotationsByName — input node source` | PV in input sample `AdditionalProperty` returned |
 | `AnnotationsByName — output node source` | PV in output sample `AdditionalProperty` returned |
-| `AnnotationsByName — protocol component source` | Annotation in `Components` returned |
+| `AnnotationsByName — recipe component source` | Annotation in `Components` returned |
 | `AnnotationsByName — no match returns empty` | Unknown name → empty |
 
 ### 1.8 Dataset (`Types/Dataset.fs`)
@@ -248,7 +248,7 @@ These tests verify the **eager consistency** contract.
 | `AddProcess: distinct equal processes retained` | Two separate same-named/equal process instances are meaningful edges and both remain in the dataset |
 | `AddPart: duplicate child ignored` | Adding child dataset twice → `parent.HasPart.Count` stays the same |
 | `cleared endpoint evicted only when unused` | Clearing/replacing/removing a process evicts a registry node only after no edge in the hierarchy references it |
-| `AddParameter (protocol): duplicate ignored` | Same FP name twice → count unchanged |
+| `AddParameter (recipe): duplicate ignored` | Same FP name twice → count unchanged |
 | `AddComponent: duplicate ignored` | Same component twice → count unchanged |
 
 ---
@@ -340,7 +340,7 @@ A dedicated fixture is needed: one process with PVs in all four positions simult
 | `IONode.AllAnnotations — all 4 sources` | Start from the input node of the above process; `AllAnnotations` includes entries from all four sources |
 | `UpstreamAnnotations — filters to upstream only` | PV only on downstream process is not included |
 | `DownstreamAnnotations — filters to downstream only` | PV only on upstream process is not included |
-| `UpstreamAnnotations with protocolName filter` | Only collects from processes whose protocol name matches |
+| `UpstreamAnnotations with recipeName filter` | Only collects from processes whose recipe name matches |
 | `Deduplication across sources` | A PV with the same name/value/unit/nameTAN appearing in two sources is returned only once |
 | `AllAnnotations on Path` | Same four-source fixture wrapped in a `Path` → identical set returned |
 
@@ -361,19 +361,19 @@ Using Fixture A and Fixture D (nested).
 | `FinalNodes` | Fixture A: `{rawData1.csv}` |
 | `RootSamples / RootData / FinalSamples / FinalData` | Typed subsets of above |
 | `AllAnnotations — no filter` | Returns PVs from all processes |
-| `AllAnnotations — protocolName filter` | Only PVs from processes whose protocol name matches |
+| `AllAnnotations — recipeName filter` | Only PVs from processes whose recipe name matches |
 | `AnnotationsForNode — upstream + downstream` | Mid-graph node returns PVs from both directions |
 | `UpstreamAnnotationsForNode` | Returns only upstream PVs |
 | `DownstreamAnnotationsForNode` | Returns only downstream PVs |
-| `FindProcessesByProtocolType` | Fixture A: `"cell growth"` → `{p1}` |
-| `FindProcessesByProtocolType — no match` | Unknown type → empty |
+| `FindProcessesByRecipeType` | Fixture A: `"cell growth"` → `{p1}` |
+| `FindProcessesByRecipeType — no match` | Unknown type → empty |
 | `FindProcessesByAnnotation — param source` | Finds process with matching parameter |
 | `FindProcessesByAnnotation — input node source` | Finds process whose input node has matching `AdditionalProperty` |
 | `FindProcessesByAnnotation — output node source` | Same for output |
-| `FindProcessesByAnnotation — protocol component source` | Annotation in recipe `Components` |
+| `FindProcessesByAnnotation — recipe component source` | Annotation in recipe `Components` |
 | `FindProcessesByPropertyName` | Returns process regardless of value |
 | `SamplesResultingFromCondition — use-case 1` | Fixture A: query for samples resulting from `"cell growth"` at `temperature=37°C` → `{Sample1}` (first downstream terminal sample after `p1`) |
-| `SamplesResultingFromCondition — no qualifying process` | Unknown protocol type → empty |
+| `SamplesResultingFromCondition — no qualifying process` | Unknown recipe type → empty |
 | `SamplesResultingFromCondition — branching downstream` | Fixture B: qualifying process has two terminal output samples → both returned |
 
 ---
@@ -394,7 +394,7 @@ Using Fixture A and Fixture D (nested).
 | `Path.TerminalOutputs` | Output nodes that are never inputs in the path |
 | `Path.AllAnnotations — all 4 sources` | See section 6 fixture |
 | `Path.AnnotationsByName` | Returns only matching PVs |
-| `Path.ProtocolParameters` | Returns FPs from all executed protocols, deduplicated |
+| `Path.RecipeParameters` | Returns FPs from all executed recipes, deduplicated |
 | `empty Path` | `Head = None`, `Last = None`, `Length = 0`, `Nodes()` empty |
 
 ---
@@ -404,7 +404,7 @@ Using Fixture A and Fixture D (nested).
 | Test | Description |
 |------|-------------|
 | `TryGetProcess found / not found` | |
-| `FindProcessesByProtocolType` | Same as Dataset test but via ProcessGraph |
+| `FindProcessesByRecipeType` | Same as Dataset test but via ProcessGraph |
 | `FindProcessesByAnnotation` | Same as Dataset test |
 | `FindProcessesByPropertyName` | Same |
 | `ProcessesForNode — sample` | Returns both InputOf and OutputOf processes in scope |
@@ -419,7 +419,7 @@ Using Fixture A and Fixture D (nested).
 | `AllConnectedNodes via ProcessGraph` | Matches IONode.AllConnectedNodes for the same node |
 | `ConnectedSamplesForNode / ConnectedDataForNode` | Typed variants |
 | `AllAnnotationsForNode` | Collects across all paths through node |
-| `ProtocolParametersForNode` | Collects FPs across all paths |
+| `RecipeParametersForNode` | Collects FPs across all paths |
 | `SamplesResultingFromCondition (name+value overload)` | Same as Dataset use-case 1 |
 | `SamplesResultingFromCondition (predicate overload)` | Custom predicate selects qualifying processes |
 
@@ -502,7 +502,7 @@ Tests for column and row mutation methods.
 | `AddColumn Parameter — PV added to each process` | After `table.AddColumn(CompositeHeader.Parameter("Temp", None), cells)`, each process has a new `ParameterValue` with the corresponding cell value |
 | `AddColumn Characteristic — PV added to input node` | PV lands on input sample's `AdditionalProperty` |
 | `AddColumn Factor — PV added to output node` | PV lands on output sample's `AdditionalProperty` |
-| `AddColumn Component — annotation added to recipe Components` | Creates an `ExecutesProtocol` when necessary |
+| `AddColumn Component — annotation added to recipe Components` | Creates an `ExecutesRecipe` when necessary |
 | `AddColumn Input / Output` | Each cell directly sets or clears the corresponding singular process endpoint without changing process count |
 | `AddColumn protocol fields` | `ProtocolREF`, type, description, URI, and version mutate each row's protocol and create one when needed |
 | `AddColumn with fewer cells than rows` | Missing annotation cells are treated as `FreeText ""`; missing input/output cells clear the corresponding endpoint |

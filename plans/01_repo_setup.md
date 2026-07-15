@@ -20,7 +20,7 @@ ARC-Data-Model/
 │   │   ├── README.md                      # Core model overview + process graph diagram
 │   │   ├── Dataset.md                     # Container/context for processes
 │   │   ├── Process.md                     # Core transformation node (inputs → outputs)
-│   │   ├── Protocol.md                    # Planned procedure description
+│   │   ├── Recipe.md                      # Planned procedure description
 │   │   ├── Sample.md                    # Input/output samples (sources, samples)
 │   │   ├── Data.md                        # Data files
 │   │   ├── Annotation.md               # Extensible key-value-unit triples
@@ -36,7 +36,7 @@ ARC-Data-Model/
 │   │   │   ├── Study.md                   # Dataset → Study
 │   │   │   ├── Assay.md                   # Dataset → Assay
 │   │   │   ├── Process.md              # Process → Process
-│   │   │   ├── Recipe.md           # Protocol → Recipe
+│   │   │   ├── Recipe.md           # Recipe decoration
 │   │   │   ├── Sample.md                  # Sample → Sample/Source
 │   │   │   └── Annotations.md          # Parameter, Characteristic, Factor, Component
 │   │   │
@@ -44,7 +44,7 @@ ARC-Data-Model/
 │   │       ├── README.md                  # Overview + mapping table (core → WR)
 │   │       ├── ArcWorkflow.md             # Dataset → ARC Workflow
 │   │       ├── ArcRun.md                  # Dataset → ARC Run
-│   │       ├── WorkflowProtocol.md        # Protocol → Workflow Protocol
+│   │       ├── WorkflowProtocol.md        # Recipe → Workflow Protocol
 │   │       ├── WorkflowInvocation.md      # Process → Workflow Invocation
 │   │       ├── FormalParameter.md         # WR-specific entity
 │   │       └── Annotations.md          # Workflow Input, Prefix, Position

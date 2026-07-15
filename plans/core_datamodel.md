@@ -62,9 +62,9 @@ The root is reached by walking `PartOf` until `None`.
 
 ### Recipe registry
 
-The root dataset also maintains a recipe registry keyed by recipe name and version. Named recipes in `ARC.Recipes` and `Process.ExecutesProtocol` share this registry across the complete dataset hierarchy. As with I/O nodes, the first inserted instance is canonical and later equal values reuse it without merging their fields.
+The root dataset also maintains a recipe registry keyed by recipe name and version. Named recipes in `ARC.Recipes` and `Process.ExecutesRecipe` share this registry across the complete dataset hierarchy. As with I/O nodes, the first inserted instance is canonical and later equal values reuse it without merging their fields.
 
-`ARC.AddRecipe` pins a canonical recipe in the store. `ARC.RemoveRecipe` removes only that pin: processes that execute the recipe keep their reference, and the registry entry remains until its final process reference is removed. Replacing `Process.ExecutesProtocol`, removing a process, and attaching or detaching a child dataset all update the root recipe registry. Unnamed recipes are not registered because their mutable name has not established a stable identity key.
+`ARC.AddRecipe` pins a canonical recipe in the store. `ARC.RemoveRecipe` removes only that pin: processes that execute the recipe keep their reference, and the registry entry remains until its final process reference is removed. Replacing `Process.ExecutesRecipe`, removing a process, and attaching or detaching a child dataset all update the root recipe registry. Unnamed recipes are not registered because their mutable name has not established a stable identity key.
 
 ## ARC Unsorted Object Store
 
@@ -80,7 +80,7 @@ Store membership is explicit. Linking a stored object into a process does not re
 
 ### ARC YAML persistence
 
-ARC YAML retains `type: Dataset` for compatibility and persists staging collections through typed top-level fields: `samples`, `dataFiles`, and `labProtocols`. Stored objects are decoded before processes, allowing process endpoints and protocol references to resolve to those same canonical instances. The indexed `labProtocols` field contains each canonical stored or process-linked recipe once, including recipes with the same name but different versions; explicit `@id` values remain authoritative.
+ARC YAML retains `type: Dataset` for compatibility and persists staging collections through typed top-level fields: `samples`, `dataFiles`, and `recipes`. Stored objects are decoded before processes, allowing process endpoints and recipe references to resolve to those same canonical instances. The indexed `recipes` field contains each canonical stored or process-linked recipe once, including recipes with the same name but different versions; explicit `@id` values remain authoritative.
 
 The ARC serializer uses the shared Dataset YAML codecs. Runtime state such as `ArcPath`, `IsSpreadsheetScaffold`, registry data, `InputOf`, `OutputOf`, and dataset/process back-edges is never emitted. Genuinely unknown overflow properties continue to round-trip.
 
@@ -101,11 +101,11 @@ When retrieving property values from a process context, four sources can contrib
 1. `process.ParameterValue` — parameters attached directly to the process
 2. `process.Input?.AdditionalProperty` — characteristics attached to the optional input node
 3. `process.Output?.AdditionalProperty` — factors attached to the optional output node
-4. `process.ExecutesProtocol?.Components` — component annotations (equipment, reagents, software) attached to the recipe
+4. `process.ExecutesRecipe?.Components` — component annotations (equipment, reagents, software) attached to the recipe
 
 All retrieval methods are named `*Annotations` (not `*ParameterValues`) to reflect this broad collection.
 
-For graph traversal queries from an `IONode`, node-attached values are collected from the singular edge endpoints actually reached. A reached `Process` contributes its process-level `ParameterValue` and protocol `Components`; endpoint `AdditionalProperty` values come from the reached input/output nodes.
+For graph traversal queries from an `IONode`, node-attached values are collected from the singular edge endpoints actually reached. A reached `Process` contributes its process-level `ParameterValue` and recipe `Components`; endpoint `AdditionalProperty` values come from the reached input/output nodes.
 
 This applies equally when the member is called on `IONode`, `Sample`, or `Data`, and through dataset-scoped wrappers such as `UpstreamAnnotationsForNode` / `DownstreamAnnotationsForNode` / `AnnotationsForNode`. `Path.AllAnnotations` operates on the explicit process sequence supplied to the `Path` value and therefore collects from every present endpoint of those path processes.
 
@@ -159,9 +159,9 @@ All traversal methods accept an optional `scope: ResizeArray<Process>` parameter
 |--------|---------|
 | `IONode` | Full traversal and Annotation retrieval; `IsRootNode`, `IsFinalNode` |
 | `Sample`, `Data` | Delegate to `IONode` wrapper (`SampleNode this` / `DataNode this`) |
-| `Process` | `InputSample`, `InputData`, `OutputSample`, `OutputData` (all option-returning), `ProtocolParameters`, `AnnotationsByName` |
-| `Dataset` | `AllNodes`, `RootNodes`, `FinalNodes`, `AllAnnotations(?protocolName)`, `AnnotationsForNode`, `UpstreamAnnotationsForNode`, `DownstreamAnnotationsForNode`, `ProcessesForNode`, `PathsThrough`, `NodesUpstreamOf`, `NodesDownstreamOf`, `ConnectedSamplesForNode`, `ConnectedDataForNode`, `ProtocolParametersForNode`, `FindProcessesByProtocolType`, `FindProcessesByAnnotation`, `FindProcessesByPropertyName`, `SamplesResultingFromCondition` |
-| `Path` | `AllAnnotations`, `AnnotationsByName`, `ProtocolParameters`, `TerminalInputs`, `TerminalOutputs` |
+| `Process` | `InputSample`, `InputData`, `OutputSample`, `OutputData` (all option-returning), `RecipeParameters`, `AnnotationsByName` |
+| `Dataset` | `AllNodes`, `RootNodes`, `FinalNodes`, `AllAnnotations(?recipeName)`, `AnnotationsForNode`, `UpstreamAnnotationsForNode`, `DownstreamAnnotationsForNode`, `ProcessesForNode`, `PathsThrough`, `NodesUpstreamOf`, `NodesDownstreamOf`, `ConnectedSamplesForNode`, `ConnectedDataForNode`, `RecipeParametersForNode`, `FindProcessesByRecipeType`, `FindProcessesByAnnotation`, `FindProcessesByPropertyName`, `SamplesResultingFromCondition` |
+| `Path` | `AllAnnotations`, `AnnotationsByName`, `RecipeParameters`, `TerminalInputs`, `TerminalOutputs` |
 
 ## Target folder
 

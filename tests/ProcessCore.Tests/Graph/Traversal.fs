@@ -30,30 +30,30 @@ let private makeLinearDataAnnotationFixture () =
     let data2 = Data("pv-data2.csv")
     data2.AddAdditionalProperty(Annotation("data2_property", value = "d2"))
 
-    let protocol1 = Recipe("pv-protocol-1")
-    protocol1.AddComponent(Annotation("protocol1_component", value = "instrument-1"))
+    let recipe1 = Recipe("pv-recipe-1")
+    recipe1.AddComponent(Annotation("recipe1_component", value = "instrument-1"))
 
     let process1 = Process("pv-process-1")
-    process1.ExecutesProtocol <- Some protocol1
+    process1.ExecutesRecipe <- Some recipe1
     process1.AddParameterValue(Annotation("process1_parameter", value = "p1"))
     process1.SetInputSample(sample1)
     process1.SetOutputSample(sample2)
     let process1b = Process("pv-process-1")
-    process1b.ExecutesProtocol <- Some protocol1
+    process1b.ExecutesRecipe <- Some recipe1
     process1b.AddParameterValue(Annotation("process1_parameter", value = "p1"))
     process1b.SetInputSample(sample3)
     process1b.SetOutputSample(sample4)
 
-    let protocol2 = Recipe("pv-protocol-2")
-    protocol2.AddComponent(Annotation("protocol2_component", value = "instrument-2"))
+    let recipe2 = Recipe("pv-recipe-2")
+    recipe2.AddComponent(Annotation("recipe2_component", value = "instrument-2"))
 
     let process2 = Process("pv-process-2")
-    process2.ExecutesProtocol <- Some protocol2
+    process2.ExecutesRecipe <- Some recipe2
     process2.AddParameterValue(Annotation("process2_parameter", value = "p2"))
     process2.SetInputSample(sample2)
     process2.SetOutputData(data1)
     let process2b = Process("pv-process-2")
-    process2b.ExecutesProtocol <- Some protocol2
+    process2b.ExecutesRecipe <- Some recipe2
     process2b.AddParameterValue(Annotation("process2_parameter", value = "p2"))
     process2b.SetInputSample(sample4)
     process2b.SetOutputData(data2)
@@ -73,8 +73,8 @@ let private expectedLinearPathPVNames =
         "data1_property"
         "process1_parameter"
         "process2_parameter"
-        "protocol1_component"
-        "protocol2_component"
+        "recipe1_component"
+        "recipe2_component"
     ]
 
 let private unrelatedParallelLanePVNames =
@@ -324,7 +324,7 @@ let tests = testList "Traversal" [
 
     testList "Annotation traversal" [
 
-        testCase "Data.UpstreamAnnotations collects process, protocol, and IONode values" <| fun _ ->
+        testCase "Data.UpstreamAnnotations collects process, recipe, and IONode values" <| fun _ ->
             let _, _, _, data1 = makeLinearDataAnnotationFixture()
             let pvs = data1.UpstreamAnnotations()
             Expect.equal (annotationNames pvs) expectedLinearPathPVNames
@@ -345,7 +345,7 @@ let tests = testList "Traversal" [
                 "DataNode upstream query has the same complete source coverage"
             expectNoParallelLaneAnnotations pvs
 
-        testCase "Sample.DownstreamAnnotations collects process, protocol, and IONode values" <| fun _ ->
+        testCase "Sample.DownstreamAnnotations collects process, recipe, and IONode values" <| fun _ ->
             let _, sample1, _, _ = makeLinearDataAnnotationFixture()
             let pvs = sample1.DownstreamAnnotations()
             Expect.equal (annotationNames pvs) expectedLinearPathPVNames
@@ -373,7 +373,7 @@ let tests = testList "Traversal" [
                 "SampleNode downstream query has the same complete source coverage"
             expectNoParallelLaneAnnotations pvs
 
-        testCase "Sample.AllAnnotations collects process, protocol, and IONode values" <| fun _ ->
+        testCase "Sample.AllAnnotations collects process, recipe, and IONode values" <| fun _ ->
             let _, _, sample2, _ = makeLinearDataAnnotationFixture()
             let pvs = sample2.AllAnnotations()
             Expect.equal (annotationNames pvs) expectedLinearPathPVNames

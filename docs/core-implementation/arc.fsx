@@ -126,7 +126,7 @@ crossAsync {
 
 ## YAML Serialization
 
-`ARC.toYamlString` writes the ARC package as indexed YAML. `ARC.fromYamlString` rebuilds a new `ARC` object from that document. Unsorted samples, data files, and recipes are written to the typed `samples`, `dataFiles`, and `labProtocols` fields. Runtime-only properties such as `ArcPath`, representation flags, registries, and graph back-edges are not serialized.
+`ARC.toYamlString` writes the ARC package as indexed YAML. `ARC.fromYamlString` rebuilds a new `ARC` object from that document. Unsorted samples, data files, and recipes are written to the typed `samples`, `dataFiles`, and `recipes` fields. Runtime-only properties such as `ArcPath`, representation flags, registries, and graph back-edges are not serialized.
 *)
 
 
@@ -191,11 +191,11 @@ let measurement = Process("measurement")
 stagedArc.AddProcess(measurement)
 measurement.SetInputSample(Sample("sample-1"))
 measurement.SetOutputData(Data("data/measurement.csv"))
-measurement.ExecutesProtocol <- Some(Recipe("measure", version = "1"))
+measurement.ExecutesRecipe <- Some(Recipe("measure", version = "1"))
 
 obj.ReferenceEquals(stagedSample, measurement.InputSample().Value) // true
 obj.ReferenceEquals(stagedData, measurement.OutputData().Value) // true
-obj.ReferenceEquals(stagedRecipe, measurement.ExecutesProtocol.Value) // true
+obj.ReferenceEquals(stagedRecipe, measurement.ExecutesRecipe.Value) // true
 
 (**
 Store membership is explicit: linking does not remove staged values, and removing a staged value does not detach it from a process. Use `RemoveSample`, `RemoveDataFile`, or `RemoveRecipe` when the ARC should stop storing an object.
@@ -208,7 +208,7 @@ stagedArc.RemoveRecipe(stagedRecipe)
 // The process still owns all three links.
 measurement.InputSample().IsSome,
 measurement.OutputData().IsSome,
-measurement.ExecutesProtocol.IsSome
+measurement.ExecutesRecipe.IsSome
 
 (**
 YAML string and file round-trips preserve staged values as their concrete types. When a staged value is also linked to a process, both locations resolve to the same reference after decoding. Unknown YAML overflow properties also continue to round-trip.

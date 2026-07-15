@@ -89,7 +89,7 @@ A `Process` connects those inputs to outputs. We also attach parameter values to
 
 let extraction = Process("Extraction")
 let degrees25 = Annotation(name = "temperature", value = "25", unit = "degree Celsius", instanceOf = temperature)
-extraction.ExecutesProtocol <- Some protocol
+extraction.ExecutesRecipe <- Some protocol
 extraction.SetInputSample(leaf)
 extraction.SetOutputData(extractData)
 extraction.AddParameterValue(degrees25)
