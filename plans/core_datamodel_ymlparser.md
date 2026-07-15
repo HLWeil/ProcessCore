@@ -34,16 +34,14 @@ The parser targets Fable compatibility (JS, Python, .NET) and uses [YAMLicious](
 
 ```xml
 <Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup>
-    <TargetFramework>netstandard2.0</TargetFramework>
-    <Nullable>enable</Nullable>
-  </PropertyGroup>
+  <Import Project="ProcessCore.Common.props" />
 
   <ItemGroup>
     <!-- Core model files first, then YAML codec files. Compilation order matters in F#. -->
     <Compile Include="DefinedTerm.fs" />
     <Compile Include="FormalParameter.fs" />
     <Compile Include="Annotation.fs" />
+    <Compile Include="Administrative.fs" />
     <Compile Include="FragmentSelector.fs" />
     <Compile Include="Graph.fs" />
     <Compile Include="YML\Helpers.fs" />
@@ -56,12 +54,18 @@ The parser targets Fable compatibility (JS, Python, .NET) and uses [YAMLicious](
     <Compile Include="YML\Data.fs" />
     <Compile Include="YML\Recipe.fs" />
     <Compile Include="YML\Process.fs" />
+    <Compile Include="YML\Organization.fs" />
+    <Compile Include="YML\Agent.fs" />
+    <Compile Include="YML\ScholarlyArticle.fs" />
+    <Compile Include="YML\DataContext.fs" />
     <Compile Include="YML\Dataset.fs" />
     <Compile Include="Table.fs" />
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Fable.Core" />
     <PackageReference Include="YAMLicious" />
+    <PackageReference Include="DynamicObj" />
   </ItemGroup>
 </Project>
 ```
@@ -169,8 +173,8 @@ References use the same compact mapping shape as indexed objects:
 labProtocols:
   - "@id": "#Protocol_Cell_Lysis"
     type: Recipe
-    labEquipment:
-      "@id": "#Component_centrifuge_Eppendorf_5420"
+    components:
+      - "@id": "#Component_centrifuge_Eppendorf_5420"
 
 annotations:
   - "@id": "#ParameterValue_time_10_minute"
@@ -320,13 +324,13 @@ module <TypeName> =
 
 ### Recipe
 
-**Known YAML fields:** `id`, `type`, `additionalType`, `name`, `description`, `version`, `url`, `intendedUse`, `parameters`, `labEquipment`, `additionalProperty`
+**Known YAML fields:** `id`, `type`, `additionalType`, `name`, `description`, `version`, `url`, `intendedUse`, `parameters`, `components`, `additionalProperty`
 
 **Decoder:**
 - All optional; construct `Recipe()` then assign
 - `intendedUse` → `decodeRefOrInline DefinedTerm.decoder`
 - `parameters` → sequence of `decodeRefOrInline FormalParameter.decoder`
-- `labEquipment` → sequence of `decodeRefOrInline Annotation.decoder`
+- `components` → sequence of `decodeRefOrInline Annotation.decoder`, resolved through an optional annotation registry
 - `additionalProperty` → sequence of `decodeRefOrInline Annotation.decoder`
 - Overflow → `.SetProperty`
 
@@ -335,7 +339,7 @@ module <TypeName> =
 - `type`: `"bioschemas:LabProtocol"`
 - All optional scalar fields
 - `intendedUse` inline if present
-- `parameters`, `labEquipment`, `additionalProperty` as sequences (omit if empty)
+- `parameters`, `components`, `additionalProperty` as sequences (omit if empty)
 - Overflow properties
 
 ---
@@ -345,20 +349,19 @@ module <TypeName> =
 **Known YAML fields:** `id`, `type`, `additionalType`, `name`, `inputs`, `outputs`, `executesProtocol`, `parameterValue`
 
 **Decoder:**
-- `name` (required) → `Process(name)`
-- `additionalType` → optional
-- `inputs` → sequence; each element is `decodeRefOrInline` of either `Sample.decoder` or `Data.decoder`; discriminate by `type` field value (`"bioschemas:Sample"` → Sample, `"schema:MediaObject"` / `"File"` → Data); string ids are kept as unresolved references
-- `outputs` → same pattern as `inputs`
-- `executesProtocol` → `decodeRefOrInline Recipe.decoder`
-- `parameterValue` → sequence of `decodeRefOrInline Annotation.decoder`
-- Overflow → `.SetProperty`
+- `decoder`, `decoderWithResolvers`, and `fromYamlString` return `ResizeArray<Process>` because one YAML mapping may encode several in-memory edges.
+- `name` is required and copied to every expanded `Process(name)`; `additionalType`, the resolved `executesProtocol`, `parameterValue`, and overflow properties are likewise copied.
+- `inputs` and `outputs` are decoded into positional arrays of `IONode option`. Inline values discriminate `Sample` and `Data` by `type`; `File` remains a legacy alias for `Data`, and missing type defaults to `Sample`. An unresolved id reference preserves its position as `None`.
+- Create `max(inputs.Count, outputs.Count, 1)` processes. Process `i` receives `inputs[i]` and `outputs[i]` when present, otherwise `None`. Thus equal arrays become paired edges, unequal arrays are padded, and an empty mapping becomes one metadata-only process.
+- Clone mutable protocol, parameter, and term objects for each expanded process so editing one edge does not mutate its siblings.
+- Apply overflow with the normal strict/lenient rules to every expanded process.
 
-> **Back-edges** (`ProcessOf`) are never deserialized directly; they are wired up by the `Dataset` decoder after constructing the full process list.
+> **Back-edges** (`ProcessOf`, `InputOf`, and `OutputOf`) are never deserialized directly. The process decoder establishes endpoint back-edges locally; the `Dataset` decoder calls `AddProcess` for every expanded process to set ownership and canonicalize nodes through the root registry.
 
 **Encoder:**
-- `id`: `name`
-- `type`: `"bioschemas:LabProcess"`
-- `inputs`, `outputs` as sequences (inline; omit back-edge fields)
+- `type`: `"Process"`; `name` is required and `additionalType` is emitted when present
+- standalone `encoder` writes the singular endpoints as omitted or one-element `inputs`/`outputs` sequences (inline; omit back-edge fields)
+- `encoderMany` writes a non-empty, already-equivalent process group as one mapping by appending singular endpoints to the plural arrays in encounter order
 - `executesProtocol` inline if present
 - `parameterValue` sequence (omit if empty)
 - Overflow properties
@@ -367,22 +370,26 @@ module <TypeName> =
 
 ### Dataset
 
-**Known YAML fields:** `id`, `type`, `additionalType`, `identifier`, `name`, `description`, `processes`, `hasPart`, `additionalProperty`
+**Known YAML fields:** `type`, `additionalType`, `identifier`, `title`, `description`, `license`, `datePublished`, `dateCreated`, `dateModified`, `processes`, `hasPart`, `dataFiles`, `agents`, `citations`, `dataContexts`, `additionalProperty`, `ArcPath`, and the indexed `annotations` section. Lenient documents may additionally carry `labProtocols` and other decoration fields through overflow handling.
 
 **Decoder:**
 - `identifier` (required) → `Dataset(identifier)`
-- Other optional scalars
-- `processes` → sequence of `decodeRefOrInline Process.decoder`; after constructing all processes, wire back-edges (`process.ProcessOf <- dataset`)
-- `hasPart` → sequence of `decodeRefOrInline` of either `Dataset.decoder` or `Data.decoder` (discriminate by `type`)
+- Decode the optional administrative scalars (`title`, `description`, `additionalType`, license, and publication/creation/modification dates) directly onto the dataset.
+- `processes` → sequence of mappings or references. A mapping is passed to the collection-returning Process decoder, and every expanded result is flattened into the dataset through `AddProcess`; resolvable indexed annotations/protocols are supplied to the process decoder.
+- `hasPart` → inline Dataset or Data values discriminated by `type`/`path`; datasets use `AddPart`, while data values enter `DataFiles`. Empty type defaults to Dataset. Unresolved string references are skipped.
+- Decode the explicit `dataFiles`, `agents`, `citations`, and `dataContexts` collections with their corresponding codecs and add methods.
 - `additionalProperty` → sequence of `decodeRefOrInline Annotation.decoder`
 - Overflow → `.SetProperty`
 
 **Encoder:**
-- `id`: `identifier`
-- `type`: `"schema:Dataset"`
-- All optional scalars
-- `processes` as sequence (inline)
+- `identifier`: the dataset identifier (there is no generated dataset `id` field)
+- `type`: `"Dataset"`
+- All present optional administrative scalars
+- Group `Processes` only at this boundary. Equivalence is the structural non-I/O encoding (`name`, `additionalType`, protocol, parameters, overflow) plus the exact endpoint-presence shape `(Input.IsSome, Output.IsSome)`. Preserve first-group order and process encounter order, then encode each group with `Process.encoderMany`.
+- Keep both-sided, input-only, output-only, and endpoint-free processes in separate groups so omitted entries never shift positional pairing.
+- In indexed mode, grouped process payloads still emit annotation and protocol references and populate the top-level registries.
 - `hasPart` as sequence (inline)
+- `dataFiles`, `agents`, `citations`, and `dataContexts` as sequences when non-empty
 - `additionalProperty` as sequence (omit if empty)
 - Overflow properties
 
@@ -461,8 +468,9 @@ module Decode =
 | `Sample.fs` | `ProcessCore.Yaml.Sample` | `decoder`, `encoder`, `fromYamlString`, `toYamlString` |
 | `Data.fs` | `ProcessCore.Yaml.Data` | `decoder`, `encoder`, `fromYamlString`, `toYamlString` |
 | `Recipe.fs` | `ProcessCore.Yaml.Recipe` | `decoder`, `encoder`, `fromYamlString`, `toYamlString` |
-| `Process.fs` | `ProcessCore.Yaml.Process` | `decoder`, `encoder`, `fromYamlString`, `toYamlString` |
-| `Dataset.fs` | `ProcessCore.Yaml.Dataset` | `decoder`, `encoder`, `fromYamlString`, `toYamlString` |
+| `Process.fs` | `ProcessCore.Yaml.Process` | collection-returning `decoder`/`fromYamlString`, `decoderWithResolvers`, singular `encoder`, grouped `encoderMany`, `groupingKey`, `toYamlString` |
+| `Organization.fs`, `Agent.fs`, `ScholarlyArticle.fs`, `DataContext.fs` | corresponding `ProcessCore.Yaml.*` modules | administrative type encoders/decoders and string helpers |
+| `Dataset.fs` | `ProcessCore.Yaml.Dataset` | flattening `decoder`, grouped/index-aware `encoder`, `fromYamlString`, `toYamlString`, `toYamlStringIndexed` |
 
 ---
 

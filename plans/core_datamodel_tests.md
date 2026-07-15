@@ -7,8 +7,8 @@ This document describes the test suite for the `src/ProcessCore` library. Tests 
 - Cover every type defined in the library.
 - Cover every public member (property, CRUD method, query method).
 - Cover the three invariants called out by the design plan:
-  - **Back-edge consistency** — adding/removing I/O or a process updates back-edges atomically.
-  - **Deduplication** — adding an identical object a second time is silently ignored.
+  - **Back-edge consistency** — setting, replacing, or clearing an endpoint and adding/removing a process update back-edges atomically.
+  - **Canonicalization and distinct edges** — equal I/O nodes share the root registry instance, while distinct equal `Process` objects remain separate edges.
   - **Object identity** — each type's `Equals` / `GetHashCode` follows the spec.
 - Cover all graph traversal directions (undirected, upstream, downstream) and the optional `scope` parameter.
 - Cover all four Annotation sources.
@@ -82,13 +82,13 @@ Source1 --[p1]--> Sample1 --[p2]--> SampleA
 ### Fixture C — Merging Graph
 
 ```
-Source1 --[p1]--> Sample1 \
-                           [p3]--> FinalSample
-Source2 --[p2]--> Sample2 /
+Source1 --[p1]--> Sample1 --[p3a]--\
+                                      FinalSample
+Source2 --[p2]--> Sample2 --[p3b]--/
 ```
 
-- Two input paths converging into `p3`
-- All three processes in `Dataset("DS-C")`
+- Two input paths converge by using two distinct singular processes (`p3a` and `p3b`) with equal name/protocol state and a shared `FinalSample` output.
+- All four processes are retained in `Dataset("DS-C")`; neither normal CRUD nor graph querying collapses them.
 
 ### Fixture D — Nested Datasets
 
@@ -167,8 +167,8 @@ Dataset("parent")
 | `AddParameter deduplicates by name` | Adding FP with same name twice → one entry |
 | `RemoveParameter` | FP removed; non-existent remove is no-op |
 | `TryGetParameter found / not found` | Returns `Some` / `None` |
-| `AddLabEquipment deduplicates` | Identical PV added twice → one entry |
-| `RemoveLabEquipment` | PV removed |
+| `AddComponent deduplicates` | Identical component annotation added twice → one entry |
+| `RemoveComponent` | Component removed |
 | `AddAdditionalProperty deduplicates` | Identical PV added twice → one entry |
 | `optional name constructor` | `Recipe()` has `Name = None` |
 
@@ -177,24 +177,23 @@ Dataset("parent")
 | Test | Description |
 |------|-------------|
 | `equality by name` | Two processes with same name are equal |
-| `AddInput deduplicates sample` | `AddInputSample` with identical sample twice → one input |
-| `AddInput deduplicates data` | Same for Data nodes |
-| `RemoveInput sample` | Input removed; back-edge cleared |
-| `RemoveInput data` | Same for Data |
-| `AddOutput deduplicates sample` | Identical sample twice → one output |
-| `RemoveOutput sample` | Output removed; back-edge cleared |
-| `AddParameterValue deduplicates` | Identical PV twice → one entry |
+| `construct singular endpoints` | Constructor accepts input and output options; both-sided, input-only, output-only, and metadata-only processes are representable |
+| `SetInput sample / data` | Assigning a node produces exactly one `Input`; a later assignment replaces it rather than adding another lane |
+| `ClearInput sample / data` | Input becomes `None`; old back-edge is cleared |
+| `SetOutput sample / data` | Assigning and replacing the singular `Output` behaves symmetrically |
+| `ClearOutput sample / data` | Output becomes `None`; old back-edge is cleared |
+| `AddParameterValue preserves duplicates` | Two calls append two entries; duplicate process metadata may be meaningful during YAML expansion |
 | `RemoveParameterValue` | PV removed |
 | `TryGetParameterValue found / not found` | Returns `Some` / `None` |
 | `GetParameterValue throws if missing` | Raises exception |
-| `InputSamples / InputData filters correctly` | Mixed inputs → typed helpers return only the correct type |
-| `OutputSamples / OutputData` | Same for outputs |
+| `InputSample / InputData filters correctly` | Singular input helper returns `Some` only for the matching node type |
+| `OutputSample / OutputData` | Same for the singular output |
 | `ProtocolParameters returns empty without protocol` | No protocol → empty |
 | `ProtocolParameters delegates to protocol` | Returns protocol parameters |
 | `AnnotationsByName — parameter source` | PV in `ParameterValue` with matching name returned |
 | `AnnotationsByName — input node source` | PV in input sample `AdditionalProperty` returned |
 | `AnnotationsByName — output node source` | PV in output sample `AdditionalProperty` returned |
-| `AnnotationsByName — protocol component source` | PV in `LabEquipment` returned |
+| `AnnotationsByName — protocol component source` | Annotation in `Components` returned |
 | `AnnotationsByName — no match returns empty` | Unknown name → empty |
 
 ### 1.8 Dataset (`Types/Dataset.fs`)
@@ -204,7 +203,7 @@ Dataset("parent")
 | `equality by identifier` | Same identifier → equal |
 | `default constructor` | `Dataset()` has `Identifier = ""` |
 | `AddProcess sets ProcessOf back-edge` | After `AddProcess`, `proc.ProcessOf = Some dataset` |
-| `AddProcess deduplicates` | Adding same process twice → one entry |
+| `AddProcess ignores the same owned reference` | Adding the same process instance twice → one entry; a distinct equal process is retained |
 | `RemoveProcess clears ProcessOf` | After `RemoveProcess`, `proc.ProcessOf = None` |
 | `TryGetProcess found / not found` | Finds by name |
 | `GetProcess found / not found` | Finds or raises |
@@ -222,13 +221,13 @@ These tests verify the **eager consistency** contract.
 
 | Test | Description |
 |------|-------------|
-| `AddInput — sample InputOf updated` | After `p.AddInputSample(m)`, `m.InputOf` contains `p` |
-| `AddInput — data InputOf updated` | Same for Data nodes |
-| `RemoveInput — sample InputOf cleared` | After removal, `m.InputOf` no longer contains `p` |
-| `AddOutput — sample OutputOf updated` | After `p.AddOutputSample(m)`, `m.OutputOf` contains `p` |
-| `RemoveOutput — sample OutputOf cleared` | After removal, `m.OutputOf` no longer contains `p` |
-| `AddOutput — data OutputOf updated` | Same for Data |
-| `RemoveOutput — data OutputOf cleared` | Same for Data |
+| `SetInput — sample InputOf updated` | After `p.SetInputSample(m)`, `m.InputOf` contains `p` |
+| `SetInput — data InputOf updated` | Same for Data nodes |
+| `SetInput replacement moves InputOf` | Old node no longer contains `p`; replacement does |
+| `ClearInput — InputOf cleared` | After clear, the old node's `InputOf` no longer contains `p` |
+| `SetOutput — sample OutputOf updated` | After `p.SetOutputSample(m)`, `m.OutputOf` contains `p` |
+| `SetOutput replacement moves OutputOf` | Old node no longer contains `p`; replacement does |
+| `ClearOutput — OutputOf cleared` | Same for Sample and Data output nodes |
 | `two processes sharing a node` | Node's `InputOf` contains both processes |
 | `AddProcess — ProcessOf set` | After `ds.AddProcess(p)`, `p.ProcessOf = Some ds` |
 | `RemoveProcess — ProcessOf cleared` | After `ds.RemoveProcess(p)`, `p.ProcessOf = None` |
@@ -242,14 +241,15 @@ These tests verify the **eager consistency** contract.
 
 | Test | Description |
 |------|-------------|
-| `AddInput: identical node not doubled` | Using Fixture A: adding `Sample1` again to `p2` inputs does not create a second entry |
-| `AddOutput: identical node not doubled` | Adding `Sample1` again to `p1` outputs → still one entry |
-| `shared node is same object instance` | After deduplication the returned element is `===` the original object (reference equality via F# `obj.ReferenceEquals`) |
-| `AddProcess: duplicate ignored` | Adding `p1` to `DS-A` twice → `ds.Processes.Count` stays the same |
+| `SetInput canonicalizes equal node` | Assigning an equal node in the same dataset hierarchy stores the root registry's existing instance |
+| `SetOutput canonicalizes equal node` | Output assignment follows the same canonicalization rule |
+| `shared node is same object instance` | After canonicalization the endpoint is `===` the original object (reference equality via F# `obj.ReferenceEquals`) |
+| `AddProcess: same reference ignored` | Adding `p1` to `DS-A` twice → `ds.Processes.Count` stays the same |
+| `AddProcess: distinct equal processes retained` | Two separate same-named/equal process instances are meaningful edges and both remain in the dataset |
 | `AddPart: duplicate child ignored` | Adding child dataset twice → `parent.HasPart.Count` stays the same |
-| `AddParameterValue: duplicate ignored` | Identical PV twice → count unchanged |
+| `cleared endpoint evicted only when unused` | Clearing/replacing/removing a process evicts a registry node only after no edge in the hierarchy references it |
 | `AddParameter (protocol): duplicate ignored` | Same FP name twice → count unchanged |
-| `AddLabEquipment: duplicate ignored` | Same PV twice → count unchanged |
+| `AddComponent: duplicate ignored` | Same component twice → count unchanged |
 
 ---
 
@@ -336,7 +336,7 @@ A dedicated fixture is needed: one process with PVs in all four positions simult
 
 | Test | Description |
 |------|-------------|
-| `Process.AnnotationsByName — all 4 sources` | Create a process with `ParameterValue`, input node `AdditionalProperty`, output node `AdditionalProperty`, and protocol `LabEquipment` each having a PV with a unique name. Call `AnnotationsByName` for each name and verify it is found. |
+| `Process.AnnotationsByName — all 4 sources` | Create a process with `ParameterValue`, input node `AdditionalProperty`, output node `AdditionalProperty`, and recipe `Components` each having an annotation with a unique name. Call `AnnotationsByName` for each name and verify it is found. |
 | `IONode.AllAnnotations — all 4 sources` | Start from the input node of the above process; `AllAnnotations` includes entries from all four sources |
 | `UpstreamAnnotations — filters to upstream only` | PV only on downstream process is not included |
 | `DownstreamAnnotations — filters to downstream only` | PV only on upstream process is not included |
@@ -370,7 +370,7 @@ Using Fixture A and Fixture D (nested).
 | `FindProcessesByAnnotation — param source` | Finds process with matching parameter |
 | `FindProcessesByAnnotation — input node source` | Finds process whose input node has matching `AdditionalProperty` |
 | `FindProcessesByAnnotation — output node source` | Same for output |
-| `FindProcessesByAnnotation — protocol component source` | PV in `LabEquipment` |
+| `FindProcessesByAnnotation — protocol component source` | Annotation in recipe `Components` |
 | `FindProcessesByPropertyName` | Returns process regardless of value |
 | `SamplesResultingFromCondition — use-case 1` | Fixture A: query for samples resulting from `"cell growth"` at `temperature=37°C` → `{Sample1}` (first downstream terminal sample after `p1`) |
 | `SamplesResultingFromCondition — no qualifying process` | Unknown protocol type → empty |
@@ -475,12 +475,12 @@ Tests for `Decompose` and the derived read helpers.
 | `single process — parameter column present` | Process with one `ParameterValue` → one `Parameter` column |
 | `single process — characteristic column present` | Input sample with `AdditionalProperty` typed as characteristic |
 | `single process — factor column present` | Output sample with `AdditionalProperty` typed as factor |
-| `single process — component column present` | Protocol `LabEquipment` → `Component` column |
+| `single process — component column present` | Recipe `Components` → `Component` column |
 | `column order is Input → Protocol → Char → Comp → Param → Factor → Output` | Verify index order in result |
 | `multiple rows (multiple processes with same name)` | `Table` built from two `Process` objects with the same name → `Decompose` produces two rows worth of cells per annotation column |
 | `data output — CompositeCell.Data in output column` | Output is `Data` node → cell carries `CompositeCell.Data` |
 | `Headers derives from Decompose` | `table.Headers` matches `table.Decompose() |> map _.Header` |
-| `ColumnCount / RowCount` | Correct counts for a known fixture |
+| `ColumnCount / RowCount` | Correct counts for a known fixture; `RowCount` always equals the number of table processes |
 | `GetColumn by index` | Returns the expected column; raises on out-of-range |
 | `TryGetColumnByHeader — found` | Predicate matching first Parameter column returns it |
 | `TryGetColumnByHeader — not found` | Returns `None` |
@@ -502,14 +502,16 @@ Tests for column and row mutation methods.
 | `AddColumn Parameter — PV added to each process` | After `table.AddColumn(CompositeHeader.Parameter("Temp", None), cells)`, each process has a new `ParameterValue` with the corresponding cell value |
 | `AddColumn Characteristic — PV added to input node` | PV lands on input sample's `AdditionalProperty` |
 | `AddColumn Factor — PV added to output node` | PV lands on output sample's `AdditionalProperty` |
-| `AddColumn Component — PV added to protocol LabEquipment` | Requires process to have an `ExecutesProtocol` |
-| `AddColumn non-annotation header is no-op` | `CompositeHeader.ProtocolREF` → nothing changes |
-| `AddColumn with fewer cells than rows` | Missing cells are treated as `FreeText ""` |
+| `AddColumn Component — annotation added to recipe Components` | Creates an `ExecutesProtocol` when necessary |
+| `AddColumn Input / Output` | Each cell directly sets or clears the corresponding singular process endpoint without changing process count |
+| `AddColumn protocol fields` | `ProtocolREF`, type, description, URI, and version mutate each row's protocol and create one when needed |
+| `AddColumn with fewer cells than rows` | Missing annotation cells are treated as `FreeText ""`; missing input/output cells clear the corresponding endpoint |
 | `RemoveColumn Parameter` | First matching PV removed from every process; column disappears in next `Decompose` |
 | `RemoveColumn Characteristic` | Removed from input node |
 | `RemoveColumn Factor` | Removed from output node |
-| `RemoveColumn Component` | Removed from protocol `LabEquipment` |
-| `RemoveColumn non-annotation is no-op` | `ProtocolREF` header → nothing changes |
+| `RemoveColumn Component` | Removed from recipe `Components` |
+| `RemoveColumn Input / Output` | Clears that endpoint on every row process while retaining the processes |
+| `RemoveColumn protocol field is no-op` | Current API leaves protocol fields intact; row/cell writes perform protocol mutation |
 
 #### Row write
 
@@ -519,6 +521,7 @@ Tests for column and row mutation methods.
 | `AddRow — input cell sets input node name` | `FreeText "S1"` in Input column → process input is `Sample("S1")` |
 | `AddRow — output cell sets output node name` | `FreeText "S2"` in Output column → process output is `Sample("S2")` |
 | `AddRow — Data cell in Data-typed column` | `CompositeCell.Data d` → process input/output is `DataNode d` |
+| `AddRow — blank endpoint cells` | Blank input/output cells produce `Input = None` and/or `Output = None` |
 | `AddRow — ProtocolREF cell sets protocol name` | |
 | `AddRow — ProtocolType cell sets protocol IntendedUse` | |
 | `AddRow — Parameter cell creates ParameterValue` | |
@@ -529,6 +532,7 @@ Tests for column and row mutation methods.
 | `RemoveRow out-of-range is no-op` | |
 | `UpdateRow — existing PV value updated in place` | `UpdateRow(0, cells)` with a new Unitized cell → the process's PV reflects the new value |
 | `UpdateRow — input node name updated` | Cell in Input column changes sample name |
+| `UpdateRow — endpoint clear/replace is local` | Clearing or replacing one row endpoint maintains back-edges and does not clone/remove another process |
 | `UpdateRow — new PV added if column did not have one` | If process had no PV for a column, one is created |
 
 ### 10.5 Tables (`Table/TablesApi.fs`)
