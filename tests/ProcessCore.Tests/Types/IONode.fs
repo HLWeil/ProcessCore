@@ -45,7 +45,7 @@ let tests = testList "IONode" [
         let m    = Sample("Sample1")
         let p    = Process("p1")
         let node = SampleNode m
-        p.AddInputSample(m)
+        p.SetInputSample(m)
         let inputOf = node.GetInputOf()
         Expect.isTrue (inputOf |> Seq.exists (fun x -> x = p)) "GetInputOf should return the process"
 
@@ -53,7 +53,7 @@ let tests = testList "IONode" [
         let d    = Data("results.csv")
         let p    = Process("p1")
         let node = DataNode d
-        p.AddInputData(d)
+        p.SetInputData(d)
         let inputOf = node.GetInputOf()
         Expect.isTrue (inputOf |> Seq.exists (fun x -> x = p)) "GetInputOf should return the data-consuming process"
 
@@ -61,7 +61,7 @@ let tests = testList "IONode" [
         let m    = Sample("Sample1")
         let p    = Process("p1")
         let node = SampleNode m
-        p.AddOutputSample(m)
+        p.SetOutputSample(m)
         let outputOf = node.GetOutputOf()
         Expect.isTrue (outputOf |> Seq.exists (fun x -> x = p)) "GetOutputOf should return the process"
 
@@ -69,7 +69,7 @@ let tests = testList "IONode" [
         let d    = Data("results.csv")
         let p    = Process("p1")
         let node = DataNode d
-        p.AddOutputData(d)
+        p.SetOutputData(d)
         let outputOf = node.GetOutputOf()
         Expect.isTrue (outputOf |> Seq.exists (fun x -> x = p)) "GetOutputOf should return the data-producing process"
 

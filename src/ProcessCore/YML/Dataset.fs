@@ -109,9 +109,11 @@ module Dataset =
             match tryDecodeSequence v with
             | Some elems ->
                 for elem in elems do
-                    match decodeRefOrInline (Process.decoderWithResolvers processCoreOnly resolveAnnotation resolveRecipe) elem with
-                    | Choice2Of2 proc -> ds.AddProcess(proc)
-                    | Choice1Of2 _    -> ()
+                    match tryDecodeString elem with
+                    | Some _ -> ()
+                    | None ->
+                        for proc in Process.decoderWithResolvers processCoreOnly resolveAnnotation resolveRecipe elem do
+                            ds.AddProcess(proc)
             | None -> ())
 
         // hasPart — each item is either an inline Dataset or an inline Data; discriminate by 'type'
@@ -180,10 +182,18 @@ module Dataset =
             else
                 (Option.defaultValue (Recipe.encoder encodePV) protEncoder) proto
 
+        let sameProcessState (a: Process) (b: Process) =
+            let shape (p: Process) = p.Input.IsSome, p.Output.IsSome
+            shape a = shape b && Process.groupingKey a = Process.groupingKey b
+
         let processes =
             if ds.Processes.Count > 0 then
-                ds.Processes
-                |> Seq.map (Process.encoder encodePV encodeProtocol)
+                let groups = ResizeArray<ResizeArray<Process>>()
+                for proc in ds.Processes do
+                    match groups |> Seq.tryFind (fun group -> sameProcessState group.[0] proc) with
+                    | Some group -> group.Add(proc)
+                    | None -> groups.Add(ResizeArray([proc]))
+                groups |> Seq.map (Process.encoderMany encodePV encodeProtocol)
                 |> Seq.toList
                 |> yamlSeq
                 |> Some

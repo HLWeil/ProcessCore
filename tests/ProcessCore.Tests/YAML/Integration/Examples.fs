@@ -77,14 +77,14 @@ let tests = testList "Examples" [
 
     testCase "assay first process input name" <| fun _ ->
         let assay = loadAssay(false)
-        let input = assay.Processes.[0].Inputs.[0]
+        let input = assay.Processes.[0].Input.Value
         match input with
         | SampleNode m -> Expect.equal m.Name "Base Culture" "first input name"
         | DataNode _     -> failwith "Expected SampleNode"
 
     testCase "assay first process input additionalType" <| fun _ ->
         let assay = loadAssay(false)
-        let input = assay.Processes.[0].Inputs.[0]
+        let input = assay.Processes.[0].Input.Value
         match input with
         | SampleNode m -> Expect.equal m.AdditionalType (Some "Source") "additionalType"
         | DataNode _     -> failwith "Expected SampleNode"
@@ -108,7 +108,7 @@ let tests = testList "Examples" [
         let assay = loadAssay(false)
         let proc =
             assay.Processes
-            |> Seq.find (fun p -> p.Name = "Cell Lysis" && p.Outputs.Count = 1)
+            |> Seq.find (fun p -> p.Name = "Cell Lysis" && p.Output.IsSome)
         Expect.equal proc.ParameterValue.Count 3 "parameter values resolved"
         Expect.equal proc.ParameterValue.[0].Name "time" "first parameter value"
 
@@ -117,8 +117,8 @@ let tests = testList "Examples" [
         let msRun =
             assay.Processes
             |> Seq.find (fun p -> p.Name = "MS Run")
-        Expect.equal msRun.Outputs.Count 1 "one output"
-        match msRun.Outputs.[0] with
+        Expect.isSome msRun.Output "one output"
+        match msRun.Output.Value with
         | DataNode d -> Expect.isTrue (d.Path.EndsWith(".raw")) "MS Run output is .raw data file"
         | SampleNode _ -> failwith "Expected DataNode for MS Run output"
 
@@ -127,8 +127,8 @@ let tests = testList "Examples" [
         let cpa =
             assay.Processes
             |> Seq.find (fun p -> p.Name = "Computational Proteome Analysis")
-        Expect.equal cpa.Outputs.Count 1 "one output"
-        match cpa.Outputs.[0] with
+        Expect.isSome cpa.Output "one output"
+        match cpa.Output.Value with
         | DataNode d ->
             Expect.isTrue (d.Path.StartsWith("proteomics_result.csv")) "CPA output file"
         | SampleNode _ -> failwith "Expected DataNode for CPA output"

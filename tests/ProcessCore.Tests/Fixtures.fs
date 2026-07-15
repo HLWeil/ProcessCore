@@ -68,8 +68,8 @@ let makeFixtureA () : FixtureA =
     p1.ExecutesProtocol <- Some proto1
     p1.AddParameterValue(Annotation("temperature", value = "37",  unit = "°C",  additionalType = "ParameterValue"))
     p1.AddParameterValue(Annotation("rpm",         value = "200", unit = "rpm", additionalType = "ParameterValue"))
-    p1.AddInputSample(source1)
-    p1.AddOutputSample(sample1)
+    p1.SetInputSample(source1)
+    p1.SetOutputSample(sample1)
 
     // p2 — digestion
     let proto2 = Recipe("digestion")
@@ -81,13 +81,13 @@ let makeFixtureA () : FixtureA =
                       value    = "Trypsin",
                       valueTAN = "http://purl.obolibrary.org/obo/NCIT_C17077",
                       additionalType = "ParameterValue"))
-    p2.AddInputSample(sample1)
-    p2.AddOutputSample(sample2)
+    p2.SetInputSample(sample1)
+    p2.SetOutputSample(sample2)
 
     // p3 — no protocol
     let p3 = Process("p3")
-    p3.AddInputSample(sample2)
-    p3.AddOutputData(rawData1)
+    p3.SetInputSample(sample2)
+    p3.SetOutputData(rawData1)
 
     let ds = Dataset("DS-A")
     ds.AddProcess(p1)
@@ -129,16 +129,16 @@ let makeFixtureB () : FixtureB =
     let p1 = Process("p1")
     p1.ExecutesProtocol <- Some proto1
     p1.AddParameterValue(Annotation("temperature", value = "37", unit = "°C", additionalType = "ParameterValue"))
-    p1.AddInputSample(source1)
-    p1.AddOutputSample(sample1)
+    p1.SetInputSample(source1)
+    p1.SetOutputSample(sample1)
 
     let p2 = Process("p2")
-    p2.AddInputSample(sample1)
-    p2.AddOutputSample(sampleA)
+    p2.SetInputSample(sample1)
+    p2.SetOutputSample(sampleA)
 
     let p3 = Process("p3")
-    p3.AddInputSample(sample1)
-    p3.AddOutputSample(sampleB)
+    p3.SetInputSample(sample1)
+    p3.SetOutputSample(sampleB)
 
     let ds = Dataset("DS-B")
     ds.AddProcess(p1)
@@ -175,22 +175,25 @@ let makeFixtureC () : FixtureC =
     let finalSample = Sample("FinalSample", additionalType = "Sample")
 
     let p1 = Process("p1")
-    p1.AddInputSample(source1)
-    p1.AddOutputSample(sample1)
+    p1.SetInputSample(source1)
+    p1.SetOutputSample(sample1)
 
     let p2 = Process("p2")
-    p2.AddInputSample(source2)
-    p2.AddOutputSample(sample2)
+    p2.SetInputSample(source2)
+    p2.SetOutputSample(sample2)
 
     let p3 = Process("p3")
-    p3.AddInputSample(sample1)
-    p3.AddInputSample(sample2)
-    p3.AddOutputSample(finalSample)
+    p3.SetInputSample(sample1)
+    p3.SetOutputSample(finalSample)
+    let p3b = Process("p3")
+    p3b.SetInputSample(sample2)
+    p3b.SetOutputSample(finalSample)
 
     let ds = Dataset("DS-C")
     ds.AddProcess(p1)
     ds.AddProcess(p2)
     ds.AddProcess(p3)
+    ds.AddProcess(p3b)
 
     { DS = ds; P1 = p1; P2 = p2; P3 = p3
       Source1 = source1; Source2 = source2
@@ -222,12 +225,12 @@ let makeFixtureD () : FixtureD =
     let rawData1 = Data("rawData1.csv")
 
     let p1 = Process("p1")
-    p1.AddInputSample(source1)
-    p1.AddOutputSample(sample1)
+    p1.SetInputSample(source1)
+    p1.SetOutputSample(sample1)
 
     let p2 = Process("p2")
-    p2.AddInputSample(sample1)   // same object as p1's output
-    p2.AddOutputData(rawData1)
+    p2.SetInputSample(sample1)   // same object as p1's output
+    p2.SetOutputData(rawData1)
 
     let child1 = Dataset("child1")
     child1.AddProcess(p1)
@@ -296,19 +299,27 @@ let makeFixtureE () : FixtureE =
     p1.AddParameterValue(p1PV)
     p2.AddParameterValue(p2PV)
 
-    p1.AddInputSample(source1)
-    p1.AddInputSample(source2)
-    p1.AddOutputSample(sample1)
-    p1.AddOutputSample(sample2)
-    p2.AddInputSample(sample1)
-    p2.AddInputSample(sample2)
-    p2.AddOutputData(data1)
-    p2.AddOutputData(data2)
+    p1.SetInputSample(source1)
+    p1.SetOutputSample(sample1)
+    let p1b = Process("p1")
+    p1b.ExecutesProtocol <- p1.ExecutesProtocol
+    for pv in p1.ParameterValue do p1b.AddParameterValue(pv)
+    p1b.SetInputSample(source2)
+    p1b.SetOutputSample(sample2)
+    p2.SetInputSample(sample1)
+    p2.SetOutputData(data1)
+    let p2b = Process("p2")
+    p2b.ExecutesProtocol <- p2.ExecutesProtocol
+    for pv in p2.ParameterValue do p2b.AddParameterValue(pv)
+    p2b.SetInputSample(sample2)
+    p2b.SetOutputData(data2)
 
     let ds = Dataset("DS-E")
 
     ds.AddProcess(p1)
+    ds.AddProcess(p1b)
     ds.AddProcess(p2)
+    ds.AddProcess(p2b)
     { DS = ds; P1 = p1; P1PV = p1PV; P2 = p2; P2PV = p2PV
       Source1 = source1; Source1PV = source1PV
       Source2 = source2; Source2PV = source2PV
@@ -360,8 +371,8 @@ let makeFixtureFourSources () : FixtureFourSources =
     let upstreamProc   = Process("fs-upstream-process")
     let upstreamOnlyPV = Annotation("upstream_param", value = "upstream_val", additionalType = "ParameterValue")
     upstreamProc.AddParameterValue(upstreamOnlyPV)
-    upstreamProc.AddInputSample(upstreamNode)
-    upstreamProc.AddOutputSample(inputNode)
+    upstreamProc.SetInputSample(upstreamNode)
+    upstreamProc.SetOutputSample(inputNode)
 
     // central process — all four sources
     let proto   = Recipe("four-source-protocol")
@@ -378,15 +389,15 @@ let makeFixtureFourSources () : FixtureFourSources =
     proc.AddParameterValue(paramPV)
     inputNode.AddAdditionalProperty(inputPV)
     outputNode.AddAdditionalProperty(outputPV)
-    proc.AddInputSample(inputNode)
-    proc.AddOutputSample(outputNode)
+    proc.SetInputSample(inputNode)
+    proc.SetOutputSample(outputNode)
 
     // downstream process
     let downstreamProc   = Process("fs-downstream-process")
     let downstreamOnlyPV = Annotation("downstream_param", value = "downstream_val", additionalType = "ParameterValue")
     downstreamProc.AddParameterValue(downstreamOnlyPV)
-    downstreamProc.AddInputSample(outputNode)
-    downstreamProc.AddOutputSample(downstreamNode)
+    downstreamProc.SetInputSample(outputNode)
+    downstreamProc.SetOutputSample(downstreamNode)
 
     let ds = Dataset("DS-FourSources")
     ds.AddProcess(upstreamProc)

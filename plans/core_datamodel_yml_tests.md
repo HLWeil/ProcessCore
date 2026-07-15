@@ -72,7 +72,7 @@ FormalParameter("temperature", nameTAN = "PATO:0000146", defaultValue = DefinedT
 
 **Fixture Data** — `Data("rawData1.csv", selector = "Sheet1", selectorFormat = "excel", encodingFormat = "text/csv")` with one `additionalProperty`.
 
-**Fixture Recipe** — protocol with `name`, `description`, `version`, `url`, `intendedUse`, one parameter, one labEquipment, one additionalProperty.
+**Fixture Recipe** — recipe with `name`, `description`, `version`, `url`, `intendedUse`, one parameter, one component, and one additionalProperty.
 
 **Fixture Process** — process with `name`, one sample input, one data output, `executesProtocol`, two `parameterValue` entries.
 
@@ -173,7 +173,7 @@ These should match what the encoder produces so they can also serve as encoder r
 | `encode minimal` | No name → `id = ""`, `type = "Recipe"` |
 | `encode with name and url` | `id = url`, all provided fields present |
 | `encode with parameters sequence` | Nested FP objects in `parameters` array |
-| `encode with labEquipment sequence` | Nested PV objects |
+| `encode with components sequence` | Nested annotation objects |
 | `encode with additionalProperty sequence` | |
 | `encode with intendedUse` | Nested DefinedTerm inline |
 | `decode minimal` | All optionals `None`, sequences empty |
@@ -189,22 +189,27 @@ These should match what the encoder produces so they can also serve as encoder r
 
 | Test | Description |
 |------|-------------|
-| `encode name only` | `id = name`, `type = "Process"`, no inputs/outputs/protocol |
-| `encode with sample input` | Sample inline in `inputs` array |
-| `encode with data output` | Data inline in `outputs` array |
+| `encode name only` | `type = "Process"`, name present, no inputs/outputs/protocol |
+| `encode with sample input` | Singular sample is inline in a one-element `inputs` array |
+| `encode with data output` | Singular data is inline in a one-element `outputs` array |
 | `encode with executesProtocol` | Nested Recipe inline |
 | `encode with parameterValues` | Sequence of PV objects |
-| `decode name only` | Inputs/outputs empty, protocol `None` |
-| `decode sample input` | Sample decoded and added to inputs |
-| `decode data output` | Data decoded and added to outputs |
+| `decode name only` | Returns one process with `Input = None`, `Output = None`, protocol `None` |
+| `decode sample input` | Returns one process whose singular input is the sample |
+| `decode data output` | Returns one process whose singular output is the data |
+| `decode equal collapsed lanes` | Two inputs and two outputs return two processes paired by index |
+| `decode unequal collapsed lanes` | The shorter side is padded with `None` up to the longer array length |
+| `decode input-only / output-only lanes` | Endpoint shape and lane order are preserved without inventing partners |
+| `decode empty arrays` | `max(0, 0, 1)` creates one metadata-only process |
 | `decode data by "File" legacy type alias` | `type: File` → decoded as `Data` |
-| `decode io as id-references` | String refs produce no IONode entries |
+| `decode io as id-references` | Unresolved string refs become `None` but retain their positional lane |
 | `decode executesProtocol as inline object` | Recipe decoded |
 | `decode executesProtocol as id-reference` | Ref → `executesProtocol = None` |
 | `decode parameterValues` | PVs decoded |
+| `expanded mutable metadata is independent` | Editing a protocol or parameter on one expanded process does not mutate its siblings |
 | `back-edges not in output` | No `processOf` key |
 | `round-trip name only` | |
-| `round-trip with inputs and outputs` | |
+| `standalone round-trip with endpoints` | Standalone encoder emits at most one item per endpoint array and decoder returns a one-item process collection |
 | `round-trip with protocol and parameters` | |
 
 ---
@@ -213,13 +218,17 @@ These should match what the encoder produces so they can also serve as encoder r
 
 | Test | Description |
 |------|-------------|
-| `encode minimal` | `id = identifier`, `type = "Dataset"`, no sequences |
-| `encode with processes` | Nested Process objects in `processes` array |
+| `encode minimal` | `identifier` and `type = "Dataset"`, no generated `id` and no empty sequences |
+| `encode with processes` | Nested Process objects in `processes` array; equivalent singular edges are grouped into compact mappings |
+| `encode groups equal non-I/O state and shape` | Equivalent both-sided edges become parallel `inputs`/`outputs` arrays in encounter order |
+| `encode separates endpoint shapes` | Both-sided, input-only, output-only, and metadata-only edges are emitted as different mappings |
+| `encode separates non-equivalent state` | Name, additional type, protocol, parameters, or overflow differences prevent grouping |
+| `encode preserves group encounter order` | Mapping order follows the first edge in each group; lane order follows process order |
 | `encode with hasPart` | Nested child Dataset in `hasPart` array |
 | `encode with additionalProperty` | PV sequence |
 | `decode minimal` | Identifier decoded, all sequences empty |
 | `id field goes to overflow` | YAML with `id` but no `identifier` → exception (identifier required); YAML with both `id` and `identifier` → `id` lands in overflow, `identifier` decoded |
-| `decode with processes` | Processes decoded, `ProcessOf` back-edge set on each |
+| `decode with processes` | Each YAML mapping expands to one or more processes; all are flattened and receive `ProcessOf` back-edges |
 | `decode with hasPart as child datasets` | Child decoded, `PartOf` back-edge set |
 | `decode hasPart with empty type defaults to Dataset` | Item without `type` field decoded as child Dataset |
 | `decode with additionalProperty` | PVs decoded |
@@ -228,7 +237,8 @@ These should match what the encoder produces so they can also serve as encoder r
 | `PartOf back-edge after decode` | `child.PartOf = Some parent` after decoding |
 | `back-edges not in output` | No `partOf` or `processOf` keys in YAML |
 | `round-trip minimal` | |
-| `round-trip with processes` | Processes survive encode → decode |
+| `round-trip with processes` | Expanded process count, singular endpoints, endpoint shapes, and lane order survive encode → decode |
+| `indexed grouped process round-trip` | Collapsed groups retain resolvable annotation/protocol references and indexed registries |
 | `round-trip nested hasPart` | Nested datasets survive encode → decode |
 
 ---
@@ -242,7 +252,7 @@ These tests encode a fully-wired graph, decode it, and compare structure rather 
 | `linear graph round-trip` | Fixture graph from ProcessCore.Tests Fixture A: encode `DS-A` → YAML string → decode → same process names, same input/output names |
 | `nested dataset round-trip` | Fixture D: parent with two child datasets → encode → decode → child identifier and process names intact |
 | `parameterValues round-trip` | PVs with all optional fields survive encoding and decoding |
-| `protocol round-trip` | Recipe with parameters, labEquipment, intendedUse all survive |
+| `protocol round-trip` | Recipe with parameters, components, and intendedUse survives |
 | `whitespace option` | `toYamlString (Some 4)` produces YAML with 4-space indentation that `fromYamlString` can parse back |
 | `Decode.fromYamlString entry point` | Top-level `Decode.fromYamlString Dataset.decoder` works equivalently to `Dataset.fromYamlString` |
 | `Encode.toYamlString entry point` | Top-level `Encode.toYamlString` works equivalently to per-module helper |
@@ -374,4 +384,3 @@ These fixtures are intended for use as **inline string literals** in the test pr
 | `original investigation.yml lenient parse` | Load file content; parse with `Dataset.decoder false`; no exception; `identifier = "ara_prot_2023"`, `title` and `additionalProperty` decoded; `creators` in overflow |
 | `original assay_proteomics.yml lenient parse` | Load file content; parse with `Dataset.decoder false`; no exception; `identifier = "measurement1"`; all 20 processes decoded with typed inputs/outputs; `creators`, `labProtocols`, `annotations` in overflow |
 | `original datamap_proteomics.yml raw YAML load` | File can be read by `YAMLicious.Reader.read` without exception; top-level key `datacontexts` accessible as overflow on a bare `DynamicObj` |
-

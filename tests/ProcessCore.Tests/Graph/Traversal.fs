@@ -36,10 +36,13 @@ let private makeLinearDataAnnotationFixture () =
     let process1 = Process("pv-process-1")
     process1.ExecutesProtocol <- Some protocol1
     process1.AddParameterValue(Annotation("process1_parameter", value = "p1"))
-    process1.AddInputSample(sample1)
-    process1.AddInputSample(sample3)
-    process1.AddOutputSample(sample2)
-    process1.AddOutputSample(sample4)
+    process1.SetInputSample(sample1)
+    process1.SetOutputSample(sample2)
+    let process1b = Process("pv-process-1")
+    process1b.ExecutesProtocol <- Some protocol1
+    process1b.AddParameterValue(Annotation("process1_parameter", value = "p1"))
+    process1b.SetInputSample(sample3)
+    process1b.SetOutputSample(sample4)
 
     let protocol2 = Recipe("pv-protocol-2")
     protocol2.AddComponent(Annotation("protocol2_component", value = "instrument-2"))
@@ -47,14 +50,19 @@ let private makeLinearDataAnnotationFixture () =
     let process2 = Process("pv-process-2")
     process2.ExecutesProtocol <- Some protocol2
     process2.AddParameterValue(Annotation("process2_parameter", value = "p2"))
-    process2.AddInputSample(sample2)
-    process2.AddInputSample(sample4)
-    process2.AddOutputData(data1)
-    process2.AddOutputData(data2)
+    process2.SetInputSample(sample2)
+    process2.SetOutputData(data1)
+    let process2b = Process("pv-process-2")
+    process2b.ExecutesProtocol <- Some protocol2
+    process2b.AddParameterValue(Annotation("process2_parameter", value = "p2"))
+    process2b.SetInputSample(sample4)
+    process2b.SetOutputData(data2)
 
     let dataset = Dataset("PV-linear")
     dataset.AddProcess(process1)
+    dataset.AddProcess(process1b)
     dataset.AddProcess(process2)
+    dataset.AddProcess(process2b)
 
     dataset, sample1, sample2, data1
 
@@ -207,17 +215,6 @@ let tests = testList "Traversal" [
             Expect.equal keys (Set.ofList ["M:Source1"])
                 "Sample1 → upstream: {Source1}"
 
-        testCase "distinguish by process io order" <| fun _ ->
-            let p     = Process("MyProcess")
-            p.AddInputSample(Sample("Input1"))
-            p.AddInputSample(Sample("Input2"))
-            p.AddOutputSample(Sample("Output1"))
-            p.AddOutputSample(Sample("Output2"))
-            let output2 = p.Outputs.[1] // Output2
-            let nodes   = output2.UpstreamNodes()
-            Expect.hasLength nodes 1 "Output2 should have exactly one upstream node (Input2)"
-            Expect.equal (nodes[0].Key()) ("M:Input2") "Output2 → {Input2} in correct order"
-
     ]
 
     // ── 5.3 DownstreamProcesses / DownstreamNodes ────────────────────────────
@@ -240,17 +237,6 @@ let tests = testList "Traversal" [
             let f     = makeFixtureA()
             let procs = (DataNode f.RawData1).DownstreamProcesses()
             Expect.equal procs.Count 0 "rawData1.csv → no downstream processes"
-
-        testCase "distinguish by process io order" <| fun _ ->
-            let p     = Process("MyProcess")
-            p.AddInputSample(Sample("Input1"))
-            p.AddInputSample(Sample("Input2"))
-            p.AddOutputSample(Sample("Output1"))
-            p.AddOutputSample(Sample("Output2"))
-            let input1  = p.Inputs.[0] // Input1
-            let nodes   = input1.DownstreamNodes()
-            Expect.hasLength nodes 1 "Input1 should have exactly one downstream node (Output1)"
-            Expect.equal (nodes[0].Key()) ("M:Output1") "Input1 → {Output1} in correct order"
 
     ]
 

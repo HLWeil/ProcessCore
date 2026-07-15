@@ -23,12 +23,12 @@ let tests = testList "RoundTrip" [
 
         // p1 inputs / outputs
         let p1 = decoded.Processes.[0]
-        Expect.equal p1.Inputs.Count  1 "p1 one input"
-        Expect.equal p1.Outputs.Count 1 "p1 one output"
-        match p1.Inputs.[0] with
+        Expect.isSome p1.Input "p1 one input"
+        Expect.isSome p1.Output "p1 one output"
+        match p1.Input.Value with
         | SampleNode m -> Expect.equal m.Name "Source1" "p1 input name"
         | DataNode _     -> failwith "Expected SampleNode for p1 input"
-        match p1.Outputs.[0] with
+        match p1.Output.Value with
         | SampleNode m -> Expect.equal m.Name "Sample1" "p1 output name"
         | DataNode _     -> failwith "Expected SampleNode for p1 output"
 
@@ -40,8 +40,8 @@ let tests = testList "RoundTrip" [
 
         // p3 data output
         let p3 = decoded.Processes.[2]
-        Expect.equal p3.Outputs.Count 1 "p3 one output"
-        match p3.Outputs.[0] with
+        Expect.isSome p3.Output "p3 one output"
+        match p3.Output.Value with
         | DataNode d -> Expect.equal d.Path "rawData1.csv" "p3 data path"
         | SampleNode _ -> failwith "Expected DataNode for p3 output"
 

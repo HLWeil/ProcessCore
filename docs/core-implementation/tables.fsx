@@ -33,8 +33,8 @@ let growthProcess inputName outputName temperature =
 
     let p = Process("Growth")
     p.ExecutesProtocol <- Some protocol
-    p.AddInputSample(source inputName)
-    p.AddOutputSample(output)
+    p.SetInputSample(source inputName)
+    p.SetOutputSample(output)
     p.AddParameterValue(Annotation("duration", value = "7", unit = "day", additionalType = "ParameterValue"))
     p
 

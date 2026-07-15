@@ -15,51 +15,57 @@ let tests = testList "Process" [
         let p2 = Process("p2")
         Expect.notEqual p1 p2 "Different names → not equal"
 
-    testCase "AddInput does not deduplicate sample" <| fun _ ->
-        let p = Process("p")
-        let m = Sample("Sample1")
-        p.AddInputSample(m)
-        p.AddInputSample(m)
-        Expect.equal p.Inputs.Count 2 "Identical sample added twice → two inputs"
+    testCase "construct with optional singular endpoints" <| fun _ ->
+        let input = SampleNode(Sample("Source"))
+        let output = DataNode(Data("result.csv"))
+        let p = Process("p", input = input, output = output)
+        Expect.equal p.Input (Some input) "singular input is retained"
+        Expect.equal p.Output (Some output) "singular output is retained"
 
-    testCase "AddInput does not deduplicate data" <| fun _ ->
+    testCase "setting an input replaces it and clears the old back-edge" <| fun _ ->
         let p = Process("p")
-        let d = Data("file.csv")
-        p.AddInputData(d)
-        p.AddInputData(d)
-        Expect.equal p.Inputs.Count 2 "Identical data added twice → two inputs"
+        let first = Sample("First")
+        let second = Data("second.csv")
+        p.SetInputSample(first)
+        p.SetInputData(second)
+        Expect.equal p.Input (Some(DataNode second)) "the second assignment replaces the first"
+        Expect.isFalse (first.InputOf.Contains(p)) "old input back-edge is removed"
+        Expect.isTrue (second.InputOf.Contains(p)) "new input back-edge is added"
 
     testCase "RemoveInput sample clears back-edge" <| fun _ ->
         let p = Process("p")
         let m = Sample("Sample1")
-        p.AddInputSample(m)
+        p.SetInputSample(m)
         Expect.isTrue (m.InputOf |> Seq.exists (fun x -> x = p)) "Back-edge set before removal"
-        p.RemoveInputSample(m)
-        Expect.equal p.Inputs.Count 0 "Input removed from process"
+        p.ClearInput()
+        Expect.isNone p.Input "Input removed from process"
         Expect.isFalse (m.InputOf |> Seq.exists (fun x -> x = p)) "Back-edge cleared after removal"
 
     testCase "RemoveInput data clears back-edge" <| fun _ ->
         let p = Process("p")
         let d = Data("file.csv")
-        p.AddInputData(d)
-        p.RemoveInputData(d)
-        Expect.equal p.Inputs.Count 0 "Input removed from process"
+        p.SetInputData(d)
+        p.ClearInput()
+        Expect.isNone p.Input "Input removed from process"
         Expect.isFalse (d.InputOf |> Seq.exists (fun x -> x = p)) "Back-edge cleared after removal"
 
-    testCase "AddOutput does not deduplicate sample" <| fun _ ->
+    testCase "setting an output replaces it and clears the old back-edge" <| fun _ ->
         let p = Process("p")
-        let m = Sample("Sample2")
-        p.AddOutputSample(m)
-        p.AddOutputSample(m)
-        Expect.equal p.Outputs.Count 2 "Identical sample added twice → two outputs"
+        let first = Sample("First")
+        let second = Data("second.csv")
+        p.SetOutputSample(first)
+        p.SetOutputData(second)
+        Expect.equal p.Output (Some(DataNode second)) "the second assignment replaces the first"
+        Expect.isFalse (first.OutputOf.Contains(p)) "old output back-edge is removed"
+        Expect.isTrue (second.OutputOf.Contains(p)) "new output back-edge is added"
 
     testCase "RemoveOutput sample clears back-edge" <| fun _ ->
         let p = Process("p")
         let m = Sample("Sample2")
-        p.AddOutputSample(m)
+        p.SetOutputSample(m)
         Expect.isTrue (m.OutputOf |> Seq.exists (fun x -> x = p)) "Back-edge set before removal"
-        p.RemoveOutputSample(m)
-        Expect.equal p.Outputs.Count 0 "Output removed from process"
+        p.ClearOutput()
+        Expect.isNone p.Output "Output removed from process"
         Expect.isFalse (m.OutputOf |> Seq.exists (fun x -> x = p)) "Back-edge cleared after removal"
 
     testCase "AddParameterValue does not deduplicate" <| fun _ ->
@@ -97,28 +103,19 @@ let tests = testList "Process" [
         let p = Process("p")
         let m = Sample("Sample1")
         let d = Data("file.csv")
-        p.AddInputSample(m)
-        p.AddInputData(d)
-        Expect.equal p.Inputs.Count 2 "Two inputs total"
-        let mats  = p.InputSamples()
-        let datas = p.InputData()
-        Expect.equal mats.Count  1 "One sample input"
-        Expect.equal datas.Count 1 "One data input"
-        Expect.equal mats.[0]  m "Sample input is correct"
-        Expect.equal datas.[0] d "Data input is correct"
+        p.SetInputSample(m)
+        p.SetInputData(d)
+        Expect.isNone (p.InputSample()) "Data replaces the sample input"
+        Expect.equal (p.InputData()) (Some d) "Data input is correct"
 
     testCase "OutputSamples and OutputData filter correctly" <| fun _ ->
         let p = Process("p")
         let m = Sample("Sample2")
         let d = Data("output.csv")
-        p.AddOutputSample(m)
-        p.AddOutputData(d)
-        let mats  = p.OutputSamples()
-        let datas = p.OutputData()
-        Expect.equal mats.Count  1 "One sample output"
-        Expect.equal datas.Count 1 "One data output"
-        Expect.equal mats.[0]  m "Sample output is correct"
-        Expect.equal datas.[0] d "Data output is correct"
+        p.SetOutputSample(m)
+        p.SetOutputData(d)
+        Expect.isNone (p.OutputSample()) "Data replaces the sample output"
+        Expect.equal (p.OutputData()) (Some d) "Data output is correct"
 
     testCase "ProtocolParameters returns empty without protocol" <| fun _ ->
         let p = Process("p")
@@ -144,7 +141,7 @@ let tests = testList "Process" [
         let m  = Sample("Sample1")
         let pv = Annotation("organism", value = "E. coli", additionalType = "CharacteristicValue")
         m.AddAdditionalProperty(pv)
-        p.AddInputSample(m)
+        p.SetInputSample(m)
         let result = p.AnnotationsByName("organism")
         Expect.equal result.Count 1 "Should find PV in input node AdditionalProperty"
 
@@ -153,7 +150,7 @@ let tests = testList "Process" [
         let m  = Sample("Sample2")
         let pv = Annotation("growth_phase", value = "log", additionalType = "FactorValue")
         m.AddAdditionalProperty(pv)
-        p.AddOutputSample(m)
+        p.SetOutputSample(m)
         let result = p.AnnotationsByName("growth_phase")
         Expect.equal result.Count 1 "Should find PV in output node AdditionalProperty"
 

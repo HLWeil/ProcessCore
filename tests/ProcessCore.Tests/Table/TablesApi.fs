@@ -9,15 +9,15 @@ open ProcessCore.Table
 let makeDatasetWithTwoTables () =
     // "TableA" — 2 processes
     let p1a = Process("TableA")
-    p1a.AddInputSample(Sample("S1", additionalType = "Source"))
-    p1a.AddOutputSample(Sample("O1", additionalType = "Sample"))
+    p1a.SetInputSample(Sample("S1", additionalType = "Source"))
+    p1a.SetOutputSample(Sample("O1", additionalType = "Sample"))
     let p2a = Process("TableA")
-    p2a.AddInputSample(Sample("S2", additionalType = "Source"))
-    p2a.AddOutputSample(Sample("O2", additionalType = "Sample"))
+    p2a.SetInputSample(Sample("S2", additionalType = "Source"))
+    p2a.SetOutputSample(Sample("O2", additionalType = "Sample"))
     // "TableB" — 1 process
     let p1b = Process("TableB")
-    p1b.AddInputSample(Sample("S3", additionalType = "Source"))
-    p1b.AddOutputSample(Sample("O3", additionalType = "Sample"))
+    p1b.SetInputSample(Sample("S3", additionalType = "Source"))
+    p1b.SetOutputSample(Sample("O3", additionalType = "Sample"))
     let ds = Dataset("DS")
     ds.AddProcess(p1a)
     ds.AddProcess(p2a)

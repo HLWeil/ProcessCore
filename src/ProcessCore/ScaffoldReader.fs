@@ -12,7 +12,6 @@ let parseTablesIntoDataset (ds : Dataset) (wb : FsWorkbook) =
     |> Seq.iter (fun ws ->
         Table.tryFromFsWorksheet ds ws |> ignore
     )
-    ds.CollapseProcesses()
     ds.Tables.GetTables() |> Seq.iter (fun t -> t.ColumnCount |> ignore)
     ds
 

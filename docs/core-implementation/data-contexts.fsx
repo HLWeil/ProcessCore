@@ -61,7 +61,7 @@ let resultFile = Data(resultPath, encodingFormat = tabularEncoding)
 let measuredColumn = Data(resultPath, selector = "#col=3", selectorFormat = selectorFormat, encodingFormat = tabularEncoding)
 
 let analysis = Process("analysis")
-analysis.AddOutputData(measuredColumn)
+analysis.SetOutputData(measuredColumn)
 
 contextDemo.AddDataFile(resultFile)
 contextDemo.AddProcess(analysis)
@@ -186,16 +186,16 @@ let addResult condition bioRep techRep selector =
     let data = Data("proteomics_result.tsv", selector = selector, selectorFormat = CsvFragmentSelectorProvider.SelectorFormatUri, encodingFormat = "text/tab-separated-values")
 
     let growth = Process($"Growth {condition} C {bioRep}.{techRep}")
-    growth.AddInputSample(source)
-    growth.AddOutputSample(culture)
+    growth.SetInputSample(source)
+    growth.SetOutputSample(culture)
 
     let preparation = Process($"Prepare sample {condition} C {bioRep}.{techRep}")
-    preparation.AddInputSample(culture)
-    preparation.AddOutputSample(aliquot)
+    preparation.SetInputSample(culture)
+    preparation.SetOutputSample(aliquot)
 
     let analysis = Process($"Computational proteome analysis {condition} C {bioRep}.{techRep}")
-    analysis.AddInputSample(aliquot)
-    analysis.AddOutputData(data)
+    analysis.SetInputSample(aliquot)
+    analysis.SetOutputData(data)
 
     dataset.AddProcess(growth)
     dataset.AddProcess(preparation)
@@ -245,16 +245,16 @@ let addResult condition bioRep techRep selector =
     let data = Data("proteomics_result.tsv", selector = selector, selectorFormat = CsvFragmentSelectorProvider.SelectorFormatUri, encodingFormat = "text/tab-separated-values")
 
     let growth = Process($"Growth {condition} C {bioRep}.{techRep}")
-    growth.AddInputSample(source)
-    growth.AddOutputSample(culture)
+    growth.SetInputSample(source)
+    growth.SetOutputSample(culture)
 
     let preparation = Process($"Prepare sample {condition} C {bioRep}.{techRep}")
-    preparation.AddInputSample(culture)
-    preparation.AddOutputSample(aliquot)
+    preparation.SetInputSample(culture)
+    preparation.SetOutputSample(aliquot)
 
     let analysis = Process($"Computational proteome analysis {condition} C {bioRep}.{techRep}")
-    analysis.AddInputSample(aliquot)
-    analysis.AddOutputData(data)
+    analysis.SetInputSample(aliquot)
+    analysis.SetOutputData(data)
 
     dataset.AddProcess(growth)
     dataset.AddProcess(preparation)

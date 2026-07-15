@@ -4,6 +4,9 @@ open Fable.Pyxpecto
 open ProcessCore
 open ProcessCore.Yaml
 
+let decodeOne processCoreOnly yaml =
+    Yaml.Process.fromYamlString processCoreOnly yaml |> Seq.exactlyOne
+
 let tests = testList "Process" [
 
     testCase "encode name only" <| fun _ ->
@@ -14,14 +17,14 @@ let tests = testList "Process" [
 
     testCase "encode with sample input" <| fun _ ->
         let proc = Process("p1")
-        proc.AddInput(SampleNode (Sample("Source1", additionalType = "Source")))
+        proc.SetInput(SampleNode (Sample("Source1", additionalType = "Source")))
         let yaml = Yaml.Process.toYamlString None proc
         Expect.isTrue (yaml.Contains("inputs"))   "inputs key"
         Expect.isTrue (yaml.Contains("Source1"))  "sample name"
 
     testCase "encode with data output" <| fun _ ->
         let proc = Process("p1")
-        proc.AddOutput(DataNode (Data("results.csv")))
+        proc.SetOutput(DataNode (Data("results.csv")))
         let yaml = Yaml.Process.toYamlString None proc
         Expect.isTrue (yaml.Contains("outputs"))     "outputs key"
         Expect.isTrue (yaml.Contains("results.csv")) "data path"
@@ -43,10 +46,10 @@ let tests = testList "Process" [
 
     testCase "decode name only" <| fun _ ->
         let yaml = "type: Process\nname: p1\n"
-        let proc = Yaml.Process.fromYamlString true yaml
+        let proc = decodeOne true yaml
         Expect.equal proc.Name "p1" "name"
-        Expect.equal proc.Inputs.Count  0 "no inputs"
-        Expect.equal proc.Outputs.Count 0 "no outputs"
+        Expect.isNone proc.Input "no input"
+        Expect.isNone proc.Output "no output"
 
     testCase "decode sample input" <| fun _ ->
         let yaml = """type: Process
@@ -56,9 +59,9 @@ inputs:
     name: Source1
     additionalType: Source
 """
-        let proc = Yaml.Process.fromYamlString true yaml
-        Expect.equal proc.Inputs.Count 1 "one input"
-        match proc.Inputs.[0] with
+        let proc = decodeOne true yaml
+        Expect.isSome proc.Input "one input"
+        match proc.Input.Value with
         | SampleNode m -> Expect.equal m.Name "Source1" "sample name"
         | DataNode _     -> failwith "Expected SampleNode"
 
@@ -69,9 +72,9 @@ outputs:
   - type: Data
     path: results.csv
 """
-        let proc = Yaml.Process.fromYamlString true yaml
-        Expect.equal proc.Outputs.Count 1 "one output"
-        match proc.Outputs.[0] with
+        let proc = decodeOne true yaml
+        Expect.isSome proc.Output "one output"
+        match proc.Output.Value with
         | DataNode d     -> Expect.equal d.Path "results.csv" "data path"
         | SampleNode _ -> failwith "Expected DataNode"
 
@@ -83,9 +86,9 @@ outputs:
   - type: File
     path: results.csv
 """
-        let proc = Yaml.Process.fromYamlString true yaml
-        Expect.equal proc.Outputs.Count 1 "one output"
-        match proc.Outputs.[0] with
+        let proc = decodeOne true yaml
+        Expect.isSome proc.Output "one output"
+        match proc.Output.Value with
         | DataNode d     -> Expect.equal d.Path "results.csv" "data path via File alias"
         | SampleNode _ -> failwith "Expected DataNode"
 
@@ -98,9 +101,9 @@ inputs:
 outputs:
   - some-data-id
 """
-        let proc = Yaml.Process.fromYamlString true yaml
-        Expect.equal proc.Inputs.Count  0 "id ref input skipped"
-        Expect.equal proc.Outputs.Count 0 "id ref output skipped"
+        let proc = decodeOne true yaml
+        Expect.isNone proc.Input "id ref input skipped"
+        Expect.isNone proc.Output "id ref output skipped"
 
     testCase "decode executesProtocol as inline object" <| fun _ ->
         let yaml = """type: Process
@@ -109,13 +112,13 @@ executesProtocol:
   type: Recipe
   name: extraction
 """
-        let proc = Yaml.Process.fromYamlString true yaml
+        let proc = decodeOne true yaml
         Expect.isSome proc.ExecutesProtocol "executesProtocol is Some"
         Expect.equal proc.ExecutesProtocol.Value.Name (Some "extraction") "protocol name"
 
     testCase "decode executesProtocol as id-reference" <| fun _ ->
         let yaml = "type: Process\nname: p1\nexecutesProtocol: some-proto-id\n"
-        let proc = Yaml.Process.fromYamlString true yaml
+        let proc = decodeOne true yaml
         Expect.equal proc.ExecutesProtocol None "id ref leaves ExecutesProtocol as None"
 
     testCase "decode parameterValues" <| fun _ ->
@@ -127,7 +130,7 @@ parameterValue:
     value: '37'
     unit: "°C"
 """
-        let proc = Yaml.Process.fromYamlString true yaml
+        let proc = decodeOne true yaml
         Expect.equal proc.ParameterValue.Count 1               "one parameter value"
         Expect.equal proc.ParameterValue.[0].Name "temperature" "param name"
         Expect.equal proc.ParameterValue.[0].Unit (Some "°C")   "param unit"
@@ -140,18 +143,18 @@ parameterValue:
     testCase "round-trip name only" <| fun _ ->
         let original = Process("p1")
         let yaml     = Yaml.Process.toYamlString None original
-        let decoded  = Yaml.Process.fromYamlString true yaml
+        let decoded  = decodeOne true yaml
         Expect.equal decoded.Name original.Name "name"
 
     testCase "round-trip with inputs and outputs" <| fun _ ->
         let original = Process("p1")
-        original.AddInput(SampleNode (Sample("Source1", additionalType = "Source")))
-        original.AddOutput(SampleNode (Sample("Sample1", additionalType = "Sample")))
+        original.SetInput(SampleNode (Sample("Source1", additionalType = "Source")))
+        original.SetOutput(SampleNode (Sample("Sample1", additionalType = "Sample")))
         let yaml    = Yaml.Process.toYamlString None original
-        let decoded = Yaml.Process.fromYamlString true yaml
-        Expect.equal decoded.Inputs.Count  1 "inputs count"
-        Expect.equal decoded.Outputs.Count 1 "outputs count"
-        match decoded.Inputs.[0] with
+        let decoded = decodeOne true yaml
+        Expect.isSome decoded.Input "input present"
+        Expect.isSome decoded.Output "output present"
+        match decoded.Input.Value with
         | SampleNode m -> Expect.equal m.Name "Source1" "input name"
         | _ -> failwith "Expected SampleNode"
 
@@ -162,9 +165,41 @@ parameterValue:
         original.ExecutesProtocol <- Some proto
         original.AddParameterValue(Annotation("temperature", value = "37", unit = "°C"))
         let yaml    = Yaml.Process.toYamlString None original
-        let decoded = Yaml.Process.fromYamlString true yaml
+        let decoded = decodeOne true yaml
         Expect.isSome decoded.ExecutesProtocol              "executesProtocol present"
         Expect.equal decoded.ParameterValue.Count 1         "parameterValue count"
         Expect.equal decoded.ParameterValue.[0].Value (Some "37") "param value"
+
+    testCase "decode collapsed YAML into singular process edges" <| fun _ ->
+        let yaml = """type: Process
+name: paired
+inputs:
+  - { type: Sample, name: Input1 }
+  - { type: Sample, name: Input2 }
+outputs:
+  - { type: Sample, name: Output1 }
+  - { type: Sample, name: Output2 }
+"""
+        let decoded = Yaml.Process.fromYamlString true yaml
+        Expect.equal decoded.Count 2 "one process per positional pair"
+        Expect.equal (decoded.[0].Input.Value.Key()) "M:Input1" "first input"
+        Expect.equal (decoded.[0].Output.Value.Key()) "M:Output1" "first output"
+        Expect.equal (decoded.[1].Input.Value.Key()) "M:Input2" "second input"
+        Expect.equal (decoded.[1].Output.Value.Key()) "M:Output2" "second output"
+
+    testCase "decode unequal YAML arrays with optional padding" <| fun _ ->
+        let yaml = """type: Process
+name: padded
+inputs:
+  - { type: Sample, name: Input1 }
+outputs:
+  - { type: Sample, name: Output1 }
+  - { type: Sample, name: Output2 }
+"""
+        let decoded = Yaml.Process.fromYamlString true yaml
+        Expect.equal decoded.Count 2 "longer side determines process count"
+        Expect.isSome decoded.[0].Input "first edge has an input"
+        Expect.isNone decoded.[1].Input "second edge is output-only"
+        Expect.isSome decoded.[1].Output "second output is retained"
 
 ]

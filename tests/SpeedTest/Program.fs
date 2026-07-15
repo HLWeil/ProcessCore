@@ -14,8 +14,8 @@ let createBySize (size: int) =
         p.AddParameterValue(tenDays)
         p.AddParameterValue(normalTemp)
         dataset.AddProcess(p)
-        p.AddInputSample(inp)
-        p.AddOutputSample(out)
+        p.SetInputSample(inp)
+        p.SetOutputSample(out)
 
 [<EntryPoint>]
 let main argv =
