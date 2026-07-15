@@ -44,11 +44,11 @@ ymlCodeBlock
 let myAssay = ProcessCore.Yaml.Dataset.fromYamlString false ymlString
 
 (**
-The example stores protocol references by id. For the protocol-name filter below, mirror the process name into the protocol name when the YAML did not provide one.
+The example stores recipe references by id. For the recipe-name filter below, mirror the process name into the recipe name when the YAML did not provide one.
 *)
 
 for proc in myAssay.Processes do
-    proc.ExecutesProtocol
+    proc.ExecutesRecipe
     |> Option.iter (fun protocol ->
         if protocol.Name.IsNone then
             protocol.Name <- Some proc.Name)
@@ -155,7 +155,7 @@ let resultPathsFrom25DegreeGrowth =
     myAssay.AllData()
     |> Seq.filter (fun data -> data.Path.Contains("proteomics_result.csv"))
     |> Seq.filter (fun data ->
-        data.UpstreamAnnotations(protocolName = "Growth", scope = myAssay.AllProcesses())
+        data.UpstreamAnnotations(recipeName = "Growth", scope = myAssay.AllProcesses())
         |> Seq.exists is25Degrees)
     |> Seq.map (fun d -> d.Path)
     |> Seq.toList

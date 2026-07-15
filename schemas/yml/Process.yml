@@ -50,12 +50,12 @@ properties:
     items:
       $ref: "#/$defs/sampleOrData"
 
-  executesProtocol:
+  executesRecipe:
     oneOf:
       - type: string
         description: "@id reference to a Recipe"
       - $ref: "Recipe.yml"
-    description: Protocol that was executed by this process (SHOULD)
+    description: Recipe that was executed by this process (SHOULD)
 
   parameterValue:
     type: array

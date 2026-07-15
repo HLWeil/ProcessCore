@@ -9,11 +9,11 @@ open ProcessCore.Tests.Fixtures
 //
 //   Source1 ──[growth]──► Sample1 ──[digestion]──► Sample2 ──[measurement]──► rawData1.csv
 //
-//   growth protocol      — IntendedUse = "cell growth"
+//   growth recipe      — IntendedUse = "cell growth"
 //                          ParameterValues: temperature="37" (°C), rpm="200" (rpm)
-//   digestion protocol   — IntendedUse = "protein digestion"
+//   digestion recipe   — IntendedUse = "protein digestion"
 //                          ParameterValue: enzyme="Trypsin" (term, TAN)
-//   measurement process  — no protocol
+//   measurement process  — no recipe
 //
 // The fixture is re-created inside every test (makeFixtureA()) so tests are
 // fully independent and free of shared-state coupling.
@@ -42,7 +42,7 @@ let tests = testList "Integration" [
     testCase "use-case 1 — growth temperature filter" <| fun _ ->
         // Fixture B: Source1 --[p1 growth@37°C]--> Sample1 --[p2]--> SampleA
         //                                                   --[p3]--> SampleB
-        // p1 protocol IntendedUse="cell growth", parameter temperature=37°C
+        // p1 recipe IntendedUse="cell growth", parameter temperature=37°C
         // SampleA and SampleB are terminal → both should appear
         let f = makeFixtureB()
         let results = f.DS.SamplesResultingFromConditionBy("cell growth", fun pv -> pv.Name = "temperature" && pv.Value = Some "37")

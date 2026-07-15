@@ -2,7 +2,7 @@
 
 ## Overview
 
-The core datamodel represents experimental workflows as a process graph. The same information can also be expressed in a tabular format, where each table corresponds to a group of process nodes executing the same protocol step. This plan describes a set of types and APIs that provide a tabular view of the core datamodel — not a separate datamodel with its own storage, but a live projection of the underlying process graph.
+The core datamodel represents experimental workflows as a process graph. The same information can also be expressed in a tabular format, where each table corresponds to a group of process nodes executing the same recipe step. This plan describes a set of types and APIs that provide a tabular view of the core datamodel — not a separate datamodel with its own storage, but a live projection of the underlying process graph.
 
 **Reference documents:**
 - [Conversion Specification](../references/TabularAndProcessConversion.md) — defines how processes map to table rows/columns and vice versa
@@ -89,11 +89,11 @@ The public table row index is the underlying `Process` index. A row consists of 
 - Provides full cell, column, row, and protocol column APIs following the `ArcTable` reference.
 - `AddColumn` and cell/row update APIs handle `Input`, `Output`, `ProtocolREF`, `ProtocolType`, `ProtocolDescription`, `ProtocolUri`, and `ProtocolVersion` as writable roles. `RemoveColumn` clears Input/Output endpoints and removes annotation columns; removing a protocol header is currently a no-op, while protocol values are cleared or replaced through row/cell writes.
 - Adding/removing a row creates/removes exactly one corresponding `Process` node in the parent `Dataset`; endpoint nodes are registered or evicted through normal dataset graph maintenance.
-- Modifying a cell updates the corresponding `Annotation`, entity name, or protocol field on the underlying process nodes.
+- Modifying a cell updates the corresponding `Annotation`, entity name, or recipe field on the underlying process nodes.
 - Missing Input or Output: if a table has no Input column but has Characteristic columns, a synthetic input entity is created per row (named `<tableName>_<rowIndex>`). The same applies symmetrically for Output and Factor columns.
 - Singular I/O: each row reads and writes only `Process.Input` and `Process.Output`; missing endpoints remain blank cells/`None`.
-- Protocol multiplicity: each process node references its own copy of a protocol object. Protocol column values may vary per row.
-- Protocol-field writes must create a `Recipe` for the row's process when one does not already exist. Component-column writes must also create a protocol when needed so the component `Annotation` has a valid graph slot.
+- Recipe multiplicity: each process node references its own copy of a recipe object. Protocol-named spreadsheet column values may vary per row.
+- Protocol-field writes must create a `Recipe` for the row's process when one does not already exist. Component-column writes must also create a recipe when needed so the component `Annotation` has a valid graph slot.
 
 ### Technical difficulty coverage
 
@@ -107,7 +107,7 @@ The following implementation risks are explicitly part of this plan:
 | Characteristic/Factor writes failed when the carrier input/output was missing | Covered by the synthetic input/output rule |
 | Annotation column order could not round-trip because column order metadata was missing | Covered by Required Changes and Column ordering |
 | Protocol fields were not updated consistently by row/cell APIs | Covered by first-class writable protocol columns |
-| Component writes failed when a process had no protocol | Covered by protocol-field/component write creation rule |
+| Component writes failed when a process had no recipe | Covered by protocol-field/component write creation rule |
 
 ### `Tables` collection on `Dataset`
 

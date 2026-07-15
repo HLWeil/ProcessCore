@@ -49,7 +49,7 @@
   - [spec/core/Sample.md](spec/core/Sample.md) — already present, keep as baseline wording.
   - [spec/core/Data.md](spec/core/Data.md) — add `additionalProperty` for file- and fragment-level annotations.
   - [spec/core/Process.md](spec/core/Process.md) — add `additionalProperty` for non-parameter annotations.
-  - [spec/core/Protocol.md](spec/core/Protocol.md) — add `additionalProperty` for extensible protocol metadata.
+  - [spec/core/Recipe.md](spec/core/Recipe.md) — add `additionalProperty` for extensible recipe metadata.
   - [spec/core/Person.md](spec/core/Person.md) — add `additionalProperty` for auxiliary person metadata when needed.
   - [spec/core/DefinedTerm.md](spec/core/DefinedTerm.md) — add `additionalProperty` for extensible term annotations if the model wants a universal hook.
 - Decide whether `Annotation` itself should remain the shared extension payload only, rather than also receiving an `additionalProperty` slot.

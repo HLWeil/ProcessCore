@@ -51,7 +51,7 @@ let fixtureProcess =
     let proc = Process("p1")
     proc.SetInput(SampleNode fixtureSample)
     proc.SetOutput(DataNode fixtureData)
-    proc.ExecutesProtocol <- Some fixtureRecipe
+    proc.ExecutesRecipe <- Some fixtureRecipe
     proc.AddParameterValue(Annotation("temperature", value = "37", unit = "°C"))
     proc.AddParameterValue(Annotation("rpm", value = "200", unit = "rpm"))
     proc
@@ -83,7 +83,7 @@ let makeLinearGraph () =
     let p1 = Process("p1")
     p1.SetInput(SampleNode source1)
     p1.SetOutput(SampleNode sample1)
-    p1.ExecutesProtocol <- Some proto1
+    p1.ExecutesRecipe <- Some proto1
     p1.AddParameterValue(Annotation("temperature", value = "37", unit = "°C"))
     p1.AddParameterValue(Annotation("rpm", value = "200", unit = "rpm"))
 
@@ -91,7 +91,7 @@ let makeLinearGraph () =
     let p2 = Process("p2")
     p2.SetInput(SampleNode sample1)
     p2.SetOutput(SampleNode sample2)
-    p2.ExecutesProtocol <- Some proto2
+    p2.ExecutesRecipe <- Some proto2
     p2.AddParameterValue(Annotation("enzyme", value = "Trypsin"))
 
     let p3 = Process("p3")
@@ -132,24 +132,24 @@ agents:
       "@type": DefinedTerm
       name: research assistant
       termCode: http://purl.org/spar/scoro/research-assistant
-labProtocols:
+recipes:
     -
-      "@id": "#Protocol_Growth"
+      "@id": "#Recipe_Growth"
       type: Recipe
       components:
         "@id": "#Component_growth_environment_bioreactor"
     -
-      "@id": "#Protocol_Cell_Lysis"
+      "@id": "#Recipe_Cell_Lysis"
       type: Recipe
       components:
         "@id": "#Component_centrifuge_Eppendorf™_Centrifuge_5420"
     -
-      "@id": "#Protocol_MS_Run"
+      "@id": "#Recipe_MS_Run"
       type: Recipe
       components:
         "@id": "#Component_mass_spectrometer_Q_Exactive_9000"
     -
-      "@id": "#Protocol_Computational_Proteome_Analysis"
+      "@id": "#Recipe_Computational_Proteome_Analysis"
       type: Recipe
 annotations:
   -
@@ -257,8 +257,8 @@ processes:
         additionalProperty:
           -
            "@id": "#FactorValue_temperature_25_degree_Celsius"
-    executesProtocol:
-      "@id": "#Protocol_Growth"
+    executesRecipe:
+      "@id": "#Recipe_Growth"
   -
     type: Process
     name: Growth
@@ -276,8 +276,8 @@ processes:
         additionalProperty:
           -
            "@id": "#FactorValue_temperature_30_degree_Celsius"
-    executesProtocol:
-      "@id": "#Protocol_Growth"
+    executesRecipe:
+      "@id": "#Recipe_Growth"
   -
     type: Process
     name: Cell Lysis
@@ -289,8 +289,8 @@ processes:
       - type: Sample
         additionalType: Sample
         name: Eppi RT 1
-    executesProtocol:
-      "@id": "#Protocol_Cell_Lysis"
+    executesRecipe:
+      "@id": "#Recipe_Cell_Lysis"
     parameterValue:
       - "@id": "#ParameterValue_time_10_minute"
       - "@id": "#ParameterValue_sonicator_Fisherbrand_Model_705_Sonic_Dismembrator"
@@ -306,8 +306,8 @@ processes:
       - type: Sample
         additionalType: Sample
         name: Eppi RT 2
-    executesProtocol:
-      "@id": "#Protocol_Cell_Lysis"
+    executesRecipe:
+      "@id": "#Recipe_Cell_Lysis"
     parameterValue:
       - "@id": "#ParameterValue_time_10_minute"
       - "@id": "#ParameterValue_sonicator_Fisherbrand_Model_705_Sonic_Dismembrator"
@@ -323,8 +323,8 @@ processes:
       - type: Sample
         additionalType: Sample
         name: Eppi RT 3
-    executesProtocol:
-      "@id": "#Protocol_Cell_Lysis"
+    executesRecipe:
+      "@id": "#Recipe_Cell_Lysis"
     parameterValue:
       - "@id": "#ParameterValue_time_10_minute"
       - "@id": "#ParameterValue_sonicator_Fisherbrand_Model_705_Sonic_Dismembrator"
@@ -340,8 +340,8 @@ processes:
       - type: Sample
         additionalType: Sample
         name: Eppi HT 1
-    executesProtocol:
-      "@id": "#Protocol_Cell_Lysis"
+    executesRecipe:
+      "@id": "#Recipe_Cell_Lysis"
     parameterValue:
       - "@id": "#ParameterValue_time_10_minute"
       - "@id": "#ParameterValue_sonicator_Fisherbrand_Model_705_Sonic_Dismembrator"
@@ -357,8 +357,8 @@ processes:
       - type: Sample
         additionalType: Sample
         name: Eppi HT 2
-    executesProtocol:
-      "@id": "#Protocol_Cell_Lysis"
+    executesRecipe:
+      "@id": "#Recipe_Cell_Lysis"
     parameterValue:
       - "@id": "#ParameterValue_time_10_minute"
       - "@id": "#ParameterValue_sonicator_Fisherbrand_Model_705_Sonic_Dismembrator"
@@ -374,8 +374,8 @@ processes:
       - type: Sample
         additionalType: Sample
         name: Eppi HT 3
-    executesProtocol:
-      "@id": "#Protocol_Cell_Lysis"
+    executesRecipe:
+      "@id": "#Recipe_Cell_Lysis"
     parameterValue:
       - "@id": "#ParameterValue_time_10_minute"
       - "@id": "#ParameterValue_sonicator_Fisherbrand_Model_705_Sonic_Dismembrator"
@@ -390,8 +390,8 @@ processes:
     outputs:
       - type: Data
         path: sample1.raw
-    executesProtocol:
-      "@id": "#Protocol_MS_Run"
+    executesRecipe:
+      "@id": "#Recipe_MS_Run"
   -
     type: Process
     name: MS Run
@@ -402,8 +402,8 @@ processes:
     outputs:
       - type: Data
         path: sample2.raw
-    executesProtocol:
-      "@id": "#Protocol_MS_Run"
+    executesRecipe:
+      "@id": "#Recipe_MS_Run"
   -
     type: Process
     name: MS Run
@@ -414,8 +414,8 @@ processes:
     outputs:
       - type: Data
         path: sample3.raw
-    executesProtocol:
-      "@id": "#Protocol_MS_Run"
+    executesRecipe:
+      "@id": "#Recipe_MS_Run"
   -
     type: Process
     name: MS Run
@@ -426,8 +426,8 @@ processes:
     outputs:
       - type: Data
         path: sample4.raw
-    executesProtocol:
-      "@id": "#Protocol_MS_Run"
+    executesRecipe:
+      "@id": "#Recipe_MS_Run"
   -
     type: Process
     name: MS Run
@@ -438,8 +438,8 @@ processes:
     outputs:
       - type: Data
         path: sample5.raw
-    executesProtocol:
-      "@id": "#Protocol_MS_Run"
+    executesRecipe:
+      "@id": "#Recipe_MS_Run"
   -
     type: Process
     name: MS Run
@@ -450,8 +450,8 @@ processes:
     outputs:
       - type: Data
         path: sample6.raw
-    executesProtocol:
-      "@id": "#Protocol_MS_Run"
+    executesRecipe:
+      "@id": "#Recipe_MS_Run"
   -
     type: Process
     name: Computational Proteome Analysis
@@ -463,8 +463,8 @@ processes:
         path: "proteomics_result.csv#col=12"
         encodingFormat: text/csv
         usageInfo: https://datatracker.ietf.org/doc/html/rfc7111
-    executesProtocol:
-      "@id": "#Protocol_Computational_Proteome_Analysis"
+    executesRecipe:
+      "@id": "#Recipe_Computational_Proteome_Analysis"
     parameterValue:
       "@id": "#ParameterValue_software_ProteomIqon"
   -
@@ -478,8 +478,8 @@ processes:
         path: "proteomics_result.csv#col=13"
         encodingFormat: text/csv
         usageInfo: https://datatracker.ietf.org/doc/html/rfc7111
-    executesProtocol:
-      "@id": "#Protocol_Computational_Proteome_Analysis"
+    executesRecipe:
+      "@id": "#Recipe_Computational_Proteome_Analysis"
     parameterValue:
       "@id": "#ParameterValue_software_ProteomIqon"
   -
@@ -493,8 +493,8 @@ processes:
         path: "proteomics_result.csv#col=14"
         encodingFormat: text/csv
         usageInfo: https://datatracker.ietf.org/doc/html/rfc7111
-    executesProtocol:
-      "@id": "#Protocol_Computational_Proteome_Analysis"
+    executesRecipe:
+      "@id": "#Recipe_Computational_Proteome_Analysis"
     parameterValue:
       "@id": "#ParameterValue_software_ProteomIqon"
   -
@@ -508,8 +508,8 @@ processes:
         path: "proteomics_result.csv#col=15"
         encodingFormat: text/csv
         usageInfo: https://datatracker.ietf.org/doc/html/rfc7111
-    executesProtocol:
-      "@id": "#Protocol_Computational_Proteome_Analysis"
+    executesRecipe:
+      "@id": "#Recipe_Computational_Proteome_Analysis"
     parameterValue:
       "@id": "#ParameterValue_software_ProteomIqon"
   -
@@ -523,8 +523,8 @@ processes:
         path: "proteomics_result.csv#col=16"
         encodingFormat: text/csv
         usageInfo: https://datatracker.ietf.org/doc/html/rfc7111
-    executesProtocol:
-      "@id": "#Protocol_Computational_Proteome_Analysis"
+    executesRecipe:
+      "@id": "#Recipe_Computational_Proteome_Analysis"
     parameterValue:
       "@id": "#ParameterValue_software_ProteomIqon"
   -
@@ -538,8 +538,8 @@ processes:
         path: "proteomics_result.csv#col=17"
         encodingFormat: text/csv
         usageInfo: https://datatracker.ietf.org/doc/html/rfc7111
-    executesProtocol:
-      "@id": "#Protocol_Computational_Proteome_Analysis"
+    executesRecipe:
+      "@id": "#Recipe_Computational_Proteome_Analysis"
     parameterValue:
       "@id": "#ParameterValue_software_ProteomIqon"
 

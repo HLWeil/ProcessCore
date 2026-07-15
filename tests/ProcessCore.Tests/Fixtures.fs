@@ -35,11 +35,11 @@ module Expect =
 //
 //   Source1 --[p1]--> Sample1 --[p2]--> Sample2 --[p3]--> rawData1.csv
 //
-//   p1  protocol "extraction", IntendedUse = DefinedTerm("cell growth")
+//   p1  recipe "extraction", IntendedUse = DefinedTerm("cell growth")
 //       ParameterValue: temperature = "37" (unit "°C"), rpm = "200" (unit "rpm")
-//   p2  protocol "digestion"
+//   p2  recipe "digestion"
 //       ParameterValue: enzyme = "Trypsin" (term, with TAN)
-//   p3  no protocol
+//   p3  no recipe
 // ─────────────────────────────────────────────────────────────────────────────
 
 type FixtureA =
@@ -65,7 +65,7 @@ let makeFixtureA () : FixtureA =
     proto1.AddParameter(FormalParameter("rpm"))
 
     let p1 = Process("p1")
-    p1.ExecutesProtocol <- Some proto1
+    p1.ExecutesRecipe <- Some proto1
     p1.AddParameterValue(Annotation("temperature", value = "37",  unit = "°C",  additionalType = "ParameterValue"))
     p1.AddParameterValue(Annotation("rpm",         value = "200", unit = "rpm", additionalType = "ParameterValue"))
     p1.SetInputSample(source1)
@@ -75,7 +75,7 @@ let makeFixtureA () : FixtureA =
     let proto2 = Recipe("digestion")
 
     let p2 = Process("p2")
-    p2.ExecutesProtocol <- Some proto2
+    p2.ExecutesRecipe <- Some proto2
     p2.AddParameterValue(
         Annotation("enzyme",
                       value    = "Trypsin",
@@ -84,7 +84,7 @@ let makeFixtureA () : FixtureA =
     p2.SetInputSample(sample1)
     p2.SetOutputSample(sample2)
 
-    // p3 — no protocol
+    // p3 — no recipe
     let p3 = Process("p3")
     p3.SetInputSample(sample2)
     p3.SetOutputData(rawData1)
@@ -103,7 +103,7 @@ let makeFixtureA () : FixtureA =
 //   Source1 --[p1]--> Sample1 --[p2]--> SampleA
 //                             --[p3]--> SampleB
 //
-//   p1  protocol "extraction", IntendedUse = DefinedTerm("cell growth"),
+//   p1  recipe "extraction", IntendedUse = DefinedTerm("cell growth"),
 //       ParameterValue: temperature = "37" (unit "°C")
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -127,7 +127,7 @@ let makeFixtureB () : FixtureB =
     proto1.IntendedUse <- Some (DefinedTerm("cell growth"))
 
     let p1 = Process("p1")
-    p1.ExecutesProtocol <- Some proto1
+    p1.ExecutesRecipe <- Some proto1
     p1.AddParameterValue(Annotation("temperature", value = "37", unit = "°C", additionalType = "ParameterValue"))
     p1.SetInputSample(source1)
     p1.SetOutputSample(sample1)
@@ -302,14 +302,14 @@ let makeFixtureE () : FixtureE =
     p1.SetInputSample(source1)
     p1.SetOutputSample(sample1)
     let p1b = Process("p1")
-    p1b.ExecutesProtocol <- p1.ExecutesProtocol
+    p1b.ExecutesRecipe <- p1.ExecutesRecipe
     for pv in p1.ParameterValue do p1b.AddParameterValue(pv)
     p1b.SetInputSample(source2)
     p1b.SetOutputSample(sample2)
     p2.SetInputSample(sample1)
     p2.SetOutputData(data1)
     let p2b = Process("p2")
-    p2b.ExecutesProtocol <- p2.ExecutesProtocol
+    p2b.ExecutesRecipe <- p2.ExecutesRecipe
     for pv in p2.ParameterValue do p2b.AddParameterValue(pv)
     p2b.SetInputSample(sample2)
     p2b.SetOutputData(data2)
@@ -338,7 +338,7 @@ let makeFixtureE () : FixtureE =
 //   UpstreamNode --[UpstreamProc]--> InputNode --[Process]--> OutputNode --[DownstreamProc]--> DownstreamNode
 //
 //   Process  has: ParamPV (ParameterValue), InputPV (input node AdditionalProperty),
-//                 OutputPV (output node AdditionalProperty), ComponentPV (protocol Component)
+//                 OutputPV (output node AdditionalProperty), ComponentPV (recipe Component)
 //   UpstreamProc   has: UpstreamOnlyPV
 //   DownstreamProc has: DownstreamOnlyPV
 // ─────────────────────────────────────────────────────────────────────────────
@@ -356,7 +356,7 @@ type FixtureFourSources =
         ParamPV          : Annotation // from ParameterValue
         InputPV          : Annotation // from input node AdditionalProperty
         OutputPV         : Annotation // from output node AdditionalProperty
-        ComponentPV      : Annotation // from protocol Component
+        ComponentPV      : Annotation // from recipe Component
         UpstreamOnlyPV   : Annotation // only on UpstreamProc
         DownstreamOnlyPV : Annotation // only on DownstreamProc
     }
@@ -375,12 +375,12 @@ let makeFixtureFourSources () : FixtureFourSources =
     upstreamProc.SetOutputSample(inputNode)
 
     // central process — all four sources
-    let proto   = Recipe("four-source-protocol")
+    let proto   = Recipe("four-source-recipe")
     let compPV  = Annotation("instrument",    value = "Orbitrap",  additionalType = "Component")
     proto.AddComponent(compPV)
 
     let proc    = Process("fs-four-source-process")
-    proc.ExecutesProtocol <- Some proto
+    proc.ExecutesRecipe <- Some proto
 
     let paramPV  = Annotation("temperature",  value = "25",      additionalType = "ParameterValue")
     let inputPV  = Annotation("organism",     value = "E. coli", additionalType = "CharacteristicValue")

@@ -17,7 +17,7 @@ Schemas are derived representations of the markdown specification. The markdown 
 | `schemas/yml/` | JSON Schema draft 2020-12 expressed in YAML for the unified ARC Process Core, datamap, and administrative model |
 | `schemas/document-db/` | Placeholder for a future document database representation |
 
-The YAML schemas describe the current unified vocabulary. In particular, `Process.yml` expects `inputs`, `outputs`, and `executesProtocol`; dataset metadata uses repo-native fields such as `agents`, `citations`, `dataFiles`, and `dataContexts`.
+The YAML schemas describe the current unified vocabulary. In particular, `Process.yml` expects `inputs`, `outputs`, and `executesRecipe`; dataset metadata uses repo-native fields such as `agents`, `citations`, `dataFiles`, and `dataContexts`.
 
 ## Examples
 
@@ -30,7 +30,7 @@ The YAML schemas describe the current unified vocabulary. In particular, `Proces
 | `examples/isa/` | Legacy/profile-shaped ISA and Datamap examples kept as domain examples |
 | `examples/workflow-run/` | Placeholder for future Workflow Run examples |
 
-The current ISA examples are useful profile examples, but they are not currently guaranteed to validate against the strict core YAML schemas. They use some RO-Crate/Bioschemas profile terms such as `object`, `result`, `executesRecipe`, `annotations`, and `additionalProperties`.
+The current ISA examples are useful profile examples, but they are not currently guaranteed to validate against the strict core YAML schemas. They use some RO-Crate/Bioschemas profile terms such as `object`, `result`, `annotations`, and `additionalProperties`.
 
 ## Reconciliation Rule
 
@@ -56,7 +56,7 @@ processes:
     outputs:
       - type: Data
         path: raw/extract.tsv
-    executesProtocol:
+    executesRecipe:
       type: Recipe
       name: Extraction
 ```

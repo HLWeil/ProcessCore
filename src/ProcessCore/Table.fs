@@ -464,7 +464,7 @@ type Table(name: string, processes: ResizeArray<Process>, dataset: Dataset) =
                 clone.AddAdditionalProperty(this.ClonePV(pv))
             DataNode clone
 
-    member private this.CloneProtocol(proto: Recipe) =
+    member private this.CloneRecipe(proto: Recipe) =
         let clone = Recipe()
         clone.Name <- proto.Name
         clone.Description <- proto.Description
@@ -477,12 +477,12 @@ type Table(name: string, processes: ResizeArray<Process>, dataset: Dataset) =
         for pv in proto.AdditionalProperty do clone.AddAdditionalProperty(this.ClonePV(pv))
         clone
 
-    member private this.EnsureProtocol(p: Process) =
-        match p.ExecutesProtocol with
+    member private this.EnsureRecipe(p: Process) =
+        match p.ExecutesRecipe with
         | Some proto -> proto
         | None ->
             let proto = Recipe()
-            p.ExecutesProtocol <- Some proto
+            p.ExecutesRecipe <- Some proto
             proto
 
     member private _.SetSampleType(m: Sample, ioType: IOType) =
@@ -624,47 +624,47 @@ type Table(name: string, processes: ResizeArray<Process>, dataset: Dataset) =
             cols.Add(CompositeColumn(CompositeHeader.Input ioType, cells))
 
         // ── Protocol columns ───────────────────────────────────────────────
-        let hasProtocol = processes |> Seq.exists (fun p -> p.ExecutesProtocol.IsSome)
-        if hasProtocol then
+        let hasRecipe = processes |> Seq.exists (fun p -> p.ExecutesRecipe.IsSome)
+        if hasRecipe then
             // REF
             let refCells = ResizeArray<CompositeCell>()
             for (p, _, _) in rows do
-                let v = p.ExecutesProtocol |> Option.bind (fun pr -> pr.Name) |> Option.defaultValue ""
+                let v = p.ExecutesRecipe |> Option.bind (fun pr -> pr.Name) |> Option.defaultValue ""
                 refCells.Add(CompositeCell.FreeText v)
             cols.Add(CompositeColumn(CompositeHeader.ProtocolREF, refCells))
             // Type
             let typeCells = ResizeArray<CompositeCell>()
-            let hasType = processes |> Seq.exists (fun p -> p.ExecutesProtocol |> Option.bind (fun pr -> pr.IntendedUse) |> Option.isSome)
+            let hasType = processes |> Seq.exists (fun p -> p.ExecutesRecipe |> Option.bind (fun pr -> pr.IntendedUse) |> Option.isSome)
             if hasType then
                 for (p, _, _) in rows do
                     let cell =
-                        match p.ExecutesProtocol |> Option.bind (fun pr -> pr.IntendedUse) with
+                        match p.ExecutesRecipe |> Option.bind (fun pr -> pr.IntendedUse) with
                         | Some dt -> CompositeCell.Term(dt.Name, dt.TAN)
                         | None    -> CompositeCell.FreeText ""
                     typeCells.Add(cell)
                 cols.Add(CompositeColumn(CompositeHeader.ProtocolType, typeCells))
             // Description
-            let hasDes = processes |> Seq.exists (fun p -> p.ExecutesProtocol |> Option.bind (fun pr -> pr.Description) |> Option.isSome)
+            let hasDes = processes |> Seq.exists (fun p -> p.ExecutesRecipe |> Option.bind (fun pr -> pr.Description) |> Option.isSome)
             if hasDes then
                 let desCells = ResizeArray<CompositeCell>()
                 for (p, _, _) in rows do
-                    let v = p.ExecutesProtocol |> Option.bind (fun pr -> pr.Description) |> Option.defaultValue ""
+                    let v = p.ExecutesRecipe |> Option.bind (fun pr -> pr.Description) |> Option.defaultValue ""
                     desCells.Add(CompositeCell.FreeText v)
                 cols.Add(CompositeColumn(CompositeHeader.ProtocolDescription, desCells))
             // Uri
-            let hasUri = processes |> Seq.exists (fun p -> p.ExecutesProtocol |> Option.bind (fun pr -> pr.Url) |> Option.isSome)
+            let hasUri = processes |> Seq.exists (fun p -> p.ExecutesRecipe |> Option.bind (fun pr -> pr.Url) |> Option.isSome)
             if hasUri then
                 let uriCells = ResizeArray<CompositeCell>()
                 for (p, _, _) in rows do
-                    let v = p.ExecutesProtocol |> Option.bind (fun pr -> pr.Url) |> Option.defaultValue ""
+                    let v = p.ExecutesRecipe |> Option.bind (fun pr -> pr.Url) |> Option.defaultValue ""
                     uriCells.Add(CompositeCell.FreeText v)
                 cols.Add(CompositeColumn(CompositeHeader.ProtocolUri, uriCells))
             // Version
-            let hasVer = processes |> Seq.exists (fun p -> p.ExecutesProtocol |> Option.bind (fun pr -> pr.Version) |> Option.isSome)
+            let hasVer = processes |> Seq.exists (fun p -> p.ExecutesRecipe |> Option.bind (fun pr -> pr.Version) |> Option.isSome)
             if hasVer then
                 let verCells = ResizeArray<CompositeCell>()
                 for (p, _, _) in rows do
-                    let v = p.ExecutesProtocol |> Option.bind (fun pr -> pr.Version) |> Option.defaultValue ""
+                    let v = p.ExecutesRecipe |> Option.bind (fun pr -> pr.Version) |> Option.defaultValue ""
                     verCells.Add(CompositeCell.FreeText v)
                 cols.Add(CompositeColumn(CompositeHeader.ProtocolVersion, verCells))
 
@@ -705,7 +705,7 @@ type Table(name: string, processes: ResizeArray<Process>, dataset: Dataset) =
 
         // ── Components (from protocol Component) ────────────────────────
         let equipPVs (p: Process, _, _) =
-            match p.ExecutesProtocol with
+            match p.ExecutesRecipe with
             | Some proto -> proto.Components :> seq<_>
             | None       -> Seq.empty
         addAnnotationColumns "Component" equipPVs
@@ -876,14 +876,14 @@ type Table(name: string, processes: ResizeArray<Process>, dataset: Dataset) =
         | CompositeHeader.Component _ ->
             ensureOneProcess()
             for i in 0 .. processes.Count - 1 do
-                let proto = this.EnsureProtocol(processes.[i])
+                let proto = this.EnsureRecipe(processes.[i])
                 addPV i (fun () -> proto.Components)
         | CompositeHeader.ProtocolREF ->
             if cells.Count > 0 then
                 ensureOneProcess()
                 for i in 0 .. processes.Count - 1 do
                     match this.CellAt(cells, i) with
-                    | CompositeCell.FreeText v -> (this.EnsureProtocol(processes.[i])).Name <- Some v
+                    | CompositeCell.FreeText v -> (this.EnsureRecipe(processes.[i])).Name <- Some v
                     | _ -> ()
         | CompositeHeader.ProtocolType ->
             if cells.Count > 0 then
@@ -893,30 +893,30 @@ type Table(name: string, processes: ResizeArray<Process>, dataset: Dataset) =
                     | CompositeCell.Term(n, tan) ->
                         let dt = DefinedTerm(n)
                         dt.TAN <- tan
-                        (this.EnsureProtocol(processes.[i])).IntendedUse <- Some dt
+                        (this.EnsureRecipe(processes.[i])).IntendedUse <- Some dt
                     | CompositeCell.FreeText n ->
-                        (this.EnsureProtocol(processes.[i])).IntendedUse <- Some(DefinedTerm(n))
+                        (this.EnsureRecipe(processes.[i])).IntendedUse <- Some(DefinedTerm(n))
                     | _ -> ()
         | CompositeHeader.ProtocolDescription ->
             if cells.Count > 0 then
                 ensureOneProcess()
                 for i in 0 .. processes.Count - 1 do
                     match this.CellAt(cells, i) with
-                    | CompositeCell.FreeText v -> (this.EnsureProtocol(processes.[i])).Description <- Some v
+                    | CompositeCell.FreeText v -> (this.EnsureRecipe(processes.[i])).Description <- Some v
                     | _ -> ()
         | CompositeHeader.ProtocolUri ->
             if cells.Count > 0 then
                 ensureOneProcess()
                 for i in 0 .. processes.Count - 1 do
                     match this.CellAt(cells, i) with
-                    | CompositeCell.FreeText v -> (this.EnsureProtocol(processes.[i])).Url <- Some v
+                    | CompositeCell.FreeText v -> (this.EnsureRecipe(processes.[i])).Url <- Some v
                     | _ -> ()
         | CompositeHeader.ProtocolVersion ->
             if cells.Count > 0 then
                 ensureOneProcess()
                 for i in 0 .. processes.Count - 1 do
                     match this.CellAt(cells, i) with
-                    | CompositeCell.FreeText v -> (this.EnsureProtocol(processes.[i])).Version <- Some v
+                    | CompositeCell.FreeText v -> (this.EnsureRecipe(processes.[i])).Version <- Some v
                     | _ -> ()
         | _ -> ()
 
@@ -948,7 +948,7 @@ type Table(name: string, processes: ResizeArray<Process>, dataset: Dataset) =
                 | None -> ()
         | CompositeHeader.Component(dt) ->
             for p in processes do
-                match p.ExecutesProtocol with
+                match p.ExecutesRecipe with
                 | Some proto -> removeFirst proto.Components "Component" dt.Name
                 | None -> ()
         | _ -> ()
@@ -969,7 +969,7 @@ type Table(name: string, processes: ResizeArray<Process>, dataset: Dataset) =
         let proc = Process(name)
 
         // Clone protocol from first process if available
-        match processes |> Seq.tryHead |> Option.bind (fun p -> p.ExecutesProtocol) with
+        match processes |> Seq.tryHead |> Option.bind (fun p -> p.ExecutesRecipe) with
         | Some proto ->
             let p2 = Recipe()
             p2.Name        <- proto.Name
@@ -977,7 +977,7 @@ type Table(name: string, processes: ResizeArray<Process>, dataset: Dataset) =
             p2.Version     <- proto.Version
             p2.Url         <- proto.Url
             p2.IntendedUse <- proto.IntendedUse
-            proc.ExecutesProtocol <- Some p2
+            proc.ExecutesRecipe <- Some p2
         | None -> ()
 
         // Apply each cell to the correct graph slot
@@ -1020,23 +1020,23 @@ type Table(name: string, processes: ResizeArray<Process>, dataset: Dataset) =
                 pv.NameTAN        <- dt.TAN
                 pv.AdditionalType <- Some "Component"
                 TableAux.ApplyCellToPV(pv, cell)
-                match proc.ExecutesProtocol with
+                match proc.ExecutesRecipe with
                 | Some proto -> proto.AddComponent(pv)
                 | None -> ()
             | CompositeHeader.ProtocolREF ->
                 match cell with
                 | CompositeCell.FreeText n ->
-                    match proc.ExecutesProtocol with
+                    match proc.ExecutesRecipe with
                     | Some proto -> proto.Name <- Some n
                     | None ->
                         let proto = Recipe()
                         proto.Name <- Some n
-                        proc.ExecutesProtocol <- Some proto
+                        proc.ExecutesRecipe <- Some proto
                 | _ -> ()
             | CompositeHeader.ProtocolType ->
                 match cell with
                 | CompositeCell.Term(n, tan) ->
-                    match proc.ExecutesProtocol with
+                    match proc.ExecutesRecipe with
                     | Some proto ->
                         let dt = DefinedTerm(n)
                         dt.TAN <- tan
@@ -1046,21 +1046,21 @@ type Table(name: string, processes: ResizeArray<Process>, dataset: Dataset) =
             | CompositeHeader.ProtocolDescription ->
                 match cell with
                 | CompositeCell.FreeText v ->
-                    match proc.ExecutesProtocol with
+                    match proc.ExecutesRecipe with
                     | Some proto -> proto.Description <- Some v
                     | None -> ()
                 | _ -> ()
             | CompositeHeader.ProtocolUri ->
                 match cell with
                 | CompositeCell.FreeText v ->
-                    match proc.ExecutesProtocol with
+                    match proc.ExecutesRecipe with
                     | Some proto -> proto.Url <- Some v
                     | None -> ()
                 | _ -> ()
             | CompositeHeader.ProtocolVersion ->
                 match cell with
                 | CompositeCell.FreeText v ->
-                    match proc.ExecutesProtocol with
+                    match proc.ExecutesRecipe with
                     | Some proto -> proto.Version <- Some v
                     | None -> ()
                 | _ -> ()
@@ -1147,7 +1147,7 @@ type Table(name: string, processes: ResizeArray<Process>, dataset: Dataset) =
                             lst.Add(pv)
                     | None -> ()
                 | CompositeHeader.Component(dt) ->
-                    let proto = this.EnsureProtocol(p)
+                    let proto = this.EnsureRecipe(p)
                     match proto.Components |> Seq.tryFind (fun pv -> pv.Name = dt.Name) with
                     | Some pv -> TableAux.ApplyCellToPV(pv, cell)
                     | None    ->
@@ -1157,28 +1157,28 @@ type Table(name: string, processes: ResizeArray<Process>, dataset: Dataset) =
                         proto.AddComponent(pv)
                 | CompositeHeader.ProtocolREF ->
                     match cell with
-                    | CompositeCell.FreeText v -> (this.EnsureProtocol(p)).Name <- Some v
+                    | CompositeCell.FreeText v -> (this.EnsureRecipe(p)).Name <- Some v
                     | _ -> ()
                 | CompositeHeader.ProtocolType ->
                     match cell with
                     | CompositeCell.Term(n, tan) ->
                         let dt = DefinedTerm(n)
                         dt.TAN <- tan
-                        (this.EnsureProtocol(p)).IntendedUse <- Some dt
+                        (this.EnsureRecipe(p)).IntendedUse <- Some dt
                     | CompositeCell.FreeText n ->
-                        (this.EnsureProtocol(p)).IntendedUse <- Some(DefinedTerm(n))
+                        (this.EnsureRecipe(p)).IntendedUse <- Some(DefinedTerm(n))
                     | _ -> ()
                 | CompositeHeader.ProtocolDescription ->
                     match cell with
-                    | CompositeCell.FreeText v -> (this.EnsureProtocol(p)).Description <- Some v
+                    | CompositeCell.FreeText v -> (this.EnsureRecipe(p)).Description <- Some v
                     | _ -> ()
                 | CompositeHeader.ProtocolUri ->
                     match cell with
-                    | CompositeCell.FreeText v -> (this.EnsureProtocol(p)).Url <- Some v
+                    | CompositeCell.FreeText v -> (this.EnsureRecipe(p)).Url <- Some v
                     | _ -> ()
                 | CompositeHeader.ProtocolVersion ->
                     match cell with
-                    | CompositeCell.FreeText v -> (this.EnsureProtocol(p)).Version <- Some v
+                    | CompositeCell.FreeText v -> (this.EnsureRecipe(p)).Version <- Some v
                     | _ -> ()
                 | _ -> ()
 

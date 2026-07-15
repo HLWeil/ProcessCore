@@ -87,9 +87,9 @@ let tests = testList "DatasetQueries" [
         Expect.isTrue (names.Contains "rpm")         "rpm PV present"
         Expect.isTrue (names.Contains "enzyme")      "enzyme PV present"
 
-    testCase "AllAnnotations — protocolName filter" <| fun _ ->
+    testCase "AllAnnotations — recipeName filter" <| fun _ ->
         let f   = makeFixtureA()
-        let pvs = f.DS.AllAnnotations(protocolName = "extraction")
+        let pvs = f.DS.AllAnnotations(recipeName = "extraction")
         let names = pvs |> Seq.map (fun pv -> pv.Name) |> Set.ofSeq
         Expect.isTrue  (names.Contains "temperature") "temperature in extraction"
         Expect.isTrue  (names.Contains "rpm")         "rpm in extraction"
@@ -122,18 +122,18 @@ let tests = testList "DatasetQueries" [
         Expect.isTrue  (names.Contains "enzyme")      "p2 enzyme is downstream"
         Expect.isFalse (names.Contains "temperature") "p1 temperature is upstream, not downstream"
 
-    // ── FindProcessesByProtocolType ───────────────────────────────────────────
+    // ── FindProcessesByRecipeType ───────────────────────────────────────────
 
-    testCase "FindProcessesByProtocolType" <| fun _ ->
+    testCase "FindProcessesByRecipeType" <| fun _ ->
         let f     = makeFixtureA()
-        let procs = f.DS.FindProcessesByProtocolType("cell growth")
+        let procs = f.DS.FindProcessesByRecipeType("cell growth")
         let names = procs |> Seq.map (fun p -> p.Name) |> Set.ofSeq
         Expect.equal names (Set.ofList ["p1"]) "only p1 has intendedUse=cell growth"
 
-    testCase "FindProcessesByProtocolType — no match" <| fun _ ->
+    testCase "FindProcessesByRecipeType — no match" <| fun _ ->
         let f     = makeFixtureA()
-        let procs = f.DS.FindProcessesByProtocolType("unknown-type")
-        Expect.equal procs.Count 0 "unknown protocol type → empty"
+        let procs = f.DS.FindProcessesByRecipeType("unknown-type")
+        Expect.equal procs.Count 0 "unknown recipe type → empty"
 
     // ── FindProcessesByAnnotation ──────────────────────────────────────────
 
@@ -166,16 +166,16 @@ let tests = testList "DatasetQueries" [
         let names = procs |> Seq.map (fun p -> p.Name) |> Set.ofSeq
         Expect.equal names (Set.ofList ["proc-factor"]) "found via output node AdditionalProperty"
 
-    testCase "FindProcessesByAnnotation — protocol component source" <| fun _ ->
-        let proto = Recipe("instrument-protocol")
+    testCase "FindProcessesByAnnotation — recipe component source" <| fun _ ->
+        let proto = Recipe("instrument-recipe")
         proto.AddComponent(Annotation("instrument", value = "Orbitrap", additionalType = "Component"))
         let proc = Process("proc-comp")
-        proc.ExecutesProtocol <- Some proto
+        proc.ExecutesRecipe <- Some proto
         let ds = Dataset("DS-comp")
         ds.AddProcess(proc)
         let procs = ds.FindProcessesByAnnotation("instrument", "Orbitrap")
         let names = procs |> Seq.map (fun p -> p.Name) |> Set.ofSeq
-        Expect.equal names (Set.ofList ["proc-comp"]) "found via protocol Component"
+        Expect.equal names (Set.ofList ["proc-comp"]) "found via recipe Component"
 
     // ── FindProcessesByPropertyName ───────────────────────────────────────────
 
@@ -190,7 +190,7 @@ let tests = testList "DatasetQueries" [
 
     testCase "SamplesResultingFromConditionBy — use-case 1" <| fun _ ->
         let f    = makeFixtureA()
-        // Protocol type = "cell growth", param temperature = 37
+        // Recipe type = "cell growth", param temperature = 37
         // Qualifying process = p1. p1's downstream subgraph: p1→p2→p3.
         // Terminal output of subgraph = rawData1.csv (DataNode) → excluded from Sample results.
         // NOTE: expected is [] — the terminal output is a DataNode, not a Sample.
@@ -205,7 +205,7 @@ let tests = testList "DatasetQueries" [
 
     testCase "SamplesResultingFromConditionBy — branching downstream" <| fun _ ->
         let f    = makeFixtureB()
-        // p1 is qualifying: protocol type "cell growth", temperature=37
+        // p1 is qualifying: recipe type "cell growth", temperature=37
         // p1's downstream subgraph: p1→p2 and p1→p3
         // Terminal outputs: SampleA (output of p2, no successor) and SampleB (output of p3, no successor)
         let mats = f.DS.SamplesResultingFromConditionBy("cell growth", fun pv -> pv.Name = "temperature" && pv.Value = Some "37")
@@ -316,9 +316,9 @@ let tests = testList "DatasetQueries" [
         Expect.isTrue (names.Contains "rpm") "upstream p1 parameter is included"
         Expect.isTrue (names.Contains "enzyme") "downstream p2 parameter is included"
 
-    testCase "ProtocolParametersForNode" <| fun _ ->
+    testCase "RecipeParametersForNode" <| fun _ ->
         let f = makeFixtureA()
-        let fps = f.DS.ProtocolParametersForNode(SampleNode f.Sample1)
+        let fps = f.DS.RecipeParametersForNode(SampleNode f.Sample1)
         let names = fps |> Seq.map (fun fp -> fp.Name) |> Set.ofSeq
         Expect.isTrue (names.Contains "temperature") "temperature FP from p1"
         Expect.isTrue (names.Contains "rpm") "rpm FP from p1"
@@ -330,7 +330,7 @@ let tests = testList "DatasetQueries" [
         Expect.isTrue (pvs.Contains(f.UpstreamOnlyPV)) "Should include PV from upstream process"
         Expect.isTrue (pvs.Contains(f.InputPV)) "Should include PV from input node"
         Expect.isTrue (pvs.Contains(f.ParamPV)) "Should include PV from process parameter"
-        Expect.isTrue (pvs.Contains(f.ComponentPV)) "Should include PV from protocol component"
+        Expect.isTrue (pvs.Contains(f.ComponentPV)) "Should include PV from recipe component"
         Expect.isTrue (pvs.Contains(f.OutputPV)) "Should include PV from output node"
         Expect.isTrue (pvs.Contains(f.DownstreamOnlyPV)) "Should include PV from downstream process"
 
@@ -348,7 +348,7 @@ let tests = testList "DatasetQueries" [
         Expect.isTrue (pvs.Contains(f.UpstreamOnlyPV)) "Should include PV from upstream process"
         Expect.isTrue (pvs.Contains(f.InputPV)) "Should include PV from input node"
         Expect.isTrue (pvs.Contains(f.ParamPV)) "Should include PV from process parameter"
-        Expect.isTrue (pvs.Contains(f.ComponentPV)) "Should include PV from protocol component"
+        Expect.isTrue (pvs.Contains(f.ComponentPV)) "Should include PV from recipe component"
         Expect.isTrue (pvs.Contains(f.OutputPV)) "Should include PV from output node"
         Expect.isTrue (pvs.Contains(f.DownstreamOnlyPV)) "Should include PV from downstream process"
 ]

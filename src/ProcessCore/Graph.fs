@@ -124,7 +124,7 @@ type Path(processes: ResizeArray<Process>) =
             | None -> ()
         acc
 
-    /// All Annotations from all sources (parameters, input/output node properties, protocol components)
+    /// All Annotations from all sources (parameters, input/output node properties, recipe components)
     /// across all processes in this path
     member _.AllAnnotations() : ResizeArray<Annotation> =
         PathTraversal.collectAnnotationsFromProcesses processes
@@ -133,12 +133,12 @@ type Path(processes: ResizeArray<Process>) =
     member this.AnnotationsByName(name: string) : ResizeArray<Annotation> =
         this.AllAnnotations() |> Seq.filter (fun pv -> pv.Name = name) |> ResizeArray
 
-    /// All FormalParameters defined on protocols executed by processes in this path
-    member _.ProtocolParameters() : ResizeArray<FormalParameter> =
+    /// All FormalParameters defined on recipes executed by processes in this path
+    member _.RecipeParameters() : ResizeArray<FormalParameter> =
         let acc  = ResizeArray<FormalParameter>()
         let seen = HashSet<string>()
         for proc in processes do
-            match proc.ExecutesProtocol with
+            match proc.ExecutesRecipe with
             | Some (proto: Recipe) ->
                 for fp: FormalParameter in proto.Parameters do
                     if seen.Add(fp.Name) then acc.Add(fp)
@@ -159,7 +159,7 @@ module PathTraversal =
 
     let addProcessAnnotations (result: ResizeArray<Annotation>) (seen: HashSet<string>) (proc: Process) =
         for pv: Annotation in proc.ParameterValue do addAnnotation result seen pv
-        match proc.ExecutesProtocol with
+        match proc.ExecutesRecipe with
         | Some (proto: Recipe) ->
             for pv: Annotation in proto.Components do addAnnotation result seen pv
         | None -> ()
@@ -176,11 +176,11 @@ module PathTraversal =
             addAnnotationsFromProcess result seen proc
         result
 
-    let collectAnnotationsFromProcessesWithProtocolName (protocolName: string option) (processes: seq<Process>) : ResizeArray<Annotation> =
+    let collectAnnotationsFromProcessesWithRecipeName (recipeName: string option) (processes: seq<Process>) : ResizeArray<Annotation> =
         let includeProcess (proc: Process) =
-            match protocolName with
+            match recipeName with
             | Some pn ->
-                match proc.ExecutesProtocol with
+                match proc.ExecutesRecipe with
                 | Some (proto: Recipe) -> proto.Name = Some pn
                 | None -> false
             | None -> true
@@ -189,10 +189,10 @@ module PathTraversal =
         |> Seq.filter includeProcess
         |> collectAnnotationsFromProcesses
 
-    let processMatchesProtocolName (protocolName: string option) (proc: Process) =
-        match protocolName with
+    let processMatchesRecipeName (recipeName: string option) (proc: Process) =
+        match recipeName with
         | Some pn ->
-            match proc.ExecutesProtocol with
+            match proc.ExecutesRecipe with
             | Some (proto: Recipe) -> proto.Name = Some pn
             | None -> false
         | None -> true
@@ -298,7 +298,7 @@ module PathTraversal =
         relatedNodeProcesses (Some processes) node
 
     let collectUpstreamAnnotations
-        (protocolName: string option)
+        (recipeName: string option)
         (scope: ResizeArray<Process> option)
         (start: IONode)
         : ResizeArray<Annotation> =
@@ -314,7 +314,7 @@ module PathTraversal =
                     let visited = visitedEdges |> Seq.exists (fun (candidate, key) -> obj.ReferenceEquals(candidate, proc) && key = nodeKey)
                     if not visited then
                         visitedEdges.Add(proc, nodeKey)
-                        let includeProcess = processMatchesProtocolName protocolName proc
+                        let includeProcess = processMatchesRecipeName recipeName proc
                         match proc.Input with
                         | Some input ->
                             walk input
@@ -328,7 +328,7 @@ module PathTraversal =
         result
 
     let collectDownstreamAnnotations
-        (protocolName: string option)
+        (recipeName: string option)
         (scope: ResizeArray<Process> option)
         (start: IONode)
         : ResizeArray<Annotation> =
@@ -344,7 +344,7 @@ module PathTraversal =
                     let visited = visitedEdges |> Seq.exists (fun (candidate, key) -> obj.ReferenceEquals(candidate, proc) && key = nodeKey)
                     if not visited then
                         visitedEdges.Add(proc, nodeKey)
-                        let includeProcess = processMatchesProtocolName protocolName proc
+                        let includeProcess = processMatchesRecipeName recipeName proc
                         if includeProcess then
                             addAnnotationsFromNode result seenPV matchedNode
                             addProcessAnnotations result seenPV proc
@@ -538,7 +538,7 @@ type IONode =
             frontier <- next
         result
 
-    /// All Annotations from all sources (parameters, input/output node properties, protocol components)
+    /// All Annotations from all sources (parameters, input/output node properties, recipe components)
     /// connected to this node through the graph.
     member this.AllAnnotations(?scope: ResizeArray<Process>) : ResizeArray<Annotation> =
         let result = ResizeArray<Annotation>()
@@ -549,12 +549,12 @@ type IONode =
             PathTraversal.addAnnotation result seen pv
         result
 
-    /// All FormalParameters from protocols executed in processes connected to this node.
-    member this.ProtocolParameters(?scope: ResizeArray<Process>) : ResizeArray<FormalParameter> =
+    /// All FormalParameters from recipes executed in processes connected to this node.
+    member this.RecipeParameters(?scope: ResizeArray<Process>) : ResizeArray<FormalParameter> =
         let seen   = HashSet<string>()
         let result = ResizeArray<FormalParameter>()
         for p: Process in this.AllConnectedProcesses(?scope = scope) do
-            match p.ExecutesProtocol with
+            match p.ExecutesRecipe with
             | Some (proto: Recipe) ->
                 for fp: FormalParameter in proto.Parameters do
                     if seen.Add(fp.Name) then result.Add(fp)
@@ -739,14 +739,14 @@ type IONode =
         result
 
     /// Annotations from all sources in processes upstream of this node.
-    /// Optional protocolName restricts to processes whose protocol name matches.
-    member this.UpstreamAnnotations(?protocolName: string, ?scope: ResizeArray<Process>) : ResizeArray<Annotation> =
-        PathTraversal.collectUpstreamAnnotations protocolName scope this
+    /// Optional recipeName restricts to processes whose recipe name matches.
+    member this.UpstreamAnnotations(?recipeName: string, ?scope: ResizeArray<Process>) : ResizeArray<Annotation> =
+        PathTraversal.collectUpstreamAnnotations recipeName scope this
 
     /// Annotations from all sources in processes downstream of this node.
-    /// Optional protocolName restricts to processes whose protocol name matches.
-    member this.DownstreamAnnotations(?protocolName: string, ?scope: ResizeArray<Process>) : ResizeArray<Annotation> =
-        PathTraversal.collectDownstreamAnnotations protocolName scope this
+    /// Optional recipeName restricts to processes whose recipe name matches.
+    member this.DownstreamAnnotations(?recipeName: string, ?scope: ResizeArray<Process>) : ResizeArray<Annotation> =
+        PathTraversal.collectDownstreamAnnotations recipeName scope this
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Sample
@@ -813,9 +813,9 @@ and [<AttachMembers>] Sample(name: string, ?additionalType: string, ?additionalP
     member this.AllAnnotations(?scope: ResizeArray<Process>) =
         (SampleNode this).AllAnnotations(?scope = scope)
 
-    /// All FormalParameters from protocols connected to this sample.
-    member this.ProtocolParameters(?scope: ResizeArray<Process>) =
-        (SampleNode this).ProtocolParameters(?scope = scope)
+    /// All FormalParameters from recipes connected to this sample.
+    member this.RecipeParameters(?scope: ResizeArray<Process>) =
+        (SampleNode this).RecipeParameters(?scope = scope)
 
     /// All Sample nodes connected to this sample through the graph.
     member this.ConnectedSamples(?scope: ResizeArray<Process>) =
@@ -863,11 +863,11 @@ and [<AttachMembers>] Sample(name: string, ?additionalType: string, ?additionalP
     member this.DownstreamData(?scope: ResizeArray<Process>) =
         (SampleNode this).DownstreamData(?scope = scope)
 
-    member this.UpstreamAnnotations(?protocolName: string, ?scope: ResizeArray<Process>) =
-        (SampleNode this).UpstreamAnnotations(?protocolName = protocolName, ?scope = scope)
+    member this.UpstreamAnnotations(?recipeName: string, ?scope: ResizeArray<Process>) =
+        (SampleNode this).UpstreamAnnotations(?recipeName = recipeName, ?scope = scope)
 
-    member this.DownstreamAnnotations(?protocolName: string, ?scope: ResizeArray<Process>) =
-        (SampleNode this).DownstreamAnnotations(?protocolName = protocolName, ?scope = scope)
+    member this.DownstreamAnnotations(?recipeName: string, ?scope: ResizeArray<Process>) =
+        (SampleNode this).DownstreamAnnotations(?recipeName = recipeName, ?scope = scope)
 
     /// Two Samples with the same name are identical across datasets.
     override this.Equals(obj) =
@@ -987,9 +987,9 @@ and [<AttachMembers>] Data(path: string, ?selector: string, ?selectorFormat: str
     member this.AllAnnotations(?scope: ResizeArray<Process>) =
         (DataNode this).AllAnnotations(?scope = scope)
 
-    /// All FormalParameters from protocols connected to this data node.
-    member this.ProtocolParameters(?scope: ResizeArray<Process>) =
-        (DataNode this).ProtocolParameters(?scope = scope)
+    /// All FormalParameters from recipes connected to this data node.
+    member this.RecipeParameters(?scope: ResizeArray<Process>) =
+        (DataNode this).RecipeParameters(?scope = scope)
 
     /// All Sample nodes connected to this data node through the graph.
     member this.ConnectedSamples(?scope: ResizeArray<Process>) =
@@ -1037,11 +1037,11 @@ and [<AttachMembers>] Data(path: string, ?selector: string, ?selectorFormat: str
     member this.DownstreamData(?scope: ResizeArray<Process>) =
         (DataNode this).DownstreamData(?scope = scope)
 
-    member this.UpstreamAnnotations(?protocolName: string, ?scope: ResizeArray<Process>) =
-        (DataNode this).UpstreamAnnotations(?protocolName = protocolName, ?scope = scope)
+    member this.UpstreamAnnotations(?recipeName: string, ?scope: ResizeArray<Process>) =
+        (DataNode this).UpstreamAnnotations(?recipeName = recipeName, ?scope = scope)
 
-    member this.DownstreamAnnotations(?protocolName: string, ?scope: ResizeArray<Process>) =
-        (DataNode this).DownstreamAnnotations(?protocolName = protocolName, ?scope = scope)
+    member this.DownstreamAnnotations(?recipeName: string, ?scope: ResizeArray<Process>) =
+        (DataNode this).DownstreamAnnotations(?recipeName = recipeName, ?scope = scope)
 
     /// Two Data nodes with the same path and selector are identical.
     override this.Equals(obj) =
@@ -1171,7 +1171,7 @@ and [<AttachMembers>] Recipe(?name: string, ?description: string, ?version: stri
 
     member _.Parameters = _parameters
 
-    /// Equipment, reagents, and software used in this protocol (components).
+    /// Equipment, reagents, and software used in this recipe (components).
     member _.Components = _components
 
     member _.AdditionalProperty = _additionalProperty
@@ -1216,14 +1216,14 @@ and [<AttachMembers>] Recipe(?name: string, ?description: string, ?version: stri
 // Process
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Core transformation node. Connects inputs to outputs via a protocol.
+/// Core transformation node. Connects inputs to outputs by executing a recipe.
 /// bioschemas.org/LabProcess
-and [<AttachMembers>] Process(name: string, ?executesProtocol: Recipe, ?additionalType: string, ?input: IONode, ?output: IONode, ?parameterValue: seq<Annotation>) as this =
+and [<AttachMembers>] Process(name: string, ?executesRecipe: Recipe, ?additionalType: string, ?input: IONode, ?output: IONode, ?parameterValue: seq<Annotation>) as this =
 
     inherit DynamicObj()
 
     let mutable _name: string = name
-    let mutable _executesProtocol: Recipe option = executesProtocol
+    let mutable _executesRecipe: Recipe option = executesRecipe
     let mutable _additionalType: string option = additionalType
     let mutable _processOf: Dataset option = None
     let mutable _input: IONode option = None
@@ -1272,9 +1272,17 @@ and [<AttachMembers>] Process(name: string, ?executesProtocol: Recipe, ?addition
         with get() = _name
         and set v = _name <- v
 
-    member _.ExecutesProtocol
-        with get() = _executesProtocol
-        and set v = _executesProtocol <- v
+    member this.ExecutesRecipe
+        with get() = _executesRecipe
+        and set v =
+            let previous = _executesRecipe
+            _executesRecipe <-
+                match _processOf, v with
+                | Some ds, Some recipe -> Some (ds.CanonicalizeRecipe(recipe))
+                | _, value -> value
+            match _processOf with
+            | Some ds -> previous |> Option.iter ds.TryEvictRecipe
+            | None -> ()
 
     member _.AdditionalType
         with get() = _additionalType
@@ -1331,6 +1339,7 @@ and [<AttachMembers>] Process(name: string, ?executesProtocol: Recipe, ?addition
                 removeOutputBackEdge original this
                 addOutputBackEdge canonical this
             | _ -> ())
+        _executesRecipe <- _executesRecipe |> Option.map ds.CanonicalizeRecipe
 
     member this.SetInputSample(m: Sample) = this.SetInput(SampleNode m)
     member this.SetInputData(d: Data) = this.SetInput(DataNode d)
@@ -1401,13 +1410,13 @@ and [<AttachMembers>] Process(name: string, ?executesProtocol: Recipe, ?addition
     member _.OutputData() : Data option =
         match _output with Some (DataNode d) -> Some d | _ -> None
 
-    /// FormalParameters defined on the protocol executed by this process.
-    member _.ProtocolParameters() : ResizeArray<FormalParameter> =
-        match _executesProtocol with
+    /// FormalParameters defined on the recipe executed by this process.
+    member _.RecipeParameters() : ResizeArray<FormalParameter> =
+        match _executesRecipe with
         | Some proto -> proto.Parameters
         | None       -> ResizeArray()
 
-    /// Annotations from all sources (parameters, input/output node properties, protocol components)
+    /// Annotations from all sources (parameters, input/output node properties, recipe components)
     /// whose name matches the given string.
     member this.AnnotationsByName(name: string) : ResizeArray<Annotation> =
         let result = ResizeArray<Annotation>()
@@ -1421,7 +1430,7 @@ and [<AttachMembers>] Process(name: string, ?executesProtocol: Recipe, ?addition
             match n with
             | SampleNode m -> for pv: Annotation in m.AdditionalProperty do if pv.Name = name then result.Add(pv)
             | DataNode d -> for pv: Annotation in d.AdditionalProperty do if pv.Name = name then result.Add(pv)
-        match _executesProtocol with
+        match _executesRecipe with
         | Some proto ->
             for pv: Annotation in proto.Components do if pv.Name = name then result.Add(pv)
         | None -> ()
@@ -1469,6 +1478,9 @@ and [<AttachMembers>] Dataset(identifier: string, ?title: string, ?description: 
     let _additionalProperty: ResizeArray<Annotation> = ResizeArray()
     /// IONode registry — only meaningfully populated when this is the root dataset.
     let _nodeRegistry: Dictionary<string, IONode> = Dictionary<string, IONode>()
+    let _nodePins: HashSet<string> = HashSet<string>()
+    let _recipeRegistry: Dictionary<string, Recipe> = Dictionary<string, Recipe>()
+    let _recipePins: HashSet<string> = HashSet<string>()
     let _fragmentSelectorProviders: Dictionary<string, IFragmentSelectorProvider> = Dictionary<string, IFragmentSelectorProvider>()
 
     let valueKey (value: string) =
@@ -1483,6 +1495,12 @@ and [<AttachMembers>] Dataset(identifier: string, ?title: string, ?description: 
         values
         |> Seq.map valueKey
         |> String.concat ""
+
+    let recipeKey (recipe: Recipe) =
+        fieldsKey [
+            optionKey recipe.Name
+            optionKey recipe.Version
+        ]
 
     let definedTermKey (dt: DefinedTerm) =
         fieldsKey [
@@ -1532,6 +1550,12 @@ and [<AttachMembers>] Dataset(identifier: string, ?title: string, ?description: 
     // Direct access to the backing dictionary of this dataset instance.
     member private _.NodeRegistryDirect = _nodeRegistry
 
+    member private _.NodePinsDirect = _nodePins
+
+    member private _.RecipeRegistryDirect = _recipeRegistry
+
+    member private _.RecipePinsDirect = _recipePins
+
     member private _.FragmentSelectorProvidersDirect = _fragmentSelectorProviders
 
     /// Walk PartOf until reaching the root dataset of this hierarchy.
@@ -1569,18 +1593,75 @@ and [<AttachMembers>] Dataset(identifier: string, ?title: string, ?description: 
             registry.[key] <- node
             node
 
+    /// Pins a canonical node in the root registry independently of process use.
+    member internal this.PinNode(node: IONode) : IONode =
+        let canonical = this.CanonicalizeNode(node)
+        this.RootDataset().NodePinsDirect.Add(canonical.Key()) |> ignore
+        canonical
+
+    /// Releases an ARC-owned node pin and evicts the node when otherwise unused.
+    member internal this.UnpinNode(node: IONode) =
+        this.RootDataset().NodePinsDirect.Remove(node.Key()) |> ignore
+        this.TryEvictNode(node)
+
+    /// Returns the hierarchy-wide canonical Recipe using Recipe identity.
+    member this.CanonicalizeRecipe(recipe: Recipe) : Recipe =
+        // Spreadsheet/table builders commonly attach an empty Recipe and populate
+        // its name afterwards. Such incomplete objects do not yet have a stable
+        // identity and must not collapse into one another.
+        match recipe.Name with
+        | None -> recipe
+        | Some _ ->
+            let registry = this.RootDataset().RecipeRegistryDirect
+            let key = recipeKey recipe
+            match registry.TryGetValue(key) with
+            | true, existing -> existing
+            | false, _ ->
+                registry.[key] <- recipe
+                recipe
+
+    /// Pins a canonical recipe in the root registry independently of process use.
+    member internal this.PinRecipe(recipe: Recipe) : Recipe =
+        let canonical = this.CanonicalizeRecipe(recipe)
+        if canonical.Name.IsSome then
+            this.RootDataset().RecipePinsDirect.Add(recipeKey canonical) |> ignore
+        canonical
+
+    /// Releases an ARC-owned recipe pin and evicts it when otherwise unused.
+    member internal this.UnpinRecipe(recipe: Recipe) =
+        if recipe.Name.IsSome then
+            this.RootDataset().RecipePinsDirect.Remove(recipeKey recipe) |> ignore
+        this.TryEvictRecipe(recipe)
+
     /// Evicts `node` from the root registry if no process remaining in the
     /// hierarchy still holds it as an input or output.
     member internal this.TryEvictNode(node: IONode) =
         let root = this.RootDataset()
         let key  = node.Key()
-        let stillUsed =
+        let usedByProcess =
             Seq.append (node.GetInputOf() :> seq<Process>) (node.GetOutputOf() :> seq<Process>)
             |> Seq.exists (fun proc ->
                 proc.ProcessOf
                 |> Option.exists (fun ds -> obj.ReferenceEquals(ds.RootDataset(), root)))
-        if not stillUsed then
+        let storedAsDataFile =
+            root.AllDataFiles()
+            |> Seq.exists (fun data -> (DataNode data).Key() = key)
+        let pinned = root.NodePinsDirect.Contains(key)
+        if not (usedByProcess || storedAsDataFile || pinned) then
             root.NodeRegistryDirect.Remove(key) |> ignore
+
+    /// Evicts a recipe when neither a process nor an ARC store uses it.
+    member internal this.TryEvictRecipe(recipe: Recipe) =
+        let root = this.RootDataset()
+        if recipe.Name.IsSome then
+            let key = recipeKey recipe
+            let usedByProcess =
+                root.AllProcesses()
+                |> Seq.exists (fun proc ->
+                    proc.ExecutesRecipe
+                    |> Option.exists (fun current -> current.Name.IsSome && recipeKey current = key))
+            if not (usedByProcess || root.RecipePinsDirect.Contains(key)) then
+                root.RecipeRegistryDirect.Remove(key) |> ignore
 
     member _.Identifier
         with get() = _identifier
@@ -1645,9 +1726,11 @@ and [<AttachMembers>] Dataset(identifier: string, ?title: string, ?description: 
         let removed = index >= 0
         if removed then _processes.RemoveAt(index)
         if removed && proc.ProcessOf = Some this then
+            let previousRecipe = proc.ExecutesRecipe
             proc.ProcessOf <- None
             proc.Input |> Option.iter this.TryEvictNode
             proc.Output |> Option.iter this.TryEvictNode
+            previousRecipe |> Option.iter this.TryEvictRecipe
 
     member _.TryGetProcess(name: string) =
         _processes |> Seq.tryFind (fun p -> p.Name = name)
@@ -1663,6 +1746,12 @@ and [<AttachMembers>] Dataset(identifier: string, ?title: string, ?description: 
             child.PartOf <- Some this
             for provider in child.FragmentSelectorProvidersDirect.Values do
                 this.RegisterFragmentSelectorProvider(provider)
+            let rec canonicalizeDataFiles (dataset: Dataset) =
+                for i in 0 .. dataset.DataFiles.Count - 1 do
+                    dataset.DataFiles.[i] <- this.CanonicalizeDataTree(dataset.DataFiles.[i])
+                for part in dataset.HasPart do
+                    canonicalizeDataFiles part
+            canonicalizeDataFiles child
             // Canonicalize every node in the child's subtree against the new root.
             for proc in child.AllProcesses() do
                 proc.CanonicalizeAllNodes(this)
@@ -1672,31 +1761,64 @@ and [<AttachMembers>] Dataset(identifier: string, ?title: string, ?description: 
         if removed && child.PartOf = Some this then
             // Collect nodes before disconnecting so the root reference is still valid.
             let nodesToCheck =
-                child.AllProcesses()
-                |> Seq.collect (fun p -> [p.Input; p.Output] |> List.choose id)
+                Seq.append
+                    (child.AllProcesses()
+                     |> Seq.collect (fun p -> [p.Input; p.Output] |> List.choose id))
+                    (child.AllDataFiles() |> Seq.map DataNode)
                 |> Seq.distinctBy (fun n -> n.Key())
+                |> Seq.toList
+            let recipesToCheck =
+                child.AllProcesses()
+                |> Seq.choose (fun proc -> proc.ExecutesRecipe)
+                |> Seq.distinctBy recipeKey
                 |> Seq.toList
             child.PartOf <- None
             // Evict nodes that are no longer used anywhere in the (now smaller) tree.
             for node in nodesToCheck do
                 this.TryEvictNode(node)
+            for recipe in recipesToCheck do
+                this.TryEvictRecipe(recipe)
             // Rebuild child's own registry now that it is a root again.
             child.NodeRegistryDirect.Clear()
+            child.RecipeRegistryDirect.Clear()
+            for data in child.AllDataFiles() do
+                child.CanonicalizeNode(DataNode data) |> ignore
             for proc in child.AllProcesses() do
-                for node in [proc.Input; proc.Output] |> List.choose id do
-                    let key = node.Key()
-                    if not (child.NodeRegistryDirect.ContainsKey(key)) then
-                        child.NodeRegistryDirect.[key] <- node
+                proc.CanonicalizeAllNodes(child)
 
     member _.TryGetPart(identifier: string) =
         _hasPart |> Seq.tryFind (fun d -> d.Identifier = identifier)
 
-    member this.AddDataFile(data: Data) =
-        if not (_dataFiles |> Seq.exists (fun d -> d = data)) then
-            _dataFiles.Add(data)
+    member private this.CanonicalizeDataTree(data: Data) : Data =
+        let canonical =
+            match this.CanonicalizeNode(DataNode data) with
+            | DataNode value -> value
+            | SampleNode _ -> failwith "A Data identity key resolved to a Sample."
+        if obj.ReferenceEquals(canonical, data) then
+            for i in 0 .. canonical.HasPart.Count - 1 do
+                canonical.HasPart.[i] <- this.CanonicalizeDataTree(canonical.HasPart.[i])
+        canonical
 
-    member _.RemoveDataFile(data: Data) =
-        _dataFiles.Remove(data) |> ignore
+    member this.AddDataFile(data: Data) =
+        let canonical = this.CanonicalizeDataTree(data)
+        if not (_dataFiles |> Seq.exists (fun d -> d = canonical)) then
+            _dataFiles.Add(canonical)
+
+    member this.RemoveDataFile(data: Data) =
+        match _dataFiles |> Seq.tryFind (fun current -> current = data) with
+        | Some stored ->
+            let nodes =
+                let rec collect (current: Data) =
+                    seq {
+                        yield DataNode current
+                        for part in current.HasPart do
+                            yield! collect part
+                    }
+                collect stored |> Seq.toList
+            _dataFiles.Remove(stored) |> ignore
+            for node in nodes do
+                this.TryEvictNode(node)
+        | None -> ()
 
     member _.TryGetDataFile(path: string) =
         _dataFiles |> Seq.tryFind (fun d -> d.Path = path)
@@ -1935,16 +2057,16 @@ and [<AttachMembers>] Dataset(identifier: string, ?title: string, ?description: 
     // ── Dataset-level property value queries ──────────────────────────────────
 
     /// All distinct Annotations from all sources across all processes in this dataset.
-    /// Sources: process parameters, input/output node properties, protocol components.
-    /// Optional protocolName restricts to processes whose protocol name matches.
-    member this.AllAnnotations(?protocolName: string) : ResizeArray<Annotation> =
+    /// Sources: process parameters, input/output node properties, recipe components.
+    /// Optional recipeName restricts to processes whose recipe name matches.
+    member this.AllAnnotations(?recipeName: string) : ResizeArray<Annotation> =
         let result =
             this.AllProcesses()
-            |> PathTraversal.collectAnnotationsFromProcessesWithProtocolName protocolName
+            |> PathTraversal.collectAnnotationsFromProcessesWithRecipeName recipeName
         let seen = HashSet<string>()
         for pv in result do
             seen.Add(PathTraversal.annotationKey pv) |> ignore
-        if protocolName.IsNone then
+        if recipeName.IsNone then
             let rec collectDataset (ds: Dataset) =
                 for pv in ds.AdditionalProperty do
                     PathTraversal.addAnnotation result seen pv
@@ -1963,11 +2085,11 @@ and [<AttachMembers>] Dataset(identifier: string, ?title: string, ?description: 
         result
 
     /// All Annotations from all sources connected to `node` (upstream + downstream) within this dataset.
-    /// Optional protocolName restricts to processes whose protocol name matches.
-    member this.AnnotationsForNode(node: IONode, ?protocolName: string) : ResizeArray<Annotation> =
+    /// Optional recipeName restricts to processes whose recipe name matches.
+    member this.AnnotationsForNode(node: IONode, ?recipeName: string) : ResizeArray<Annotation> =
         let scope      = this.AllProcesses()
-        let upstream   = node.UpstreamAnnotations(?protocolName = protocolName, scope = scope)
-        let downstream = node.DownstreamAnnotations(?protocolName = protocolName, scope = scope)
+        let upstream   = node.UpstreamAnnotations(?recipeName = recipeName, scope = scope)
+        let downstream = node.DownstreamAnnotations(?recipeName = recipeName, scope = scope)
         let seenPV = HashSet<string>()
         let result = ResizeArray<Annotation>()
         for pv: Annotation in Seq.append upstream downstream do
@@ -1976,12 +2098,12 @@ and [<AttachMembers>] Dataset(identifier: string, ?title: string, ?description: 
         result
 
     /// Annotations from all sources in processes upstream of `node` within this dataset.
-    member this.UpstreamAnnotationsForNode(node: IONode, ?protocolName: string) : ResizeArray<Annotation> =
-        node.UpstreamAnnotations(?protocolName = protocolName, scope = this.AllProcesses())
+    member this.UpstreamAnnotationsForNode(node: IONode, ?recipeName: string) : ResizeArray<Annotation> =
+        node.UpstreamAnnotations(?recipeName = recipeName, scope = this.AllProcesses())
 
     /// Annotations from all sources in processes downstream of `node` within this dataset.
-    member this.DownstreamAnnotationsForNode(node: IONode, ?protocolName: string) : ResizeArray<Annotation> =
-        node.DownstreamAnnotations(?protocolName = protocolName, scope = this.AllProcesses())
+    member this.DownstreamAnnotationsForNode(node: IONode, ?recipeName: string) : ResizeArray<Annotation> =
+        node.DownstreamAnnotations(?recipeName = recipeName, scope = this.AllProcesses())
 
     // ── Querying ──────────────────────────────────────────────────────────────
 
@@ -2028,14 +2150,14 @@ and [<AttachMembers>] Dataset(identifier: string, ?title: string, ?description: 
     member this.AllAnnotationsForNode(node: IONode) : ResizeArray<Annotation> =
         node.AllAnnotations(scope = this.AllProcesses())
 
-    member this.ProtocolParametersForNode(node: IONode) : ResizeArray<FormalParameter> =
-        node.ProtocolParameters(scope = this.AllProcesses())
+    member this.RecipeParametersForNode(node: IONode) : ResizeArray<FormalParameter> =
+        node.RecipeParameters(scope = this.AllProcesses())
 
-    /// All processes whose executed protocol's intendedUse name matches.
-    member this.FindProcessesByProtocolType(intendedUse: string) : ResizeArray<Process> =
+    /// All processes whose executed recipe's intendedUse name matches.
+    member this.FindProcessesByRecipeType(intendedUse: string) : ResizeArray<Process> =
         this.AllProcesses()
         |> Seq.filter (fun p ->
-            match p.ExecutesProtocol with
+            match p.ExecutesRecipe with
             | Some proto ->
                 match proto.IntendedUse with
                 | Some dt -> dt.Name = intendedUse
@@ -2055,7 +2177,7 @@ and [<AttachMembers>] Dataset(identifier: string, ?title: string, ?description: 
             (p.ParameterValue |> Seq.exists pvMatch) ||
             (p.Input |> Option.exists nodeMatch) ||
             (p.Output |> Option.exists nodeMatch) ||
-            (match p.ExecutesProtocol with
+            (match p.ExecutesRecipe with
              | Some proto ->
                  (proto.Components |> Seq.exists pvMatch)
              | None -> false))
@@ -2073,20 +2195,20 @@ and [<AttachMembers>] Dataset(identifier: string, ?title: string, ?description: 
             (p.ParameterValue |> Seq.exists pvMatch) ||
             (p.Input |> Option.exists nodeMatch) ||
             (p.Output |> Option.exists nodeMatch) ||
-            (match p.ExecutesProtocol with
+            (match p.ExecutesRecipe with
              | Some proto ->
                  (proto.Components |> Seq.exists pvMatch) ||
                  (proto.AdditionalProperty |> Seq.exists pvMatch)
              | None -> false))
         |> ResizeArray
 
-    /// Find qualifying processes by protocol type, then filter their
+    /// Find qualifying processes by recipe type, then filter their
     /// ParameterValues with a caller-supplied predicate.
     /// Returns all terminal-output Samples of the downstream subgraphs of qualifying processes.
     member this.SamplesResultingFromConditionBy
-        (protocolType: string, paramPredicate: Annotation -> bool) : ResizeArray<Sample> =
+        (recipeType: string, paramPredicate: Annotation -> bool) : ResizeArray<Sample> =
         let qualifying =
-            this.FindProcessesByProtocolType(protocolType)
+            this.FindProcessesByRecipeType(recipeType)
             |> Seq.filter (fun p -> p.ParameterValue |> Seq.exists paramPredicate)
         let seen   = HashSet<string>()
         let result = ResizeArray<Sample>()

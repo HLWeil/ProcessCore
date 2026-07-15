@@ -50,12 +50,39 @@ The root is reached by walking `PartOf` until `None`.
 
 - `process.SetInput(node)` / `SetOutput(node)` — walk up to the root registry via `ProcessOf` and `PartOf`. If the key is present, substitute the canonical instance; otherwise insert the new node as canonical.
 - `dataset.AddProcess(proc)` — canonicalize the optional `proc.Input` and `proc.Output`, repair their back-edges, and set `proc.ProcessOf`.
-- `dataset.AddPart(child)` — register all nodes reachable through `child.AllNodes()` into the root registry.
+- `dataset.AddDataFile(data)` — canonicalize the data resource and any nested fragments before adding it to the dataset store.
+- `dataset.AddPart(child)` — register the child's stored data files and all nodes reachable through `child.AllNodes()` into the root registry.
+- `arc.AddSample(sample)` — canonicalize and pin the sample in the root registry. `ARC.DataFiles`, inherited from `Dataset`, provides the corresponding store for orphan data.
 
 **Removal rules:**
 
-- When a process is removed, each of its nodes is checked via `InputOf`/`OutputOf` back-edges. A node is evicted from the root registry only if no process remaining anywhere in the tree still references it.
-- When a child dataset is removed from a parent, apply the same per-node check for all nodes reachable through the child.
+- When a process is removed, each of its nodes is checked via `InputOf`/`OutputOf` back-edges. A node is evicted from the root registry only if no process, stored data file, or ARC pin remaining anywhere in the tree still references it.
+- `arc.RemoveSample(sample)` removes the ARC pin but does not detach the sample from a process. The node is evicted only after its final stored or process reference is removed.
+- When a child dataset is removed from a parent, apply the same per-node check to its stored data files and process nodes, then rebuild an independent registry for the detached hierarchy.
+
+### Recipe registry
+
+The root dataset also maintains a recipe registry keyed by recipe name and version. Named recipes in `ARC.Recipes` and `Process.ExecutesRecipe` share this registry across the complete dataset hierarchy. As with I/O nodes, the first inserted instance is canonical and later equal values reuse it without merging their fields.
+
+`ARC.AddRecipe` pins a canonical recipe in the store. `ARC.RemoveRecipe` removes only that pin: processes that execute the recipe keep their reference, and the registry entry remains until its final process reference is removed. Replacing `Process.ExecutesRecipe`, removing a process, and attaching or detaching a child dataset all update the root recipe registry. Unnamed recipes are not registered because their mutable name has not established a stable identity key.
+
+## ARC Unsorted Object Store
+
+`ARC` provides canonical staging collections for profile objects that are not yet attached at their final graph position:
+
+- `Samples : ResizeArray<Sample>` with `AddSample` and `RemoveSample`
+- `Recipes : ResizeArray<Recipe>` with `AddRecipe` and `RemoveRecipe`
+- inherited `DataFiles : ResizeArray<Data>` with `AddDataFile` and `RemoveDataFile`
+
+Identity is Sample name, Data path plus selector, and Recipe name plus version. Canonicalization is insertion-order independent: adding an object to a store before linking it into a process, or linking it first and storing an equal object later, produces the same object reference. The existing canonical instance always wins and fields from later equal objects are not merged.
+
+Store membership is explicit. Linking a stored object into a process does not remove it from the store, and removing it from the store does not detach existing process links. Call the corresponding remove method to stop storing it. Code should use these APIs rather than mutating the public `ResizeArray` collections directly, because the methods also maintain registry pins and eviction state.
+
+### ARC YAML persistence
+
+ARC YAML retains `type: Dataset` for compatibility and persists staging collections through typed top-level fields: `samples`, `dataFiles`, and `recipes`. Stored objects are decoded before processes, allowing process endpoints and recipe references to resolve to those same canonical instances. The indexed `recipes` field contains each canonical stored or process-linked recipe once, including recipes with the same name but different versions; explicit `@id` values remain authoritative.
+
+The ARC serializer uses the shared Dataset YAML codecs. Runtime state such as `ArcPath`, `IsSpreadsheetScaffold`, registry data, `InputOf`, `OutputOf`, and dataset/process back-edges is never emitted. Genuinely unknown overflow properties continue to round-trip.
 
 ## Path Type
 
@@ -74,11 +101,11 @@ When retrieving property values from a process context, four sources can contrib
 1. `process.ParameterValue` — parameters attached directly to the process
 2. `process.Input?.AdditionalProperty` — characteristics attached to the optional input node
 3. `process.Output?.AdditionalProperty` — factors attached to the optional output node
-4. `process.ExecutesProtocol?.Components` — component annotations (equipment, reagents, software) attached to the recipe
+4. `process.ExecutesRecipe?.Components` — component annotations (equipment, reagents, software) attached to the recipe
 
 All retrieval methods are named `*Annotations` (not `*ParameterValues`) to reflect this broad collection.
 
-For graph traversal queries from an `IONode`, node-attached values are collected from the singular edge endpoints actually reached. A reached `Process` contributes its process-level `ParameterValue` and protocol `Components`; endpoint `AdditionalProperty` values come from the reached input/output nodes.
+For graph traversal queries from an `IONode`, node-attached values are collected from the singular edge endpoints actually reached. A reached `Process` contributes its process-level `ParameterValue` and recipe `Components`; endpoint `AdditionalProperty` values come from the reached input/output nodes.
 
 This applies equally when the member is called on `IONode`, `Sample`, or `Data`, and through dataset-scoped wrappers such as `UpstreamAnnotationsForNode` / `DownstreamAnnotationsForNode` / `AnnotationsForNode`. `Path.AllAnnotations` operates on the explicit process sequence supplied to the `Path` value and therefore collects from every present endpoint of those path processes.
 
@@ -132,9 +159,9 @@ All traversal methods accept an optional `scope: ResizeArray<Process>` parameter
 |--------|---------|
 | `IONode` | Full traversal and Annotation retrieval; `IsRootNode`, `IsFinalNode` |
 | `Sample`, `Data` | Delegate to `IONode` wrapper (`SampleNode this` / `DataNode this`) |
-| `Process` | `InputSample`, `InputData`, `OutputSample`, `OutputData` (all option-returning), `ProtocolParameters`, `AnnotationsByName` |
-| `Dataset` | `AllNodes`, `RootNodes`, `FinalNodes`, `AllAnnotations(?protocolName)`, `AnnotationsForNode`, `UpstreamAnnotationsForNode`, `DownstreamAnnotationsForNode`, `ProcessesForNode`, `PathsThrough`, `NodesUpstreamOf`, `NodesDownstreamOf`, `ConnectedSamplesForNode`, `ConnectedDataForNode`, `ProtocolParametersForNode`, `FindProcessesByProtocolType`, `FindProcessesByAnnotation`, `FindProcessesByPropertyName`, `SamplesResultingFromCondition` |
-| `Path` | `AllAnnotations`, `AnnotationsByName`, `ProtocolParameters`, `TerminalInputs`, `TerminalOutputs` |
+| `Process` | `InputSample`, `InputData`, `OutputSample`, `OutputData` (all option-returning), `RecipeParameters`, `AnnotationsByName` |
+| `Dataset` | `AllNodes`, `RootNodes`, `FinalNodes`, `AllAnnotations(?recipeName)`, `AnnotationsForNode`, `UpstreamAnnotationsForNode`, `DownstreamAnnotationsForNode`, `ProcessesForNode`, `PathsThrough`, `NodesUpstreamOf`, `NodesDownstreamOf`, `ConnectedSamplesForNode`, `ConnectedDataForNode`, `RecipeParametersForNode`, `FindProcessesByRecipeType`, `FindProcessesByAnnotation`, `FindProcessesByPropertyName`, `SamplesResultingFromCondition` |
+| `Path` | `AllAnnotations`, `AnnotationsByName`, `RecipeParameters`, `TerminalInputs`, `TerminalOutputs` |
 
 ## Target folder
 
@@ -144,7 +171,7 @@ The core datamodel implementation will be located in `src/ProcessCore/`, around 
 
 The following are explicitly **not** part of this implementation:
 
-- Any serialization or deserialization (JSON-LD, RO-Crate, XLSX, YAML, etc.)
+- Serialization formats other than the ARC YAML persistence behavior documented above (JSON-LD, RO-Crate, XLSX, etc.)
 - ISA decoration types (`Investigation`, `Study`, `Assay`, etc.)
 - Workflow Run decoration types (`ArcWorkflow`, `ArcRun`, etc.)
 - Datamap decoration types

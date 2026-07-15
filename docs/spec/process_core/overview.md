@@ -19,7 +19,7 @@ The Process Core Profile describes the fundamental entities and relationships in
 | [Sample](Sample.md) | Biological, chemical, or digital sample used as input or output |
 | [Data](Data.md) | Data file or selected file fragment |
 | [Annotation](Annotation.md) | Extensible key-value-unit triple |
-| [FormalParameter](FormalParameter.md) | Prospective parameter slot for protocols |
+| [FormalParameter](FormalParameter.md) | Prospective parameter slot for recipes |
 | [DefinedTerm](DefinedTerm.md) | Ontology annotation or controlled vocabulary term |
 
 ## Process Graph
@@ -31,7 +31,7 @@ flowchart LR
     Dataset --hasPart--> Dataset
     Process --inputs--> Sample
     Process --"outputs"--> Data
-    Process --executesProtocol--> Recipe
+    Process --executesRecipe--> Recipe
     Process --parameterValue--> Annotation
     Recipe --parameters--> FormalParameter
     Annotation --instanceOf--> FormalParameter
