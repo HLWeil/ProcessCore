@@ -20,11 +20,11 @@ module Recipe =
         match proto.TryGetPropertyValue("@id") with
         | Some (:? string as id) -> id
         | _ ->
-            match proto.Url with
-            | Some url -> url
-            | None ->
-                let name = proto.Name |> Option.map makeIdSlug |> Option.defaultValue "unnamed"
-                "#Protocol_" + name
+            let name = proto.Name |> Option.map makeIdSlug |> Option.defaultValue "unnamed"
+            match proto.Version, proto.Url with
+            | Some version, _ -> "#Protocol_" + name + "_version_" + makeIdSlug version
+            | None, Some url -> url
+            | None, None -> "#Protocol_" + name
 
 
     let decoderWithPropertyResolver (processCoreOnly: bool) (resolveAnnotation: string -> Annotation option) (value: YAMLElement) : Recipe =

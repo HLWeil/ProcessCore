@@ -126,7 +126,7 @@ crossAsync {
 
 ## YAML Serialization
 
-`ARC.toYamlString` writes the ARC package as indexed YAML. `ARC.fromYamlString` rebuilds a new `ARC` object from that document.
+`ARC.toYamlString` writes the ARC package as indexed YAML. `ARC.fromYamlString` rebuilds a new `ARC` object from that document. Unsorted samples, data files, and recipes are written to the typed `samples`, `dataFiles`, and `labProtocols` fields. Runtime-only properties such as `ArcPath`, representation flags, registries, and graph back-edges are not serialized.
 *)
 
 
@@ -160,7 +160,62 @@ arc.AddAgent(curator)
 arc.AddCitation(article)
 
 (**
-The package keeps the same graph shape as `Dataset`, with some addtional file system capabilities.
+The package keeps the same graph shape as `Dataset`, with some additional file-system capabilities.
+
+## Stage and Link Unsorted Objects
+
+Samples and recipes that do not yet belong to a process can be staged directly on the ARC. Orphan data uses the inherited `Dataset.DataFiles` collection. Constructor arguments and the corresponding add methods both establish canonical instances.
+*)
+
+let stagedSample = Sample("sample-1")
+let stagedData = Data("data/measurement.csv")
+let stagedRecipe = Recipe("measure", version = "1")
+
+let stagedArc =
+    ARC(
+        "staging-demo",
+        samples = [ stagedSample ],
+        dataFiles = [ stagedData ],
+        recipes = [ stagedRecipe ])
+
+// Equivalent incremental APIs:
+stagedArc.AddSample(Sample("sample-2"))
+stagedArc.AddDataFile(Data("data/second-measurement.csv"))
+stagedArc.AddRecipe(Recipe("normalize", version = "1"))
+
+(**
+Equal objects are canonical across the ARC and all nested datasets. Linking a later equal value therefore reuses the first stored instance without merging fields from the later value.
+*)
+
+let measurement = Process("measurement")
+stagedArc.AddProcess(measurement)
+measurement.SetInputSample(Sample("sample-1"))
+measurement.SetOutputData(Data("data/measurement.csv"))
+measurement.ExecutesProtocol <- Some(Recipe("measure", version = "1"))
+
+obj.ReferenceEquals(stagedSample, measurement.InputSample().Value) // true
+obj.ReferenceEquals(stagedData, measurement.OutputData().Value) // true
+obj.ReferenceEquals(stagedRecipe, measurement.ExecutesProtocol.Value) // true
+
+(**
+Store membership is explicit: linking does not remove staged values, and removing a staged value does not detach it from a process. Use `RemoveSample`, `RemoveDataFile`, or `RemoveRecipe` when the ARC should stop storing an object.
+*)
+
+stagedArc.RemoveSample(stagedSample)
+stagedArc.RemoveDataFile(stagedData)
+stagedArc.RemoveRecipe(stagedRecipe)
+
+// The process still owns all three links.
+measurement.InputSample().IsSome,
+measurement.OutputData().IsSome,
+measurement.ExecutesProtocol.IsSome
+
+(**
+YAML string and file round-trips preserve staged values as their concrete types. When a staged value is also linked to a process, both locations resolve to the same reference after decoding. Unknown YAML overflow properties also continue to round-trip.
+*)
+
+let stagedYaml = stagedArc.toYamlString(2)
+let decodedStagingArc = ARC.fromYamlString stagedYaml
 *)
 
 (**

@@ -4,23 +4,72 @@ open Fable.Core
 open ProcessCore.Helper
 open CrossAsync
 
-// (identifier: string, ?title: string, ?description: string, ?additionalType: string, ?license: string, ?datePublished: string, ?dateCreated: string, ?dateModified: string, ?processes: seq<Process>, ?hasPart: seq<Dataset>, ?dataFiles: seq<Data>, ?agents: seq<Agent>, ?citations: seq<ScholarlyArticle>, ?dataContexts: seq<DataContext>, ?additionalProperty: seq<Annotation>)
+// (identifier: string, ?title: string, ?description: string, ?additionalType: string, ?license: string, ?datePublished: string, ?dateCreated: string, ?dateModified: string, ?processes: seq<Process>, ?hasPart: seq<Dataset>, ?dataFiles: seq<Data>, ?agents: seq<Agent>, ?citations: seq<ScholarlyArticle>, ?dataContexts: seq<DataContext>, ?additionalProperty: seq<Annotation>, ?samples: seq<Sample>, ?recipes: seq<Recipe>)
 
 [<AttachMembers>]
-type ARC(identifier: string, ?title: string, ?description: string, ?additionalType: string, ?license: string, ?datePublished: string, ?dateCreated: string, ?dateModified: string, ?processes: seq<Process>, ?hasPart: seq<Dataset>, ?dataFiles: seq<Data>, ?agents: seq<Agent>, ?citations: seq<ScholarlyArticle>, ?dataContexts: seq<DataContext>, ?additionalProperty: seq<Annotation>) =
+type ARC(identifier: string, ?title: string, ?description: string, ?additionalType: string, ?license: string, ?datePublished: string, ?dateCreated: string, ?dateModified: string, ?processes: seq<Process>, ?hasPart: seq<Dataset>, ?dataFiles: seq<Data>, ?agents: seq<Agent>, ?citations: seq<ScholarlyArticle>, ?dataContexts: seq<DataContext>, ?additionalProperty: seq<Annotation>, ?samples: seq<Sample>, ?recipes: seq<Recipe>) as this =
 
     inherit Dataset(identifier, ?title=title, ?description=description, ?additionalType=additionalType, ?license=license, ?datePublished=datePublished, ?dateCreated=dateCreated, ?dateModified=dateModified, ?processes=processes, ?hasPart=hasPart, ?dataFiles=dataFiles, ?agents=agents, ?citations=citations, ?dataContexts=dataContexts, ?additionalProperty=additionalProperty)
     
     let mutable _arcPath : string option = None
     let mutable _isSpreadsheetScaffold : bool = false
+    let _samples = ResizeArray<Sample>()
+    let _recipes = ResizeArray<Recipe>()
+
+    do
+        samples |> Option.iter (fun values -> for sample in values do this.AddSample(sample))
+        recipes |> Option.iter (fun values -> for recipe in values do this.AddRecipe(recipe))
+
+    member _.Samples = _samples
+
+    member _.Recipes = _recipes
+
+    member internal this.StoreSample(sample: Sample) : Sample =
+        let canonical =
+            match this.PinNode(SampleNode sample) with
+            | SampleNode value -> value
+            | DataNode _ -> failwith "A Sample identity key resolved to Data."
+        if not (_samples |> Seq.exists (fun current -> current = canonical)) then
+            _samples.Add(canonical)
+        canonical
+
+    member this.AddSample(sample: Sample) =
+        this.StoreSample(sample) |> ignore
+
+    member this.RemoveSample(sample: Sample) =
+        match _samples |> Seq.tryFind (fun current -> current = sample) with
+        | Some stored ->
+            _samples.Remove(stored) |> ignore
+            this.UnpinNode(SampleNode stored)
+        | None -> ()
+
+    member internal this.StoreRecipe(recipe: Recipe) : Recipe =
+        let canonical = this.PinRecipe(recipe)
+        if not (_recipes |> Seq.exists (fun current -> current = canonical)) then
+            _recipes.Add(canonical)
+        canonical
+
+    member this.AddRecipe(recipe: Recipe) =
+        this.StoreRecipe(recipe) |> ignore
+
+    member this.RemoveRecipe(recipe: Recipe) =
+        match _recipes |> Seq.tryFind (fun current -> current = recipe) with
+        | Some stored ->
+            _recipes.Remove(stored) |> ignore
+            this.UnpinRecipe(stored)
+        | None -> ()
 
 
     member this.toYamlString(?whiteSpace: int) : string =
-        ProcessCore.Yaml.Dataset.toYamlStringIndexed whiteSpace this
+        ProcessCore.Yaml.Dataset.toYamlStringIndexedWithStores whiteSpace this.Samples this.Recipes this
 
     static member fromYamlString(yamlString: string) : ARC =
         YAMLicious.Reader.read yamlString 
-        |> ProcessCore.Yaml.Dataset.decoderGeneric (fun i -> ARC(i)) None None false
+        |> ProcessCore.Yaml.Dataset.decoderGenericWithStores
+            (fun i -> ARC(i))
+            (fun arc sample -> arc.StoreSample(sample))
+            (fun arc recipe -> arc.StoreRecipe(recipe))
+            false
 
 
     member this.ArcPath
@@ -38,7 +87,7 @@ type ARC(identifier: string, ?title: string, ?description: string, ?additionalTy
             _isSpreadsheetScaffold <- false
             _arcPath <- Some arcPath
             let p = Path.combine arcPath "arc.yml"
-            let ymlString = ProcessCore.Yaml.Dataset.toYamlStringIndexed (Some 2) this
+            let ymlString = this.toYamlString(2)
             do! Path.writeFileTextAsync p ymlString
         }
 

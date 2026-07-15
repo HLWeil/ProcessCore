@@ -13,7 +13,8 @@ module Dataset =
             [ "type"; "additionalType"; "identifier"; "title"; "description"
               "license"; "datePublished"; "dateCreated"; "dateModified"
               "processes"; "hasPart"; "dataFiles"; "agents"; "citations"
-              "dataContexts"; "additionalProperty"; "ArcPath"; "annotations" ]
+              "dataContexts"; "additionalProperty"; "ArcPath"; "IsSpreadsheetScaffold"
+              "annotations" ]
 
     let knownPropertyNames =
         Set.ofList
@@ -21,9 +22,10 @@ module Dataset =
               "license"; "datepublished"; "datecreated"; "datemodified"
               "processes"; "haspart"; "datafiles"; "agents"
               "citations"; "datacontexts"; "additionalproperty"; "partof"
-              "propertyvalues"; "labprotocols"; "annotations"
+              "propertyvalues"; "labprotocols"; "annotations"; "samples"; "recipes"
               // Fable-compiled read-only instance properties — must not be re-emitted as overflow
-              "noderegistrydirect"; "fragmentselectorprovidersdirect"; "ArcPath" ]
+              "noderegistrydirect"; "nodepinsdirect"; "reciperegistrydirect"; "recipepinsdirect"
+              "fragmentselectorprovidersdirect"; "arcpath"; "isspreadsheetscaffold" ]
 
     let addIndexedValues fieldName decode value =
         let registry = Dictionary<string, 'a>()
@@ -49,10 +51,12 @@ module Dataset =
     /// <param name="recipeResolver">Resolver for recipes</param>
     /// <param name="processCoreOnly">Flag indicating if only process core properties should be decoded. If set to true, the decoder fails when encountering objects not defined in the core spec.</param>
     /// <param name="value">The YAMLElement to decode</param>
-    let rec decoderGeneric<'A when 'A :> Dataset> 
+    let rec private decoderGenericCore<'A when 'A :> Dataset>
         (createF : string -> 'A)
         (annotationResolver : (string -> Annotation option) option) 
         (recipeResolver : (string -> Recipe option) option)
+        (storeSample : ('A -> Sample -> Sample) option)
+        (storeRecipe : ('A -> Recipe -> Recipe) option)
         (processCoreOnly: bool) 
         (value: YAMLElement) : 'A =
         checkType processCoreOnly "Dataset" value
@@ -91,8 +95,18 @@ module Dataset =
             match recipeResolver with
             | Some resolver -> resolver
             | None ->
-                let labProtocols =
-                    addIndexedValues "labProtocols" (Recipe.decoderWithPropertyResolver processCoreOnly resolveAnnotation) value
+                let labProtocols = Dictionary<string, Recipe>()
+                tryGetField "labProtocols" value
+                |> Option.iter (fun values ->
+                    iterSequenceOrSingleton (fun elem ->
+                        let decoded = Recipe.decoderWithPropertyResolver processCoreOnly resolveAnnotation elem
+                        let canonical =
+                            storeRecipe
+                            |> Option.map (fun store -> store ds decoded)
+                            |> Option.defaultValue decoded
+                        match tryGetField "@id" elem |> Option.bind tryDecodeString with
+                        | Some id -> labProtocols.[normalizeId id] <- canonical
+                        | None -> ()) values)
                 tryFind labProtocols
 
         let decodeSeq fieldName (decoder: YAMLElement -> 'a) (resolve: string -> 'a option) (add: 'a -> unit) =
@@ -102,6 +116,18 @@ module Dataset =
                     match decodeRefOrInline decoder elem with
                     | Choice2Of2 x -> add x
                     | Choice1Of2 id -> resolve id |> Option.iter add) v)
+
+        // ARC-owned objects and Dataset data files are loaded before processes so
+        // they win first-writer canonicalization.
+        storeSample
+        |> Option.iter (fun store ->
+            decodeSeq
+                "samples"
+                (Sample.decoderWithPropertyResolver processCoreOnly resolveAnnotation)
+                (fun _ -> None)
+                (fun sample -> store ds sample |> ignore))
+
+        decodeSeq "dataFiles" (Data.decoderWithPropertyResolver processCoreOnly resolveAnnotation) (fun _ -> None) ds.AddDataFile
 
         // processes
         tryGetField "processes" value
@@ -132,11 +158,18 @@ module Dataset =
                             ds.AddDataFile(data)
                         elif typeStr = "Dataset" || typeStr = "" then
                             // Try to decode as Dataset (nested); empty type defaults to Dataset
-                            let child = decoderGeneric<Dataset> (fun i -> Dataset(i)) (Some resolveAnnotation) (Some resolveRecipe) processCoreOnly elem
+                            let child =
+                                decoderGenericCore<Dataset>
+                                    (fun i -> Dataset(i))
+                                    (Some resolveAnnotation)
+                                    (Some resolveRecipe)
+                                    None
+                                    None
+                                    processCoreOnly
+                                    elem
                             ds.AddPart(child)
             | None -> ())
 
-        decodeSeq "dataFiles" (Data.decoderWithPropertyResolver processCoreOnly resolveAnnotation) (fun _ -> None) ds.AddDataFile
         decodeSeq "agents" (Agent.decoder processCoreOnly) (fun _ -> None) ds.AddAgent
         decodeSeq "citations" (ScholarlyArticle.decoder processCoreOnly) (fun _ -> None) ds.AddCitation
         decodeSeq "dataContexts" (DataContext.decoder processCoreOnly) (fun _ -> None) ds.AddDataContext
@@ -149,15 +182,42 @@ module Dataset =
                 | Choice2Of2 pv -> ds.AddAdditionalProperty(pv)
                 | Choice1Of2 id -> resolveAnnotation id |> Option.iter ds.AddAdditionalProperty) v)
 
-        applyOverflow "Dataset" processCoreOnly knownFields ds value
+        let fields =
+            if storeSample.IsSome || storeRecipe.IsSome then
+                knownFields |> Set.add "samples" |> Set.add "labProtocols"
+            else
+                knownFields
+        applyOverflow "Dataset" processCoreOnly fields ds value
         ds
+
+    let decoderGeneric<'A when 'A :> Dataset>
+        (createF : string -> 'A)
+        (annotationResolver : (string -> Annotation option) option)
+        (recipeResolver : (string -> Recipe option) option)
+        (processCoreOnly: bool)
+        (value: YAMLElement) : 'A =
+        decoderGenericCore createF annotationResolver recipeResolver None None processCoreOnly value
+
+    let decoderGenericWithStores<'A when 'A :> Dataset>
+        (createF : string -> 'A)
+        (storeSample : 'A -> Sample -> Sample)
+        (storeRecipe : 'A -> Recipe -> Recipe)
+        (processCoreOnly: bool)
+        (value: YAMLElement) : 'A =
+        decoderGenericCore createF None None (Some storeSample) (Some storeRecipe) processCoreOnly value
 
     let decoder (processCoreOnly: bool) (value: YAMLElement) : Dataset =
         decoderGeneric<Dataset> (fun i -> Dataset(i)) None None processCoreOnly value
 
     // ── Encoders ───────────────────────────────────────────────────────────────
 
-    let rec encoder (useIndexedMode: bool) (pvEncoder : (Annotation -> YAMLElement) option) (protEncoder : (Recipe -> YAMLElement) option) (ds: Dataset) : YAMLElement =
+    let rec private encoderCore
+        (useIndexedMode: bool)
+        (pvEncoder : (Annotation -> YAMLElement) option)
+        (protEncoder : (Recipe -> YAMLElement) option)
+        (storedSamples : seq<Sample> option)
+        (storedRecipes : seq<Recipe> option)
+        (ds: Dataset) : YAMLElement =
 
         // Build PV index from ALL processes (including hasPart children)
         let pvRegistry = Dictionary<string, Annotation>()
@@ -182,6 +242,9 @@ module Dataset =
             else
                 (Option.defaultValue (Recipe.encoder encodePV) protEncoder) proto
 
+        storedRecipes
+        |> Option.iter (Seq.iter (fun recipe -> encodeProtocol recipe |> ignore))
+
         let sameProcessState (a: Process) (b: Process) =
             let shape (p: Process) = p.Input.IsSome, p.Output.IsSome
             shape a = shape b && Process.groupingKey a = Process.groupingKey b
@@ -203,7 +266,7 @@ module Dataset =
         let hasParts =
             if ds.HasPart.Count > 0 then
                 ds.HasPart
-                |> Seq.map (encoder false (Some encodePV) (Some encodeProtocol))
+                |> Seq.map (encoderCore false (Some encodePV) (Some encodeProtocol) None None)
                 |> Seq.toList
                 |> yamlSeq
                 |> Some
@@ -260,6 +323,12 @@ module Dataset =
             else
                 None
 
+        let samples =
+            storedSamples
+            |> Option.bind (fun values ->
+                let encoded = values |> Seq.map (Sample.encoder encodePV) |> Seq.toList
+                if encoded.IsEmpty then None else Some (yamlSeq encoded))
+
         [
             yield "type",       yamlValue "Dataset"
             yield "identifier", yamlValue ds.Identifier
@@ -297,6 +366,8 @@ module Dataset =
                     |> Seq.map (fun kv -> Annotation.encoder kv)
                     |> Seq.toList
                     |> yamlSeq
+            if samples.IsSome then
+                yield "samples", samples.Value
             // Processes using references
             if processes.IsSome then
                 yield "processes", processes.Value
@@ -323,6 +394,16 @@ module Dataset =
         ]
         |> yamlMap
 
+    let encoder
+        (useIndexedMode: bool)
+        (pvEncoder : (Annotation -> YAMLElement) option)
+        (protEncoder : (Recipe -> YAMLElement) option)
+        (ds: Dataset) : YAMLElement =
+        encoderCore useIndexedMode pvEncoder protEncoder None None ds
+
+    let encoderWithStores (samples: seq<Sample>) (recipes: seq<Recipe>) (ds: Dataset) : YAMLElement =
+        encoderCore true None None (Some samples) (Some recipes) ds
+
     let fromYamlString (processCoreOnly : bool) (s: string) : Dataset =
         YAMLicious.Reader.read s |> decoder processCoreOnly
 
@@ -331,4 +412,11 @@ module Dataset =
 
     let toYamlStringIndexed (whitespace: int option) (ds: Dataset) : string =
         writeYaml whitespace (encoder true None None ds)
+
+    let toYamlStringIndexedWithStores
+        (whitespace: int option)
+        (samples: seq<Sample>)
+        (recipes: seq<Recipe>)
+        (ds: Dataset) : string =
+        writeYaml whitespace (encoderWithStores samples recipes ds)
 

@@ -1272,9 +1272,17 @@ and [<AttachMembers>] Process(name: string, ?executesProtocol: Recipe, ?addition
         with get() = _name
         and set v = _name <- v
 
-    member _.ExecutesProtocol
+    member this.ExecutesProtocol
         with get() = _executesProtocol
-        and set v = _executesProtocol <- v
+        and set v =
+            let previous = _executesProtocol
+            _executesProtocol <-
+                match _processOf, v with
+                | Some ds, Some recipe -> Some (ds.CanonicalizeRecipe(recipe))
+                | _, value -> value
+            match _processOf with
+            | Some ds -> previous |> Option.iter ds.TryEvictRecipe
+            | None -> ()
 
     member _.AdditionalType
         with get() = _additionalType
@@ -1331,6 +1339,7 @@ and [<AttachMembers>] Process(name: string, ?executesProtocol: Recipe, ?addition
                 removeOutputBackEdge original this
                 addOutputBackEdge canonical this
             | _ -> ())
+        _executesProtocol <- _executesProtocol |> Option.map ds.CanonicalizeRecipe
 
     member this.SetInputSample(m: Sample) = this.SetInput(SampleNode m)
     member this.SetInputData(d: Data) = this.SetInput(DataNode d)
@@ -1469,6 +1478,9 @@ and [<AttachMembers>] Dataset(identifier: string, ?title: string, ?description: 
     let _additionalProperty: ResizeArray<Annotation> = ResizeArray()
     /// IONode registry — only meaningfully populated when this is the root dataset.
     let _nodeRegistry: Dictionary<string, IONode> = Dictionary<string, IONode>()
+    let _nodePins: HashSet<string> = HashSet<string>()
+    let _recipeRegistry: Dictionary<string, Recipe> = Dictionary<string, Recipe>()
+    let _recipePins: HashSet<string> = HashSet<string>()
     let _fragmentSelectorProviders: Dictionary<string, IFragmentSelectorProvider> = Dictionary<string, IFragmentSelectorProvider>()
 
     let valueKey (value: string) =
@@ -1483,6 +1495,12 @@ and [<AttachMembers>] Dataset(identifier: string, ?title: string, ?description: 
         values
         |> Seq.map valueKey
         |> String.concat ""
+
+    let recipeKey (recipe: Recipe) =
+        fieldsKey [
+            optionKey recipe.Name
+            optionKey recipe.Version
+        ]
 
     let definedTermKey (dt: DefinedTerm) =
         fieldsKey [
@@ -1532,6 +1550,12 @@ and [<AttachMembers>] Dataset(identifier: string, ?title: string, ?description: 
     // Direct access to the backing dictionary of this dataset instance.
     member private _.NodeRegistryDirect = _nodeRegistry
 
+    member private _.NodePinsDirect = _nodePins
+
+    member private _.RecipeRegistryDirect = _recipeRegistry
+
+    member private _.RecipePinsDirect = _recipePins
+
     member private _.FragmentSelectorProvidersDirect = _fragmentSelectorProviders
 
     /// Walk PartOf until reaching the root dataset of this hierarchy.
@@ -1569,18 +1593,75 @@ and [<AttachMembers>] Dataset(identifier: string, ?title: string, ?description: 
             registry.[key] <- node
             node
 
+    /// Pins a canonical node in the root registry independently of process use.
+    member internal this.PinNode(node: IONode) : IONode =
+        let canonical = this.CanonicalizeNode(node)
+        this.RootDataset().NodePinsDirect.Add(canonical.Key()) |> ignore
+        canonical
+
+    /// Releases an ARC-owned node pin and evicts the node when otherwise unused.
+    member internal this.UnpinNode(node: IONode) =
+        this.RootDataset().NodePinsDirect.Remove(node.Key()) |> ignore
+        this.TryEvictNode(node)
+
+    /// Returns the hierarchy-wide canonical Recipe using Recipe identity.
+    member this.CanonicalizeRecipe(recipe: Recipe) : Recipe =
+        // Spreadsheet/table builders commonly attach an empty Recipe and populate
+        // its name afterwards. Such incomplete objects do not yet have a stable
+        // identity and must not collapse into one another.
+        match recipe.Name with
+        | None -> recipe
+        | Some _ ->
+            let registry = this.RootDataset().RecipeRegistryDirect
+            let key = recipeKey recipe
+            match registry.TryGetValue(key) with
+            | true, existing -> existing
+            | false, _ ->
+                registry.[key] <- recipe
+                recipe
+
+    /// Pins a canonical recipe in the root registry independently of process use.
+    member internal this.PinRecipe(recipe: Recipe) : Recipe =
+        let canonical = this.CanonicalizeRecipe(recipe)
+        if canonical.Name.IsSome then
+            this.RootDataset().RecipePinsDirect.Add(recipeKey canonical) |> ignore
+        canonical
+
+    /// Releases an ARC-owned recipe pin and evicts it when otherwise unused.
+    member internal this.UnpinRecipe(recipe: Recipe) =
+        if recipe.Name.IsSome then
+            this.RootDataset().RecipePinsDirect.Remove(recipeKey recipe) |> ignore
+        this.TryEvictRecipe(recipe)
+
     /// Evicts `node` from the root registry if no process remaining in the
     /// hierarchy still holds it as an input or output.
     member internal this.TryEvictNode(node: IONode) =
         let root = this.RootDataset()
         let key  = node.Key()
-        let stillUsed =
+        let usedByProcess =
             Seq.append (node.GetInputOf() :> seq<Process>) (node.GetOutputOf() :> seq<Process>)
             |> Seq.exists (fun proc ->
                 proc.ProcessOf
                 |> Option.exists (fun ds -> obj.ReferenceEquals(ds.RootDataset(), root)))
-        if not stillUsed then
+        let storedAsDataFile =
+            root.AllDataFiles()
+            |> Seq.exists (fun data -> (DataNode data).Key() = key)
+        let pinned = root.NodePinsDirect.Contains(key)
+        if not (usedByProcess || storedAsDataFile || pinned) then
             root.NodeRegistryDirect.Remove(key) |> ignore
+
+    /// Evicts a recipe when neither a process nor an ARC store uses it.
+    member internal this.TryEvictRecipe(recipe: Recipe) =
+        let root = this.RootDataset()
+        if recipe.Name.IsSome then
+            let key = recipeKey recipe
+            let usedByProcess =
+                root.AllProcesses()
+                |> Seq.exists (fun proc ->
+                    proc.ExecutesProtocol
+                    |> Option.exists (fun current -> current.Name.IsSome && recipeKey current = key))
+            if not (usedByProcess || root.RecipePinsDirect.Contains(key)) then
+                root.RecipeRegistryDirect.Remove(key) |> ignore
 
     member _.Identifier
         with get() = _identifier
@@ -1645,9 +1726,11 @@ and [<AttachMembers>] Dataset(identifier: string, ?title: string, ?description: 
         let removed = index >= 0
         if removed then _processes.RemoveAt(index)
         if removed && proc.ProcessOf = Some this then
+            let previousRecipe = proc.ExecutesProtocol
             proc.ProcessOf <- None
             proc.Input |> Option.iter this.TryEvictNode
             proc.Output |> Option.iter this.TryEvictNode
+            previousRecipe |> Option.iter this.TryEvictRecipe
 
     member _.TryGetProcess(name: string) =
         _processes |> Seq.tryFind (fun p -> p.Name = name)
@@ -1663,6 +1746,12 @@ and [<AttachMembers>] Dataset(identifier: string, ?title: string, ?description: 
             child.PartOf <- Some this
             for provider in child.FragmentSelectorProvidersDirect.Values do
                 this.RegisterFragmentSelectorProvider(provider)
+            let rec canonicalizeDataFiles (dataset: Dataset) =
+                for i in 0 .. dataset.DataFiles.Count - 1 do
+                    dataset.DataFiles.[i] <- this.CanonicalizeDataTree(dataset.DataFiles.[i])
+                for part in dataset.HasPart do
+                    canonicalizeDataFiles part
+            canonicalizeDataFiles child
             // Canonicalize every node in the child's subtree against the new root.
             for proc in child.AllProcesses() do
                 proc.CanonicalizeAllNodes(this)
@@ -1672,31 +1761,64 @@ and [<AttachMembers>] Dataset(identifier: string, ?title: string, ?description: 
         if removed && child.PartOf = Some this then
             // Collect nodes before disconnecting so the root reference is still valid.
             let nodesToCheck =
-                child.AllProcesses()
-                |> Seq.collect (fun p -> [p.Input; p.Output] |> List.choose id)
+                Seq.append
+                    (child.AllProcesses()
+                     |> Seq.collect (fun p -> [p.Input; p.Output] |> List.choose id))
+                    (child.AllDataFiles() |> Seq.map DataNode)
                 |> Seq.distinctBy (fun n -> n.Key())
+                |> Seq.toList
+            let recipesToCheck =
+                child.AllProcesses()
+                |> Seq.choose (fun proc -> proc.ExecutesProtocol)
+                |> Seq.distinctBy recipeKey
                 |> Seq.toList
             child.PartOf <- None
             // Evict nodes that are no longer used anywhere in the (now smaller) tree.
             for node in nodesToCheck do
                 this.TryEvictNode(node)
+            for recipe in recipesToCheck do
+                this.TryEvictRecipe(recipe)
             // Rebuild child's own registry now that it is a root again.
             child.NodeRegistryDirect.Clear()
+            child.RecipeRegistryDirect.Clear()
+            for data in child.AllDataFiles() do
+                child.CanonicalizeNode(DataNode data) |> ignore
             for proc in child.AllProcesses() do
-                for node in [proc.Input; proc.Output] |> List.choose id do
-                    let key = node.Key()
-                    if not (child.NodeRegistryDirect.ContainsKey(key)) then
-                        child.NodeRegistryDirect.[key] <- node
+                proc.CanonicalizeAllNodes(child)
 
     member _.TryGetPart(identifier: string) =
         _hasPart |> Seq.tryFind (fun d -> d.Identifier = identifier)
 
-    member this.AddDataFile(data: Data) =
-        if not (_dataFiles |> Seq.exists (fun d -> d = data)) then
-            _dataFiles.Add(data)
+    member private this.CanonicalizeDataTree(data: Data) : Data =
+        let canonical =
+            match this.CanonicalizeNode(DataNode data) with
+            | DataNode value -> value
+            | SampleNode _ -> failwith "A Data identity key resolved to a Sample."
+        if obj.ReferenceEquals(canonical, data) then
+            for i in 0 .. canonical.HasPart.Count - 1 do
+                canonical.HasPart.[i] <- this.CanonicalizeDataTree(canonical.HasPart.[i])
+        canonical
 
-    member _.RemoveDataFile(data: Data) =
-        _dataFiles.Remove(data) |> ignore
+    member this.AddDataFile(data: Data) =
+        let canonical = this.CanonicalizeDataTree(data)
+        if not (_dataFiles |> Seq.exists (fun d -> d = canonical)) then
+            _dataFiles.Add(canonical)
+
+    member this.RemoveDataFile(data: Data) =
+        match _dataFiles |> Seq.tryFind (fun current -> current = data) with
+        | Some stored ->
+            let nodes =
+                let rec collect (current: Data) =
+                    seq {
+                        yield DataNode current
+                        for part in current.HasPart do
+                            yield! collect part
+                    }
+                collect stored |> Seq.toList
+            _dataFiles.Remove(stored) |> ignore
+            for node in nodes do
+                this.TryEvictNode(node)
+        | None -> ()
 
     member _.TryGetDataFile(path: string) =
         _dataFiles |> Seq.tryFind (fun d -> d.Path = path)

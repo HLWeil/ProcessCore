@@ -36,18 +36,6 @@ module Process =
             ?additionalType = annotation.AdditionalType,
             ?instanceOf = (annotation.InstanceOf |> Option.map cloneFormalParameter))
 
-    let private cloneProtocol (protocol: Recipe) =
-        Recipe(
-            ?name = protocol.Name,
-            ?description = protocol.Description,
-            ?version = protocol.Version,
-            ?url = protocol.Url,
-            ?intendedUse = (protocol.IntendedUse |> Option.map cloneDefinedTerm),
-            ?additionalType = protocol.AdditionalType,
-            parameters = (protocol.Parameters |> Seq.map cloneFormalParameter),
-            components = (protocol.Components |> Seq.map cloneAnnotation),
-            additionalProperty = (protocol.AdditionalProperty |> Seq.map cloneAnnotation))
-
     /// Decode a single input/output YAML element into an IONode.
     /// Discriminates by the `type` field value; defaults to Sample when absent.
     let private decodeIONodeWithPropertyResolver (processCoreOnly: bool) (resolveAnnotation: string -> Annotation option) (value: YAMLElement) : IONode option =
@@ -111,7 +99,7 @@ module Process =
                 Process(
                     name,
                     ?additionalType = additionalType,
-                    ?executesProtocol = (executesProtocol |> Option.map cloneProtocol))
+                    ?executesProtocol = executesProtocol)
             if i < inputs.Count then inputs.[i] |> Option.iter proc.SetInput
             if i < outputs.Count then outputs.[i] |> Option.iter proc.SetOutput
             for parameterValue in parameterValues do

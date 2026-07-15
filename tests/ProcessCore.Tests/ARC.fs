@@ -31,6 +31,266 @@ let testResultsFolder =
 
 let tests = testList "ARC" [
 
+    testList "Unsorted object store characterization" [
+
+        testCase "shared YAML layer decodes ARC samples as concrete Samples" <| fun _ ->
+            let yaml =
+                """type: Dataset
+identifier: arc-store
+samples:
+  - type: Sample
+    name: orphan-sample
+"""
+            let arc = ARC.fromYamlString yaml
+            Expect.equal arc.Samples.Count 1 "one stored Sample should be decoded"
+            Expect.equal arc.Samples.[0].Name "orphan-sample" "the stored value is a concrete Sample"
+
+        testCase "existing YAML layer canonicalizes data files with process endpoints" <| fun _ ->
+            let arc = ARC("arc-store")
+            let stored = Data("data/orphan.csv")
+            arc.AddDataFile(stored)
+            let proc = Process("consume")
+            arc.AddProcess(proc)
+            proc.SetInputData(Data("data/orphan.csv"))
+            let attached = proc.InputData() |> Option.get
+            Expect.isTrue (obj.ReferenceEquals(stored, attached))
+                "A stored Data and equal process endpoint should share one instance"
+
+        testCase "shared YAML layer shares indexed recipes with processes" <| fun _ ->
+            let yaml =
+                """type: Dataset
+identifier: arc-store
+labProtocols:
+  - "@id": "#Protocol_measurement"
+    type: Recipe
+    name: measurement
+    version: "1"
+processes:
+  - type: Process
+    name: run
+    executesProtocol:
+      "@id": "#Protocol_measurement"
+"""
+            let arc = ARC.fromYamlString yaml
+            let stored = arc.Recipes |> Seq.tryExactlyOne
+            let attached = arc.Processes.[0].ExecutesProtocol
+            Expect.isSome stored "ARC labProtocols should be accessible as typed Recipes"
+            Expect.isTrue (obj.ReferenceEquals(stored.Value, attached.Value))
+                "An indexed Recipe and process protocol should share one instance"
+
+        testCase "shared YAML layer does not emit ARC runtime or node back-edge fields" <| fun _ ->
+            let arc = ARC("arc-store")
+            arc.ArcPath <- Some "C:/runtime-only"
+            arc.AddSample(Sample("orphan-sample"))
+            let yaml = arc.toYamlString(2)
+            Expect.isFalse (yaml.Contains("ArcPath")) "ArcPath is runtime-only"
+            Expect.isFalse (yaml.Contains("IsSpreadsheetScaffold")) "representation state is runtime-only"
+            Expect.isFalse (yaml.Contains("InputOf")) "Sample back-edges are runtime-only"
+            Expect.isFalse (yaml.Contains("OutputOf")) "Sample back-edges are runtime-only"
+    ]
+
+    testList "Unsorted object store API" [
+
+        testCase "constructor and Add methods deduplicate equal stored objects" <| fun _ ->
+            let sample = Sample("sample-1")
+            let recipe = Recipe("measurement", version = "1")
+            let arc =
+                ARC(
+                    "arc-store",
+                    samples = [ sample; Sample("sample-1") ],
+                    recipes = [ recipe; Recipe("measurement", version = "1") ])
+            Expect.equal arc.Samples.Count 1 "equal Samples are stored once"
+            Expect.equal arc.Recipes.Count 1 "equal Recipes are stored once"
+            Expect.isTrue (obj.ReferenceEquals(sample, arc.Samples.[0])) "the first Sample is canonical"
+            Expect.isTrue (obj.ReferenceEquals(recipe, arc.Recipes.[0])) "the first Recipe is canonical"
+
+        testCase "store-before-process reuses Sample Data and Recipe instances" <| fun _ ->
+            let arc = ARC("arc-store")
+            let sample = Sample("sample-1")
+            let data = Data("data/result.csv")
+            let recipe = Recipe("measurement", version = "1")
+            arc.AddSample(sample)
+            arc.AddDataFile(data)
+            arc.AddRecipe(recipe)
+            let proc = Process("run")
+            arc.AddProcess(proc)
+            proc.SetInputSample(Sample("sample-1"))
+            proc.SetOutputData(Data("data/result.csv"))
+            proc.ExecutesProtocol <- Some (Recipe("measurement", version = "1"))
+            Expect.isTrue (obj.ReferenceEquals(sample, proc.InputSample().Value)) "stored Sample is reused"
+            Expect.isTrue (obj.ReferenceEquals(data, proc.OutputData().Value)) "stored Data is reused"
+            Expect.isTrue (obj.ReferenceEquals(recipe, proc.ExecutesProtocol.Value)) "stored Recipe is reused"
+
+        testCase "process-before-store adds canonical process objects to ARC stores" <| fun _ ->
+            let arc = ARC("arc-store")
+            let sample = Sample("sample-1")
+            let data = Data("data/result.csv")
+            let recipe = Recipe("measurement", version = "1")
+            let proc = Process("run", executesProtocol = recipe)
+            proc.SetInputSample(sample)
+            proc.SetOutputData(data)
+            arc.AddProcess(proc)
+            arc.AddSample(Sample("sample-1"))
+            arc.AddDataFile(Data("data/result.csv"))
+            arc.AddRecipe(Recipe("measurement", version = "1"))
+            Expect.isTrue (obj.ReferenceEquals(sample, arc.Samples.[0])) "process Sample enters the store"
+            Expect.isTrue (obj.ReferenceEquals(data, arc.DataFiles.[0])) "process Data enters DataFiles"
+            Expect.isTrue (obj.ReferenceEquals(recipe, arc.Recipes.[0])) "process Recipe enters the store"
+
+        testCase "removing from stores does not detach a process and final removal evicts identity" <| fun _ ->
+            let arc = ARC("arc-store")
+            let sample = Sample("sample-1")
+            let recipe = Recipe("measurement", version = "1")
+            arc.AddSample(sample)
+            arc.AddRecipe(recipe)
+            let proc = Process("run", executesProtocol = Recipe("measurement", version = "1"))
+            proc.SetInputSample(Sample("sample-1"))
+            arc.AddProcess(proc)
+            arc.RemoveSample(sample)
+            arc.RemoveRecipe(recipe)
+            Expect.equal arc.Samples.Count 0 "Sample is explicitly removed from the store"
+            Expect.equal arc.Recipes.Count 0 "Recipe is explicitly removed from the store"
+            Expect.isTrue (obj.ReferenceEquals(sample, proc.InputSample().Value)) "process keeps the Sample"
+            Expect.isTrue (obj.ReferenceEquals(recipe, proc.ExecutesProtocol.Value)) "process keeps the Recipe"
+            arc.RemoveProcess(proc)
+            let replacement = Process("replacement", executesProtocol = Recipe("measurement", version = "1"))
+            replacement.SetInputSample(Sample("sample-1"))
+            arc.AddProcess(replacement)
+            Expect.isFalse (obj.ReferenceEquals(sample, replacement.InputSample().Value)) "unused Sample was evicted"
+            Expect.isFalse (obj.ReferenceEquals(recipe, replacement.ExecutesProtocol.Value)) "unused Recipe was evicted"
+
+        testCase "adding a child canonicalizes its stored and linked objects against ARC" <| fun _ ->
+            let arc = ARC("arc-store")
+            let sample = Sample("sample-1")
+            let data = Data("data/result.csv")
+            let recipe = Recipe("measurement", version = "1")
+            arc.AddSample(sample)
+            arc.AddDataFile(data)
+            arc.AddRecipe(recipe)
+            let child = Dataset("child")
+            child.AddDataFile(Data("data/result.csv"))
+            let proc = Process("run", executesProtocol = Recipe("measurement", version = "1"))
+            proc.SetInputSample(Sample("sample-1"))
+            child.AddProcess(proc)
+            arc.AddPart(child)
+            Expect.isTrue (obj.ReferenceEquals(sample, proc.InputSample().Value)) "child Sample is canonical"
+            Expect.isTrue (obj.ReferenceEquals(data, child.DataFiles.[0])) "child DataFile is canonical"
+            Expect.isTrue (obj.ReferenceEquals(recipe, proc.ExecutesProtocol.Value)) "child Recipe is canonical"
+
+        testCase "replacing a protocol respects store pinning and final-reference eviction" <| fun _ ->
+            let arc = ARC("arc-store")
+            let first = Recipe("measurement", version = "1")
+            let second = Recipe("normalization", version = "1")
+            arc.AddRecipe(first)
+            let proc = Process("run", executesProtocol = Recipe("measurement", version = "1"))
+            arc.AddProcess(proc)
+            proc.ExecutesProtocol <- Some second
+            Expect.isTrue (obj.ReferenceEquals(first, arc.Recipes.[0]))
+                "replacing a process protocol does not remove a pinned recipe"
+            arc.RemoveRecipe(first)
+            let later = Process("later", executesProtocol = Recipe("measurement", version = "1"))
+            arc.AddProcess(later)
+            Expect.isFalse (obj.ReferenceEquals(first, later.ExecutesProtocol.Value))
+                "the replaced and unpinned recipe is evicted"
+
+        testCase "detached children rebuild independent data and recipe registries" <| fun _ ->
+            let arc = ARC("arc-store")
+            let parentData = Data("data/result.csv")
+            let parentRecipe = Recipe("measurement", version = "1")
+            arc.AddDataFile(parentData)
+            arc.AddRecipe(parentRecipe)
+            let child = Dataset("child")
+            child.AddDataFile(Data("data/result.csv"))
+            let original = Process("run", executesProtocol = Recipe("measurement", version = "1"))
+            child.AddProcess(original)
+            arc.AddPart(child)
+            arc.RemovePart(child)
+
+            let later = Process("later", executesProtocol = Recipe("measurement", version = "1"))
+            later.SetOutputData(Data("data/result.csv"))
+            child.AddProcess(later)
+            Expect.isTrue (obj.ReferenceEquals(child.DataFiles.[0], later.OutputData().Value))
+                "the detached data store seeds the new child registry"
+            Expect.isTrue (obj.ReferenceEquals(original.ExecutesProtocol.Value, later.ExecutesProtocol.Value))
+                "the detached process protocol seeds the new child recipe registry"
+    ]
+
+    testList "Unsorted object store YAML" [
+
+        testCase "objects stored only on ARC round-trip without processes" <| fun _ ->
+            let sample =
+                Sample(
+                    "orphan-sample",
+                    additionalType = "Sample",
+                    additionalProperty = [ Annotation("organism", value = "plant") ])
+            let data =
+                Data(
+                    "data/orphan.csv",
+                    selector = "#col=2",
+                    selectorFormat = "https://www.rfc-editor.org/rfc/rfc7111")
+            let recipe = Recipe("orphan-recipe", version = "2")
+            let arc = ARC("arc-store", samples = [ sample ], dataFiles = [ data ], recipes = [ recipe ])
+
+            let yaml = arc.toYamlString(2)
+            let decoded = ARC.fromYamlString yaml
+
+            Expect.equal decoded.Processes.Count 0 "the ARC has no processes before or after the round-trip"
+            Expect.equal decoded.Samples.Count 1 "the ARC-only Sample survives"
+            Expect.equal decoded.DataFiles.Count 1 "the ARC-only Data survives"
+            Expect.equal decoded.Recipes.Count 1 "the ARC-only Recipe survives"
+            Expect.equal decoded.Samples.[0].Name "orphan-sample" "the Sample decodes as a concrete Sample"
+            Expect.equal decoded.Samples.[0].AdditionalType (Some "Sample") "Sample fields survive"
+            Expect.equal decoded.DataFiles.[0].Path "data/orphan.csv" "the Data decodes as concrete Data"
+            Expect.equal decoded.DataFiles.[0].Selector (Some "#col=2") "Data identity fields survive"
+            Expect.equal decoded.Recipes.[0].Name (Some "orphan-recipe") "the Recipe decodes as a concrete Recipe"
+            Expect.equal decoded.Recipes.[0].Version (Some "2") "Recipe identity fields survive"
+            Expect.isTrue (yaml.Contains("samples:")) "the Sample uses the typed samples field"
+            Expect.isTrue (yaml.Contains("dataFiles:")) "the Data uses the typed dataFiles field"
+            Expect.isTrue (yaml.Contains("labProtocols:")) "the Recipe uses the typed labProtocols field"
+
+        testCase "stored and linked objects round-trip with identity and without duplicate recipe versions" <| fun _ ->
+            let arc = ARC("arc-store")
+            let sample = Sample("sample-1", additionalProperty = [ Annotation("organism", value = "plant") ])
+            let data = Data("data/result.csv")
+            let recipeV1 = Recipe("measurement", version = "1")
+            let recipeV2 = Recipe("measurement", version = "2")
+            arc.AddSample(sample)
+            arc.AddDataFile(data)
+            arc.AddRecipe(recipeV1)
+            arc.AddRecipe(recipeV2)
+            let proc = Process("run", executesProtocol = Recipe("measurement", version = "1"))
+            proc.SetInputSample(Sample("sample-1"))
+            proc.SetOutputData(Data("data/result.csv"))
+            arc.AddProcess(proc)
+            arc.SetProperty("customMeta", "preserved")
+
+            let yaml = arc.toYamlString(2)
+            let decoded = ARC.fromYamlString yaml
+
+            Expect.equal decoded.Samples.Count 1 "stored Sample survives"
+            Expect.equal decoded.DataFiles.Count 1 "stored Data survives"
+            Expect.equal decoded.Recipes.Count 2 "distinct Recipe versions survive"
+            Expect.isTrue (obj.ReferenceEquals(decoded.Samples.[0], decoded.Processes.[0].InputSample().Value))
+                "decoded Sample store and endpoint share identity"
+            Expect.isTrue (obj.ReferenceEquals(decoded.DataFiles.[0], decoded.Processes.[0].OutputData().Value))
+                "decoded DataFile and endpoint share identity"
+            let decodedV1 = decoded.Recipes |> Seq.find (fun recipe -> recipe.Version = Some "1")
+            Expect.isTrue (obj.ReferenceEquals(decodedV1, decoded.Processes.[0].ExecutesProtocol.Value))
+                "decoded Recipe store and process share identity"
+            Expect.equal (decoded.TryGetPropertyValue("customMeta") |> Option.map string) (Some "preserved")
+                "unknown ARC metadata survives"
+            Expect.isTrue (yaml.Contains("#Protocol_measurement_version_1")) "version 1 has a distinct id"
+            Expect.isTrue (yaml.Contains("#Protocol_measurement_version_2")) "version 2 has a distinct id"
+
+        testCase "explicit recipe ids are preserved" <| fun _ ->
+            let recipe = Recipe("measurement", version = "1")
+            recipe.SetProperty("@id", "https://example.org/protocols/measurement-v1")
+            let arc = ARC("arc-store", recipes = [ recipe ])
+            let yaml = arc.toYamlString(2)
+            Expect.isTrue (yaml.Contains("https://example.org/protocols/measurement-v1"))
+                "an explicit @id wins over generated identity"
+    ]
+
     testCaseCrossAsync "loadXLSXAsync_scaffold" (crossAsync {
         let testARCPath = Path.combine testObjectsFolder "testARC"
         let! arc = ARC.loadXLSXAsync testARCPath
@@ -44,6 +304,9 @@ let tests = testList "ARC" [
         let testARCPath = Path.combine testObjectsFolder "testARC"
         let! arc = ARC.loadXLSXAsync testARCPath
         let tempDir = Path.combine testResultsFolder "TestARC_explicit_yml"
+        arc.AddSample(Sample("staged-sample"))
+        arc.AddDataFile(Data("data/staged.csv"))
+        arc.AddRecipe(Recipe("staged-recipe", version = "1"))
 
         do! arc.WriteYMLAsync tempDir
         let! loadedArc = ARC.loadYMLAsync tempDir
@@ -51,6 +314,13 @@ let tests = testList "ARC" [
         Expect.equal loadedArc.Identifier arc.Identifier "Identifiers should match"
         Expect.equal loadedArc.ArcPath (Some tempDir) "ARC should retain its load path"
         Expect.isFalse loadedArc.IsSpreadsheetScaffold "ARC should retain its YAML representation"
+        Expect.equal loadedArc.Samples.Count 1 "stored Sample survives file IO"
+        Expect.isTrue (loadedArc.DataFiles |> Seq.exists (fun data -> data.Path = "data/staged.csv"))
+            "stored Data survives file IO"
+        Expect.isTrue
+            (loadedArc.Recipes
+             |> Seq.exists (fun recipe -> recipe.Name = Some "staged-recipe" && recipe.Version = Some "1"))
+            "stored Recipe survives file IO alongside scaffold protocols"
     })
 
     testCaseCrossAsync "loadAsync_scaffold" (crossAsync {
