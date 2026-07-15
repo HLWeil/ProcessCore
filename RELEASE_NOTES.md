@@ -1,8 +1,11 @@
-### 0.0.9 (Unreleased)
-* Breaking changes:
-    * Model each `Process` as one edge with optional singular `Input` and `Output` nodes.
-    * Expand collapsed YAML process arrays on read and group equivalent singular edges on dataset write.
-    * Make each tabular row correspond to exactly one process and remove `Dataset.CollapseProcesses`.
+### 0.0.9+3d81375 (Released 2026-7-16)
+* Additions:
+    * [[#d6c52fa](https://github.com/HLWeil/ProcessCore/commit/d6c52fa266e4b62fbf38e7f70a14804293df29c6)] rename labprotocol fields to recipe
+    * [[#e0f98ae](https://github.com/HLWeil/ProcessCore/commit/e0f98aee4225f53883fe96a25366b39c01e7c198)] add ARC level sample, data and recipe store
+    * [[#dce26a5](https://github.com/HLWeil/ProcessCore/commit/dce26a595621815046d167dbfc7f83c5b6cc218d)] add explicit IO layer on ARC
+    * [[#afee731](https://github.com/HLWeil/ProcessCore/commit/afee731184f1bba7df9ed9b55946d63886df0e6f)] update plans according to process handling changes
+* Deletions:
+    * [[#0f20d34](https://github.com/HLWeil/ProcessCore/commit/0f20d349688a67b2b0d3a80b8b61ecf64898507c)] remove ability to collapse processes in datamodel
 
 ### 0.0.8+beb0750 (Released 2026-7-14)
 * Additions:
