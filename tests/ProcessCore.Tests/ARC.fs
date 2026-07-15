@@ -31,6 +31,28 @@ let testResultsFolder =
 
 let tests = testList "ARC" [
 
+    testCaseCrossAsync "loadXLSXAsync_scaffold" (crossAsync {
+        let testARCPath = Path.combine testObjectsFolder "testARC"
+        let! arc = ARC.loadXLSXAsync testARCPath
+
+        Expect.equal arc.Identifier "Facultative-CAM-in-Talinum" "ARC should have correct identifier"
+        Expect.equal arc.ArcPath (Some testARCPath) "ARC should retain its load path"
+        Expect.isTrue arc.IsSpreadsheetScaffold "ARC should retain its spreadsheet representation"
+    })
+
+    testCaseCrossAsync "WriteYMLAsync_loadYMLAsync" (crossAsync {
+        let testARCPath = Path.combine testObjectsFolder "testARC"
+        let! arc = ARC.loadXLSXAsync testARCPath
+        let tempDir = Path.combine testResultsFolder "TestARC_explicit_yml"
+
+        do! arc.WriteYMLAsync tempDir
+        let! loadedArc = ARC.loadYMLAsync tempDir
+
+        Expect.equal loadedArc.Identifier arc.Identifier "Identifiers should match"
+        Expect.equal loadedArc.ArcPath (Some tempDir) "ARC should retain its load path"
+        Expect.isFalse loadedArc.IsSpreadsheetScaffold "ARC should retain its YAML representation"
+    })
+
     testCaseCrossAsync "loadAsync_scaffold" (crossAsync {
         let testARCPath = Path.combine testObjectsFolder "testARC"
         let! arc = ARC.loadAsync testARCPath
