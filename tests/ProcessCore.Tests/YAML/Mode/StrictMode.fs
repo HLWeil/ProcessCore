@@ -52,7 +52,7 @@ let tests = testList "StrictMode" [
         Expect.equal (Yaml.Sample.fromYamlString      true "name: S1\n").Name       "S1"   "Sample no type"
         Expect.equal (Yaml.Data.fromYamlString          true "path: raw.csv\n").Path  "raw.csv" "Data no type"
         Expect.equal (Yaml.Recipe.fromYamlString   true "name: prot\n").Name     (Some "prot") "Recipe no type"
-        Expect.equal (Yaml.Process.fromYamlString    true "name: p1\n").Name       "p1"   "Process no type"
+        Expect.equal ((Yaml.Process.fromYamlString true "name: p1\n" |> Seq.exactlyOne).Name) "p1" "Process no type"
         Expect.equal (Yaml.Dataset.fromYamlString false "identifier: DS-1\n").Identifier "DS-1" "Dataset no type"
 
 ]

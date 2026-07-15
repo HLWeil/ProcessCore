@@ -1,3 +1,9 @@
+### 0.0.9 (Unreleased)
+* Breaking changes:
+    * Model each `Process` as one edge with optional singular `Input` and `Output` nodes.
+    * Expand collapsed YAML process arrays on read and group equivalent singular edges on dataset write.
+    * Make each tabular row correspond to exactly one process and remove `Dataset.CollapseProcesses`.
+
 ### 0.0.8+beb0750 (Released 2026-7-14)
 * Additions:
     * [[#beb0750](https://github.com/HLWeil/ProcessCore/commit/beb07508e68ecae6632aeacac64459401be17b82)] test and improve stability of ARC io

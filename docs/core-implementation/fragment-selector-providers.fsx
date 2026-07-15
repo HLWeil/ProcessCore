@@ -67,11 +67,11 @@ let measuredCell = Data(path = "measurements.csv", selector = "cell=2,2", select
 let interpretedSample = Sample("Interpreted sample", additionalType = "Sample")
 
 let export = Process("Export CSV")
-export.AddOutputData(exportedColumns)
+export.SetOutputData(exportedColumns)
 
 let interpret = Process("Interpret selected cell")
-interpret.AddInputData(measuredCell)
-interpret.AddOutputSample(interpretedSample)
+interpret.SetInputData(measuredCell)
+interpret.SetOutputSample(interpretedSample)
 
 dataset.AddProcess(export)
 dataset.AddProcess(interpret)

@@ -49,8 +49,8 @@ let fixtureRecipe =
 
 let fixtureProcess =
     let proc = Process("p1")
-    proc.AddInput(SampleNode fixtureSample)
-    proc.AddOutput(DataNode fixtureData)
+    proc.SetInput(SampleNode fixtureSample)
+    proc.SetOutput(DataNode fixtureData)
     proc.ExecutesProtocol <- Some fixtureRecipe
     proc.AddParameterValue(Annotation("temperature", value = "37", unit = "°C"))
     proc.AddParameterValue(Annotation("rpm", value = "200", unit = "rpm"))
@@ -81,22 +81,22 @@ let makeLinearGraph () =
     let proto1 = Recipe(name = "extraction")
     proto1.IntendedUse <- Some (DefinedTerm("cell growth"))
     let p1 = Process("p1")
-    p1.AddInput(SampleNode source1)
-    p1.AddOutput(SampleNode sample1)
+    p1.SetInput(SampleNode source1)
+    p1.SetOutput(SampleNode sample1)
     p1.ExecutesProtocol <- Some proto1
     p1.AddParameterValue(Annotation("temperature", value = "37", unit = "°C"))
     p1.AddParameterValue(Annotation("rpm", value = "200", unit = "rpm"))
 
     let proto2 = Recipe(name = "digestion")
     let p2 = Process("p2")
-    p2.AddInput(SampleNode sample1)
-    p2.AddOutput(SampleNode sample2)
+    p2.SetInput(SampleNode sample1)
+    p2.SetOutput(SampleNode sample2)
     p2.ExecutesProtocol <- Some proto2
     p2.AddParameterValue(Annotation("enzyme", value = "Trypsin"))
 
     let p3 = Process("p3")
-    p3.AddInput(SampleNode sample2)
-    p3.AddOutput(DataNode rawData1)
+    p3.SetInput(SampleNode sample2)
+    p3.SetOutput(DataNode rawData1)
 
     let ds = Dataset("DS-A")
     ds.AddProcess(p1)

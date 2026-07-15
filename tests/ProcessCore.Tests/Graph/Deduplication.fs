@@ -6,26 +6,23 @@ open ProcessCore.Tests.Fixtures
 
 let tests = testList "Deduplication" [
 
-    testCase "AddInput: identical node can be added" <| fun _ ->
+    testCase "reassigning the same input keeps one back-edge" <| fun _ ->
         let f = makeFixtureA()
-        // Sample1 is already an input of p2 (added during fixture construction)
-        let countBefore = f.P2.Inputs.Count
-        f.P2.AddInputSample(f.Sample1)
-        Expect.equal f.P2.Inputs.Count (countBefore + 1) "Adding Sample1 again to p2 inputs should create a second entry"
+        f.P2.SetInputSample(f.Sample1)
+        Expect.equal f.Sample1.InputOf.Count 1 "a singular input has one back-edge per process"
 
-    testCase "AddOutput: identical node can be added" <| fun _ ->
+    testCase "reassigning the same output keeps one back-edge" <| fun _ ->
         let f = makeFixtureA()
-        // Sample1 is already an output of p1
-        let countBefore = f.P1.Outputs.Count
-        f.P1.AddOutputSample(f.Sample1)
-        Expect.equal f.P1.Outputs.Count (countBefore + 1) "Adding Sample1 again to p1 outputs should create a second entry"
+        f.P1.SetOutputSample(f.Sample1)
+        Expect.equal f.Sample1.OutputOf.Count 1 "a singular output has one back-edge per process"
 
     testCase "shared node is same object instance" <| fun _ ->
         let f = makeFixtureA()
         // p2's input should be the exact same object as f.Sample1 (not a copy)
         let inputNode =
-            f.P2.Inputs
-            |> Seq.pick (fun n -> match n with | SampleNode m when m = f.Sample1 -> Some m | _ -> None)
+            match f.P2.Input with
+            | Some (SampleNode m) -> m
+            | _ -> failwith "Expected sample input"
         Expect.isTrue (obj.ReferenceEquals(inputNode, f.Sample1)) "Deduplicated node should be the same object instance"
 
     testCase "AddProcess: duplicate ignored" <| fun _ ->
@@ -76,40 +73,40 @@ let tests = testList "Deduplication" [
         //            -> Process 1/ Process2 -> Output 1
         // OutputTwo /
 
-        process1.AddInputSample(Sample("InputOne"))
-        process2.AddInputSample(Sample("InputTwo"))
+        process1.SetInputSample(Sample("InputOne"))
+        process2.SetInputSample(Sample("InputTwo"))
 
-        process1.AddOutputSample(Sample("TheOutput"))
-        process2.AddOutputSample(Sample("TheOutput"))
+        process1.SetOutputSample(Sample("TheOutput"))
+        process2.SetOutputSample(Sample("TheOutput"))
 
-        Expect.equal 2 (process1.Outputs[0].UpstreamNodes().Count) "TheOutput should have two upstream nodes (one from each process)"
+        Expect.equal 2 (process1.Output.Value.UpstreamNodes().Count) "TheOutput should have two upstream nodes (one from each process)"
 
     testList "IONodeRegistry" [
 
         testCase "pre-wired process: nodes registered when AddProcess is called" <| fun _ ->
             let p = Process("p")
-            p.AddOutputSample(Sample("mat"))
+            p.SetOutputSample(Sample("mat"))
             let d = Dataset("DS")
             d.AddProcess(p)
             // Re-adding an equal node should resolve to the same instance already in the registry
             let second = Process("p2")
             d.AddProcess(second)
-            second.AddOutputSample(Sample("mat"))
-            let inst1 = match p.Outputs.[0]    with SampleNode m -> m | _ -> failwith "not sample"
-            let inst2 = match second.Outputs.[0] with SampleNode m -> m | _ -> failwith "not sample"
+            second.SetOutputSample(Sample("mat"))
+            let inst1 = match p.Output.Value    with SampleNode m -> m | _ -> failwith "not sample"
+            let inst2 = match second.Output.Value with SampleNode m -> m | _ -> failwith "not sample"
             Expect.isTrue (obj.ReferenceEquals(inst1, inst2))
                 "Node added after AddProcess should resolve to the same canonical instance"
 
         testCase "two pre-wired processes: equal nodes become same instance after AddProcess" <| fun _ ->
             let p1 = Process("p1")
             let p2 = Process("p2")
-            p1.AddOutputSample(Sample("shared"))
-            p2.AddOutputSample(Sample("shared"))
+            p1.SetOutputSample(Sample("shared"))
+            p2.SetOutputSample(Sample("shared"))
             let d = Dataset("DS")
             d.AddProcess(p1)
             d.AddProcess(p2)
-            let inst1 = match p1.Outputs.[0] with SampleNode m -> m | _ -> failwith "not sample"
-            let inst2 = match p2.Outputs.[0] with SampleNode m -> m | _ -> failwith "not sample"
+            let inst1 = match p1.Output.Value with SampleNode m -> m | _ -> failwith "not sample"
+            let inst2 = match p2.Output.Value with SampleNode m -> m | _ -> failwith "not sample"
             Expect.isTrue (obj.ReferenceEquals(inst1, inst2))
                 "Both processes should share the exact same canonical node object after being added to the dataset"
 
@@ -117,14 +114,14 @@ let tests = testList "Deduplication" [
             let p = Process("p")
             let d = Dataset("DS")
             d.AddProcess(p)
-            p.AddOutputSample(Sample("evictMe"))
-            let canonical = match p.Outputs.[0] with SampleNode m -> m | _ -> failwith "not sample"
+            p.SetOutputSample(Sample("evictMe"))
+            let canonical = match p.Output.Value with SampleNode m -> m | _ -> failwith "not sample"
             d.RemoveProcess(p)
             // After removal, adding a new equal node should NOT resolve to the old canonical instance
             let p2 = Process("p2")
             d.AddProcess(p2)
-            p2.AddOutputSample(Sample("evictMe"))
-            let newInst = match p2.Outputs.[0] with SampleNode m -> m | _ -> failwith "not sample"
+            p2.SetOutputSample(Sample("evictMe"))
+            let newInst = match p2.Output.Value with SampleNode m -> m | _ -> failwith "not sample"
             Expect.isFalse (obj.ReferenceEquals(canonical, newInst))
                 "Evicted node should not be reused after the process that held it was removed"
 
@@ -134,15 +131,15 @@ let tests = testList "Deduplication" [
             let d  = Dataset("DS")
             d.AddProcess(p1)
             d.AddProcess(p2)
-            p1.AddOutputSample(Sample("shared"))
-            p2.AddOutputSample(Sample("shared"))
-            let canonical = match p1.Outputs.[0] with SampleNode m -> m | _ -> failwith "not sample"
+            p1.SetOutputSample(Sample("shared"))
+            p2.SetOutputSample(Sample("shared"))
+            let canonical = match p1.Output.Value with SampleNode m -> m | _ -> failwith "not sample"
             d.RemoveProcess(p1)
             // p2 still holds the node; a third process should still resolve to the same canonical instance
             let p3 = Process("p3")
             d.AddProcess(p3)
-            p3.AddOutputSample(Sample("shared"))
-            let resolved = match p3.Outputs.[0] with SampleNode m -> m | _ -> failwith "not sample"
+            p3.SetOutputSample(Sample("shared"))
+            let resolved = match p3.Output.Value with SampleNode m -> m | _ -> failwith "not sample"
             Expect.isTrue (obj.ReferenceEquals(canonical, resolved))
                 "Canonical node must survive as long as at least one process still references it"
 
@@ -151,14 +148,14 @@ let tests = testList "Deduplication" [
             let parent = Dataset("parent")
             let p = Process("p")
             child.AddProcess(p)
-            p.AddOutputSample(Sample("node"))
-            let childInst = match p.Outputs.[0] with SampleNode m -> m | _ -> failwith "not sample"
+            p.SetOutputSample(Sample("node"))
+            let childInst = match p.Output.Value with SampleNode m -> m | _ -> failwith "not sample"
             parent.AddPart(child)
             // A new process added to parent with an equal node should resolve to the child's canonical instance
             let p2 = Process("p2")
             parent.AddProcess(p2)
-            p2.AddOutputSample(Sample("node"))
-            let parentInst = match p2.Outputs.[0] with SampleNode m -> m | _ -> failwith "not sample"
+            p2.SetOutputSample(Sample("node"))
+            let parentInst = match p2.Output.Value with SampleNode m -> m | _ -> failwith "not sample"
             Expect.isTrue (obj.ReferenceEquals(childInst, parentInst))
                 "Node from child dataset should be canonical in the parent registry after AddPart"
 
@@ -167,15 +164,15 @@ let tests = testList "Deduplication" [
             let parent = Dataset("parent")
             let p = Process("p")
             child.AddProcess(p)
-            p.AddOutputSample(Sample("childOnly"))
+            p.SetOutputSample(Sample("childOnly"))
             parent.AddPart(child)
-            let canonicalInParent = match p.Outputs.[0] with SampleNode m -> m | _ -> failwith "not sample"
+            let canonicalInParent = match p.Output.Value with SampleNode m -> m | _ -> failwith "not sample"
             parent.RemovePart(child)
             // After removal, adding an equal node to the parent should NOT resolve to the old instance
             let p2 = Process("p2")
             parent.AddProcess(p2)
-            p2.AddOutputSample(Sample("childOnly"))
-            let newInst = match p2.Outputs.[0] with SampleNode m -> m | _ -> failwith "not sample"
+            p2.SetOutputSample(Sample("childOnly"))
+            let newInst = match p2.Output.Value with SampleNode m -> m | _ -> failwith "not sample"
             Expect.isFalse (obj.ReferenceEquals(canonicalInParent, newInst))
                 "Child-only node must be evicted from parent registry after RemovePart"
 
@@ -184,15 +181,15 @@ let tests = testList "Deduplication" [
             let parent = Dataset("parent")
             let p = Process("p")
             child.AddProcess(p)
-            p.AddOutputSample(Sample("node"))
-            let instanceBeforeAttach = match p.Outputs.[0] with SampleNode m -> m | _ -> failwith "not sample"
+            p.SetOutputSample(Sample("node"))
+            let instanceBeforeAttach = match p.Output.Value with SampleNode m -> m | _ -> failwith "not sample"
             parent.AddPart(child)
             parent.RemovePart(child)
             // After detach, a new process added to the child should canonicalize against its own registry
             let p2 = Process("p2")
             child.AddProcess(p2)
-            p2.AddOutputSample(Sample("node"))
-            let resolvedInChild = match p2.Outputs.[0] with SampleNode m -> m | _ -> failwith "not sample"
+            p2.SetOutputSample(Sample("node"))
+            let resolvedInChild = match p2.Output.Value with SampleNode m -> m | _ -> failwith "not sample"
             Expect.isTrue (obj.ReferenceEquals(instanceBeforeAttach, resolvedInChild))
                 "Detached child should canonicalize new equal nodes against its own rebuilt registry"
 

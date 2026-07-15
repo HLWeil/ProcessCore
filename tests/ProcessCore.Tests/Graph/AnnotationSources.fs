@@ -63,7 +63,7 @@ let tests = testList "AnnotationSources" [
         let sharedPV = Annotation("dedup_name", value = "dedup_val")
         m.AddAdditionalProperty(sharedPV)
         let p = Process("dedup_proc")
-        p.AddInputSample(m)
+        p.SetInputSample(m)
         p.AddParameterValue(sharedPV)   // same PV object → same name/value
         let pvs = (SampleNode m).AllAnnotations()
         let count = pvs |> Seq.filter (fun pv -> pv.Name = "dedup_name") |> Seq.length

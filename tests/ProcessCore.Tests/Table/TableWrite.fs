@@ -12,8 +12,8 @@ let makeBaseTable () =
     let sample = Sample("Sample1", additionalType = "Sample")
     let proto  = Recipe("extraction")
     let proc   = Process("Growth")
-    proc.AddInputSample(source)
-    proc.AddOutputSample(sample)
+    proc.SetInputSample(source)
+    proc.SetOutputSample(sample)
     proc.ExecutesProtocol <- Some proto
     let ds = Dataset("DS")
     ds.AddProcess(proc)
@@ -54,7 +54,7 @@ let tests = testList "TableWrite" [
             let organism = DefinedTerm("organism")
             t.AddColumn(CompositeHeader.Characteristic(organism),
                         ResizeArray([| CompositeCell.FreeText "E. coli" |]))
-            match proc.Inputs |> Seq.tryHead with
+            match proc.Input with
             | Some (SampleNode m) ->
                 let pv = m.AdditionalProperty |> Seq.tryFind (fun p -> p.Name = "organism")
                 Expect.isSome pv "Characteristic PV on input sample"
@@ -65,7 +65,7 @@ let tests = testList "TableWrite" [
             let growthPhase = DefinedTerm("growth_phase")
             t.AddColumn(CompositeHeader.Factor(growthPhase),
                         ResizeArray([| CompositeCell.FreeText "log" |]))
-            match proc.Outputs |> Seq.tryHead with
+            match proc.Output with
             | Some (SampleNode m) ->
                 let pv = m.AdditionalProperty |> Seq.tryFind (fun p -> p.Name = "growth_phase")
                 Expect.isSome pv "Factor PV on output sample"
@@ -95,9 +95,9 @@ let tests = testList "TableWrite" [
             let s2 = Sample("S2", additionalType = "Source")
             let o2 = Sample("O2", additionalType = "Sample")
             let p1 = Process("T")
-            p1.AddInputSample(s1) ; p1.AddOutputSample(o1)
+            p1.SetInputSample(s1) ; p1.SetOutputSample(o1)
             let p2 = Process("T")
-            p2.AddInputSample(s2) ; p2.AddOutputSample(o2)
+            p2.SetInputSample(s2) ; p2.SetOutputSample(o2)
             let ds = Dataset("DS")
             ds.AddProcess(p1) ; ds.AddProcess(p2)
             let t = Table("T", ResizeArray([| p1; p2 |]), ds)
@@ -123,13 +123,13 @@ let tests = testList "TableWrite" [
         testCase "RemoveColumn — removes Characteristic from input" <| fun _ ->
             let t, proc, _ = makeBaseTable()
             let organism = DefinedTerm("organism")
-            match proc.Inputs |> Seq.tryHead with
+            match proc.Input with
             | Some (SampleNode m) ->
                 m.AddAdditionalProperty(Annotation("organism", value = "Mouse", additionalType = "CharacteristicValue"))
             | _ -> ()
             t.RemoveColumn(CompositeHeader.Characteristic(organism))
             let hasPV =
-                match proc.Inputs |> Seq.tryHead with
+                match proc.Input with
                 | Some (SampleNode m) -> m.AdditionalProperty |> Seq.exists (fun p -> p.Name = "organism")
                 | _ -> false
             Expect.isFalse hasPV "Characteristic PV removed"
@@ -137,13 +137,13 @@ let tests = testList "TableWrite" [
         testCase "RemoveColumn — removes Factor from output" <| fun _ ->
             let t, proc, _ = makeBaseTable()
             let growthPhase = DefinedTerm("growth_phase")
-            match proc.Outputs |> Seq.tryHead with
+            match proc.Output with
             | Some (SampleNode m) ->
                 m.AddAdditionalProperty(Annotation("growth_phase", value = "log", additionalType = "FactorValue"))
             | _ -> ()
             t.RemoveColumn(CompositeHeader.Factor(growthPhase))
             let hasPV =
-                match proc.Outputs |> Seq.tryHead with
+                match proc.Output with
                 | Some (SampleNode m) -> m.AdditionalProperty |> Seq.exists (fun p -> p.Name = "growth_phase")
                 | _ -> false
             Expect.isFalse hasPV "Factor PV removed"
@@ -195,7 +195,7 @@ let tests = testList "TableWrite" [
             let cells = ResizeArray([| CompositeCell.FreeText "Source2"; CompositeCell.FreeText "ref"; CompositeCell.FreeText "Sample2" |])
             t.AddRow(cells = cells)
             let newProc = t.Processes.[1]
-            match newProc.Inputs |> Seq.tryHead with
+            match newProc.Input with
             | Some (SampleNode m) -> Expect.equal m.Name "Source2" "input name set"
             | _ -> failwith "expected input SampleNode"
 
@@ -207,7 +207,7 @@ let tests = testList "TableWrite" [
             emptyCells.[emptyCells.Count - 1] <- CompositeCell.FreeText "Sample2_out"
             t.AddRow(cells = emptyCells)
             let newProc = t.Processes.[1]
-            match newProc.Outputs |> Seq.tryHead with
+            match newProc.Output with
             | Some (SampleNode m) -> Expect.equal m.Name "Sample2_out" "output name set"
             | _ -> failwith "expected output SampleNode"
 
@@ -215,8 +215,8 @@ let tests = testList "TableWrite" [
             let source = Sample("Source1", additionalType = "Source")
             let raw    = Data("raw.csv")
             let proc   = Process("M")
-            proc.AddInputSample(source)
-            proc.AddOutputData(raw)
+            proc.SetInputSample(source)
+            proc.SetOutputData(raw)
             let ds = Dataset("DS")
             ds.AddProcess(proc)
             let t  = Table("M", ResizeArray([| proc |]), ds)
@@ -227,7 +227,7 @@ let tests = testList "TableWrite" [
             cells.[outIdx] <- CompositeCell.Data(Data("out2.csv"))
             t.AddRow(cells = cells)
             let newProc = t.Processes.[1]
-            match newProc.Outputs |> Seq.tryHead with
+            match newProc.Output with
             | Some (DataNode d) -> Expect.equal d.Path "out2.csv" "output DataNode path"
             | _ -> failwith "expected DataNode"
 
@@ -264,11 +264,11 @@ let tests = testList "TableWrite" [
             let s2 = Sample("S2", additionalType = "Source")
             let o2 = Sample("O2", additionalType = "Sample")
             let p1 = Process("T")
-            p1.AddInputSample(s1)
-            p1.AddOutputSample(o1)
+            p1.SetInputSample(s1)
+            p1.SetOutputSample(o1)
             let p2 = Process("T")
-            p2.AddInputSample(s2)
-            p2.AddOutputSample(o2)
+            p2.SetInputSample(s2)
+            p2.SetOutputSample(o2)
             let ds = Dataset("DS")
             ds.AddProcess(p1)
             ds.AddProcess(p2)
@@ -279,7 +279,7 @@ let tests = testList "TableWrite" [
             cells.[inIdx] <- CompositeCell.FreeText "SInserted"
             t.AddRow(cells = cells, index = 1)
             Expect.equal t.RowCount 3 "3 rows after insert"
-            match t.Processes.[1].Inputs |> Seq.tryHead with
+            match t.Processes.[1].Input with
             | Some (SampleNode m) -> Expect.equal m.Name "SInserted" "inserted at correct position"
             | _ -> failwith "expected SampleNode at index 1"
 
@@ -321,7 +321,7 @@ let tests = testList "TableWrite" [
             let inIdx   = headers |> Seq.findIndex (fun h -> match h with CompositeHeader.Input _ -> true | _ -> false)
             cells.[inIdx] <- CompositeCell.FreeText "UpdatedSource"
             t.UpdateRow(0, cells)
-            match proc.Inputs |> Seq.tryHead with
+            match proc.Input with
             | Some (SampleNode m) -> Expect.equal m.Name "UpdatedSource" "input name updated"
             | _ -> failwith "expected SampleNode"
 
@@ -345,12 +345,12 @@ let tests = testList "TableWrite" [
             let s2 = Sample("S2", additionalType = "Source")
             let o2 = Sample("O2", additionalType = "Sample")
             let p1 = Process("T")
-            p1.AddInputSample(s1)
-            p1.AddOutputSample(o1)
+            p1.SetInputSample(s1)
+            p1.SetOutputSample(o1)
             p1.AddParameterValue(Annotation("rpm", value = "200", unit = "rpm", additionalType = "ParameterValue"))
             let p2 = Process("T")
-            p2.AddInputSample(s2)
-            p2.AddOutputSample(o2)
+            p2.SetInputSample(s2)
+            p2.SetOutputSample(o2)
             // p2 has no rpm PV
             let ds = Dataset("DS")
             ds.AddProcess(p1)
@@ -374,45 +374,12 @@ let tests = testList "TableWrite" [
             let t, ds = makeTable "T" [||] // no processes
             t.AddColumn(CompositeHeader.Input IOType.Sample,
                         ResizeArray([| CompositeCell.FreeText "Source1"; CompositeCell.FreeText "Source2" |]))
-            Expect.equal ds.Processes.Count 1 "one process created"
-            Expect.equal ds.Processes[0].Inputs.Count 2 " process gets an input"
-            Expect.isTrue ds.Processes[0].Inputs[0].IsSampleNode "process input is SampleNode"
-            Expect.equal (ds.Processes[0].Inputs[0].AsSample().Name) "Source1" "input name set from cell"
+            Expect.equal ds.Processes.Count 2 "one process is created per row"
+            Expect.isSome ds.Processes[0].Input "first process gets one input"
+            Expect.isTrue ds.Processes[0].Input.Value.IsSampleNode "process input is SampleNode"
+            Expect.equal (ds.Processes[0].Input.Value.AsSample().Name) "Source1" "input name set from cell"
 
             Expect.equal t.RowCount 2 "two rows in table"
-
-        // One process caries one value for each parameter. If we add a column with different values for the same parameter, we need to split the process into two (or more) so that each process has only one value for that parameter.
-        testCase "AddColumn Parameter differing value leads to splitting processes" <| fun _ ->
-            let p = Process("T")
-            p.AddInputSample(Sample("S1"))
-            p.AddInputSample(Sample("S2"))
-            p.AddParameterValue(Annotation(name = "organism", value = "Arabidopsis"))
-
-            let ds = Dataset("DS")
-            ds.AddProcess(p)
-            // confirm that table now contains two rows for p (since it has two inputs)
-            let t = Table("T", ResizeArray([| p |]), ds)
-            Expect.equal t.RowCount 2 "two rows for process with two inputs"
-
-            t.AddColumn(
-                CompositeHeader.Parameter(DefinedTerm("temperature")),
-                ResizeArray([| CompositeCell.Unitized("37", "°C", None); CompositeCell.Unitized("25", "°C", None) |])
-            )
-
-            Expect.equal ds.Processes.Count 2 "process was split into two"
-
-            Expect.equal ds.Processes[0].ParameterValue.Count 2 "first process has two PVs"
-            Expect.equal ds.Processes[0].ParameterValue[0].Name "organism" "first PV is organism"
-            Expect.equal ds.Processes[0].ParameterValue[0].Value (Some "Arabidopsis") "first PV value"
-            Expect.equal ds.Processes[0].ParameterValue[1].Name "temperature" "second PV is temperature"
-            Expect.equal ds.Processes[0].ParameterValue[1].Value (Some "37") "second PV value"
-
-            Expect.equal ds.Processes[1].ParameterValue.Count 2 "second process has two PVs"
-            Expect.equal ds.Processes[1].ParameterValue[0].Name "organism" "first PV is organism"
-            Expect.equal ds.Processes[1].ParameterValue[0].Value (Some "Arabidopsis") "first PV value"
-            Expect.equal ds.Processes[1].ParameterValue[1].Name "temperature" "second PV is temperature"
-            Expect.equal ds.Processes[1].ParameterValue[1].Value (Some "25") "second PV value"
-
 
         testCase "AddColumn Input creates missing sample inputs from cells" <| fun _ ->
             let p1 = Process("Import")
@@ -424,9 +391,9 @@ let tests = testList "TableWrite" [
                 ResizeArray([| CompositeCell.FreeText "Source1"; CompositeCell.FreeText "Source2" |])
             )
 
-            Expect.equal p1.Inputs.Count 1 "first process gets an input"
-            Expect.equal p2.Inputs.Count 1 "second process gets an input"
-            match p1.Inputs.[0], p2.Inputs.[0] with
+            Expect.isSome p1.Input "first process gets an input"
+            Expect.isSome p2.Input "second process gets an input"
+            match p1.Input.Value, p2.Input.Value with
             | SampleNode m1, SampleNode m2 ->
                 Expect.equal m1.Name "Source1" "first input name"
                 Expect.equal m1.AdditionalType (Some "Source") "first input type"
@@ -443,9 +410,9 @@ let tests = testList "TableWrite" [
                 ResizeArray([| CompositeCell.Data(Data("raw1.csv")); CompositeCell.FreeText "raw2.csv" |])
             )
 
-            Expect.equal p1.Outputs.Count 1 "first process gets an output"
-            Expect.equal p2.Outputs.Count 1 "second process gets an output"
-            match p1.Outputs.[0], p2.Outputs.[0] with
+            Expect.isSome p1.Output "first process gets an output"
+            Expect.isSome p2.Output "second process gets an output"
+            match p1.Output.Value, p2.Output.Value with
             | DataNode d1, DataNode d2 ->
                 Expect.equal d1.Path "raw1.csv" "Data cell path"
                 Expect.equal d2.Path "raw2.csv" "FreeText cell converted to data path"
@@ -469,48 +436,43 @@ let tests = testList "TableWrite" [
 
             Expect.equal t.RowCount 2 "output write must not duplicate projected rows"
             Expect.equal t.Processes.Count 2 "one process per projected row"
-            match t.Processes.[0].Outputs.[0], t.Processes.[1].Outputs.[0] with
+            match t.Processes.[0].Output.Value, t.Processes.[1].Output.Value with
             | SampleNode o1, SampleNode o2 ->
                 Expect.equal o1.Name "Out1" "first output name reused"
                 Expect.equal o2.Name "Out2" "second output name reused"
             | other -> failwithf "Expected sample outputs but got %A" other
 
-        testCase "AddColumn Input fills missing cells with empty sample nodes" <| fun _ ->
+        testCase "AddColumn Input maps missing cells to no endpoint" <| fun _ ->
             let p1 = Process("Import")
             let p2 = Process("Import")
             let t, _ = makeTable "Import" [| p1; p2 |]
 
             t.AddColumn(CompositeHeader.Input IOType.Sample, ResizeArray([| CompositeCell.FreeText "Sample1" |]))
 
-            Expect.equal p2.Inputs.Count 1 "missing input cell still creates the slot"
-            match p2.Inputs.[0] with
-            | SampleNode m ->
-                Expect.equal m.Name "" "missing cell becomes empty text"
-                Expect.equal m.AdditionalType (Some "Sample") "input type is preserved"
-            | other -> failwithf "Expected sample input but got %A" other
+            Expect.isNone p2.Input "missing input cell leaves the singular endpoint empty"
 
         testCase "RemoveColumn Input removes projected inputs from every process" <| fun _ ->
             let p1 = Process("Cleanup")
             let p2 = Process("Cleanup")
-            p1.AddInputSample(Sample("Source1", additionalType = "Source"))
-            p2.AddInputSample(Sample("Source2", additionalType = "Source"))
+            p1.SetInputSample(Sample("Source1", additionalType = "Source"))
+            p2.SetInputSample(Sample("Source2", additionalType = "Source"))
             let t, _ = makeTable "Cleanup" [| p1; p2 |]
 
             t.RemoveColumn(CompositeHeader.Input IOType.Source)
 
-            Expect.equal p1.Inputs.Count 0 "first input removed"
-            Expect.equal p2.Inputs.Count 0 "second input removed"
+            Expect.isNone p1.Input "first input removed"
+            Expect.isNone p2.Input "second input removed"
 
         testCase "UpdateRow can replace sample output with data output when the output column type changes" <| fun _ ->
             let p = Process("Export")
-            p.AddOutputSample(Sample("OldSample", additionalType = "Sample"))
+            p.SetOutputSample(Sample("OldSample", additionalType = "Sample"))
             let t, _ = makeTable "Export" [| p |]
 
             t.RemoveColumn(CompositeHeader.Output IOType.Sample)
             t.AddColumn(CompositeHeader.Output IOType.Data, ResizeArray([| CompositeCell.Data(Data("result.csv")) |]))
 
-            Expect.equal p.Outputs.Count 1 "one output slot remains"
-            match p.Outputs.[0] with
+            Expect.isSome p.Output "one output slot remains"
+            match p.Output.Value with
             | DataNode d -> Expect.equal d.Path "result.csv" "output was recreated as data"
             | SampleNode _ -> Expect.isTrue false "output should be recreated as data"
 
@@ -527,8 +489,8 @@ let tests = testList "TableWrite" [
                 ResizeArray([| CompositeCell.FreeText "E. coli" |])
             )
 
-            Expect.equal p.Inputs.Count 1 "synthetic input created"
-            match p.Inputs.[0] with
+            Expect.isSome p.Input "synthetic input created"
+            match p.Input.Value with
             | SampleNode m ->
                 let pv = m.AdditionalProperty |> Seq.tryFind (fun pv -> pv.Name = "organism")
                 Expect.isSome pv "characteristic stored on synthetic input"
@@ -544,8 +506,8 @@ let tests = testList "TableWrite" [
                 ResizeArray([| CompositeCell.FreeText "log" |])
             )
 
-            Expect.equal p.Outputs.Count 1 "synthetic output created"
-            match p.Outputs.[0] with
+            Expect.isSome p.Output "synthetic output created"
+            match p.Output.Value with
             | SampleNode m ->
                 let pv = m.AdditionalProperty |> Seq.tryFind (fun pv -> pv.Name = "growth phase")
                 Expect.isSome pv "factor stored on synthetic output"
@@ -605,228 +567,6 @@ let tests = testList "TableWrite" [
 
     ]
 
-    testList "Collapsed Processes" [
-        testCase "Differing Param Value Singular Input" (fun _ ->
-                        
-            let inputs = 
-                CompositeColumn(
-                    header = CompositeHeader.Input IOType.Sample,
-                    cells = ResizeArray [
-                        CompositeCell.FreeText "Std. Mix 5µM"
-                        CompositeCell.FreeText "blank 1"
-                        CompositeCell.FreeText "DB23"
-                    ]
-                )
 
-            let param = 
-                CompositeColumn(
-                    header = CompositeHeader.Parameter(DefinedTerm(name = "MS sample type", tan = "DPBO:0000045")),
-                    cells = ResizeArray [
-                        CompositeCell.Term("",None)
-                        CompositeCell.Term("",None)
-                        CompositeCell.Term("material sample", Some "https://bioregistry.io/OBI:0000747")
-                    ]
-                )
-
-            let outputs = 
-                CompositeColumn(
-                    header = CompositeHeader.Output IOType.Sample,
-                    cells = ResizeArray [
-                        CompositeCell.FreeText "150112_03"
-                        CompositeCell.FreeText "150112_15"
-                        CompositeCell.FreeText "150112_55"
-                    ]
-                )
-
-            let columns = 
-                [| inputs; param; outputs |]
-                |> ResizeArray
-
-            let d = Dataset("MyDataset")
-
-            let t = Table("SheetName", ResizeArray(),d)
-
-            columns
-            |> Seq.iter (fun c -> t.AddColumn(c.Header, c.Cells))
-
-            Expect.equal d.Processes.Count 3 "3 processes before collapse"
-            Expect.sequenceEqual inputs.Cells d.Tables.GetTableAt(0).Columns[0].Cells "Input column before collapse"
-
-            d.CollapseProcesses()
-
-            Expect.equal d.Processes.Count 2 "2 processes after collapse"
-
-            Expect.sequenceEqual d.Tables.GetTableAt(0).Columns[0].Cells inputs.Cells "Input column preserved after collapse"
-
-            Expect.equal d.Processes.Count 2 "2 processes after collapse and cells called"
-            Expect.equal (d.Tables.GetTableAt(0).RowCount) 3 "3 rows in collapsed table"
-            Expect.equal (d.Tables.GetTableAt(0).Processes.Count) 2 "2 processes in collapsed table"
-        )
-
-        testCase "Collapsed table read does not expand processes" (fun _ ->
-            let inputs =
-                CompositeColumn(
-                    header = CompositeHeader.Input IOType.Sample,
-                    cells = ResizeArray [
-                        CompositeCell.FreeText "Std. Mix 5µM"
-                        CompositeCell.FreeText "blank 1"
-                        CompositeCell.FreeText "DB23"
-                    ]
-                )
-
-            let param =
-                CompositeColumn(
-                    header = CompositeHeader.Parameter(DefinedTerm(name = "MS sample type", tan = "DPBO:0000045")),
-                    cells = ResizeArray [
-                        CompositeCell.Term("", None)
-                        CompositeCell.Term("", None)
-                        CompositeCell.Term("material sample", Some "https://bioregistry.io/OBI:0000747")
-                    ]
-                )
-
-            let outputs =
-                CompositeColumn(
-                    header = CompositeHeader.Output IOType.Sample,
-                    cells = ResizeArray [
-                        CompositeCell.FreeText "150112_03"
-                        CompositeCell.FreeText "150112_15"
-                        CompositeCell.FreeText "150112_55"
-                    ]
-                )
-
-            let d = Dataset("MyDataset")
-            let t = Table("SheetName", ResizeArray(), d)
-
-            [| inputs; param; outputs |]
-            |> Seq.iter (fun c -> t.AddColumn(c.Header, c.Cells))
-
-            d.CollapseProcesses()
-
-            let collapsed = d.Tables.GetTableAt(0)
-            Expect.equal collapsed.Processes.Count 2 "2 processes after collapse"
-            Expect.equal collapsed.RowCount 3 "3 rows after collapse"
-
-            collapsed.Columns[0].Cells |> ignore
-
-            Expect.equal collapsed.Processes.Count 2 "reading cells does not expand processes"
-            Expect.equal collapsed.RowCount 3 "row count stays projected"
-        )
-
-        testCase "Collapsed table row update does not expand processes" (fun _ ->
-            let inputs =
-                CompositeColumn(
-                    header = CompositeHeader.Input IOType.Sample,
-                    cells = ResizeArray [
-                        CompositeCell.FreeText "Std. Mix 5µM"
-                        CompositeCell.FreeText "blank 1"
-                        CompositeCell.FreeText "DB23"
-                    ]
-                )
-
-            let param =
-                CompositeColumn(
-                    header = CompositeHeader.Parameter(DefinedTerm(name = "MS sample type", tan = "DPBO:0000045")),
-                    cells = ResizeArray [
-                        CompositeCell.Term("", None)
-                        CompositeCell.Term("", None)
-                        CompositeCell.Term("material sample", Some "https://bioregistry.io/OBI:0000747")
-                    ]
-                )
-
-            let outputs =
-                CompositeColumn(
-                    header = CompositeHeader.Output IOType.Sample,
-                    cells = ResizeArray [
-                        CompositeCell.FreeText "150112_03"
-                        CompositeCell.FreeText "150112_15"
-                        CompositeCell.FreeText "150112_55"
-                    ]
-                )
-
-            let d = Dataset("MyDataset")
-            let t = Table("SheetName", ResizeArray(), d)
-
-            [| inputs; param; outputs |]
-            |> Seq.iter (fun c -> t.AddColumn(c.Header, c.Cells))
-
-            d.CollapseProcesses()
-
-            let collapsed = d.Tables.GetTableAt(0)
-            let headers = collapsed.Headers
-            let cells = ResizeArray(Seq.init headers.Count (fun _ -> CompositeCell.FreeText ""))
-            let inputIdx = headers |> Seq.findIndex (fun h -> match h with CompositeHeader.Input _ -> true | _ -> false)
-            cells.[inputIdx] <- CompositeCell.FreeText "Updated input"
-
-            collapsed.UpdateRow(0, cells)
-
-            Expect.equal collapsed.Processes.Count 2 "row update does not expand processes"
-            Expect.equal collapsed.RowCount 3 "row count stays projected after update"
-        )
-
-        testCase "Differing Param Value Merged Inputs" (fun _ ->
-
-            let inputs = 
-                CompositeColumn(
-                    header = CompositeHeader.Input IOType.Sample,
-                    cells = ResizeArray [
-                        CompositeCell.FreeText "Std. Mix 5µM"
-                        CompositeCell.FreeText "Std. Mix 5µM"
-                        CompositeCell.FreeText "blank 1"
-                        CompositeCell.FreeText "blank 1"
-                        CompositeCell.FreeText "DB23"
-                        CompositeCell.FreeText "DB23"
-                    ]
-                )
-
-            let param = 
-                CompositeColumn(
-                    header = CompositeHeader.Parameter(DefinedTerm(name = "MS sample type", tan = "DPBO:0000045")),
-                    cells = 
-                        (List.init 6 (fun i -> 
-                            if i <= 3 then CompositeCell.Term("",None)
-                            else CompositeCell.Term("material sample", Some "https://bioregistry.io/OBI:0000747")
-                        ) |> ResizeArray)
-                )
-
-            let outputs = 
-                CompositeColumn(
-                    header = CompositeHeader.Output IOType.Sample,
-                    cells = ResizeArray [
-                        CompositeCell.FreeText "150112_03"
-                        CompositeCell.FreeText "150112_04"
-                        CompositeCell.FreeText "150112_15"
-                        CompositeCell.FreeText "150112_16"
-                        CompositeCell.FreeText "150112_55"
-                        CompositeCell.FreeText "150112_56"
-                    ]
-                )
-
-            let columns = 
-                [| inputs; param; outputs |]
-                |> ResizeArray
-
-            let d = Dataset("MyDataset")
-
-            let t = Table("SheetName", ResizeArray(),d)
-
-            columns
-            |> Seq.iter (fun c -> t.AddColumn(c.Header, c.Cells))
-
-            Expect.equal 6 d.Processes.Count "6 processes before collapse"
-
-            d.CollapseProcesses()
-
-            Expect.equal 2 d.Processes.Count "2 processes after collapse"
-            Expect.equal 6 (d.Tables.GetTableAt(0).RowCount) "6 rows in collapsed table"
-            Expect.equal 2 (d.Tables.GetTableAt(0).Processes.Count) "2 processes in collapsed table"
-
-            sprintf "%O" (d.Tables.GetTableAt(0)) |> ignore
-
-            Expect.equal 2 d.Processes.Count "2 processes after collapse and table retrieval"
-            Expect.equal 6 (d.Tables.GetTableAt(0).RowCount) "6 rows in collapsed table and table retrieval"
-            Expect.equal 2 (d.Tables.GetTableAt(0).Processes.Count) "2 processes in collapsed table and table retrieval"
-
-        )
-    ]
 
 ]

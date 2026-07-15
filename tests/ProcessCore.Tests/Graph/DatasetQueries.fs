@@ -148,7 +148,7 @@ let tests = testList "DatasetQueries" [
         let mat = Sample("TestMat")
         mat.AddAdditionalProperty(Annotation("organism", value = "Mouse", additionalType = "CharacteristicValue"))
         let proc = Process("proc-char")
-        proc.AddInputSample(mat)
+        proc.SetInputSample(mat)
         let ds = Dataset("DS-char")
         ds.AddProcess(proc)
         let procs = ds.FindProcessesByAnnotation("organism", "Mouse")
@@ -159,7 +159,7 @@ let tests = testList "DatasetQueries" [
         let mat = Sample("OutMat")
         mat.AddAdditionalProperty(Annotation("growth_phase", value = "log", additionalType = "FactorValue"))
         let proc = Process("proc-factor")
-        proc.AddOutputSample(mat)
+        proc.SetOutputSample(mat)
         let ds = Dataset("DS-factor")
         ds.AddProcess(proc)
         let procs = ds.FindProcessesByAnnotation("growth_phase", "log")
@@ -277,11 +277,11 @@ let tests = testList "DatasetQueries" [
         let sample = Sample("Sample")
         let outputData = Data("output.csv")
         let p1 = Process("consume-data")
-        p1.AddInputData(sourceData)
-        p1.AddOutputSample(sample)
+        p1.SetInputData(sourceData)
+        p1.SetOutputSample(sample)
         let p2 = Process("produce-data")
-        p2.AddInputSample(sample)
-        p2.AddOutputData(outputData)
+        p2.SetInputSample(sample)
+        p2.SetOutputData(outputData)
         let ds = Dataset("DS-data-wrapper")
         ds.AddProcess(p1)
         ds.AddProcess(p2)
@@ -339,8 +339,8 @@ let tests = testList "DatasetQueries" [
 
         let d = Data("downstream.csv")
         let newP = Process("newP")
-        newP.AddInputSample f.DownstreamNode
-        newP.AddOutputData d
+        newP.SetInputSample f.DownstreamNode
+        newP.SetOutputData d
         f.DS.AddProcess newP
 
         let pvs = d.UpstreamAnnotations()

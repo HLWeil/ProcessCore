@@ -35,7 +35,6 @@ let lab = Organization("Core Lab")
 let curator = Agent("Ada", familyName = "Lovelace", email = "ada@example.org", affiliation = lab)
 let citation = ScholarlyArticle("Minimal ProcessCore example", authors = [ curator ])
 
-let dataset = ARC("demo-dataset")
 dataset.Title <- Some "Minimal ProcessCore example"
 dataset.Description <- Some "One extraction process with nested quality control."
 dataset.License <- Some "CC-BY-4.0"
@@ -91,8 +90,8 @@ A `Process` connects those inputs to outputs. We also attach parameter values to
 let extraction = Process("Extraction")
 let degrees25 = Annotation(name = "temperature", value = "25", unit = "degree Celsius", instanceOf = temperature)
 extraction.ExecutesProtocol <- Some protocol
-extraction.AddInputSample(leaf)
-extraction.AddOutputData(extractData)
+extraction.SetInputSample(leaf)
+extraction.SetOutputData(extractData)
 extraction.AddParameterValue(degrees25)
 
 dataset.AddProcess(extraction)
@@ -112,8 +111,8 @@ child.Title <- Some "Quality control"
 let qcReport = Data("qc/extract-report.tsv")
 
 let qc = Process("Quality Control")
-qc.AddInputData(extractData)
-qc.AddOutputData(qcReport)
+qc.SetInputData(extractData)
+qc.SetOutputData(qcReport)
 let threshold = FormalParameter("threshold")
 let threshold95 = Annotation(name = "threshold", value = "0.95", instanceOf = threshold)
 qc.AddParameterValue(threshold95)
@@ -126,7 +125,7 @@ The parent process output and the child process input are the same logical `Data
 *)
 
 let qcInputAfterAttach =
-    match qc.Inputs.[0] with
+    match qc.Input.Value with
     | DataNode d -> d
     | SampleNode _ -> failwith "Expected data input"
 
@@ -157,7 +156,7 @@ finalNodes
 | Add package metadata | `dataset.Title`, `dataset.Description`, `dataset.License`, `dataset.DatePublished`, `dataset.AddAgent`, `dataset.AddCitation` |
 | Add a process | `dataset.AddProcess(process)` |
 | Add nested datasets | `dataset.AddPart(child)` |
-| Connect samples or files | `process.AddInputSample`, `process.AddOutputData` |
+| Connect samples or files | `process.SetInputSample`, `process.SetOutputData` |
 | Attach process parameters | `process.AddParameterValue` |
 | Attach characteristics/factors | `node.AddAdditionalProperty` |
 | Attach protocol components | `protocol.AddComponent` |

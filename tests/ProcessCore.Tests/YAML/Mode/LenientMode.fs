@@ -39,7 +39,7 @@ let tests = testList "LenientMode" [
     testCase "decorated type on Process accepted" <| fun _ ->
         let yaml = "type: Assay\nname: p1\n"
         // "Assay" is not a ProcessCore type; lenient mode ignores it
-        let proc = Yaml.Process.decoder false (YAMLicious.Reader.read yaml)
+        let proc = Yaml.Process.decoder false (YAMLicious.Reader.read yaml) |> Seq.exactlyOne
         Expect.equal proc.Name "p1" "name decoded despite decorated type"
 
     testCase "decorated type on Dataset accepted" <| fun _ ->
@@ -81,12 +81,12 @@ processes:
         Expect.equal ds.Processes.Count 1             "one process decoded"
         let proc = ds.Processes.[0]
         Expect.equal proc.Name "grow1"                "process name decoded"
-        Expect.equal proc.Inputs.Count  1             "one input"
-        Expect.equal proc.Outputs.Count 1             "one output"
-        match proc.Inputs.[0] with
+        Expect.isSome proc.Input "one input"
+        Expect.isSome proc.Output "one output"
+        match proc.Input.Value with
         | SampleNode m -> Expect.equal m.Name "BaseSource" "input name decoded"
         | DataNode _     -> failwith "Expected SampleNode (lenient default)"
-        match proc.Outputs.[0] with
+        match proc.Output.Value with
         | SampleNode m -> Expect.equal m.Name "Product1" "output name decoded"
         | DataNode _     -> failwith "Expected SampleNode (lenient default)"
 

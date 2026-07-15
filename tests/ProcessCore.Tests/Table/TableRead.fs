@@ -11,8 +11,8 @@ let makeSingleProcessTable () =
     let source = Sample("Source1", additionalType = "Source")
     let sample = Sample("Sample1", additionalType = "Sample")
     let proc   = Process("Growth")
-    proc.AddInputSample(source)
-    proc.AddOutputSample(sample)
+    proc.SetInputSample(source)
+    proc.SetOutputSample(sample)
     let ds = Dataset("DS")
     ds.AddProcess(proc)
     Table("Growth", ResizeArray([| proc |]), ds), proc, ds
@@ -64,7 +64,7 @@ let tests = testList "TableRead" [
 
     testCase "single process — characteristic column present" <| fun _ ->
         let t, proc, _ = makeSingleProcessTable()
-        match proc.Inputs |> Seq.tryHead with
+        match proc.Input with
         | Some (SampleNode m) -> m.AddAdditionalProperty(Annotation("organism", value = "Mouse", additionalType = "CharacteristicValue"))
         | _ -> ()
         let headers = t.Headers
@@ -73,7 +73,7 @@ let tests = testList "TableRead" [
 
     testCase "single process — factor column present" <| fun _ ->
         let t, proc, _ = makeSingleProcessTable()
-        match proc.Outputs |> Seq.tryHead with
+        match proc.Output with
         | Some (SampleNode m) -> m.AddAdditionalProperty(Annotation("growth_phase", value = "log", additionalType = "FactorValue"))
         | _ -> ()
         let headers = t.Headers
@@ -97,8 +97,8 @@ let tests = testList "TableRead" [
         let proto = Recipe("extraction")
         proto.AddComponent(Annotation("instrument", value = "Orbitrap", additionalType = "Component"))
         let proc = Process("Growth")
-        proc.AddInputSample(source)
-        proc.AddOutputSample(sample)
+        proc.SetInputSample(source)
+        proc.SetOutputSample(sample)
         proc.ExecutesProtocol <- Some proto
         proc.AddParameterValue(Annotation("temperature", value = "37", unit = "°C", additionalType = "ParameterValue"))
         let ds = Dataset("DS")
@@ -127,8 +127,8 @@ let tests = testList "TableRead" [
             let s = Sample(name + "_in",  additionalType = "Source")
             let o = Sample(name + "_out", additionalType = "Sample")
             let p = Process("Growth")
-            p.AddInputSample(s)
-            p.AddOutputSample(o)
+            p.SetInputSample(s)
+            p.SetOutputSample(o)
             p.AddParameterValue(Annotation("temperature", value = "37", unit = "°C", additionalType = "ParameterValue"))
             p
         let p1 = mk "A"
@@ -147,8 +147,8 @@ let tests = testList "TableRead" [
         let source = Sample("Source1", additionalType = "Source")
         let raw    = Data("rawData1.csv")
         let proc   = Process("Measurement")
-        proc.AddInputSample(source)
-        proc.AddOutputData(raw)
+        proc.SetInputSample(source)
+        proc.SetOutputData(raw)
         let ds = Dataset("DS")
         ds.AddProcess(proc)
         let t = Table("Measurement", ResizeArray([| proc |]), ds)
@@ -163,8 +163,8 @@ let tests = testList "TableRead" [
         let source = Sample("Source1", additionalType = "Source")
         let raw    = Data("rawData1.csv")
         let proc   = Process("Measurement")
-        proc.AddInputSample(source)
-        proc.AddOutputData(raw)
+        proc.SetInputSample(source)
+        proc.SetOutputData(raw)
         let ds = Dataset("DS")
         ds.AddProcess(proc)
         let t = Table("Measurement", ResizeArray([| proc |]), ds)
@@ -258,70 +258,6 @@ let tests = testList "TableRead" [
         let row = t.GetRow(0)
         Expect.equal row.Count t.ColumnCount "one cell per column"
 
-    testList "Multi-I/O row projection" [
 
-        testCase "RowCount counts projected input/output rows, not only processes" <| fun _ ->
-            let p = Process("Pairing")
-            p.AddInputSample(Sample("Input1", additionalType = "Source"))
-            p.AddInputSample(Sample("Input2", additionalType = "Source"))
-            p.AddOutputSample(Sample("Output1", additionalType = "Sample"))
-            p.AddOutputSample(Sample("Output2", additionalType = "Sample"))
-            p.AddOutputSample(Sample("Output3", additionalType = "Sample"))
-            let ds = Dataset("DS")
-            ds.AddProcess(p)
-            let t = Table("Pairing", ResizeArray([| p |]), ds)
-
-            Expect.equal t.RowCount 3 "one process with two inputs and three outputs projects to three visible rows"
-
-        testCase "Decompose pads the shorter I/O side with empty cells" <| fun _ ->
-            let p = Process("Pairing")
-            p.AddInputSample(Sample("Input1", additionalType = "Source"))
-            p.AddInputSample(Sample("Input2", additionalType = "Source"))
-            p.AddOutputSample(Sample("Output1", additionalType = "Sample"))
-            p.AddOutputSample(Sample("Output2", additionalType = "Sample"))
-            p.AddOutputSample(Sample("Output3", additionalType = "Sample"))
-            let ds = Dataset("DS")
-            ds.AddProcess(p)
-            let t = Table("Pairing", ResizeArray([| p |]), ds)
-
-            let inputCol = t.TryGetInputColumn().Value
-            let outputCol = t.TryGetOutputColumn().Value
-            Expect.equal inputCol.Cells.Count 3 "input column has one cell per visible row"
-            Expect.equal outputCol.Cells.Count 3 "output column has one cell per visible row"
-            if inputCol.Cells.Count >= 3 && outputCol.Cells.Count >= 3 then
-                Expect.equal (freeTextValue inputCol.Cells.[0]) "Input1" "first projected input"
-                Expect.equal (freeTextValue inputCol.Cells.[1]) "Input2" "second projected input"
-                Expect.equal (freeTextValue inputCol.Cells.[2]) "" "missing third input is padded"
-                Expect.equal (freeTextValue outputCol.Cells.[2]) "Output3" "third output is still visible"
-
-        testCase "Projected rows use the projected input/output for characteristic and factor cells" <| fun _ ->
-            let p = Process("Pairing")
-            let i1 = Sample("Input1", additionalType = "Source")
-            let i2 = Sample("Input2", additionalType = "Source")
-            i1.AddAdditionalProperty(Annotation("organism", value = "Mouse", additionalType = "CharacteristicValue"))
-            i2.AddAdditionalProperty(Annotation("organism", value = "Human", additionalType = "CharacteristicValue"))
-            let o1 = Sample("Output1", additionalType = "Sample")
-            let o2 = Sample("Output2", additionalType = "Sample")
-            o1.AddAdditionalProperty(Annotation("phase", value = "early", additionalType = "FactorValue"))
-            o2.AddAdditionalProperty(Annotation("phase", value = "late", additionalType = "FactorValue"))
-            p.AddInputSample(i1)
-            p.AddInputSample(i2)
-            p.AddOutputSample(o1)
-            p.AddOutputSample(o2)
-            let ds = Dataset("DS")
-            ds.AddProcess(p)
-            let t = Table("Pairing", ResizeArray([| p |]), ds)
-
-            let organismCol = t.TryGetColumnByHeader(fun h -> match h with CompositeHeader.Characteristic dt when dt.Name = "organism" -> true | _ -> false).Value
-            let phaseCol = t.TryGetColumnByHeader(fun h -> match h with CompositeHeader.Factor dt when dt.Name = "phase" -> true | _ -> false).Value
-            Expect.equal organismCol.Cells.Count 2 "characteristic column has one cell per projected row"
-            Expect.equal phaseCol.Cells.Count 2 "factor column has one cell per projected row"
-            if organismCol.Cells.Count >= 2 && phaseCol.Cells.Count >= 2 then
-                Expect.equal (freeTextValue organismCol.Cells.[0]) "Mouse" "first row reads first input characteristic"
-                Expect.equal (freeTextValue organismCol.Cells.[1]) "Human" "second row reads second input characteristic"
-                Expect.equal (freeTextValue phaseCol.Cells.[0]) "early" "first row reads first output factor"
-                Expect.equal (freeTextValue phaseCol.Cells.[1]) "late" "second row reads second output factor"
-
-    ]
 
 ]

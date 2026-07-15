@@ -45,7 +45,9 @@ flowchart TD
 
 ## Inputs and Outputs
 
-The core mechanism of processes is to connect inputs to outputs. To allow for grouping of multiple inputs and outputs, we allow `inputs` and `outputs` to be lists. In this case, both lists should be of the same length and the Nth input corresponds to the Nth output. This allows us to maintain a simple one-to-one mapping between inputs and outputs while still supporting multiple inputs and outputs per process. 
+The core mechanism of a process is one directed graph edge with an optional singular input and optional singular output. Fan-in, fan-out, and parallel lanes are represented by multiple processes, which makes each table row and each traversable edge unambiguous.
+
+The YAML profile retains `inputs` and `outputs` arrays as a compact wire representation. Readers expand the Nth input/output pair into a singular process and pad an unequal shorter side with an absent endpoint. Writers group processes with equal non-I/O state back into these arrays.
 
 ```mermaid
 flowchart TD

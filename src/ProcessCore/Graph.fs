@@ -64,16 +64,16 @@ type Path(processes: ResizeArray<Process>) =
     member _.ContainsNode(node: IONode) : bool =
         let key = node.Key()
         processes |> Seq.exists (fun (p: Process) ->
-            p.Inputs  |> Seq.exists (fun (n: IONode) -> n.Key() = key) ||
-            p.Outputs |> Seq.exists (fun (n: IONode) -> n.Key() = key))
+            p.Input |> Option.exists (fun (n: IONode) -> n.Key() = key) ||
+            p.Output |> Option.exists (fun (n: IONode) -> n.Key() = key))
 
     /// All distinct IONodes that appear anywhere in this path (inputs or outputs)
     member _.Nodes() : ResizeArray<IONode> =
         let acc  = ResizeArray<IONode>()
         let seen = HashSet<string>()
         for proc in processes do
-            for n in proc.Inputs  do if seen.Add(n.Key()) then acc.Add(n)
-            for n in proc.Outputs do if seen.Add(n.Key()) then acc.Add(n)
+            proc.Input |> Option.iter (fun (n: IONode) -> if seen.Add(n.Key()) then acc.Add(n))
+            proc.Output |> Option.iter (fun (n: IONode) -> if seen.Add(n.Key()) then acc.Add(n))
         acc
 
     /// All distinct Sample nodes in this path
@@ -98,26 +98,30 @@ type Path(processes: ResizeArray<Process>) =
     member _.TerminalInputs() : ResizeArray<IONode> =
         let outputKeys = HashSet<string>()
         for proc in processes do
-            for n in proc.Outputs do outputKeys.Add(n.Key()) |> ignore
+            proc.Output |> Option.iter (fun n -> outputKeys.Add(n.Key()) |> ignore)
         let acc  = ResizeArray<IONode>()
         let seen = HashSet<string>()
         for proc in processes do
-            for n in proc.Inputs do
+            match proc.Input with
+            | Some n ->
                 let k = n.Key()
                 if not (outputKeys.Contains(k)) && seen.Add(k) then acc.Add(n)
+            | None -> ()
         acc
 
     /// Nodes that appear as outputs but never as inputs in this path (true sinks)
     member _.TerminalOutputs() : ResizeArray<IONode> =
         let inputKeys = HashSet<string>()
         for proc in processes do
-            for n in proc.Inputs do inputKeys.Add(n.Key()) |> ignore
+            proc.Input |> Option.iter (fun n -> inputKeys.Add(n.Key()) |> ignore)
         let acc  = ResizeArray<IONode>()
         let seen = HashSet<string>()
         for proc in processes do
-            for n in proc.Outputs do
+            match proc.Output with
+            | Some n ->
                 let k = n.Key()
                 if not (inputKeys.Contains(k)) && seen.Add(k) then acc.Add(n)
+            | None -> ()
         acc
 
     /// All Annotations from all sources (parameters, input/output node properties, protocol components)
@@ -162,8 +166,8 @@ module PathTraversal =
 
     let addAnnotationsFromProcess (result: ResizeArray<Annotation>) (seen: HashSet<string>) (proc: Process) =
         addProcessAnnotations result seen proc
-        for n: IONode in proc.Inputs do addAnnotationsFromNode result seen n
-        for n: IONode in proc.Outputs do addAnnotationsFromNode result seen n
+        proc.Input |> Option.iter (addAnnotationsFromNode result seen)
+        proc.Output |> Option.iter (addAnnotationsFromNode result seen)
 
     let collectAnnotationsFromProcesses (processes: seq<Process>) : ResizeArray<Annotation> =
         let result = ResizeArray<Annotation>()
@@ -194,13 +198,22 @@ module PathTraversal =
         | None -> true
 
     let inScope (processes: ResizeArray<Process>) (p: Process) =
-        processes |> Seq.exists (fun q -> q = p)
+        processes |> Seq.exists (fun q -> obj.ReferenceEquals(q, p))
 
-    let processRefKey (proc: Process) =
-        System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(proc).ToString()
+    let containsProcessRef (processes: seq<Process>) (proc: Process) =
+        processes |> Seq.exists (fun candidate -> obj.ReferenceEquals(candidate, proc))
 
     let inOptionalScope (scope: ResizeArray<Process> option) (p: Process) =
-        scope |> Option.forall (fun s -> s |> Seq.exists (fun q -> q = p))
+        scope |> Option.forall (fun s -> s |> Seq.exists (fun q -> obj.ReferenceEquals(q, p)))
+
+    let distinctProcesses (processes: seq<Process>) =
+        let seen = ResizeArray<Process>()
+        processes
+        |> Seq.filter (fun proc ->
+            if containsProcessRef seen proc then false
+            else
+                seen.Add(proc)
+                true)
 
     let dataRelatedForTraversal (tryGetProvider: string -> IFragmentSelectorProvider option) (a: Data) (b: Data) =
         match FragmentSelectorResolution.relateDataWith tryGetProvider a b with
@@ -246,37 +259,39 @@ module PathTraversal =
             |> Option.bind (fun ds -> ds.TryGetFragmentSelectorProvider selectorFormat)
 
     let distinctProcessEdges (edges: seq<Process * IONode>) =
-        let seen = HashSet<string>()
         let acc = ResizeArray<Process * IONode>()
         for proc, matchedNode in edges do
-            let key = processRefKey proc + "|" + matchedNode.Key()
-            if seen.Add(key) then acc.Add(proc, matchedNode)
+            let alreadySeen =
+                acc
+                |> Seq.exists (fun (candidate, node) ->
+                    obj.ReferenceEquals(candidate, proc) && node.Key() = matchedNode.Key())
+            if not alreadySeen then acc.Add(proc, matchedNode)
         acc
 
     let relatedInputEdges (scope: ResizeArray<Process> option) (node: IONode) =
         let universe = processUniverse scope node
         let tryGetProvider = providerLookupFromProcesses universe
         universe
-        |> Seq.collect (fun proc ->
-            proc.Inputs
-            |> Seq.filter (nodeRelatedForTraversal tryGetProvider node)
-            |> Seq.map (fun matchedNode -> proc, matchedNode))
+        |> Seq.choose (fun proc ->
+            proc.Input
+            |> Option.filter (nodeRelatedForTraversal tryGetProvider node)
+            |> Option.map (fun matchedNode -> proc, matchedNode))
         |> distinctProcessEdges
 
     let relatedOutputEdges (scope: ResizeArray<Process> option) (node: IONode) =
         let universe = processUniverse scope node
         let tryGetProvider = providerLookupFromProcesses universe
         universe
-        |> Seq.collect (fun proc ->
-            proc.Outputs
-            |> Seq.filter (nodeRelatedForTraversal tryGetProvider node)
-            |> Seq.map (fun matchedNode -> proc, matchedNode))
+        |> Seq.choose (fun proc ->
+            proc.Output
+            |> Option.filter (nodeRelatedForTraversal tryGetProvider node)
+            |> Option.map (fun matchedNode -> proc, matchedNode))
         |> distinctProcessEdges
 
     let relatedNodeProcesses (scope: ResizeArray<Process> option) (node: IONode) =
         Seq.append (relatedInputEdges scope node) (relatedOutputEdges scope node)
         |> Seq.map fst
-        |> Seq.distinct
+        |> distinctProcesses
         |> ResizeArray
 
     let processesForNode (processes: ResizeArray<Process>) (node: IONode) : ResizeArray<Process> =
@@ -290,17 +305,21 @@ module PathTraversal =
 
         let result = ResizeArray<Annotation>()
         let seenPV = HashSet<string>()
-        let visitedEdges = HashSet<string>()
+        let visitedEdges = ResizeArray<Process * string>()
 
         let rec walk (node: IONode) =
             for proc, matchedNode in relatedOutputEdges scope node do
                 if inOptionalScope scope proc then
-                    let edgeKey = processRefKey proc + "<-" + matchedNode.Key()
-                    if visitedEdges.Add(edgeKey) then
+                    let nodeKey = matchedNode.Key()
+                    let visited = visitedEdges |> Seq.exists (fun (candidate, key) -> obj.ReferenceEquals(candidate, proc) && key = nodeKey)
+                    if not visited then
+                        visitedEdges.Add(proc, nodeKey)
                         let includeProcess = processMatchesProtocolName protocolName proc
-                        for input in proc.GetInputsOfOutput(matchedNode) do
+                        match proc.Input with
+                        | Some input ->
                             walk input
                             if includeProcess then addAnnotationsFromNode result seenPV input
+                        | None -> ()
                         if includeProcess then
                             addProcessAnnotations result seenPV proc
                             addAnnotationsFromNode result seenPV matchedNode
@@ -316,61 +335,69 @@ module PathTraversal =
 
         let result = ResizeArray<Annotation>()
         let seenPV = HashSet<string>()
-        let visitedEdges = HashSet<string>()
+        let visitedEdges = ResizeArray<Process * string>()
 
         let rec walk (node: IONode) =
             for proc, matchedNode in relatedInputEdges scope node do
                 if inOptionalScope scope proc then
-                    let edgeKey = processRefKey proc + "->" + matchedNode.Key()
-                    if visitedEdges.Add(edgeKey) then
+                    let nodeKey = matchedNode.Key()
+                    let visited = visitedEdges |> Seq.exists (fun (candidate, key) -> obj.ReferenceEquals(candidate, proc) && key = nodeKey)
+                    if not visited then
+                        visitedEdges.Add(proc, nodeKey)
                         let includeProcess = processMatchesProtocolName protocolName proc
                         if includeProcess then
                             addAnnotationsFromNode result seenPV matchedNode
                             addProcessAnnotations result seenPV proc
-                        for output in proc.GetOutputsOfInput(matchedNode) do
+                        match proc.Output with
+                        | Some output ->
                             if includeProcess then addAnnotationsFromNode result seenPV output
                             walk output
+                        | None -> ()
 
         walk start
         result
 
-    let rec walkUpstream (processes: ResizeArray<Process>) (proc: Process) (visited: HashSet<string>) : ResizeArray<ResizeArray<Process>> =
-        if not (visited.Add(proc.Name)) then
+    let rec walkUpstream (processes: ResizeArray<Process>) (proc: Process) (visited: ResizeArray<Process>) : ResizeArray<ResizeArray<Process>> =
+        if containsProcessRef visited proc then
             ResizeArray([ ResizeArray() ])
         else
+            visited.Add(proc)
             let preds =
-                proc.Inputs
+                proc.Input
+                |> Option.toList
                 |> Seq.collect (fun node -> relatedOutputEdges (Some processes) node |> Seq.map fst)
                 |> Seq.filter (inScope processes)
-                |> Seq.distinct
+                |> distinctProcesses
                 |> ResizeArray
             if preds.Count = 0 then
                 ResizeArray([ ResizeArray() ])
             else
                 let results = ResizeArray()
                 for pred in preds do
-                    for chain in walkUpstream processes pred (HashSet(visited)) do
+                    for chain in walkUpstream processes pred (ResizeArray(visited)) do
                         let ext = ResizeArray(chain)
                         ext.Add(pred)
                         results.Add(ext)
                 results
 
-    let rec walkDownstream (processes: ResizeArray<Process>) (proc: Process) (visited: HashSet<string>) : ResizeArray<ResizeArray<Process>> =
-        if not (visited.Add(proc.Name)) then
+    let rec walkDownstream (processes: ResizeArray<Process>) (proc: Process) (visited: ResizeArray<Process>) : ResizeArray<ResizeArray<Process>> =
+        if containsProcessRef visited proc then
             ResizeArray([ ResizeArray() ])
         else
+            visited.Add(proc)
             let succs =
-                proc.Outputs
+                proc.Output
+                |> Option.toList
                 |> Seq.collect (fun node -> relatedInputEdges (Some processes) node |> Seq.map fst)
                 |> Seq.filter (inScope processes)
-                |> Seq.distinct
+                |> distinctProcesses
                 |> ResizeArray
             if succs.Count = 0 then
                 ResizeArray([ ResizeArray() ])
             else
                 let results = ResizeArray()
                 for succ in succs do
-                    for chain in walkDownstream processes succ (HashSet(visited)) do
+                    for chain in walkDownstream processes succ (ResizeArray(visited)) do
                         let ext = ResizeArray()
                         ext.Add(succ)
                         ext.AddRange(chain)
@@ -378,8 +405,8 @@ module PathTraversal =
                 results
 
     let extendToMaximalPaths (processes: ResizeArray<Process>) (proc: Process) : ResizeArray<Path> =
-        let upstream   = walkUpstream processes proc (HashSet())
-        let downstream = walkDownstream processes proc (HashSet())
+        let upstream   = walkUpstream processes proc (ResizeArray())
+        let downstream = walkDownstream processes proc (ResizeArray())
         let results = ResizeArray()
         for pre in upstream do
             for post in downstream do
@@ -457,9 +484,9 @@ type IONode =
     /// process list (e.g. a single Dataset).
     member this.AllConnectedProcesses(?scope: ResizeArray<Process>) : ResizeArray<Process> =
         let inScope (p: Process) =
-            scope |> Option.forall (fun s -> s |> Seq.exists (fun q -> q = p))
+            scope |> Option.forall (fun s -> s |> Seq.exists (fun q -> obj.ReferenceEquals(q, p)))
         let seenN  = HashSet<string>()
-        let seenP  = HashSet<string>()
+        let seenP  = HashSet<Process>(refEqProcess)
         let result = ResizeArray<Process>()
         seenN.Add(this.Key()) |> ignore
         let mutable frontier = ResizeArray<IONode>([| this |])
@@ -467,10 +494,10 @@ type IONode =
             let next = ResizeArray<IONode>()
             for node in frontier do
                 for p: Process in PathTraversal.relatedNodeProcesses scope node do
-                    if inScope p && seenP.Add(p.Name) then
+                    if inScope p && seenP.Add(p) then
                         result.Add(p)
-                        for n: IONode in Seq.append p.Inputs p.Outputs do
-                            if seenN.Add(n.Key()) then next.Add(n)
+                        p.Input |> Option.iter (fun n -> if seenN.Add(n.Key()) then next.Add(n))
+                        p.Output |> Option.iter (fun n -> if seenN.Add(n.Key()) then next.Add(n))
             frontier <- next
         result
 
@@ -494,7 +521,7 @@ type IONode =
     /// (union of all upstream and downstream neighbours), excluding this node itself.
     member this.AllConnectedNodes(?scope: ResizeArray<Process>) : ResizeArray<IONode> =
         let inScope (p: Process) =
-            scope |> Option.forall (fun s -> s |> Seq.exists (fun q -> q = p))
+            scope |> Option.forall (fun s -> s |> Seq.exists (fun q -> obj.ReferenceEquals(q, p)))
         let seenN  = HashSet<string>()
         seenN.Add(this.Key()) |> ignore
         let result = ResizeArray<IONode>()
@@ -504,7 +531,7 @@ type IONode =
             for node in frontier do
                 for p: Process in PathTraversal.relatedNodeProcesses scope node do
                     if inScope p then
-                        for n: IONode in Seq.append p.Inputs p.Outputs do
+                        for n in [p.Input; p.Output] |> List.choose id do
                             if seenN.Add(n.Key()) then
                                 result.Add(n)
                                 next.Add(n)
@@ -560,7 +587,7 @@ type IONode =
         | Some s  ->
 
             let inScope (p: Process) =
-                scope |> Option.forall (fun s -> s |> Seq.exists (fun q -> q = p))
+                scope |> Option.forall (fun s -> s |> Seq.exists (fun q -> obj.ReferenceEquals(q, p)))
             PathTraversal.relatedOutputEdges scope this |> Seq.exists (fun (p, _) -> inScope p) |> not
         | None ->
             this.GetOutputOf().Count = 0
@@ -570,7 +597,7 @@ type IONode =
         match scope with
         | Some s  ->
             let inScope (p: Process) =
-                scope |> Option.forall (fun s -> s |> Seq.exists (fun q -> q = p))
+                scope |> Option.forall (fun s -> s |> Seq.exists (fun q -> obj.ReferenceEquals(q, p)))
             PathTraversal.relatedInputEdges scope this |> Seq.exists (fun (p, _) -> inScope p) |> not
         | None ->
             this.GetInputOf().Count = 0
@@ -578,9 +605,9 @@ type IONode =
     /// All processes reachable by walking upstream (OutputOf edges → Inputs).
     member this.UpstreamProcesses(?scope: ResizeArray<Process>) : ResizeArray<Process> =
         let inScope (p: Process) =
-            scope |> Option.forall (fun s -> s |> Seq.exists (fun q -> q = p))
+            scope |> Option.forall (fun s -> s |> Seq.exists (fun q -> obj.ReferenceEquals(q, p)))
         let seenN = HashSet<string>()
-        let seenP = HashSet<string>()
+        let seenP = HashSet<Process>(refEqProcess)
         let result = ResizeArray<Process>()
         seenN.Add(this.Key()) |> ignore
         let mutable frontier = ResizeArray<IONode>([| this |])
@@ -588,19 +615,21 @@ type IONode =
             let next = ResizeArray<IONode>()
             for node in frontier do
                 for p, matchedNode in PathTraversal.relatedOutputEdges scope node do
-                    if inScope p && seenP.Add(p.Name) then
+                    if inScope p && seenP.Add(p) then
                         result.Add(p)
-                        for n: IONode in p.GetInputsOfOutput(matchedNode) do
+                        match p.Input with
+                        | Some n ->
                             if seenN.Add(n.Key()) then next.Add(n)
+                        | None -> ()
             frontier <- next
         result
 
     /// All processes reachable by walking downstream (InputOf edges → Outputs).
     member this.DownstreamProcesses(?scope: ResizeArray<Process>) : ResizeArray<Process> =
         let inScope (p: Process) =
-            scope |> Option.forall (fun s -> s |> Seq.exists (fun q -> q = p))
+            scope |> Option.forall (fun s -> s |> Seq.exists (fun q -> obj.ReferenceEquals(q, p)))
         let seenN = HashSet<string>()
-        let seenP = HashSet<string>()
+        let seenP = HashSet<Process>(refEqProcess)
         let result = ResizeArray<Process>()
         seenN.Add(this.Key()) |> ignore
         let mutable frontier = ResizeArray<IONode>([| this |])
@@ -608,20 +637,19 @@ type IONode =
             let next = ResizeArray<IONode>()
             for node in frontier do
                 for p, matchedNode in PathTraversal.relatedInputEdges scope node do
-                    if inScope p && seenP.Add(p.Name) then
+                    if inScope p && seenP.Add(p) then
                         result.Add(p)
-                        for n: IONode in p.GetOutputsOfInput(matchedNode) do
+                        match p.Output with
+                        | Some n ->
                             if seenN.Add(n.Key()) then next.Add(n)
+                        | None -> ()
             frontier <- next
         result
 
-    /// All IONodes reachable by walking upstream from this node.
-    /// When a process has equal numbers of inputs and outputs the Nth output
-    /// corresponds to the Nth input (positional N-to-N mapping). Falls back to
-    /// all inputs when counts differ.
+    /// All IONodes reachable by following each producing process's direct input.
     member this.UpstreamNodes(?scope: ResizeArray<Process>) : ResizeArray<IONode> =
         let inScope (p: Process) =
-            scope |> Option.forall (fun s -> s |> Seq.exists (fun q -> q = p))
+            scope |> Option.forall (fun s -> s |> Seq.exists (fun q -> obj.ReferenceEquals(q, p)))
         let seenN = HashSet<string>()
         seenN.Add(this.Key()) |> ignore
         let result = ResizeArray<IONode>()
@@ -631,20 +659,19 @@ type IONode =
             for node in frontier do
                 for p, matchedNode in PathTraversal.relatedOutputEdges scope node do
                     if inScope p then
-                        for n: IONode in p.GetInputsOfOutput(matchedNode) do
+                        match p.Input with
+                        | Some n ->
                             if seenN.Add(n.Key()) then
                                 result.Add(n)
                                 next.Add(n)
+                        | None -> ()
             frontier <- next
         result
 
-    /// All IONodes reachable by walking downstream from this node.
-    /// When a process has equal numbers of inputs and outputs the Nth input
-    /// corresponds to the Nth output (positional N-to-N mapping). Falls back to
-    /// all outputs when counts differ.
+    /// All IONodes reachable by following each consuming process's direct output.
     member this.DownstreamNodes(?scope: ResizeArray<Process>) : ResizeArray<IONode> =
         let inScope (p: Process) =
-            scope |> Option.forall (fun s -> s |> Seq.exists (fun q -> q = p))
+            scope |> Option.forall (fun s -> s |> Seq.exists (fun q -> obj.ReferenceEquals(q, p)))
         let seenN = HashSet<string>()
         seenN.Add(this.Key()) |> ignore
         let result = ResizeArray<IONode>()
@@ -654,10 +681,12 @@ type IONode =
             for node in frontier do
                 for p, matchedNode in PathTraversal.relatedInputEdges scope node do
                     if inScope p then
-                        for n: IONode in p.GetOutputsOfInput(matchedNode) do
+                        match p.Output with
+                        | Some n ->
                             if seenN.Add(n.Key()) then
                                 result.Add(n)
                                 next.Add(n)
+                        | None -> ()
             frontier <- next
         result
 
@@ -1189,7 +1218,7 @@ and [<AttachMembers>] Recipe(?name: string, ?description: string, ?version: stri
 
 /// Core transformation node. Connects inputs to outputs via a protocol.
 /// bioschemas.org/LabProcess
-and [<AttachMembers>] Process(name: string, ?executesProtocol: Recipe, ?additionalType: string, ?inputs: seq<IONode>, ?outputs: seq<IONode>, ?parameterValue: seq<Annotation>) as this =
+and [<AttachMembers>] Process(name: string, ?executesProtocol: Recipe, ?additionalType: string, ?input: IONode, ?output: IONode, ?parameterValue: seq<Annotation>) as this =
 
     inherit DynamicObj()
 
@@ -1197,8 +1226,8 @@ and [<AttachMembers>] Process(name: string, ?executesProtocol: Recipe, ?addition
     let mutable _executesProtocol: Recipe option = executesProtocol
     let mutable _additionalType: string option = additionalType
     let mutable _processOf: Dataset option = None
-    let _inputs: ResizeArray<IONode> = ResizeArray()
-    let _outputs: ResizeArray<IONode> = ResizeArray()
+    let mutable _input: IONode option = None
+    let mutable _output: IONode option = None
     let _parameterValue: ResizeArray<Annotation> = ResizeArray()
 
     // ── Internal back-edge helpers ────────────────────────────────────────────
@@ -1235,19 +1264,9 @@ and [<AttachMembers>] Process(name: string, ?executesProtocol: Recipe, ?addition
         | Some ds -> ds.CanonicalizeNode(node)
 
     do
-        inputs         |> Option.iter (fun ns  -> for n  in ns  do this.AddInput(n))
-        outputs        |> Option.iter (fun ns  -> for n  in ns  do this.AddOutput(n))
+        input          |> Option.iter (fun n -> this.SetInput(n))
+        output         |> Option.iter (fun n -> this.SetOutput(n))
         parameterValue |> Option.iter (fun pvs -> for pv in pvs do this.AddParameterValue(pv))
-
-    let indexOfNodeByKey (nodes: ResizeArray<IONode>) (node: IONode) =
-        let key = node.Key()
-        let mutable index = -1
-        let mutable i = 0
-        while index < 0 && i < nodes.Count do
-            if nodes.[i].Key() = key then
-                index <- i
-            i <- i + 1
-        index
 
     member _.Name
         with get() = _name
@@ -1266,100 +1285,88 @@ and [<AttachMembers>] Process(name: string, ?executesProtocol: Recipe, ?addition
         with get() = _processOf
         and set v = _processOf <- v
 
-    member _.Inputs = _inputs
-    member _.Outputs = _outputs
+    member _.Input = _input
+    member _.Output = _output
     member _.ParameterValue = _parameterValue
-
-    /// Returns the positional input peer(s) of the given output node.
-    /// When this process has equal numbers of inputs and outputs the Nth output
-    /// maps to the Nth input (N-to-N). Falls back to all inputs when counts differ
-    /// or when the node is not found in Outputs.
-    member this.GetInputsOfOutput(output: IONode) : IONode seq =
-        if _inputs.Count = _outputs.Count then
-            let idx = indexOfNodeByKey _outputs output
-            if idx >= 0 then Seq.singleton _inputs.[idx]
-            else _inputs :> seq<IONode>
-        else _inputs :> seq<IONode>
-
-    /// Returns the positional output peer(s) of the given input node.
-    /// When this process has equal numbers of inputs and outputs the Nth input
-    /// maps to the Nth output (N-to-N). Falls back to all outputs when counts differ
-    /// or when the node is not found in Inputs.
-    member this.GetOutputsOfInput(input: IONode) : IONode seq =
-        if _inputs.Count = _outputs.Count then
-            let idx = indexOfNodeByKey _inputs input
-            if idx >= 0 then Seq.singleton _outputs.[idx]
-            else _outputs :> seq<IONode>
-        else _outputs :> seq<IONode>
 
     // ── Input CRUD ────────────────────────────────────────────────────────────
 
     /// Add input. Resolves the node against the root registry so back-edges are
     /// shared when an equal node already exists anywhere in the dataset hierarchy.
-    member this.AddInput(node: IONode) =
+    member this.SetInput(node: IONode) =
         let node = resolveNode node
-        _inputs.Add(node)
+        let previous = _input
+        previous |> Option.iter (fun old -> removeInputBackEdge old this)
+        _input <- Some node
         addInputBackEdge node this
+        match _processOf with
+        | Some ds -> previous |> Option.iter ds.TryEvictNode
+        | None -> ()
 
     /// Re-canonicalize all existing inputs and outputs against the given dataset's
     /// root registry. Called when the process is added to a dataset after its nodes
     /// were already populated. Migrates back-edges if the canonical instance differs.
     member this.CanonicalizeAllNodes(ds: Dataset) =
-        for i in 0 .. _inputs.Count - 1 do
-            let original  = _inputs.[i]
+        _input |> Option.iter (fun original ->
             let canonical = ds.CanonicalizeNode(original)
             match original, canonical with
             | SampleNode mo, SampleNode mc when not (obj.ReferenceEquals(mo, mc)) ->
-                _inputs.[i] <- canonical
+                _input <- Some canonical
                 removeInputBackEdge original this
                 addInputBackEdge canonical this
             | DataNode do', DataNode dc when not (obj.ReferenceEquals(do', dc)) ->
-                _inputs.[i] <- canonical
+                _input <- Some canonical
                 removeInputBackEdge original this
                 addInputBackEdge canonical this
-            | _ -> ()
-        for i in 0 .. _outputs.Count - 1 do
-            let original  = _outputs.[i]
+            | _ -> ())
+        _output |> Option.iter (fun original ->
             let canonical = ds.CanonicalizeNode(original)
             match original, canonical with
             | SampleNode mo, SampleNode mc when not (obj.ReferenceEquals(mo, mc)) ->
-                _outputs.[i] <- canonical
+                _output <- Some canonical
                 removeOutputBackEdge original this
                 addOutputBackEdge canonical this
             | DataNode do', DataNode dc when not (obj.ReferenceEquals(do', dc)) ->
-                _outputs.[i] <- canonical
+                _output <- Some canonical
                 removeOutputBackEdge original this
                 addOutputBackEdge canonical this
-            | _ -> ()
+            | _ -> ())
 
-    member this.AddInputSample(m: Sample) = this.AddInput(SampleNode m)
-    member this.AddInputData(d: Data)         = this.AddInput(DataNode d)
+    member this.SetInputSample(m: Sample) = this.SetInput(SampleNode m)
+    member this.SetInputData(d: Data) = this.SetInput(DataNode d)
 
-    member this.RemoveInput(node: IONode) =
-        let removed = _inputs.Remove(node)
-        if removed then removeInputBackEdge node this
-
-    member this.RemoveInputSample(m: Sample) = this.RemoveInput(SampleNode m)
-    member this.RemoveInputData(d: Data)         = this.RemoveInput(DataNode d)
+    member this.ClearInput() =
+        let previous = _input
+        previous |> Option.iter (fun node -> removeInputBackEdge node this)
+        _input <- None
+        match _processOf with
+        | Some ds -> previous |> Option.iter ds.TryEvictNode
+        | None -> ()
 
     // ── Output CRUD ───────────────────────────────────────────────────────────
 
     /// Add output. Resolves the node against the root registry so back-edges are
     /// shared when an equal node already exists anywhere in the dataset hierarchy.
-    member this.AddOutput(node: IONode) =
+    member this.SetOutput(node: IONode) =
         let node = resolveNode node
-        _outputs.Add(node)
+        let previous = _output
+        previous |> Option.iter (fun old -> removeOutputBackEdge old this)
+        _output <- Some node
         addOutputBackEdge node this
+        match _processOf with
+        | Some ds -> previous |> Option.iter ds.TryEvictNode
+        | None -> ()
 
-    member this.AddOutputSample(m: Sample) = this.AddOutput(SampleNode m)
-    member this.AddOutputData(d: Data)         = this.AddOutput(DataNode d)
+    member this.SetOutputSample(m: Sample) = this.SetOutput(SampleNode m)
+    member this.SetOutputData(d: Data) = this.SetOutput(DataNode d)
 
-    member this.RemoveOutput(node: IONode) =
-        let removed = _outputs.Remove(node)
-        if removed then removeOutputBackEdge node this
-
-    member this.RemoveOutputSample(m: Sample) = this.RemoveOutput(SampleNode m)
-    member this.RemoveOutputData(d: Data)         = this.RemoveOutput(DataNode d)
+    member this.ClearOutput() =
+        let previous = _output
+        previous |> Option.iter (fun node -> removeOutputBackEdge node this)
+        _output <- None
+        match _processOf with
+        | Some ds -> previous |> Option.iter ds.TryEvictNode
+        | None -> ()
 
     // ── ParameterValue CRUD ───────────────────────────────────────────────────
 
@@ -1379,40 +1386,20 @@ and [<AttachMembers>] Process(name: string, ?executesProtocol: Recipe, ?addition
     // ── Query helpers ─────────────────────────────────────────────────────────
 
     /// Input nodes that are Samples.
-    member _.InputSamples() : ResizeArray<Sample> =
-        let result = ResizeArray()
-        for n in _inputs do
-            match n with
-            | SampleNode m -> result.Add(m)
-            | _ -> ()
-        result
+    member _.InputSample() : Sample option =
+        match _input with Some (SampleNode m) -> Some m | _ -> None
 
     /// Input nodes that are Data.
-    member _.InputData() : ResizeArray<Data> =
-        let result = ResizeArray()
-        for n in _inputs do
-            match n with
-            | DataNode d -> result.Add(d)
-            | _ -> ()
-        result
+    member _.InputData() : Data option =
+        match _input with Some (DataNode d) -> Some d | _ -> None
 
     /// Output nodes that are Samples.
-    member _.OutputSamples() : ResizeArray<Sample> =
-        let result = ResizeArray()
-        for n in _outputs do
-            match n with
-            | SampleNode m -> result.Add(m)
-            | _ -> ()
-        result
+    member _.OutputSample() : Sample option =
+        match _output with Some (SampleNode m) -> Some m | _ -> None
 
     /// Output nodes that are Data.
-    member _.OutputData() : ResizeArray<Data> =
-        let result = ResizeArray()
-        for n in _outputs do
-            match n with
-            | DataNode d -> result.Add(d)
-            | _ -> ()
-        result
+    member _.OutputData() : Data option =
+        match _output with Some (DataNode d) -> Some d | _ -> None
 
     /// FormalParameters defined on the protocol executed by this process.
     member _.ProtocolParameters() : ResizeArray<FormalParameter> =
@@ -1426,11 +1413,11 @@ and [<AttachMembers>] Process(name: string, ?executesProtocol: Recipe, ?addition
         let result = ResizeArray<Annotation>()
         for pv: Annotation in _parameterValue do
             if pv.Name = name then result.Add(pv)
-        for n: IONode in _inputs do
+        for n: IONode in _input |> Option.toList do
             match n with
             | SampleNode m -> for pv: Annotation in m.AdditionalProperty do if pv.Name = name then result.Add(pv)
             | DataNode d -> for pv: Annotation in d.AdditionalProperty do if pv.Name = name then result.Add(pv)
-        for n: IONode in _outputs do
+        for n: IONode in _output |> Option.toList do
             match n with
             | SampleNode m -> for pv: Annotation in m.AdditionalProperty do if pv.Name = name then result.Add(pv)
             | DataNode d -> for pv: Annotation in d.AdditionalProperty do if pv.Name = name then result.Add(pv)
@@ -1492,12 +1479,6 @@ and [<AttachMembers>] Dataset(identifier: string, ?title: string, ?description: 
         | Some v -> "S" + valueKey v
         | None -> "N"
 
-    let seqKey (values: seq<string>) =
-        values
-        |> Seq.sort
-        |> Seq.map valueKey
-        |> String.concat ""
-
     let fieldsKey (values: seq<string>) =
         values
         |> Seq.map valueKey
@@ -1508,29 +1489,6 @@ and [<AttachMembers>] Dataset(identifier: string, ?title: string, ?description: 
             dt.Name
             optionKey dt.TAN
             optionKey dt.InDefinedTermSet
-        ]
-
-    let formalParameterKey (fp: FormalParameter) =
-        fieldsKey [
-            fp.Name
-            optionKey fp.NameTAN
-            match fp.DefaultValue with
-            | Some dt -> "D" + definedTermKey dt
-            | None -> "N"
-        ]
-
-    let annotationKey (pv: Annotation) =
-        fieldsKey [
-            pv.Name
-            optionKey pv.Value
-            optionKey pv.Unit
-            optionKey pv.NameTAN
-            optionKey pv.ValueTAN
-            optionKey pv.UnitTAN
-            optionKey pv.AdditionalType
-            match pv.InstanceOf with
-            | Some fp -> "F" + formalParameterKey fp
-            | None -> "N"
         ]
 
     let dataContextKey (dc: DataContext) =
@@ -1549,38 +1507,6 @@ and [<AttachMembers>] Dataset(identifier: string, ?title: string, ?description: 
             optionKey dc.Label
             optionKey dc.Description
             optionKey dc.GeneratedBy
-        ]
-
-    let protocolKey (proto: Recipe) =
-        fieldsKey [
-            optionKey proto.Name
-            optionKey proto.Description
-            optionKey proto.Version
-            optionKey proto.Url
-            optionKey proto.AdditionalType
-            match proto.IntendedUse with
-            | Some dt -> "D" + definedTermKey dt
-            | None -> "N"
-            seqKey (proto.Parameters |> Seq.map formalParameterKey)
-            seqKey (proto.Components |> Seq.map annotationKey)
-            seqKey (proto.AdditionalProperty |> Seq.map annotationKey)
-        ]
-
-    let processCollapseKey (proc: Process) =
-        let ioShape =
-            match proc.Inputs.Count > 0, proc.Outputs.Count > 0 with
-            | true, true -> "IO"
-            | true, false -> "I"
-            | false, true -> "O"
-            | false, false -> "E"
-        fieldsKey [
-            proc.Name
-            ioShape
-            optionKey proc.AdditionalType
-            match proc.ExecutesProtocol with
-            | Some proto -> "P" + protocolKey proto
-            | None -> "N"
-            seqKey (proc.ParameterValue |> Seq.map annotationKey)
         ]
 
     let indexOfProcessByReference (proc: Process) =
@@ -1645,7 +1571,7 @@ and [<AttachMembers>] Dataset(identifier: string, ?title: string, ?description: 
 
     /// Evicts `node` from the root registry if no process remaining in the
     /// hierarchy still holds it as an input or output.
-    member private this.TryEvictNode(node: IONode) =
+    member internal this.TryEvictNode(node: IONode) =
         let root = this.RootDataset()
         let key  = node.Key()
         let stillUsed =
@@ -1715,50 +1641,13 @@ and [<AttachMembers>] Dataset(identifier: string, ?title: string, ?description: 
             proc.CanonicalizeAllNodes(this)
 
     member this.RemoveProcess(proc: Process) =
-        let removed = _processes.Remove(proc)
+        let index = indexOfProcessByReference proc
+        let removed = index >= 0
+        if removed then _processes.RemoveAt(index)
         if removed && proc.ProcessOf = Some this then
             proc.ProcessOf <- None
-            for node in Seq.append proc.Inputs proc.Outputs do
-                this.TryEvictNode(node)
-
-    member private this.MoveProcessLanes(target: Process, source: Process) =
-        let inputs = source.Inputs |> Seq.toArray
-        let outputs = source.Outputs |> Seq.toArray
-        for node in inputs do
-            target.AddInput(node)
-        for node in outputs do
-            target.AddOutput(node)
-        while source.Inputs.Count > 0 do
-            source.RemoveInput(source.Inputs.[0])
-        while source.Outputs.Count > 0 do
-            source.RemoveOutput(source.Outputs.[0])
-
-    member private this.RemoveProcessByReference(proc: Process) =
-        let index = indexOfProcessByReference proc
-        if index >= 0 then
-            _processes.RemoveAt(index)
-            if proc.ProcessOf = Some this then
-                proc.ProcessOf <- None
-
-    /// Collapse same-named process rows with equal non-I/O state and compatible
-    /// I/O shape into positional N-to-N lanes on a single representative process.
-    member this.CollapseProcesses() =
-        let groups = Dictionary<string, ResizeArray<Process>>()
-        let order = ResizeArray<string>()
-        for proc in _processes do
-            let key = processCollapseKey proc
-            if not (groups.ContainsKey(key)) then
-                groups.[key] <- ResizeArray()
-                order.Add(key)
-            groups.[key].Add(proc)
-        for key in order do
-            let group = groups.[key]
-            if group.Count > 1 then
-                let target = group.[0]
-                for i in 1 .. group.Count - 1 do
-                    let source = group.[i]
-                    this.MoveProcessLanes(target, source)
-                    this.RemoveProcessByReference(source)
+            proc.Input |> Option.iter this.TryEvictNode
+            proc.Output |> Option.iter this.TryEvictNode
 
     member _.TryGetProcess(name: string) =
         _processes |> Seq.tryFind (fun p -> p.Name = name)
@@ -1784,7 +1673,7 @@ and [<AttachMembers>] Dataset(identifier: string, ?title: string, ?description: 
             // Collect nodes before disconnecting so the root reference is still valid.
             let nodesToCheck =
                 child.AllProcesses()
-                |> Seq.collect (fun p -> Seq.append p.Inputs p.Outputs)
+                |> Seq.collect (fun p -> [p.Input; p.Output] |> List.choose id)
                 |> Seq.distinctBy (fun n -> n.Key())
                 |> Seq.toList
             child.PartOf <- None
@@ -1794,7 +1683,7 @@ and [<AttachMembers>] Dataset(identifier: string, ?title: string, ?description: 
             // Rebuild child's own registry now that it is a root again.
             child.NodeRegistryDirect.Clear()
             for proc in child.AllProcesses() do
-                for node in Seq.append proc.Inputs proc.Outputs do
+                for node in [proc.Input; proc.Output] |> List.choose id do
                     let key = node.Key()
                     if not (child.NodeRegistryDirect.ContainsKey(key)) then
                         child.NodeRegistryDirect.[key] <- node
@@ -1858,11 +1747,7 @@ and [<AttachMembers>] Dataset(identifier: string, ?title: string, ?description: 
         let acc = ResizeArray()
         let seen = HashSet<string>()
         for proc in this.AllProcesses() do
-            for node in proc.Inputs do
-                match node with
-                | SampleNode m when seen.Add(m.Name) -> acc.Add(m)
-                | _ -> ()
-            for node in proc.Outputs do
+            for node in [proc.Input; proc.Output] |> List.choose id do
                 match node with
                 | SampleNode m when seen.Add(m.Name) -> acc.Add(m)
                 | _ -> ()
@@ -1885,8 +1770,8 @@ and [<AttachMembers>] Dataset(identifier: string, ?title: string, ?description: 
             for d in ds.DataFiles do
                 addData d
             for proc in ds.Processes do
-                for node in proc.Inputs do addNode node
-                for node in proc.Outputs do addNode node
+                proc.Input |> Option.iter addNode
+                proc.Output |> Option.iter addNode
             for child in ds.HasPart do
                 collectDataset child
         collectDataset this
@@ -1897,8 +1782,8 @@ and [<AttachMembers>] Dataset(identifier: string, ?title: string, ?description: 
         let acc  = ResizeArray<IONode>()
         let seen = HashSet<string>()
         for proc in this.AllProcesses() do
-            for n: IONode in proc.Inputs  do if seen.Add(n.Key()) then acc.Add(n)
-            for n: IONode in proc.Outputs do if seen.Add(n.Key()) then acc.Add(n)
+            proc.Input |> Option.iter (fun n -> if seen.Add(n.Key()) then acc.Add(n))
+            proc.Output |> Option.iter (fun n -> if seen.Add(n.Key()) then acc.Add(n))
         acc
 
     member this.AllDataFiles() : ResizeArray<Data> =
@@ -2168,8 +2053,8 @@ and [<AttachMembers>] Dataset(identifier: string, ?title: string, ?description: 
         this.AllProcesses()
         |> Seq.filter (fun p ->
             (p.ParameterValue |> Seq.exists pvMatch) ||
-            (p.Inputs  |> Seq.exists nodeMatch) ||
-            (p.Outputs |> Seq.exists nodeMatch) ||
+            (p.Input |> Option.exists nodeMatch) ||
+            (p.Output |> Option.exists nodeMatch) ||
             (match p.ExecutesProtocol with
              | Some proto ->
                  (proto.Components |> Seq.exists pvMatch)
@@ -2186,8 +2071,8 @@ and [<AttachMembers>] Dataset(identifier: string, ?title: string, ?description: 
         this.AllProcesses()
         |> Seq.filter (fun p ->
             (p.ParameterValue |> Seq.exists pvMatch) ||
-            (p.Inputs  |> Seq.exists nodeMatch) ||
-            (p.Outputs |> Seq.exists nodeMatch) ||
+            (p.Input |> Option.exists nodeMatch) ||
+            (p.Output |> Option.exists nodeMatch) ||
             (match p.ExecutesProtocol with
              | Some proto ->
                  (proto.Components |> Seq.exists pvMatch) ||

@@ -506,6 +506,11 @@ type Table(name: string, processes: ResizeArray<Process>, dataset: Dataset) =
             this.SetSampleType(m, ioType)
             SampleNode m
 
+    member private this.TryNodeFromCell(ioType: IOType, cell: CompositeCell, fallbackName: string) =
+        match cell with
+        | CompositeCell.FreeText value when System.String.IsNullOrWhiteSpace(value) -> None
+        | _ -> Some(this.NodeFromCell(ioType, cell, fallbackName))
+
     member private _.NodeCell(node: IONode) =
         match node with
         | SampleNode m -> TableAux.SampleCell m
@@ -514,55 +519,36 @@ type Table(name: string, processes: ResizeArray<Process>, dataset: Dataset) =
     member private this.ProjectedRows() =
         let rows = ResizeArray<Process * int option * int option>()
         for p in processes do
-            let rowCount = max 1 (max p.Inputs.Count p.Outputs.Count)
-            for i in 0 .. rowCount - 1 do
-                let inputIndex = if i < p.Inputs.Count then Some i else None
-                let outputIndex = if i < p.Outputs.Count then Some i else None
-                rows.Add((p, inputIndex, outputIndex))
+            rows.Add((p, None, None))
         rows
 
-    member private _.NodeAt(nodes: ResizeArray<IONode>, index: int option) =
-        match index with
-        | Some i when i >= 0 && i < nodes.Count -> Some nodes.[i]
-        | _ -> None
+    member private _.SelectedInput(p: Process, _: int option) = p.Input
 
-    member private this.SelectedInput(p: Process, index: int option) =
-        this.NodeAt(p.Inputs, index)
-
-    member private this.SelectedOutput(p: Process, index: int option) =
-        this.NodeAt(p.Outputs, index)
+    member private _.SelectedOutput(p: Process, _: int option) = p.Output
 
     member private this.EnsureInput(p: Process, index: int option, ioType: IOType, cell: CompositeCell) =
         match this.SelectedInput(p, index) with
         | Some node -> node
         | None ->
-            let rowName =
-                match index with
-                | Some i -> sprintf "%s_%d" name i
-                | None -> sprintf "%s_%d" name p.Inputs.Count
+            let rowName = sprintf "%s_input" name
             let node = this.NodeFromCell(ioType, cell, rowName)
-            p.AddInput(node)
+            p.SetInput(node)
             node
 
     member private this.EnsureOutput(p: Process, index: int option, ioType: IOType, cell: CompositeCell) =
         match this.SelectedOutput(p, index) with
         | Some node -> node
         | None ->
-            let rowName =
-                match index with
-                | Some i -> sprintf "%s_%d_out" name i
-                | None -> sprintf "%s_%d_out" name p.Outputs.Count
+            let rowName = sprintf "%s_output" name
             let node = this.NodeFromCell(ioType, cell, rowName)
-            p.AddOutput(node)
+            p.SetOutput(node)
             node
 
     member private this.ReplaceInput(p: Process, existing: IONode option, ioType: IOType, cell: CompositeCell) =
-        existing |> Option.iter p.RemoveInput
-        p.AddInput(this.NodeFromCell(ioType, cell, ""))
+        p.SetInput(this.NodeFromCell(ioType, cell, ""))
 
     member private this.ReplaceOutput(p: Process, existing: IONode option, ioType: IOType, cell: CompositeCell) =
-        existing |> Option.iter p.RemoveOutput
-        p.AddOutput(this.NodeFromCell(ioType, cell, ""))
+        p.SetOutput(this.NodeFromCell(ioType, cell, ""))
 
     member private this.ApplyCellToNode(node: IONode, ioType: IOType, cell: CompositeCell, isInput: bool, p: Process) =
         match node, cell, ioType with
@@ -583,42 +569,6 @@ type Table(name: string, processes: ResizeArray<Process>, dataset: Dataset) =
             m.Name <- value
             this.SetSampleType(m, ioType)
         | _, _, _ -> ()
-
-    member private this.CloneProcessForRow(p: Process, inputIndex: int option, outputIndex: int option) =
-        let clone = Process(p.Name, ?additionalType = p.AdditionalType)
-        match p.ExecutesProtocol with
-        | Some proto -> clone.ExecutesProtocol <- Some(this.CloneProtocol(proto))
-        | None -> ()
-        match this.SelectedInput(p, inputIndex) with
-        | Some node -> clone.AddInput(this.CloneNode(node))
-        | None -> ()
-        match this.SelectedOutput(p, outputIndex) with
-        | Some node -> clone.AddOutput(this.CloneNode(node))
-        | None -> ()
-        for pv in p.ParameterValue do
-            clone.AddParameterValue(this.ClonePV(pv))
-        clone
-
-    member private this.SampleizeProjectedRows() =
-        let replacements = ResizeArray<Process * ResizeArray<Process>>()
-        for p in processes |> Seq.toArray do
-            let rowCount = max 1 (max p.Inputs.Count p.Outputs.Count)
-            if rowCount > 1 then
-                let clones = ResizeArray<Process>()
-                for i in 0 .. rowCount - 1 do
-                    let inputIndex = if i < p.Inputs.Count then Some i else None
-                    let outputIndex = if i < p.Outputs.Count then Some i else None
-                    clones.Add(this.CloneProcessForRow(p, inputIndex, outputIndex))
-                replacements.Add((p, clones))
-        for oldProc, clones in replacements do
-            let idx = processes.IndexOf(oldProc)
-            if idx >= 0 then processes.RemoveAt(idx)
-            dataset.RemoveProcess(oldProc)
-            let mutable insertAt = if idx >= 0 then idx else processes.Count
-            for clone in clones do
-                processes.Insert(insertAt, clone)
-                insertAt <- insertAt + 1
-                dataset.AddProcess(clone)
 
     member private _.CellAt(cells: ResizeArray<CompositeCell>, rowIndex: int) =
         if rowIndex < cells.Count then cells.[rowIndex] else CompositeCell.FreeText ""
@@ -802,9 +752,8 @@ type Table(name: string, processes: ResizeArray<Process>, dataset: Dataset) =
     /// The parent dataset.
     member _.Dataset = dataset
 
-    /// Number of visible rows in the table projection.
-    member this.RowCount =
-        this.ProjectedRows().Count
+    /// Number of visible rows; every row is exactly one process.
+    member _.RowCount = processes.Count
 
     /// Derive headers from the current process state.
     member this.Headers : ResizeArray<CompositeHeader> =
@@ -874,44 +823,44 @@ type Table(name: string, processes: ResizeArray<Process>, dataset: Dataset) =
         match header with
         | CompositeHeader.Input ioType ->
             if processes.Count = 0 then
-                let p = Process(name)
                 let cellCount = if cells.Count = 0 then 1 else cells.Count
                 for i in 0 .. cellCount - 1 do
-                    p.AddInput(this.NodeFromCell(ioType, this.CellAt(cells, i), sprintf "%s_%d" name i))
-                processes.Add(p)
-                dataset.AddProcess(p)
+                    let p = Process(name)
+                    this.TryNodeFromCell(ioType, this.CellAt(cells, i), sprintf "%s_%d" name i)
+                    |> Option.iter p.SetInput
+                    processes.Add(p)
+                    dataset.AddProcess(p)
             else
-                this.SampleizeProjectedRows()
                 for i in 0 .. processes.Count - 1 do
                     let p = processes.[i]
                     let cell = this.CellAt(cells, i)
-                    match p.Inputs |> Seq.tryHead with
-                    | Some node -> this.ApplyCellToNode(node, ioType, cell, true, p)
-                    | None -> p.AddInput(this.NodeFromCell(ioType, cell, sprintf "%s_%d" name i))
+                    match p.Input, this.TryNodeFromCell(ioType, cell, sprintf "%s_%d" name i) with
+                    | _, None -> p.ClearInput()
+                    | Some node, Some _ -> this.ApplyCellToNode(node, ioType, cell, true, p)
+                    | None, Some node -> p.SetInput(node)
         | CompositeHeader.Output ioType ->
             if processes.Count = 0 then
-                let p = Process(name)
                 let cellCount = if cells.Count = 0 then 1 else cells.Count
                 for i in 0 .. cellCount - 1 do
-                    p.AddOutput(this.NodeFromCell(ioType, this.CellAt(cells, i), sprintf "%s_%d_out" name i))
-                processes.Add(p)
-                dataset.AddProcess(p)
+                    let p = Process(name)
+                    this.TryNodeFromCell(ioType, this.CellAt(cells, i), sprintf "%s_%d_out" name i)
+                    |> Option.iter p.SetOutput
+                    processes.Add(p)
+                    dataset.AddProcess(p)
             else
-                this.SampleizeProjectedRows()
                 for i in 0 .. processes.Count - 1 do
                     let p = processes.[i]
                     let cell = this.CellAt(cells, i)
-                    match p.Outputs |> Seq.tryHead with
-                    | Some node -> this.ApplyCellToNode(node, ioType, cell, false, p)
-                    | None -> p.AddOutput(this.NodeFromCell(ioType, cell, sprintf "%s_%d_out" name i))
+                    match p.Output, this.TryNodeFromCell(ioType, cell, sprintf "%s_%d_out" name i) with
+                    | _, None -> p.ClearOutput()
+                    | Some node, Some _ -> this.ApplyCellToNode(node, ioType, cell, false, p)
+                    | None, Some node -> p.SetOutput(node)
         | CompositeHeader.Parameter _ ->
             ensureOneProcess()
-            this.SampleizeProjectedRows()
             for i in 0 .. processes.Count - 1 do
                 addPV i (fun () -> processes.[i].ParameterValue)
         | CompositeHeader.Characteristic _ ->
             ensureOneProcess()
-            this.SampleizeProjectedRows()
             for i in 0 .. processes.Count - 1 do
                 let p = processes.[i]
                 match this.EnsureInput(p, Some 0, IOType.Sample, CompositeCell.FreeText(sprintf "%s_%d" name i)) with
@@ -919,7 +868,6 @@ type Table(name: string, processes: ResizeArray<Process>, dataset: Dataset) =
                 | DataNode d -> addPV i (fun () -> d.AdditionalProperty)
         | CompositeHeader.Factor _ ->
             ensureOneProcess()
-            this.SampleizeProjectedRows()
             for i in 0 .. processes.Count - 1 do
                 let p = processes.[i]
                 match this.EnsureOutput(p, Some 0, IOType.Sample, CompositeCell.FreeText(sprintf "%s_%d_out" name i)) with
@@ -927,14 +875,12 @@ type Table(name: string, processes: ResizeArray<Process>, dataset: Dataset) =
                 | DataNode d -> addPV i (fun () -> d.AdditionalProperty)
         | CompositeHeader.Component _ ->
             ensureOneProcess()
-            this.SampleizeProjectedRows()
             for i in 0 .. processes.Count - 1 do
                 let proto = this.EnsureProtocol(processes.[i])
                 addPV i (fun () -> proto.Components)
         | CompositeHeader.ProtocolREF ->
             if cells.Count > 0 then
                 ensureOneProcess()
-                this.SampleizeProjectedRows()
                 for i in 0 .. processes.Count - 1 do
                     match this.CellAt(cells, i) with
                     | CompositeCell.FreeText v -> (this.EnsureProtocol(processes.[i])).Name <- Some v
@@ -942,7 +888,6 @@ type Table(name: string, processes: ResizeArray<Process>, dataset: Dataset) =
         | CompositeHeader.ProtocolType ->
             if cells.Count > 0 then
                 ensureOneProcess()
-                this.SampleizeProjectedRows()
                 for i in 0 .. processes.Count - 1 do
                     match this.CellAt(cells, i) with
                     | CompositeCell.Term(n, tan) ->
@@ -955,7 +900,6 @@ type Table(name: string, processes: ResizeArray<Process>, dataset: Dataset) =
         | CompositeHeader.ProtocolDescription ->
             if cells.Count > 0 then
                 ensureOneProcess()
-                this.SampleizeProjectedRows()
                 for i in 0 .. processes.Count - 1 do
                     match this.CellAt(cells, i) with
                     | CompositeCell.FreeText v -> (this.EnsureProtocol(processes.[i])).Description <- Some v
@@ -963,7 +907,6 @@ type Table(name: string, processes: ResizeArray<Process>, dataset: Dataset) =
         | CompositeHeader.ProtocolUri ->
             if cells.Count > 0 then
                 ensureOneProcess()
-                this.SampleizeProjectedRows()
                 for i in 0 .. processes.Count - 1 do
                     match this.CellAt(cells, i) with
                     | CompositeCell.FreeText v -> (this.EnsureProtocol(processes.[i])).Url <- Some v
@@ -971,7 +914,6 @@ type Table(name: string, processes: ResizeArray<Process>, dataset: Dataset) =
         | CompositeHeader.ProtocolVersion ->
             if cells.Count > 0 then
                 ensureOneProcess()
-                this.SampleizeProjectedRows()
                 for i in 0 .. processes.Count - 1 do
                     match this.CellAt(cells, i) with
                     | CompositeCell.FreeText v -> (this.EnsureProtocol(processes.[i])).Version <- Some v
@@ -987,24 +929,20 @@ type Table(name: string, processes: ResizeArray<Process>, dataset: Dataset) =
             | None   -> ()
         match header with
         | CompositeHeader.Input _ ->
-            for p in processes do
-                while p.Inputs.Count > 0 do
-                    p.RemoveInput(p.Inputs.[0])
+            for p in processes do p.ClearInput()
         | CompositeHeader.Output _ ->
-            for p in processes do
-                while p.Outputs.Count > 0 do
-                    p.RemoveOutput(p.Outputs.[0])
+            for p in processes do p.ClearOutput()
         | CompositeHeader.Parameter(dt) ->
             for p in processes do removeFirst p.ParameterValue "ParameterValue" dt.Name
         | CompositeHeader.Characteristic(dt) ->
             for p in processes do
-                match p.Inputs |> Seq.tryHead with
+                match p.Input with
                 | Some (SampleNode m) -> removeFirst m.AdditionalProperty "CharacteristicValue" dt.Name
                 | Some (DataNode d)     -> removeFirst d.AdditionalProperty "CharacteristicValue" dt.Name
                 | None -> ()
         | CompositeHeader.Factor(dt) ->
             for p in processes do
-                match p.Outputs |> Seq.tryHead with
+                match p.Output with
                 | Some (SampleNode m) -> removeFirst m.AdditionalProperty "FactorValue" dt.Name
                 | Some (DataNode d)     -> removeFirst d.AdditionalProperty "FactorValue" dt.Name
                 | None -> ()
@@ -1048,39 +986,11 @@ type Table(name: string, processes: ResizeArray<Process>, dataset: Dataset) =
             let cell   = if colIdx < cells.Count then cells.[colIdx] else CompositeCell.FreeText ""
             match header with
             | CompositeHeader.Input ioType ->
-                let node =
-                    match cell, ioType with
-                    | CompositeCell.Data d, _         -> IONode.DataNode d
-                    | CompositeCell.FreeText n, IOType.Data ->
-                        let d = Data(n)
-                        IONode.DataNode d
-                    | CompositeCell.FreeText n, _ ->
-                        let m = Sample(n)
-                        match ioType with
-                        | IOType.Source   -> m.AdditionalType <- Some "Source"
-                        | IOType.Sample   -> m.AdditionalType <- Some "Sample"
-                        | IOType.FreeText t -> m.AdditionalType <- Some t
-                        | _ -> ()
-                        IONode.SampleNode m
-                    | _, _ -> IONode.SampleNode(Sample(sprintf "%s_%d" name rowIdx))
-                proc.AddInput(node)
+                this.TryNodeFromCell(ioType, cell, sprintf "%s_%d" name rowIdx)
+                |> Option.iter proc.SetInput
             | CompositeHeader.Output ioType ->
-                let node =
-                    match cell, ioType with
-                    | CompositeCell.Data d, _         -> IONode.DataNode d
-                    | CompositeCell.FreeText n, IOType.Data ->
-                        let d = Data(n)
-                        IONode.DataNode d
-                    | CompositeCell.FreeText n, _ ->
-                        let m = Sample(n)
-                        match ioType with
-                        | IOType.Source   -> m.AdditionalType <- Some "Source"
-                        | IOType.Sample   -> m.AdditionalType <- Some "Sample"
-                        | IOType.FreeText t -> m.AdditionalType <- Some t
-                        | _ -> ()
-                        IONode.SampleNode m
-                    | _, _ -> IONode.SampleNode(Sample(sprintf "%s_%d_out" name rowIdx))
-                proc.AddOutput(node)
+                this.TryNodeFromCell(ioType, cell, sprintf "%s_%d_out" name rowIdx)
+                |> Option.iter proc.SetOutput
             | CompositeHeader.Parameter(dt) ->
                 let pv = Annotation(dt.Name)
                 pv.NameTAN        <- dt.TAN
@@ -1092,7 +1002,7 @@ type Table(name: string, processes: ResizeArray<Process>, dataset: Dataset) =
                 pv.NameTAN        <- dt.TAN
                 pv.AdditionalType <- Some "CharacteristicValue"
                 TableAux.ApplyCellToPV(pv, cell)
-                match proc.Inputs |> Seq.tryHead with
+                match proc.Input with
                 | Some (SampleNode m) -> m.AddAdditionalProperty(pv)
                 | Some (DataNode d)     -> d.AddAdditionalProperty(pv)
                 | None -> ()
@@ -1101,7 +1011,7 @@ type Table(name: string, processes: ResizeArray<Process>, dataset: Dataset) =
                 pv.NameTAN        <- dt.TAN
                 pv.AdditionalType <- Some "FactorValue"
                 TableAux.ApplyCellToPV(pv, cell)
-                match proc.Outputs |> Seq.tryHead with
+                match proc.Output with
                 | Some (SampleNode m) -> m.AddAdditionalProperty(pv)
                 | Some (DataNode d)     -> d.AddAdditionalProperty(pv)
                 | None -> ()
@@ -1195,13 +1105,15 @@ type Table(name: string, processes: ResizeArray<Process>, dataset: Dataset) =
                         TableAux.ApplyCellToPV(pv, cell)
                         p.AddParameterValue(pv)
                 | CompositeHeader.Input ioType ->
-                    match this.SelectedInput(p, inputIndex) with
-                    | Some node -> this.ApplyCellToNode(node, ioType, cell, true, p)
-                    | None -> p.AddInput(this.NodeFromCell(ioType, cell, sprintf "%s_%d" name rowIndex))
+                    match this.SelectedInput(p, inputIndex), this.TryNodeFromCell(ioType, cell, sprintf "%s_%d" name rowIndex) with
+                    | _, None -> p.ClearInput()
+                    | Some node, Some _ -> this.ApplyCellToNode(node, ioType, cell, true, p)
+                    | None, Some node -> p.SetInput(node)
                 | CompositeHeader.Output ioType ->
-                    match this.SelectedOutput(p, outputIndex) with
-                    | Some node -> this.ApplyCellToNode(node, ioType, cell, false, p)
-                    | None -> p.AddOutput(this.NodeFromCell(ioType, cell, sprintf "%s_%d_out" name rowIndex))
+                    match this.SelectedOutput(p, outputIndex), this.TryNodeFromCell(ioType, cell, sprintf "%s_%d_out" name rowIndex) with
+                    | _, None -> p.ClearOutput()
+                    | Some node, Some _ -> this.ApplyCellToNode(node, ioType, cell, false, p)
+                    | None, Some node -> p.SetOutput(node)
                 | CompositeHeader.Characteristic(dt) ->
                     let pvList =
                         match this.SelectedInput(p, inputIndex) with

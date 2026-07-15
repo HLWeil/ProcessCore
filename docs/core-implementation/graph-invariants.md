@@ -9,6 +9,8 @@ index: 10
 
 ProcessCore is an object graph with convenience indexes maintained by the model. Understanding a few invariants makes traversal behavior much easier to predict.
 
+Every `Process` is exactly one directed edge. `Input` and `Output` are optional singular nodes; fan-in, fan-out, and parallel lanes use multiple process instances, even when those instances share a name and protocol state.
+
 ## Shared Node Identity
 
 Samples are equal by `Name`. Data nodes are equal by `Path` and `Selector`.
@@ -19,7 +21,7 @@ This is why a sample produced by one process can be consumed by another process 
 
 ## Back-Edges
 
-ProcessCore maintains back-edges when you use the public add/remove methods:
+ProcessCore maintains back-edges when you use the public set/clear methods:
 
 | Relationship | Back-edge |
 |--------------|-----------|
@@ -28,7 +30,7 @@ ProcessCore maintains back-edges when you use the public add/remove methods:
 | Dataset has process | Process `ProcessOf` points to the dataset |
 | Dataset has child dataset | Child `PartOf` points to the parent |
 
-Use `AddInputSample`, `AddOutputData`, `AddProcess`, and `AddPart` instead of editing backing collections directly when you want these links to stay correct.
+Use `SetInputSample`, `SetOutputData`, `ClearInput`, `ClearOutput`, `AddProcess`, and `AddPart` so these links stay correct.
 
 ## Scope
 
@@ -60,7 +62,7 @@ The [fragment selector provider walkthrough](fragment-selector-providers.fsx) de
 |------|-----|
 | Add processes safely | `dataset.AddProcess` |
 | Add nested datasets safely | `dataset.AddPart` |
-| Connect process I/O safely | `AddInputSample`, `AddInputData`, `AddOutputSample`, `AddOutputData` |
+| Connect process I/O safely | `SetInputSample`, `SetInputData`, `SetOutputSample`, `SetOutputData` |
 | Stay inside a dataset | Dataset-scoped helpers such as `NodesUpstreamOf` |
 | Query from a node with explicit scope | `node.UpstreamNodes(scope = dataset.AllProcesses())` |
 | Traverse related fragments | Register an `IFragmentSelectorProvider` on the dataset |

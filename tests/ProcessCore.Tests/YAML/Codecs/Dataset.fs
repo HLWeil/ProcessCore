@@ -158,16 +158,42 @@ hasPart:
     testCase "round-trip with processes" <| fun _ ->
         let original = Dataset("DS-1")
         let proc     = Process("p1")
-        proc.AddInput(SampleNode (Sample("Source1")))
-        proc.AddOutput(SampleNode (Sample("Sample1")))
+        proc.SetInput(SampleNode (Sample("Source1")))
+        proc.SetOutput(SampleNode (Sample("Sample1")))
         original.AddProcess(proc)
         let yaml    = Yaml.Dataset.toYamlString None original
         let decoded = Yaml.Dataset.fromYamlString false yaml
         Expect.equal decoded.Identifier    original.Identifier    "identifier"
         Expect.equal decoded.Processes.Count 1                    "process count"
         Expect.equal decoded.Processes.[0].Name "p1"              "process name"
-        Expect.equal decoded.Processes.[0].Inputs.Count  1        "input count"
-        Expect.equal decoded.Processes.[0].Outputs.Count 1        "output count"
+        Expect.isSome decoded.Processes.[0].Input "input count"
+        Expect.isSome decoded.Processes.[0].Output "output count"
+
+    testCase "dataset encoding groups equivalent singular edges" <| fun _ ->
+        let original = Dataset("DS-grouped")
+        let first =
+            Process(
+                "transfer",
+                input = SampleNode(Sample("Source1")),
+                output = SampleNode(Sample("Sample1")))
+        let second =
+            Process(
+                "transfer",
+                input = SampleNode(Sample("Source2")),
+                output = SampleNode(Sample("Sample2")))
+        original.AddProcess(first)
+        original.AddProcess(second)
+
+        let yaml = Yaml.Dataset.toYamlString None original
+        let decoded = Yaml.Dataset.fromYamlString false yaml
+
+        Expect.equal decoded.Processes.Count 2 "collapsed YAML expands back to two edges"
+        Expect.equal (decoded.Processes.[0].Input.Value.Key()) "M:Source1" "first lane input"
+        Expect.equal (decoded.Processes.[0].Output.Value.Key()) "M:Sample1" "first lane output"
+        Expect.equal (decoded.Processes.[1].Input.Value.Key()) "M:Source2" "second lane input"
+        Expect.equal (decoded.Processes.[1].Output.Value.Key()) "M:Sample2" "second lane output"
+        let processEntries = yaml.Split("name: transfer").Length - 1
+        Expect.equal processEntries 1 "equivalent edges are represented by one YAML process"
 
     testCase "round-trip nested hasPart" <| fun _ ->
         let childA  = Dataset("child-a")

@@ -84,8 +84,8 @@ sample.AddAdditionalProperty(Annotation("temperature", value = "25", unit = "deg
 
 let growth = Process("Growth")
 growth.ExecutesProtocol <- Some protocol
-growth.AddInputSample(source)
-growth.AddOutputSample(sample)
+growth.SetInputSample(source)
+growth.SetOutputSample(sample)
 growth.AddParameterValue(Annotation("duration", value = "7", unit = "day", additionalType = "ParameterValue"))
 small.AddProcess(growth)
 

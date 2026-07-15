@@ -3,7 +3,8 @@ $id: "Process.yml"
 title: Process
 description: >
   Core transformation node in the process graph. A Process connects inputs to
-  outputs and references the Protocol that was executed.
+  outputs and references the Protocol that was executed. The YAML arrays are a
+  compact serialization of singular process edges.
 type: object
 
 # Cross-reference helpers (reused in inputs/outputs items)
@@ -36,16 +37,16 @@ properties:
   inputs:
     type: array
     description: >
-      Input samples or data files consumed by this process (SHOULD).
-      The Nth input corresponds to the Nth output.
+      Input nodes consumed by serialized process edges (SHOULD). The Nth input
+      is expanded with the Nth output into one Process.
     items:
       $ref: "#/$defs/sampleOrData"
 
   outputs:
     type: array
     description: >
-      Output samples or data files produced by this process (SHOULD).
-      The Nth output corresponds to the Nth input.
+      Output nodes produced by serialized process edges (SHOULD). Unequal arrays
+      are expanded with an absent endpoint on the shorter side.
     items:
       $ref: "#/$defs/sampleOrData"
 

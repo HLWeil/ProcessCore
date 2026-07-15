@@ -80,8 +80,8 @@ let tests = testList "Integration" [
         let s = Sample("Sx", additionalType = "Source")
         let o = Sample("Ox", additionalType = "Sample")
         let px = Process("px")
-        px.AddInputSample(s)
-        px.AddOutputSample(o)
+        px.SetInputSample(s)
+        px.SetOutputSample(o)
         px.AddParameterValue(Annotation("temperature", value = "100", unit = "°C", additionalType = "ParameterValue"))
         let dsX = Dataset("DS-X")
         dsX.AddProcess(px)
@@ -140,22 +140,25 @@ let tests = testList "Integration" [
         let raw     = Data("rawData.csv")
 
         let growthA = Process("growth_a")
-        growthA.AddInputSample(sourceA)
-        growthA.AddOutputSample(sampleA)
+        growthA.SetInputSample(sourceA)
+        growthA.SetOutputSample(sampleA)
 
         let growthB = Process("growth_b")
-        growthB.AddInputSample(sourceB)
-        growthB.AddOutputSample(sampleB)
+        growthB.SetInputSample(sourceB)
+        growthB.SetOutputSample(sampleB)
 
         let measurement = Process("measurement")
-        measurement.AddInputSample(sampleA)
-        measurement.AddInputSample(sampleB)
-        measurement.AddOutputData(raw)
+        measurement.SetInputSample(sampleA)
+        measurement.SetOutputData(raw)
+        let measurementB = Process("measurement")
+        measurementB.SetInputSample(sampleB)
+        measurementB.SetOutputData(raw)
 
         let ds = Dataset("investigation")
         ds.AddProcess(growthA)
         ds.AddProcess(growthB)
         ds.AddProcess(measurement)
+        ds.AddProcess(measurementB)
 
         let paths = ds.PathsThrough(DataNode raw)
 
@@ -210,16 +213,16 @@ let tests = testList "Integration" [
             let data = Data("proteomics_result.tsv", selector = selector, selectorFormat = CsvFragmentSelectorProvider.SelectorFormatUri, encodingFormat = "text/tab-separated-values")
 
             let growth = Process($"Growth {condition} C {bioRep}.{techRep}")
-            growth.AddInputSample(source)
-            growth.AddOutputSample(culture)
+            growth.SetInputSample(source)
+            growth.SetOutputSample(culture)
 
             let preparation = Process($"Prepare sample {condition} C {bioRep}.{techRep}")
-            preparation.AddInputSample(culture)
-            preparation.AddOutputSample(aliquot)
+            preparation.SetInputSample(culture)
+            preparation.SetOutputSample(aliquot)
 
             let analysis = Process($"Computational proteome analysis {condition} C {bioRep}.{techRep}")
-            analysis.AddInputSample(aliquot)
-            analysis.AddOutputData(data)
+            analysis.SetInputSample(aliquot)
+            analysis.SetOutputData(data)
 
             ds.AddProcess(growth)
             ds.AddProcess(preparation)

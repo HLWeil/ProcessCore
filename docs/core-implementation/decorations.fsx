@@ -102,13 +102,13 @@ growthProtocol.AddComponent(
         additionalType = "Component"))
 
 let growthAt25 = Process("Growth", executesProtocol = growthProtocol)
-growthAt25.AddInputSample(source)
-growthAt25.AddOutputSample(roomTemperatureSample)
+growthAt25.SetInputSample(source)
+growthAt25.SetOutputSample(roomTemperatureSample)
 assay.AddProcess(growthAt25)
 
 let growthAt30 = Process("Growth", executesProtocol = growthProtocol)
-growthAt30.AddInputSample(source)
-growthAt30.AddOutputSample(highTemperatureSample)
+growthAt30.SetInputSample(source)
+growthAt30.SetOutputSample(highTemperatureSample)
 assay.AddProcess(growthAt30)
 
 let assayDecoration =
@@ -145,12 +145,12 @@ The first `Growth` process shows a compact ISA-style shape:
 *)
 
 let growthInput =
-    growthAt25.InputSamples()
-    |> Seq.head
+    growthAt25.InputSample()
+    |> Option.get
 
 let growthOutput =
-    growthAt25.OutputSamples()
-    |> Seq.head
+    growthAt25.OutputSample()
+    |> Option.get
 
 let growthDecoration =
     [ "process", growthAt25.Name
@@ -193,8 +193,8 @@ let technicalReplicate =
         additionalType = "ParameterValue")
 
 let lysis = Process("Cell Lysis")
-lysis.AddInputSample(roomTemperatureSample)
-lysis.AddOutputSample(Sample("Eppi RT 1", additionalType = "Sample"))
+lysis.SetInputSample(roomTemperatureSample)
+lysis.SetOutputSample(Sample("Eppi RT 1", additionalType = "Sample"))
 lysis.AddParameterValue(sonicator)
 lysis.AddParameterValue(lysisTime)
 lysis.AddParameterValue(technicalReplicate)
