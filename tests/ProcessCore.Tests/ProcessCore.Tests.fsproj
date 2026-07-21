@@ -30,9 +30,9 @@
     <Compile Include="Table/TableRead.fs" />
     <Compile Include="Table/TableWrite.fs" />
     <Compile Include="Table/TablesApi.fs" />
-    <Folder Include="Spreadsheet\" />
-    <Compile Include="Spreadsheet\Workbooks.fs" />
-    <Compile Include="Spreadsheet\Scaffold.fs" />
+    <Folder Include="Spreadsheet/" />
+    <Compile Include="Spreadsheet/Workbooks.fs" />
+    <Compile Include="Spreadsheet/Scaffold.fs" />
     <Compile Include="Integration.fs" />
     <Compile Include="YAML/Fixtures.fs" />
     <Compile Include="YAML/Codecs/DefinedTerm.fs" />
