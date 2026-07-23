@@ -3,7 +3,13 @@ module ProcessCore.Yaml.Tests.Integration.Overflow
 open Fable.Pyxpecto
 open DynamicObj
 open ProcessCore
+open ProcessCore.Spreadsheet
 open ProcessCore.Yaml
+
+let private tryTypedProperty<'T when 'T :> obj> (dataset: Dataset) name =
+    match dataset.TryGetPropertyValue(name) with
+    | Some (:? 'T as value) -> Some value
+    | _ -> None
 
 let tests = testList "Overflow" [
 
@@ -74,5 +80,65 @@ let tests = testList "Overflow" [
         Expect.equal (countOf "TAN:" yaml)              1 "TAN appears exactly once"
         Expect.equal (countOf "inDefinedTermSet:" yaml) 1 "inDefinedTermSet appears exactly once"
         Expect.equal (countOf "type:" yaml)             1 "type appears exactly once"
+
+    testCase "typed Run overflow survives YAML for spreadsheet writers" <| fun _ ->
+        let run = Dataset("run-1", additionalType = "Run")
+        run.SetProperty("WorkflowIdentifiers", ResizeArray [ "workflow-1"; "workflow-2" ])
+        run.SetProperty("MeasurementType", DefinedTerm("LC-MS", tan = "OBI:0000470"))
+        run.SetProperty("TechnologyType", DefinedTerm("mass spectrometry", tan = "OBI:0000084"))
+        run.SetProperty("TechnologyPlatform", "Orbitrap")
+        run.SetProperty(
+            "Comments",
+            ResizeArray [ Comment.fromString "registrationLedger" "registered-2026-01-01" ])
+
+        let arc = ARC("typed-run-overflow", hasPart = [ run ])
+        let decodedArc = arc.toYamlString(2) |> ARC.fromYamlString
+        let decodedRun = decodedArc.HasPart |> Seq.exactlyOne
+
+        match tryTypedProperty<ResizeArray<string>> decodedRun "WorkflowIdentifiers" with
+        | Some workflowIdentifiers ->
+            Expect.equal (workflowIdentifiers |> Seq.toList) [ "workflow-1"; "workflow-2" ]
+                "workflow identifiers must retain their typed collection"
+        | None ->
+            Expect.isTrue false "WorkflowIdentifiers must decode as ResizeArray<string>"
+
+        match tryTypedProperty<DefinedTerm> decodedRun "MeasurementType" with
+        | Some measurementType ->
+            Expect.equal measurementType.Name "LC-MS" "measurement type name"
+            Expect.equal measurementType.TAN (Some "OBI:0000470") "measurement type TAN"
+        | None ->
+            Expect.isTrue false "MeasurementType must decode as DefinedTerm"
+
+        match tryTypedProperty<DefinedTerm> decodedRun "TechnologyType" with
+        | Some technologyType ->
+            Expect.equal technologyType.Name "mass spectrometry" "technology type name"
+            Expect.equal technologyType.TAN (Some "OBI:0000084") "technology type TAN"
+        | None ->
+            Expect.isTrue false "TechnologyType must decode as DefinedTerm"
+
+        match tryTypedProperty<ResizeArray<DynamicObj>> decodedRun "Comments" with
+        | Some comments ->
+            let commentName, commentValue = Comment.toString comments.[0]
+            Expect.equal commentName (Some "registrationLedger") "comment name"
+            Expect.equal commentValue (Some "registered-2026-01-01") "comment value"
+        | None ->
+            Expect.isTrue false "Comments must decode as ResizeArray<DynamicObj>"
+
+        let sparse = Run.toSparseTable decodedRun
+        if sparse.Matrix.ContainsKey((Run.workflowIdentifiersLabel, 1)) then
+            Expect.equal (sparse.Matrix[(Run.workflowIdentifiersLabel, 1)]) "workflow-1;workflow-2"
+                "Run writer must receive typed workflow identifiers"
+        else
+            Expect.isTrue false "Run writer must receive workflow identifiers"
+        if sparse.Matrix.ContainsKey((Run.measurementTypeLabel, 1)) then
+            Expect.equal (sparse.Matrix[(Run.measurementTypeLabel, 1)]) "LC-MS"
+                "Run writer must receive typed measurement type"
+        else
+            Expect.isTrue false "Run writer must receive measurement type"
+        if sparse.Matrix.ContainsKey(("registrationLedger", 1)) then
+            Expect.equal (sparse.Matrix[("registrationLedger", 1)]) "registered-2026-01-01"
+                "Run writer must receive typed comments"
+        else
+            Expect.isTrue false "Run writer must receive comments"
 
 ]

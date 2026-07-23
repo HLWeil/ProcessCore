@@ -5,6 +5,9 @@ open ProcessCore
 open ProcessCore.Yaml
 open ProcessCore.Yaml.Tests.Fixtures
 
+let private parameterValue (proc: Process) =
+    proc.ParameterValue |> Seq.exactlyOne
+
 let tests = testList "RoundTrip" [
 
     testCase "linear graph round-trip" <| fun _ ->
@@ -179,6 +182,103 @@ let tests = testList "RoundTrip" [
         let yaml2 = Yaml.Dataset.toYamlStringIndexed (Some 2) decoded1
         Expect.equal yaml2 yaml1 "round-trip indexed YAML should match"
 
+    testCase "indexed annotation ids preserve distinct name TANs" <| fun _ ->
+        let first = Process("name-tan-1")
+        first.AddParameterValue(
+            Annotation("temperature", value = "37", nameTAN = "PATO:0000146"))
+
+        let second = Process("name-tan-2")
+        second.AddParameterValue(
+            Annotation("temperature", value = "37", nameTAN = "PATO:0000147"))
+
+        let dataset = Dataset("annotation-name-tan-collision")
+        dataset.AddProcess(first)
+        dataset.AddProcess(second)
+
+        let decoded =
+            dataset
+            |> Yaml.Dataset.toYamlStringIndexed (Some 2)
+            |> Yaml.Dataset.fromYamlString false
+
+        let tans =
+            decoded.Processes
+            |> Seq.map parameterValue
+            |> Seq.map (fun pv -> pv.NameTAN)
+            |> Seq.toList
+
+        Expect.equal tans [ Some "PATO:0000146"; Some "PATO:0000147" ]
+            "annotation identity must include name TAN"
+
+    testCase "indexed annotation ids preserve distinct formal parameters" <| fun _ ->
+        let first = Process("formal-parameter-1")
+        first.AddParameterValue(
+            Annotation(
+                "value",
+                value = "same",
+                instanceOf = FormalParameter("parameter-a")))
+
+        let second = Process("formal-parameter-2")
+        second.AddParameterValue(
+            Annotation(
+                "value",
+                value = "same",
+                instanceOf = FormalParameter("parameter-b")))
+
+        let dataset = Dataset("annotation-formal-parameter-collision")
+        dataset.AddProcess(first)
+        dataset.AddProcess(second)
+
+        let decoded =
+            dataset
+            |> Yaml.Dataset.toYamlStringIndexed (Some 2)
+            |> Yaml.Dataset.fromYamlString false
+
+        let parameterNames =
+            decoded.Processes
+            |> Seq.map parameterValue
+            |> Seq.map (fun pv -> pv.InstanceOf |> Option.map (fun fp -> fp.Name))
+            |> Seq.toList
+
+        Expect.equal parameterNames [ Some "parameter-a"; Some "parameter-b" ]
+            "annotation identity must include formal-parameter identity"
+
+    testCase "indexed recipe ids preserve recipes sharing a URL" <| fun _ ->
+        let first = Recipe(url = "https://example.org/protocols/shared", description = "first")
+        let second = Recipe(url = "https://example.org/protocols/shared", description = "second")
+        let firstProcess = Process("recipe-1", executesRecipe = first)
+        let secondProcess = Process("recipe-2", executesRecipe = second)
+
+        let dataset = Dataset("recipe-url-collision")
+        dataset.AddProcess(firstProcess)
+        dataset.AddProcess(secondProcess)
+
+        let decoded =
+            dataset
+            |> Yaml.Dataset.toYamlStringIndexed (Some 2)
+            |> Yaml.Dataset.fromYamlString false
+
+        let descriptions =
+            decoded.Processes
+            |> Seq.map (fun proc -> proc.ExecutesRecipe.Value.Description)
+            |> Seq.toList
+
+        Expect.equal descriptions [ Some "first"; Some "second" ]
+            "recipe identity must not collapse distinct recipes sharing a URL"
+
+    testCase "indexed YAML preserves duplicate processes without endpoints" <| fun _ ->
+        let first = Process("no-op")
+        let second = Process("no-op")
+        let dataset = Dataset("duplicate-processes")
+        dataset.AddProcess(first)
+        dataset.AddProcess(second)
+
+        let decoded =
+            dataset
+            |> Yaml.Dataset.toYamlStringIndexed (Some 2)
+            |> Yaml.Dataset.fromYamlString false
+
+        Expect.equal decoded.Processes.Count 2
+            "two distinct endpoint-free processes must not collapse into one YAML entry"
 
     // todo
     // Disabled for now, as this fails because of ordering of properties and yml styling, rather than any actual data loss. Will re-enable once we have a more robust way to compare YAML content regardless of formatting.
