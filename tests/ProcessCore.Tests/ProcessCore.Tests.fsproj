@@ -50,6 +50,7 @@
     <Compile Include="YAML/Mode/StrictMode.fs" />
     <Compile Include="YAML/Mode/LenientMode.fs" />
     <Compile Include="YAML/Integration/Examples.fs" />
+    <Compile Include="YAML/ScalarStyle.fs" />
     <Compile Include="YAML/Tests.fs" />
     <Compile Include="SQL/Fixtures.fs" />
     <Compile Include="SQL/TableModelTests.fs" />

@@ -116,15 +116,16 @@ module Helpers =
 
     // ── YAMLElement constructors ───────────────────────────────────────────────
 
+    // Values and keys are created without an explicit scalar style so that YAMLicious
+    // auto-resolves a safe style on write: plain when safe, a double-quoted scalar when
+    // the content would otherwise break the YAML (e.g. '#', ": ", leading '*'/'@'/'-'),
+    // and a block scalar for multiline content.
     let yamlValue (s: string) =
-        let s = if s.Contains("#") || s.StartsWith("*") || s.Contains(": ") || s = "-" then $"\"{s}\"" else s
-        YAMLElement.Value (YAMLContent.create(s, style = ScalarStyle.Plain))
+        YAMLElement.Value (YAMLContent.create(s))
 
     let yamlMap (pairs: (string * YAMLElement) list) =
         pairs
-        |> List.map (fun (k, v) -> 
-            let k = if k.StartsWith("@") then $"\"{k}\"" else k
-            YAMLElement.Mapping (YAMLContent.create(k, style = ScalarStyle.Plain), v))
+        |> List.map (fun (k, v) -> YAMLElement.Mapping (YAMLContent.create(k), v))
         |> YAMLElement.Object
 
     let yamlSeq (items: YAMLElement list) =

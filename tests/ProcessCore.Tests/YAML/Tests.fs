@@ -19,4 +19,5 @@ let all =
         Mode.StrictMode.tests
         Mode.LenientMode.tests
         Integration.Examples.tests
+        ScalarStyle.tests
     ]
