@@ -8,4 +8,8 @@ Profile entry points:
 - [datamap](../docs/spec/datamap/overview.md)
 - [administrative](../docs/spec/administrative/overview.md)
 
+Workspace storage:
+
+- [ARC workspace project file](../docs/spec/project_file.md)
+
 
