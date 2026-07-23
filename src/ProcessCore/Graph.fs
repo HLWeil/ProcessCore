@@ -1202,10 +1202,13 @@ and [<AttachMembers>] Recipe(?name: string, ?description: string, ?version: stri
 
     override this.Equals(obj) =
         match obj with
-        | :? Recipe as other -> this.Name = other.Name && this.Version = other.Version
+        | :? Recipe as other ->
+            this.Name = other.Name &&
+            this.Version = other.Version &&
+            this.Url = other.Url
         | _ -> false
 
-    override this.GetHashCode() = hash (this.Name, this.Version)
+    override this.GetHashCode() = hash (this.Name, this.Version, this.Url)
 
     #if FABLE_COMPILER_PYTHON
     // Python calls these dunder methods for native `hash(x)` and `x == y`.
@@ -1500,6 +1503,7 @@ and [<AttachMembers>] Dataset(identifier: string, ?title: string, ?description: 
         fieldsKey [
             optionKey recipe.Name
             optionKey recipe.Version
+            optionKey recipe.Url
         ]
 
     let definedTermKey (dt: DefinedTerm) =

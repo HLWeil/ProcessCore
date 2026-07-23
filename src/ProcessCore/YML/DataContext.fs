@@ -83,3 +83,11 @@ module DataContext =
 
     let toYamlString (whitespace: int option) (dataContext: DataContext) : string =
         writeYaml whitespace (encoder dataContext)
+
+    let registerOverflowType () =
+        Helpers.registerKnownTypeTyped "DataContext" decoder (fun value ->
+            match value with
+            | :? DataContext as typed -> Some (encoder typed)
+            | _ -> None)
+
+    do registerOverflowType ()

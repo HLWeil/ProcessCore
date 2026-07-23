@@ -24,6 +24,11 @@ let tests = testList "Recipe" [
         let p2 = Recipe("digestion")
         Expect.notEqual p1 p2 "Different names → not equal"
 
+    testCase "inequality different URL" <| fun _ ->
+        let p1 = Recipe("extraction", version = "1.0", url = "https://example.org/extraction-a")
+        let p2 = Recipe("extraction", version = "1.0", url = "https://example.org/extraction-b")
+        Expect.notEqual p1 p2 "Same name + version, different URLs should not be equal"
+
     testCase "AddParameter deduplicates by name" <| fun _ ->
         let proto = Recipe("extraction")
         let fp    = FormalParameter("temperature")

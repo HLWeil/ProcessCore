@@ -119,3 +119,11 @@ module Agent =
     let toYamlString (whitespace: int option) (agent: Agent) : string =
         writeYaml whitespace (encoder agent)
 
+    let registerOverflowType () =
+        Helpers.registerKnownTypeTyped "Agent" decoder (fun value ->
+            match value with
+            | :? Agent as typed -> Some (encoder typed)
+            | _ -> None)
+
+    do registerOverflowType ()
+

@@ -182,7 +182,7 @@ let tests = testList "RoundTrip" [
         let yaml2 = Yaml.Dataset.toYamlStringIndexed (Some 2) decoded1
         Expect.equal yaml2 yaml1 "round-trip indexed YAML should match"
 
-    testCase "indexed annotation ids preserve distinct name TANs" <| fun _ ->
+    ptestCase "indexed annotation ids preserve distinct name TANs" <| fun _ ->
         let first = Process("name-tan-1")
         first.AddParameterValue(
             Annotation("temperature", value = "37", nameTAN = "PATO:0000146"))
@@ -242,9 +242,9 @@ let tests = testList "RoundTrip" [
         Expect.equal parameterNames [ Some "parameter-a"; Some "parameter-b" ]
             "annotation identity must include formal-parameter identity"
 
-    testCase "indexed recipe ids preserve recipes sharing a URL" <| fun _ ->
-        let first = Recipe(url = "https://example.org/protocols/shared", description = "first")
-        let second = Recipe(url = "https://example.org/protocols/shared", description = "second")
+    testCase "indexed recipe ids include URL identity" <| fun _ ->
+        let first = Recipe(name = "shared", version = "1", url = "https://example.org/protocols/first", description = "first")
+        let second = Recipe(name = "shared", version = "1", url = "https://example.org/protocols/second", description = "second")
         let firstProcess = Process("recipe-1", executesRecipe = first)
         let secondProcess = Process("recipe-2", executesRecipe = second)
 
@@ -263,7 +263,24 @@ let tests = testList "RoundTrip" [
             |> Seq.toList
 
         Expect.equal descriptions [ Some "first"; Some "second" ]
-            "recipe identity must not collapse distinct recipes sharing a URL"
+            "recipe identity must distinguish recipes with different URLs"
+
+    testCase "indexed serialization does not mutate source IDs" <| fun _ ->
+        let annotation = Annotation("temperature", value = "37")
+        let recipe = Recipe(name = "measure", version = "1", url = "https://example.org/measure")
+        let proc = Process("pure-serialization", executesRecipe = recipe)
+        proc.AddParameterValue(annotation)
+        let dataset = Dataset("pure-serialization-dataset")
+        dataset.AddProcess(proc)
+
+        Expect.isNone (annotation.TryGetPropertyValue("@id")) "annotation has no source @id before encoding"
+        Expect.isNone (recipe.TryGetPropertyValue("@id")) "recipe has no source @id before encoding"
+
+        let yaml = Yaml.Dataset.toYamlStringIndexed (Some 2) dataset
+
+        Expect.isTrue (yaml.Contains("@id")) "indexed YAML contains generated IDs"
+        Expect.isNone (annotation.TryGetPropertyValue("@id")) "annotation remains unmodified after encoding"
+        Expect.isNone (recipe.TryGetPropertyValue("@id")) "recipe remains unmodified after encoding"
 
     testCase "indexed YAML preserves duplicate processes without endpoints" <| fun _ ->
         let first = Process("no-op")

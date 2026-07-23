@@ -6,10 +6,8 @@ open ProcessCore
 open ProcessCore.Spreadsheet
 open ProcessCore.Yaml
 
-let private tryTypedProperty<'T when 'T :> obj> (dataset: Dataset) name =
-    match dataset.TryGetPropertyValue(name) with
-    | Some (:? 'T as value) -> Some value
-    | _ -> None
+let private overflowValue (dataset: Dataset) name =
+    dataset.TryGetPropertyValue(name)
 
 let tests = testList "Overflow" [
 
@@ -81,6 +79,160 @@ let tests = testList "Overflow" [
         Expect.equal (countOf "inDefinedTermSet:" yaml) 1 "inDefinedTermSet appears exactly once"
         Expect.equal (countOf "type:" yaml)             1 "type appears exactly once"
 
+    testCase "scalar overflow values retain concrete primitive types" <| fun _ ->
+        let yaml =
+            """type: Dataset
+identifier: scalar-overflow
+stringValue: hello
+integerValue: 42
+booleanValue: true
+decimalValue: 3.14
+"""
+        let dataset = Yaml.Dataset.fromYamlString false yaml
+
+        Expect.isTrue (overflowValue dataset "stringValue" |> Option.exists (fun value -> value :? string)) "string overflow type"
+        Expect.isTrue (overflowValue dataset "integerValue" |> Option.exists (fun value -> value :? int)) "integer overflow type"
+        Expect.isTrue (overflowValue dataset "booleanValue" |> Option.exists (fun value -> value :? bool)) "boolean overflow type"
+        Expect.isTrue (overflowValue dataset "decimalValue" |> Option.exists (fun value -> value :? decimal)) "decimal overflow type"
+
+    testCase "type-tagged DefinedTerm overflow is statically typed" <| fun _ ->
+        let yaml =
+            """type: Dataset
+identifier: typed-defined-term
+term:
+  type: DefinedTerm
+  name: liquid chromatography
+  TAN: OBI:0000470
+"""
+        let dataset = Yaml.Dataset.fromYamlString false yaml
+        match overflowValue dataset "term" with
+        | Some (:? DefinedTerm as term) ->
+            Expect.equal term.Name "liquid chromatography" "typed term name"
+            Expect.equal term.TAN (Some "OBI:0000470") "typed term TAN"
+        | _ -> Expect.isTrue false "term should be a DefinedTerm"
+
+    testCase "@type-tagged DefinedTerm overflow is statically typed" <| fun _ ->
+        let yaml =
+            """type: Dataset
+identifier: at-type-defined-term
+term:
+  '@type': DefinedTerm
+  name: mass spectrometry
+  TAN: OBI:0000084
+"""
+        let dataset = Yaml.Dataset.fromYamlString false yaml
+        match overflowValue dataset "term" with
+        | Some (:? DefinedTerm as term) ->
+            Expect.equal term.Name "mass spectrometry" "@type term name"
+            Expect.equal term.TAN (Some "OBI:0000084") "@type term TAN"
+        | _ -> Expect.isTrue false "@type term should be a DefinedTerm"
+
+    testCase "nested FormalParameter and DefinedTerm overflow are typed" <| fun _ ->
+        let yaml =
+            """type: Dataset
+identifier: typed-formal-parameter
+parameter:
+  type: FormalParameter
+  name: temperature
+  defaultValue:
+    type: DefinedTerm
+    name: 37 Celsius
+"""
+        let dataset = Yaml.Dataset.fromYamlString false yaml
+        match overflowValue dataset "parameter" with
+        | Some (:? FormalParameter as parameter) ->
+            Expect.equal parameter.Name "temperature" "formal parameter name"
+            Expect.isSome parameter.DefaultValue "formal parameter default value"
+            Expect.equal parameter.DefaultValue.Value.Name "37 Celsius" "nested defined term name"
+        | _ -> Expect.isTrue false "parameter should be a FormalParameter"
+
+    testCase "nested Annotation and FormalParameter overflow are typed" <| fun _ ->
+        let yaml =
+            """type: Dataset
+identifier: typed-annotation
+annotation:
+  type: Annotation
+  name: temperature
+  value: 37
+  instanceOf:
+    type: FormalParameter
+    name: incubation temperature
+"""
+        let dataset = Yaml.Dataset.fromYamlString false yaml
+        match overflowValue dataset "annotation" with
+        | Some (:? Annotation as annotation) ->
+            Expect.equal annotation.Name "temperature" "annotation name"
+            Expect.isSome annotation.InstanceOf "annotation formal parameter"
+            Expect.equal annotation.InstanceOf.Value.Name "incubation temperature" "nested parameter name"
+        | _ -> Expect.isTrue false "annotation should be an Annotation"
+
+    testCase "homogeneous tagged overflow sequences become concrete collections" <| fun _ ->
+        let yaml =
+            """type: Dataset
+identifier: typed-term-sequence
+terms:
+  - type: DefinedTerm
+    name: one
+  - '@type': DefinedTerm
+    name: two
+"""
+        let dataset = Yaml.Dataset.fromYamlString false yaml
+        match overflowValue dataset "terms" with
+        | Some (:? ResizeArray<DefinedTerm> as terms) -> Expect.equal (terms |> Seq.map (fun term -> term.Name) |> Seq.toList) [ "one"; "two" ] "typed term sequence"
+        | _ -> Expect.isTrue false "terms should be ResizeArray<DefinedTerm>"
+
+    testCase "homogeneous scalar overflow sequences become concrete collections" <| fun _ ->
+        let yaml =
+            """type: Dataset
+identifier: typed-string-sequence
+workflowIdentifiers:
+  - workflow-1
+  - workflow-2
+"""
+        let dataset = Yaml.Dataset.fromYamlString false yaml
+        match overflowValue dataset "workflowIdentifiers" with
+        | Some (:? ResizeArray<string> as values) -> Expect.equal (values |> Seq.toList) [ "workflow-1"; "workflow-2" ] "typed string sequence"
+        | _ -> Expect.isTrue false "workflow identifiers should be ResizeArray<string>"
+
+    testCase "untagged object overflow sequences become DynamicObj collections" <| fun _ ->
+        let yaml =
+            """type: Dataset
+identifier: dynamic-object-sequence
+comments:
+  - name: registrationLedger
+    value: registered
+"""
+        let dataset = Yaml.Dataset.fromYamlString false yaml
+        match overflowValue dataset "comments" with
+        | Some (:? ResizeArray<DynamicObj> as comments) ->
+            Expect.equal (comments.[0].TryGetPropertyValue("name") |> Option.map string) (Some "registrationLedger") "dynamic object name"
+        | _ -> Expect.isTrue false "comments should be ResizeArray<DynamicObj>"
+
+    testCase "mixed or unknown tagged overflow sequences use generic fallback" <| fun _ ->
+        let yaml =
+            """type: Dataset
+identifier: generic-sequence-fallback
+values:
+  - type: DefinedTerm
+    name: known
+  - type: UnknownDecoration
+    value: unknown
+"""
+        let dataset = Yaml.Dataset.fromYamlString false yaml
+        Expect.isTrue (overflowValue dataset "values" |> Option.exists (fun value -> value :? ResizeArray<obj>)) "mixed tagged sequence should remain generic"
+
+    testCase "typed overflow re-encodes with its discriminator" <| fun _ ->
+        let yaml =
+            """type: Dataset
+identifier: typed-reencode
+term:
+  '@type': DefinedTerm
+  name: re-encoded
+"""
+        let dataset = Yaml.Dataset.fromYamlString false yaml
+        let output = Yaml.Dataset.toYamlString None dataset
+        Expect.isTrue (output.Contains("type: DefinedTerm")) "typed overflow discriminator is retained"
+
     testCase "typed Run overflow survives YAML for spreadsheet writers" <| fun _ ->
         let run = Dataset("run-1", additionalType = "Run")
         run.SetProperty("WorkflowIdentifiers", ResizeArray [ "workflow-1"; "workflow-2" ])
@@ -95,33 +247,33 @@ let tests = testList "Overflow" [
         let decodedArc = arc.toYamlString(2) |> ARC.fromYamlString
         let decodedRun = decodedArc.HasPart |> Seq.exactlyOne
 
-        match tryTypedProperty<ResizeArray<string>> decodedRun "WorkflowIdentifiers" with
-        | Some workflowIdentifiers ->
+        match overflowValue decodedRun "WorkflowIdentifiers" with
+        | Some (:? ResizeArray<string> as workflowIdentifiers) ->
             Expect.equal (workflowIdentifiers |> Seq.toList) [ "workflow-1"; "workflow-2" ]
                 "workflow identifiers must retain their typed collection"
-        | None ->
+        | _ ->
             Expect.isTrue false "WorkflowIdentifiers must decode as ResizeArray<string>"
 
-        match tryTypedProperty<DefinedTerm> decodedRun "MeasurementType" with
-        | Some measurementType ->
+        match overflowValue decodedRun "MeasurementType" with
+        | Some (:? DefinedTerm as measurementType) ->
             Expect.equal measurementType.Name "LC-MS" "measurement type name"
             Expect.equal measurementType.TAN (Some "OBI:0000470") "measurement type TAN"
-        | None ->
+        | _ ->
             Expect.isTrue false "MeasurementType must decode as DefinedTerm"
 
-        match tryTypedProperty<DefinedTerm> decodedRun "TechnologyType" with
-        | Some technologyType ->
+        match overflowValue decodedRun "TechnologyType" with
+        | Some (:? DefinedTerm as technologyType) ->
             Expect.equal technologyType.Name "mass spectrometry" "technology type name"
             Expect.equal technologyType.TAN (Some "OBI:0000084") "technology type TAN"
-        | None ->
+        | _ ->
             Expect.isTrue false "TechnologyType must decode as DefinedTerm"
 
-        match tryTypedProperty<ResizeArray<DynamicObj>> decodedRun "Comments" with
-        | Some comments ->
+        match overflowValue decodedRun "Comments" with
+        | Some (:? ResizeArray<DynamicObj> as comments) ->
             let commentName, commentValue = Comment.toString comments.[0]
             Expect.equal commentName (Some "registrationLedger") "comment name"
             Expect.equal commentValue (Some "registered-2026-01-01") "comment value"
-        | None ->
+        | _ ->
             Expect.isTrue false "Comments must decode as ResizeArray<DynamicObj>"
 
         let sparse = Run.toSparseTable decodedRun

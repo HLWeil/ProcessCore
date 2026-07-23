@@ -46,3 +46,11 @@ module FormalParameter =
 
     let toYamlString (whitespace: int option) (fp: FormalParameter) : string =
         writeYaml whitespace (encoder fp)
+
+    let registerOverflowType () =
+        Helpers.registerKnownTypeTyped "FormalParameter" decoder (fun value ->
+            match value with
+            | :? FormalParameter as typed -> Some (encoder typed)
+            | _ -> None)
+
+    do registerOverflowType ()
