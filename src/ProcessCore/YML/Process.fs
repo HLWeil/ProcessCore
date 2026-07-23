@@ -166,3 +166,13 @@ module Process =
 
     let toYamlString (whitespace: int option) (proc: Process) : string =
         writeYaml whitespace (encoder Annotation.encoder (Recipe.encoder Annotation.encoder) proc)
+
+    let registerOverflowType () =
+        Helpers.registerKnownTypeTyped "Process"
+            (fun processCoreOnly value -> decoder processCoreOnly value |> Seq.exactlyOne)
+            (fun value ->
+                match value with
+                | :? Process as typed -> Some (encoder Annotation.encoder (Recipe.encoder Annotation.encoder) typed)
+                | _ -> None)
+
+    do registerOverflowType ()

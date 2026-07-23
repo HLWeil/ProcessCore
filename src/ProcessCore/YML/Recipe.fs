@@ -21,10 +21,9 @@ module Recipe =
         | Some (:? string as id) -> id
         | _ ->
             let name = proto.Name |> Option.map makeIdSlug |> Option.defaultValue "unnamed"
-            match proto.Version, proto.Url with
-            | Some version, _ -> "#Recipe_" + name + "_version_" + makeIdSlug version
-            | None, Some url -> url
-            | None, None -> "#Recipe_" + name
+            let version = proto.Version |> Option.map makeIdSlug |> Option.defaultValue "none"
+            let url = proto.Url |> Option.map makeIdSlug |> Option.defaultValue "none"
+            "#Recipe_" + name + "_version_" + version + "_url_" + url
 
 
     let decoderWithPropertyResolver (processCoreOnly: bool) (resolveAnnotation: string -> Annotation option) (value: YAMLElement) : Recipe =
@@ -116,3 +115,11 @@ module Recipe =
 
     let toYamlString (whitespace: int option) (proto: Recipe) : string =
         writeYaml whitespace (encoder Annotation.encoder proto)
+
+    let registerOverflowType () =
+        Helpers.registerKnownTypeTyped "Recipe" decoder (fun value ->
+            match value with
+            | :? Recipe as typed -> Some (encoder Annotation.encoder typed)
+            | _ -> None)
+
+    do registerOverflowType ()

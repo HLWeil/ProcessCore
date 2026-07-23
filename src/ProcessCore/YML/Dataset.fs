@@ -225,10 +225,13 @@ module Dataset =
 
         // Build PV index from ALL processes (including hasPart children)
         let pvRegistry = Dictionary<string, Annotation>()
+        let addIndexedId (id: string) (element: YAMLElement) =
+            ("@id", yamlValue id) :: getMappings element
+            |> yamlMap
+
         let encodePV (pv : Annotation) =
             if useIndexedMode then
                 let id = Annotation.genID pv
-                pv.SetProperty("@id", id)
                 if not <| pvRegistry.ContainsKey(id) then
                     pvRegistry.[id] <- pv
                 encodeRef id
@@ -239,7 +242,6 @@ module Dataset =
         let encodeRecipe (proto: Recipe) =
             if useIndexedMode then
                 let id = Recipe.genID proto
-                proto.SetProperty("@id", id)
                 if not <| recipeRegistry.ContainsKey(id) then
                     recipeRegistry.[id] <- proto
                 encodeRef id
@@ -251,6 +253,8 @@ module Dataset =
 
         let sameProcessState (a: Process) (b: Process) =
             let shape (p: Process) = p.Input.IsSome, p.Output.IsSome
+            let endpointFree (p: Process) = p.Input.IsNone && p.Output.IsNone
+            not (endpointFree a || endpointFree b) &&
             shape a = shape b && Process.groupingKey a = Process.groupingKey b
 
         let processes =
@@ -361,13 +365,13 @@ module Dataset =
             if recipeRegistry.Count > 0 then
                 yield "recipes",
                     recipeRegistry.Values
-                    |> Seq.map (fun kv -> Recipe.encoder encodePV kv)
+                    |> Seq.map (fun kv -> Recipe.encoder encodePV kv |> addIndexedId (Recipe.genID kv))
                     |> Seq.toList
                     |> yamlSeq
             if pvRegistry.Count > 0 then
                 yield "annotations",
                     pvRegistry.Values
-                    |> Seq.map (fun kv -> Annotation.encoder kv)
+                    |> Seq.map (fun kv -> Annotation.encoder kv |> addIndexedId (Annotation.genID kv))
                     |> Seq.toList
                     |> yamlSeq
             if samples.IsSome then
@@ -423,4 +427,24 @@ module Dataset =
         (recipes: seq<Recipe>)
         (ds: Dataset) : string =
         writeYaml whitespace (encoderWithStores samples recipes ds)
+
+    let registerOverflowType () =
+        Helpers.registerKnownTypeTyped "Dataset" decoder (fun value ->
+            match value with
+            | :? Dataset as typed -> Some (encoder false None None typed)
+            | _ -> None)
+
+    do
+        DefinedTerm.registerOverflowType ()
+        FormalParameter.registerOverflowType ()
+        Annotation.registerOverflowType ()
+        Sample.registerOverflowType ()
+        Data.registerOverflowType ()
+        Recipe.registerOverflowType ()
+        Process.registerOverflowType ()
+        Organization.registerOverflowType ()
+        Agent.registerOverflowType ()
+        ScholarlyArticle.registerOverflowType ()
+        DataContext.registerOverflowType ()
+        registerOverflowType ()
 

@@ -54,3 +54,11 @@ module Sample =
 
     let toYamlString (whitespace: int option) (m: Sample) : string =
         writeYaml whitespace (encoder Annotation.encoder m)
+
+    let registerOverflowType () =
+        Helpers.registerKnownTypeTyped "Sample" decoder (fun value ->
+            match value with
+            | :? Sample as typed -> Some (encoder Annotation.encoder typed)
+            | _ -> None)
+
+    do registerOverflowType ()

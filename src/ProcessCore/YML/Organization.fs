@@ -43,3 +43,11 @@ module Organization =
 
     let toYamlString (whitespace: int option) (org: Organization) : string =
         writeYaml whitespace (encoder org)
+
+    let registerOverflowType () =
+        Helpers.registerKnownTypeTyped "Organization" decoder (fun value ->
+            match value with
+            | :? Organization as typed -> Some (encoder typed)
+            | _ -> None)
+
+    do registerOverflowType ()

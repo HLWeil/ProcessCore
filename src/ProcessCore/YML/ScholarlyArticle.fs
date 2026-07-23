@@ -93,3 +93,11 @@ module ScholarlyArticle =
     let toYamlString (whitespace: int option) (article: ScholarlyArticle) : string =
         writeYaml whitespace (encoder article)
 
+    let registerOverflowType () =
+        Helpers.registerKnownTypeTyped "ScholarlyArticle" decoder (fun value ->
+            match value with
+            | :? ScholarlyArticle as typed -> Some (encoder typed)
+            | _ -> None)
+
+    do registerOverflowType ()
+

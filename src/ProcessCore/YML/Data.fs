@@ -94,3 +94,11 @@ module Data =
 
     let toYamlString (whitespace: int option) (d: Data) : string =
         writeYaml whitespace (encoder Annotation.encoder d)
+
+    let registerOverflowType () =
+        Helpers.registerKnownTypeTyped "Data" decoder (fun value ->
+            match value with
+            | :? Data as typed -> Some (encoder Annotation.encoder typed)
+            | _ -> None)
+
+    do registerOverflowType ()

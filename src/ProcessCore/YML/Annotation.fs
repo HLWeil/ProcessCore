@@ -17,6 +17,9 @@ module Annotation =
                 yield name
                 match pv.Value with Some v when v <> "" -> yield makeIdSlug v | _ -> ()
                 match pv.Unit  with Some u when u <> "" -> yield makeIdSlug u | _ -> ()
+                match pv.InstanceOf with
+                | Some parameter -> yield "parameter_" + makeIdSlug parameter.Name
+                | None -> ()
             ]
             "#" + String.concat "_" parts
 
@@ -95,3 +98,11 @@ module Annotation =
 
     let toYamlString (whitespace: int option) (pv: Annotation) : string =
         writeYaml whitespace (encoder pv)
+
+    let registerOverflowType () =
+        Helpers.registerKnownTypeTyped "Annotation" decoder (fun value ->
+            match value with
+            | :? Annotation as typed -> Some (encoder typed)
+            | _ -> None)
+
+    do registerOverflowType ()

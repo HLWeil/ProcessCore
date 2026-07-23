@@ -47,3 +47,11 @@ module DefinedTerm =
 
     let toYamlString (whitespace: int option) (dt: DefinedTerm) : string =
         writeYaml whitespace (encoder dt)
+
+    let registerOverflowType () =
+        Helpers.registerKnownTypeTyped "DefinedTerm" decoder (fun value ->
+            match value with
+            | :? DefinedTerm as typed -> Some (encoder typed)
+            | _ -> None)
+
+    do registerOverflowType ()
