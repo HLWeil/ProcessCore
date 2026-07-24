@@ -1,3 +1,12 @@
+### 0.0.10+7ea42e5 (Released 2026-7-24)
+* Additions:
+    * [[#7ea42e5](https://github.com/HLWeil/ProcessCore/commit/7ea42e582b25a2b83636d6b447c78bd06f25d3c6)] update yamlicious dependency
+    * [[#ff3269c](https://github.com/HLWeil/ProcessCore/commit/ff3269c297b2149b7211c1aed33a47491d44c64f)] add additional tests for yaml parser
+    * [[#73d2c01](https://github.com/HLWeil/ProcessCore/commit/73d2c01b3828649d300320eb2e2ca5cf1d2ebee5)] use automatic scalar handling
+    * [[#4419884](https://github.com/HLWeil/ProcessCore/commit/4419884dde55111efe87354b0e4f93635d65f264)] bump yamlicious
+* Bugfixes:
+    * [[#49ff827](https://github.com/HLWeil/ProcessCore/commit/49ff8273639ccd4e3fad15ae010542fa4e6572ca)] various fixes including static typing of overflow objects
+
 ### 0.0.9+3d81375 (Released 2026-7-16)
 * Additions:
     * [[#d6c52fa](https://github.com/HLWeil/ProcessCore/commit/d6c52fa266e4b62fbf38e7f70a14804293df29c6)] rename labprotocol fields to recipe
