@@ -15,7 +15,8 @@ The ARC Data Model specification defines three peer profiles that together form 
 2. [Datamap](datamap/overview.md)
 3. [Administrative](administrative/overview.md)
 4. [ARC Workspace Project File](project_file.md)
-5. [Querying](../project/querying.md)
+5. [ARC Workspace Project File Handling](project_file_handling.md)
+6. [Querying](../project/querying.md)
 
 ## Principles
 

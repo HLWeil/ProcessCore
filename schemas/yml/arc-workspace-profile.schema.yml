@@ -1,0 +1,73 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$id: "arc-workspace-profile.schema.yml"
+title: ARC Workspace Profile
+description: Structural schema for a reusable ARC workspace profile
+type: object
+
+properties:
+  type:
+    const: ArcWorkspaceProfile
+  specVersion:
+    const: "1.0"
+  id:
+    $ref: "arc-workspace-project.schema.yml#/$defs/identifier"
+  version:
+    $ref: "arc-workspace-project.schema.yml#/$defs/version"
+  description:
+    type: string
+  parameters:
+    type: object
+    propertyNames:
+      $ref: "arc-workspace-project.schema.yml#/$defs/parameterName"
+    additionalProperties:
+      $ref: "#/$defs/parameterDeclaration"
+  rules:
+    type: array
+    minItems: 1
+    items:
+      $ref: "arc-workspace-project.schema.yml#/$defs/storageRule"
+  extensions:
+    $ref: "arc-workspace-project.schema.yml#/$defs/extensionMap"
+
+required:
+  - type
+  - specVersion
+  - id
+  - version
+  - rules
+
+additionalProperties: false
+
+$defs:
+  scalar:
+    type:
+      - string
+      - boolean
+      - integer
+      - "null"
+
+  parameterDeclaration:
+    type: object
+    properties:
+      type:
+        enum:
+          - string
+          - path-segment
+          - boolean
+          - integer
+      default:
+        $ref: "#/$defs/scalar"
+      required:
+        type: boolean
+      allowedValues:
+        type: array
+        uniqueItems: true
+        items:
+          $ref: "#/$defs/scalar"
+      description:
+        type: string
+      extensions:
+        $ref: "arc-workspace-project.schema.yml#/$defs/extensionMap"
+    required:
+      - type
+    additionalProperties: false
