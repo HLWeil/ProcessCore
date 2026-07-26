@@ -272,7 +272,10 @@ model dynamic properties. It should preserve the distinction between:
 - scientific payload references.
 
 The existing monolithic YAML and scaffold layouts should be expressible as
-built-in workspace profiles without changing existing ARC I/O APIs.
+built-in workspace profiles. Generic ARC I/O should discover and honor
+`.arc/project.yml` when present, while explicit YAML and spreadsheet APIs remain
+independent and generic operations retain their legacy behavior when it is
+absent. The companion handling plan defines the API integration details.
 
 ## 6. Step-by-step plan for the normative specification
 

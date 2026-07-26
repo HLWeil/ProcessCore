@@ -28,14 +28,16 @@ The first implementation must:
   structured diagnostics;
 - protect unmanaged scientific data and unrelated files;
 - work with Fable on .NET and Node.js without reflection-based plugin loading;
-- leave all current `ARC` YAML and spreadsheet APIs unchanged; and
+- integrate project discovery with the generic `ARC.load`, `Write`, and `Update`
+  APIs while leaving the explicit YAML and spreadsheet APIs unchanged; and
 - provide pure planning functions that can be inspected and tested without
   touching the filesystem.
 
 The first implementation does not preserve workbook formatting, YAML comments,
 source ordering, or the exact original distribution of shared entity fields. It
-does not replace or wrap the existing `ARC.Load`, `ARC.Write`, YAML, or
-scaffold APIs, and it does not require Python support in the initial release.
+does not change the behavior of the explicit `loadYML`, `loadXLSX`, `WriteYML`,
+or `WriteXLSX` APIs, and it does not require Python support in the initial
+release.
 
 ## 2. Repository and runtime context
 
@@ -350,6 +352,10 @@ type ResourceOutcome
 type LoadResult
 type WriteResult
 type StorageDiagnostic
+type StorageOperationFailure =
+    | LoadFailure of LoadResult
+    | WriteFailure of WriteResult
+exception StorageOperationException of StorageOperationFailure
 ```
 
 Recommended namespace:
@@ -392,8 +398,14 @@ compiled plan. A separate `writeAsync` accepts a project/plan and an in-memory
 `ARC` that was not loaded by this API. Neither operation requires persisted
 source provenance.
 
-The `ARC` class's `ArcPath` and `IsSpreadsheetScaffold` fields are not used as
-the new representation selector. The session owns generalized storage state.
+An `ARC` loaded or written through a project plan retains its
+`WorkspaceSession` internally. `Update` can therefore reuse the compiled plan
+without reconstructing it from `ArcPath` or `IsSpreadsheetScaffold`. Those
+legacy fields remain the representation selector only when no project session is
+attached. A fatal destination-plan failure leaves the previous session
+unchanged. Once a destination plan compiles, its session is retained even if
+independent resource writes produce a partial result, allowing inspection and
+retry.
 
 ### 6.5 Path discovery, rendering, and safety
 
@@ -703,6 +715,7 @@ but a stable code and message are required across runtimes.
 The exact prefix may follow project convention. At minimum distinguish:
 
 ```text
+PROJECT_NOT_FOUND
 PROJECT_PARSE
 PROJECT_VERSION_UNSUPPORTED
 PROFILE_NOT_FOUND
@@ -763,7 +776,8 @@ from absence of warnings. Stable helpers such as `HasErrors` are useful.
 
 ## 11. Public API compatibility and placement
 
-The new implementation should be parallel to existing APIs:
+The lower-level project APIs remain available for callers that need custom
+registries, options, or direct access to partial results:
 
 ```fsharp
 let! loaded =
@@ -783,10 +797,95 @@ match loaded.Arc, loaded.Session with
     ()
 ```
 
-Existing calls such as fixed YAML loading, scaffold loading, and the
-`IsSpreadsheetScaffold` switch must behave exactly as before. Do not initially
-rewrite them as wrappers around the project-file system; doing so would enlarge
-the compatibility surface and obscure regressions.
+The generic `ARC` facade delegates to this layer when a project file is present.
+Its existing signatures remain unchanged, and it adds rich-result variants:
+
+```fsharp
+ARC.loadWithResultAsync
+ARC.loadWithResult
+arc.WriteWithResultAsync
+arc.WriteWithResult
+arc.UpdateWithResultAsync
+arc.UpdateWithResult
+```
+
+Synchronous variants are exposed only on the runtime targets where the current
+synchronous ARC APIs are available.
+
+### 11.1 Generic load precedence
+
+`ARC.load` and `ARC.loadAsync` inspect exactly
+`<workspace-root>/.arc/project.yml` before legacy representation detection:
+
+1. If the project file exists, load through `Workspace.loadAsync` with the
+   standard codec registry, standard workspace-profile registry, and default
+   options.
+2. The project file is authoritative. Project parsing, compilation, root, or
+   resource errors are not grounds for falling back to `arc.yml` or a scaffold.
+3. If the project file does not exist, preserve the current order: load
+   `arc.yml` when present, otherwise attempt the spreadsheet scaffold.
+
+Generic discovery never searches parent directories. It does not create or infer
+a project file.
+
+### 11.2 Generic write and update
+
+`Write` is an explicit export to its argument:
+
+- if the destination contains `.arc/project.yml`, compile that destination
+  project and write through its plan;
+- if no project file exists, retain the current `arc.yml` behavior, including
+  when the ARC was originally loaded through a project; and
+- if the destination project exists but is invalid, report the project failure
+  without falling back to YAML.
+
+A project-aware write attaches the compiled destination session to the ARC. A
+successful legacy YAML write clears any project session and makes YAML the active
+legacy representation.
+
+`Update` continues the active representation:
+
+- `Update()` and `Update(currentWorkspace)` reuse the attached project session
+  when one exists; they do not reread a changed or removed project file;
+- `Update(otherWorkspace)` uses that destination's project file when it exists
+  and replaces the attached session once the destination plan compiles;
+- a project-session ARC updated to another workspace without a project file
+  returns an error diagnostic with code `PROJECT_NOT_FOUND` before any resource
+  write; and
+- an ARC without a project session retains the current YAML/scaffold update
+  behavior.
+
+Workspace equality is determined using normalized, resolved paths rather than
+raw string comparison.
+
+### 11.3 Rich results and strict wrappers
+
+The rich variants return `LoadResult` or `WriteResult`. Expected project,
+planning, codec, and resource failures remain structured diagnostics rather than
+being converted immediately to exceptions, so partial outcomes remain
+inspectable.
+
+When no project file exists, the rich facade calls the existing legacy path and
+adapts a success to a result with no project session or project diagnostics.
+Legacy failures keep their existing exception behavior.
+
+The existing generic methods are strict convenience wrappers over the rich
+variants:
+
+- `Info` and `Warning` diagnostics do not cause failure;
+- any `Error` diagnostic causes `StorageOperationException` after all independent
+  work has completed; and
+- the exception carries `LoadFailure of LoadResult` or
+  `WriteFailure of WriteResult`, preserving the partial ARC, resource outcomes,
+  and diagnostics.
+
+### 11.4 Explicit format APIs
+
+`loadYML`, `loadYMLAsync`, `loadXLSX`, `loadXLSXAsync`, `WriteYML`,
+`WriteYMLAsync`, `WriteXLSX`, and `WriteXLSXAsync` bypass project discovery.
+Explicit writes clear any attached project session and set the corresponding
+legacy representation. They never create, rewrite, or delete project
+configuration.
 
 Suggested source organization:
 
@@ -909,7 +1008,8 @@ Implement:
 - ISA investigation/study/assay/workflow/run dataset adapters; and
 - Datamap overlay adapter.
 
-Reuse existing parsing and writing logic. Do not change old public entry points.
+Reuse existing parsing and writing logic. Keep the explicit YAML and spreadsheet
+entry points independent of project discovery.
 
 ### Phase 4: reader and merge
 
@@ -935,7 +1035,21 @@ Implement:
 - current-rule stale discovery; and
 - guarded stale deletion.
 
-### Phase 6: built-in profiles, examples, and documentation
+### Phase 6: generic ARC facade
+
+Implement:
+
+- exact project-file probing ahead of generic legacy load detection;
+- default-registry adapters from the generic ARC methods to `Workspace`;
+- internal `WorkspaceSession` retention and representation transitions;
+- destination-governed `Write` and cross-workspace `Update`;
+- rich-result synchronous and asynchronous methods;
+- strict wrappers and `StorageOperationException`; and
+- explicit-format bypass behavior.
+
+Do not change existing generic method signatures.
+
+### Phase 7: built-in profiles, examples, and documentation
 
 Add:
 
@@ -1059,7 +1173,30 @@ Test:
 - second canonical write is stable; and
 - write/read semantic equivalence.
 
-### 14.7 Runtime parity
+### 14.7 Generic ARC facade
+
+Test:
+
+- a project file takes precedence over a coexisting `arc.yml` or scaffold;
+- an invalid project prevents fallback to a valid legacy representation;
+- a workspace without a project retains `arc.yml`-then-scaffold load behavior;
+- explicit YAML and XLSX methods bypass project discovery and clear project
+  session state on write;
+- `Write` uses a destination project when present and YAML when absent;
+- an invalid destination project prevents YAML fallback;
+- same-workspace `Update` reuses the retained session without rereading the
+  project file;
+- a different workspace's project governs cross-workspace `Update`;
+- project-mode cross-workspace `Update` without a destination project returns
+  `PROJECT_NOT_FOUND` before writing;
+- a fatal destination-plan failure preserves the previous session;
+- a compiled destination session is retained after partial resource failure;
+- rich methods preserve partial results and diagnostics;
+- strict wrappers throw only after best-effort execution for `Error`
+  diagnostics; and
+- `Info` and `Warning` diagnostics do not make strict wrappers fail.
+
+### 14.8 Runtime parity
 
 Run storage tests on:
 
@@ -1070,7 +1207,7 @@ The first implementation is accepted without Fable Python support, but must not
 silently claim it. Add Python only after path, filesystem replacement, and
 spreadsheet support are explicitly implemented and tested there.
 
-### 14.8 Repository verification
+### 14.9 Repository verification
 
 At implementation completion, run at least:
 
@@ -1085,9 +1222,16 @@ changes can affect existing Python output.
 
 ## 15. Migration and compatibility notes
 
-- Existing repositories without `.arc/project.yml` continue using the old APIs;
-  the new API should report a clear missing-project diagnostic rather than
-  guessing.
+- Generic ARC APIs automatically use `.arc/project.yml` when it is present and
+  preserve their current legacy behavior when it is absent.
+- A present project file is authoritative; invalid project configuration never
+  falls back to another representation.
+- Explicit YAML and spreadsheet APIs bypass project discovery and retain their
+  current behavior.
+- Project configuration is never created, rewritten, deleted, or inferred by
+  generic I/O.
+- A project-mode update to a different workspace requires a destination project
+  and otherwise reports `PROJECT_NOT_FOUND`.
 - A project can opt into the existing physical formats through built-in
   workspace profiles.
 - The new API does not set `IsSpreadsheetScaffold` to summarize a mixed layout.
@@ -1155,7 +1299,8 @@ For avoidance of ambiguity, the implementation plan records these decisions
 unless a later design change explicitly supersedes them:
 
 1. Writes are canonical rewrites, not exact source-preserving edits.
-2. New APIs are parallel to and do not replace the current ARC I/O APIs.
+2. Generic ARC I/O is project-aware when `.arc/project.yml` is present; explicit
+   YAML and spreadsheet APIs remain independent.
 3. Resource execution is best effort, but project and plan errors are fatal.
 4. Initial runtime support is .NET and Node.js; Python is deferred.
 5. Equal-key shared entities merge by compatible union.

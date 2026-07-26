@@ -1273,9 +1273,10 @@ rules:
 
 ## 14. Migration and compatibility
 
-Existing `ARC` YAML and scaffold APIs remain unchanged. A workspace opts into the
-project-file language by adding `.arc/project.yml` and using the project-aware
-API described by [Project File Handling](project_file_handling.md).
+The explicit `ARC` YAML and scaffold APIs remain unchanged and bypass project
+discovery. The generic `ARC.load`, `Write`, and `Update` APIs automatically use
+the project-file language when `.arc/project.yml` is present, as defined by
+[Project File Handling](project_file_handling.md#10-processcore-arc-facade-integration).
 
 For existing workspaces:
 
@@ -1285,9 +1286,12 @@ For existing workspaces:
 - use separate read-only and write-only rules for controlled format or layout
   migration.
 
-The project-aware API does not infer a project for a workspace without
-`.arc/project.yml`. Removing or changing a profile does not authorize deletion
-of files owned only by the former configuration.
+Without `.arc/project.yml`, generic ARC I/O retains its legacy behavior and does
+not infer or create project configuration. A present project file is
+authoritative, so an invalid project does not fall back to another
+representation. Generic I/O never implicitly rewrites project or local-profile
+documents. Removing or changing a profile does not authorize deletion of files
+owned only by the former configuration.
 
 ## 15. Non-conforming examples
 

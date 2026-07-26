@@ -604,6 +604,7 @@ platform-specific exception.
 Processors SHOULD use these stable codes:
 
 ```text
+PROJECT_NOT_FOUND
 PROJECT_PARSE
 PROJECT_VERSION_UNSUPPORTED
 PROFILE_NOT_FOUND
@@ -663,9 +664,99 @@ A write result contains:
 - ordered resource outcomes; and
 - ordered diagnostics.
 
-## 10. Round-trip properties
+## 10. ProcessCore ARC facade integration
 
-### 10.1 Semantic read after write
+This section applies to the generic ProcessCore `ARC` I/O facade. Lower-level
+processors MAY expose additional operations, registries, and options provided
+that their project handling conforms to the preceding sections.
+
+### 10.1 Generic load
+
+`ARC.load` and `ARC.loadAsync` MUST test the exact supplied workspace root for
+`.arc/project.yml` before applying legacy representation detection. They MUST NOT
+search an ancestor workspace.
+
+If the project file exists, the generic load MUST use it with the standard codec
+and workspace-profile registries. The project file is authoritative: an invalid
+project, invalid compiled plan, missing root, or resource error MUST NOT cause
+fallback to `arc.yml` or a spreadsheet scaffold.
+
+If the project file does not exist, generic loading MUST retain the legacy
+behavior of preferring `arc.yml` and otherwise attempting the spreadsheet
+scaffold. A processor MUST NOT create or infer project configuration during
+loading.
+
+### 10.2 Generic write and update
+
+`Write` and `WriteAsync` MUST inspect the destination workspace. If
+`.arc/project.yml` exists, they MUST compile and execute that project. If it does
+not exist, they MUST retain the legacy `arc.yml` behavior. An invalid destination
+project MUST NOT cause fallback to YAML.
+
+`Update` and `UpdateAsync` without a different destination MUST reuse an attached
+workspace session when present. They MUST NOT reread the project file merely
+because it changed or was removed after the session was created.
+
+When an explicit update destination differs from the attached session's
+workspace, the destination project MUST govern the update. If no destination
+project exists, the processor MUST return an `Error` diagnostic with code
+`PROJECT_NOT_FOUND` before writing any resource. An ARC without a project session
+MUST retain the legacy YAML/scaffold update behavior. Workspace equality MUST use
+normalized, resolved paths.
+
+Generic I/O MUST NOT implicitly create, rewrite, or delete `.arc/project.yml` or
+local workspace-profile documents.
+
+### 10.3 Session transitions
+
+A project-aware load or a write whose destination plan compiles MUST attach its
+workspace session to the ARC. A fatal destination-plan failure MUST leave the
+previous session unchanged. A compiled destination session MUST remain attached
+after partial resource execution so the caller can inspect diagnostics and retry.
+
+A successful generic write using legacy YAML MUST clear an attached project
+session and make YAML the active legacy representation.
+
+The explicit `loadYML`, `loadYMLAsync`, `loadXLSX`, `loadXLSXAsync`, `WriteYML`,
+`WriteYMLAsync`, `WriteXLSX`, and `WriteXLSXAsync` operations MUST bypass project
+discovery. Explicit writes MUST clear an attached project session and select the
+requested legacy representation.
+
+### 10.4 Rich results and strict convenience methods
+
+ProcessCore MUST provide result-returning synchronous and asynchronous variants
+equivalent to:
+
+```fsharp
+ARC.loadWithResultAsync
+ARC.loadWithResult
+arc.WriteWithResultAsync
+arc.WriteWithResult
+arc.UpdateWithResultAsync
+arc.UpdateWithResult
+```
+
+For project operations, these methods MUST return the load or write result
+defined in section 9, including partial outcomes and diagnostics. Expected
+project, planning, codec, and resource failures MUST remain in the result.
+
+When no project file exists, a successful legacy operation MUST be adapted to a
+result with no project session or project diagnostics. Legacy failures retain
+their existing exception behavior.
+
+The existing generic methods MUST preserve their current return types and act as
+strict convenience wrappers. `Info` and `Warning` diagnostics MUST NOT make them
+fail. If a result contains an `Error`, the wrapper MUST throw a
+`StorageOperationException` only after independent work has completed. The
+exception MUST carry either `LoadFailure` with the `LoadResult` or `WriteFailure`
+with the `WriteResult`.
+
+The lower-level `Workspace` API MUST remain available for callers requiring
+custom registries or options.
+
+## 11. Round-trip properties
+
+### 11.1 Semantic read after write
 
 For a compatible model `M` and a valid readable/writable plan `P`:
 
@@ -681,7 +772,7 @@ read(P, write(P, M)) ≈ M
 - same canonical shared entities after compatible union; and
 - no requirement for source formatting or runtime reference identity.
 
-### 10.2 Canonical write stability
+### 11.2 Canonical write stability
 
 For deterministic codecs:
 
@@ -691,7 +782,7 @@ write(P, read(P, write(P, M))) = write(P, M)
 
 after the first canonical rewrite.
 
-### 10.3 Failure safety
+### 11.3 Failure safety
 
 A failed resource operation MUST NOT:
 
