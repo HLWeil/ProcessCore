@@ -44,6 +44,7 @@ let all =
             ProcessCore.Yaml.Tests.All.all
             ProcessCore.SQL.Tests.All.all
             ARC.tests
+            WorkspaceProject.tests
         ]
 
 #if FABLE_COMPILER_JAVASCRIPT || FABLE_COMPILER_TYPESCRIPT

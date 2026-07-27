@@ -1,0 +1,401 @@
+module ProcessCore.Tests.WorkspaceProject
+
+open Fable.Pyxpecto
+open ProcessCore
+open ProcessCore.CrossAsync
+open ProcessCore.Helper
+open TestingUtils
+
+let private unwrap = function
+    | Ok value -> value
+    | Error error -> failwith $"Unexpected project error: {error.Kind}: {error.Message}"
+
+let private withWorkspace name action =
+    crossAsync {
+        let root =
+            Path.combineMany [
+                "tests"
+                "ProcessCore.Tests"
+                "TestResults"
+                "workspace-project"
+                name
+            ]
+        do! Path.deleteFileOrDirectoryAsync root
+        do! Path.ensureDirectoryAsync (Path.combine root ".arc")
+        return! action root
+    }
+
+let private writeText path text =
+    crossAsync {
+        do! Path.ensureDirectoryOfFileAsync path
+        do! Path.writeFileTextAsync path text
+    }
+
+let private projectWith codecId rules =
+    $"""type: ArcWorkspaceProject
+rules:
+{rules codecId}
+"""
+
+let private fakeCodec id (readCount: int ref) (writeCount: int ref) =
+    {
+        Id = id
+        ReadAsync =
+            fun context ->
+                crossAsync {
+                    readCount.Value <- readCount.Value + 1
+                    let! text = Path.readFileTextAsync context.Anchor
+                    let parts = text.Split('|')
+                    let dataset = context.CreateDataset parts.[0]
+                    if parts.Length > 1 && parts.[1] <> "" then
+                        dataset.AdditionalType <- Some parts.[1]
+                    return Ok dataset
+                }
+        WriteAsync =
+            fun context dataset ->
+                crossAsync {
+                    writeCount.Value <- writeCount.Value + 1
+                    do! Path.ensureDirectoryOfFileAsync context.Anchor
+                    let additionalType = dataset.AdditionalType |> Option.defaultValue ""
+                    do! Path.writeFileTextAsync context.Anchor $"{dataset.Identifier}|{additionalType}"
+                    return Ok()
+                }
+    }
+
+let private fakeRegistry readCount writeCount =
+    CodecRegistry.empty
+    |> CodecRegistry.add (fakeCodec "test.dataset" readCount writeCount)
+    |> unwrap
+
+let private simpleRules codecId =
+    $"""  - id: root
+    codec: {codecId}
+    target: root
+    path: root.data
+  - id: studies
+    codec: {codecId}
+    target:
+      additionalType: Study
+    path: "studies/{{dataset.identifier}}/dataset.data"
+"""
+
+let private standardRules _ =
+    """  - id: root
+    codec: isa.investigation.xlsx
+    target: root
+    path: isa.investigation.xlsx
+  - id: studies
+    codec: isa.study.xlsx
+    target:
+      additionalType: Study
+    path: "studies/{dataset.identifier}/isa.study.xlsx"
+  - id: assays
+    codec: isa.assay.xlsx
+    target:
+      additionalType: Assay
+    path: "assays/{dataset.identifier}/isa.assay.xlsx"
+  - id: workflows
+    codec: isa.workflow.xlsx
+    target:
+      additionalType: Workflow
+    path: "workflows/{dataset.identifier}/isa.workflow.xlsx"
+  - id: runs
+    codec: isa.run.xlsx
+    target:
+      additionalType: Run
+    path: "runs/{dataset.identifier}/isa.run.xlsx"
+"""
+
+let tests =
+    testList "Workspace project" [
+
+        testList "strict documents" [
+
+            testCase "parses the three target shapes and local profiles" <| fun _ ->
+                let project =
+                    """type: ArcWorkspaceProject
+workspaceProfiles:
+  - file: profiles/isa.yml
+rules:
+  - id: root
+    codec: test.dataset
+    target: root
+    path: root.data
+  - id: exact
+    codec: test.dataset
+    target:
+      identifier: special
+    path: special.data
+  - id: typed
+    codec: test.dataset
+    target:
+      additionalType: Study
+    path: "studies/{dataset.identifier}/dataset.data"
+"""
+                    |> ProcessCore.WorkspaceProject.parse
+                    |> unwrap
+                Expect.equal project.WorkspaceProfiles [ WorkspaceProfileReference.File "profiles/isa.yml" ] "profile reference"
+                Expect.equal project.Rules.Length 3 "all rules are parsed"
+                Expect.equal project.Rules.[0].Target Root "root target"
+                Expect.equal project.Rules.[1].Target (Identifier "special") "identifier target"
+                Expect.equal project.Rules.[2].Target (AdditionalType "Study") "type target"
+
+            testCase "rejects unknown and duplicate fields" <| fun _ ->
+                let unknown =
+                    """type: ArcWorkspaceProject
+extra: no
+rules: []
+"""
+                    |> ProcessCore.WorkspaceProject.parse
+                let duplicate =
+                    """type: ArcWorkspaceProject
+type: ArcWorkspaceProject
+rules: []
+"""
+                    |> ProcessCore.WorkspaceProject.parse
+                Expect.isError unknown "unknown fields are rejected"
+                Expect.isError duplicate "duplicate fields are rejected"
+
+            testCase "rejects implicit non-string scalars, aliases, and partial captures" <| fun _ ->
+                let numeric =
+                    """type: ArcWorkspaceProfile
+id: example
+version: 1.0
+rules:
+  - id: root
+    codec: test.dataset
+    target: root
+    path: root.data
+"""
+                    |> ProcessCore.WorkspaceProfile.parse
+                let alias =
+                    """type: ArcWorkspaceProject
+rules:
+  - &base
+    id: root
+    codec: test.dataset
+    target: root
+    path: root.data
+  - *base
+"""
+                    |> ProcessCore.WorkspaceProject.parse
+                let capture =
+                    """type: ArcWorkspaceProject
+rules:
+  - id: root
+    codec: test.dataset
+    target: root
+    path: "root-{dataset.identifier}.data"
+"""
+                    |> ProcessCore.WorkspaceProject.parse
+                Expect.isError numeric "an unquoted numeric profile version is not a string"
+                Expect.isError alias "aliases are rejected"
+                Expect.isError capture "captures must occupy a whole segment"
+        ]
+
+        testList "registry and resolution" [
+
+            testCase "registry addition is immutable and rejects duplicate exact IDs" <| fun _ ->
+                let reads, writes = ref 0, ref 0
+                let codec = fakeCodec "test.dataset" reads writes
+                let first = CodecRegistry.add codec CodecRegistry.empty |> unwrap
+                Expect.isSome (CodecRegistry.tryFind codec.Id first) "the new registry contains the codec"
+                Expect.isNone (CodecRegistry.tryFind codec.Id CodecRegistry.empty) "the original registry remains unchanged"
+                Expect.isError (CodecRegistry.add codec first) "duplicate IDs are rejected"
+
+            testCaseCrossAsync "loads a confined local profile and rejects URL profiles explicitly" (
+                withWorkspace "local-profile" <| fun root ->
+                    crossAsync {
+                        do!
+                            writeText
+                                (Path.combineMany [ root; ".arc"; "profile.yml" ])
+                                """type: ArcWorkspaceProfile
+id: example
+version: "1.0"
+rules:
+  - id: root
+    codec: test.dataset
+    target: root
+    path: root.data
+"""
+                        do! writeText (Path.combine root "root.data") "root|Investigation"
+                        do!
+                            writeText
+                                (Path.combineMany [ root; ".arc"; "project.yml" ])
+                                """type: ArcWorkspaceProject
+workspaceProfiles:
+  - file: profile.yml
+"""
+                        let registry = fakeRegistry (ref 0) (ref 0)
+                        let! loaded = ProjectIO.loadAsync registry root
+                        Expect.equal (loaded |> unwrap).Identifier "root" "the file profile contributes its rule"
+
+                        do!
+                            writeText
+                                (Path.combineMany [ root; ".arc"; "project.yml" ])
+                                """type: ArcWorkspaceProject
+workspaceProfiles:
+  - url: "https://example.org/profile.yml"
+"""
+                        let! result = ProjectIO.loadAsync registry root
+                        match result with
+                        | Error error -> Expect.equal error.Kind ProjectErrorKind.Profile "URL profiles fail as profile errors"
+                        | Ok _ -> failwith "The v1 implementation must not silently ignore URL profiles."
+                    }
+            )
+
+            testCaseCrossAsync "detects concrete collisions before codec invocation" (
+                withWorkspace "collisions" <| fun root ->
+                    crossAsync {
+                        let reads, writes = ref 0, ref 0
+                        let registry = fakeRegistry reads writes
+                        do! writeText (Path.combine root "same") "same|Investigation"
+                        do!
+                            writeText
+                                (Path.combineMany [ root; ".arc"; "project.yml" ])
+                                """type: ArcWorkspaceProject
+rules:
+  - id: root
+    codec: test.dataset
+    target: root
+    path: same
+  - id: exact
+    codec: test.dataset
+    target:
+      identifier: same
+    path: "{dataset.identifier}"
+"""
+                        let! result = ProjectIO.loadAsync registry root
+                        match result with
+                        | Error error -> Expect.equal error.Kind ProjectErrorKind.Path "collision is a path error"
+                        | Ok _ -> failwith "Colliding bindings must fail."
+                        Expect.equal reads.Value 0 "preflight must complete before codec access"
+                    }
+            )
+
+            testCaseCrossAsync "converts synchronous codec exceptions into structured failures" (
+                withWorkspace "codec-exception" <| fun root ->
+                    crossAsync {
+                        let throwingCodec = {
+                            Id = "test.throwing"
+                            ReadAsync = fun _ -> failwith "synchronous codec failure"
+                            WriteAsync = fun _ _ -> failwith "synchronous codec failure"
+                        }
+                        let registry = CodecRegistry.add throwingCodec CodecRegistry.empty |> unwrap
+                        do! writeText (Path.combine root "root.data") "unused"
+                        do!
+                            writeText
+                                (Path.combineMany [ root; ".arc"; "project.yml" ])
+                                """type: ArcWorkspaceProject
+rules:
+  - id: root
+    codec: test.throwing
+    target: root
+    path: root.data
+"""
+                        let! result = ProjectIO.loadAsync registry root
+                        match result with
+                        | Error error ->
+                            Expect.equal error.Kind ProjectErrorKind.Codec "the exception becomes a codec failure"
+                            Expect.isSome error.Cause "the original cause is retained"
+                        | Ok _ -> failwith "A throwing codec must fail the operation."
+                    }
+            )
+        ]
+
+        testList "execution and facade" [
+
+            testCaseCrossAsync "custom codecs round-trip direct children without deleting stale files" (
+                withWorkspace "custom-round-trip" <| fun root ->
+                    crossAsync {
+                        let reads, writes = ref 0, ref 0
+                        let registry = fakeRegistry reads writes
+                        do! writeText (Path.combineMany [ root; ".arc"; "project.yml" ]) (projectWith "test.dataset" simpleRules)
+                        do! writeText (Path.combine root "stale.data") "keep"
+                        let arc = ARC("root", additionalType = "Investigation")
+                        let study = Dataset("study-1", additionalType = "Study")
+                        study.AddPart(Dataset("nested"))
+                        arc.AddPart study
+
+                        let! written = ProjectIO.writeAsync registry root arc
+                        written |> unwrap
+                        let! staleExists = Path.fileExistsAsync (Path.combine root "stale.data")
+                        Expect.isTrue staleExists "project writes do not delete stale resources"
+                        let! loaded = ProjectIO.loadAsync registry root
+                        let loaded = loaded |> unwrap
+                        Expect.equal loaded.Identifier "root" "root identifier round-trips"
+                        Expect.equal loaded.HasPart.Count 1 "the selected child is attached directly"
+                        Expect.equal loaded.HasPart.[0].Identifier "study-1" "captured identifier round-trips"
+                        Expect.equal loaded.HasPart.[0].PartOf (Some (loaded :> Dataset)) "AddPart establishes parentage"
+                        Expect.equal writes.Value 2 "root and child are written once"
+                        Expect.equal reads.Value 2 "root and child are read once"
+                    }
+            )
+
+            testCaseCrossAsync "generic project failures do not fall back, while explicit YAML bypasses the project" (
+                withWorkspace "facade-authority" <| fun root ->
+                    crossAsync {
+                        let yamlArc = ARC("yaml-fallback")
+                        do! yamlArc.WriteYMLAsync root
+                        do!
+                            writeText
+                                (Path.combineMany [ root; ".arc"; "project.yml" ])
+                                """type: ArcWorkspaceProject
+rules:
+  - id: root
+    codec: missing.codec
+    target: root
+    path: missing.data
+"""
+                        let! genericResult =
+                            ARC.loadAsync root
+                            |> CrossAsync.map Ok
+                            |> CrossAsync.catchWith (fun ex -> Error ex)
+                        match genericResult with
+                        | Error (ProjectException error) ->
+                            Expect.equal error.Kind ProjectErrorKind.Codec "the project codec failure is preserved"
+                        | Error ex -> return raise ex
+                        | Ok _ -> failwith "Generic load must not fall back to arc.yml."
+
+                        let! explicitYaml = ARC.loadYMLAsync root
+                        Expect.equal explicitYaml.Identifier "yaml-fallback" "explicit YAML loading bypasses project discovery"
+                    }
+            )
+
+            testCaseCrossAsync "standard registry round-trips all five ISA workbooks and an adjacent Datamap" (
+                withWorkspace "standard-round-trip" <| fun root ->
+                    crossAsync {
+                        do! writeText (Path.combineMany [ root; ".arc"; "project.yml" ]) (projectWith "" standardRules)
+                        let arc = ARC("investigation", additionalType = "Investigation")
+                        let study = Dataset("study", additionalType = "Study")
+                        study.AddDataContext(DataContext(Data("data/result.csv")))
+                        arc.AddPart study
+                        arc.AddPart(Dataset("assay", additionalType = "Assay"))
+                        arc.AddPart(Dataset("workflow", additionalType = "Workflow"))
+                        arc.AddPart(Dataset("run", additionalType = "Run"))
+
+                        let! written = ProjectIO.writeAsync CodecRegistry.standard root arc
+                        written |> unwrap
+                        let! loaded = ProjectIO.loadAsync CodecRegistry.standard root
+                        let loaded = loaded |> unwrap
+                        let children =
+                            loaded.HasPart
+                            |> Seq.map (fun dataset -> dataset.Identifier, dataset.AdditionalType)
+                            |> Set.ofSeq
+                        Expect.equal loaded.Identifier "investigation" "investigation codec round-trips"
+                        Expect.equal children.Count 4 "all four child codec kinds round-trip"
+                        Expect.isTrue (children.Contains("study", Some "Study")) "study codec"
+                        Expect.isTrue (children.Contains("assay", Some "Assay")) "assay codec"
+                        Expect.isTrue (children.Contains("workflow", Some "Workflow")) "workflow codec"
+                        Expect.isTrue (children.Contains("run", Some "Run")) "run codec"
+                        let! datamapExists =
+                            Path.fileExistsAsync (
+                                Path.combineMany [ root; "studies"; "study"; "isa.datamap.xlsx" ]
+                            )
+                        Expect.isTrue datamapExists "the study codec owns its adjacent Datamap"
+                        let loadedStudy = loaded.HasPart |> Seq.find (fun dataset -> dataset.Identifier = "study")
+                        Expect.equal loadedStudy.DataContexts.Count 1 "the adjacent Datamap is read back"
+                    }
+            )
+        ]
+    ]

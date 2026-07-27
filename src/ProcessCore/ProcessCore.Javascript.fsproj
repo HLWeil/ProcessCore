@@ -73,6 +73,7 @@
     <Compile Include="Spreadsheet\ArcRun.fs" />
     <Compile Include="Spreadsheet\ArcInvestigation.fs" />
     <Compile Include="ScaffoldReader.fs" />
+    <Compile Include="WorkspaceProject.fs" />
     <Compile Include="ARC.fs" />
   </ItemGroup>
 
