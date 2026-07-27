@@ -352,9 +352,8 @@ The rewrite must keep these artifacts synchronized:
 1. this non-normative project-file plan;
 2. the normative project-file specification;
 3. the companion handling plan;
-4. the normative handling specification;
-5. the project JSON Schema expressed as YAML; and
-6. the workspace-profile JSON Schema expressed as YAML.
+4. the project JSON Schema expressed as YAML; and
+5. the workspace-profile JSON Schema expressed as YAML.
 
 The schema captures structural validity. Profile resolution, exact target
 uniqueness, inferred multiplicity, codec lookup, path rendering, resource

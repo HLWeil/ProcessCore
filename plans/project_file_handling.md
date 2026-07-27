@@ -5,8 +5,9 @@ Status: implementation-planning document
 Language plan:
 [`plans/project_file.md`](project_file.md)
 
-Normative handling specification:
-[`docs/spec/project_file_handling.md`](../docs/spec/project_file_handling.md)
+The intended manifestation of this plan is the ProcessCore software
+implementation. The normative project-file language remains in
+[`docs/spec/project_file.md`](../docs/spec/project_file.md).
 
 ## 1. Summary
 
@@ -119,6 +120,11 @@ writeDatasetAsync:
 The context supplies a confined workspace boundary and diagnostic facilities.
 The precise F# surface can follow existing repository conventions.
 
+Expected codec failures must use the structured result channel. The workspace
+processor catches unexpected exceptions at the codec boundary and converts them
+to structured anchor failures rather than exposing platform-specific exceptions
+as the only diagnostic.
+
 ### 4.2 Anchor and companions
 
 The rule path is the project-visible anchor. Generic planning and outcomes know
@@ -185,6 +191,20 @@ makes their concrete selection domains disjoint.
 A `file` is relative to `.arc` and must remain inside it. A `url` is an absolute
 HTTP(S) URL. The loaded YAML must be an `ArcWorkspaceProfile`; resolution,
 fetch, parse, and document-type failures stop compilation.
+
+### 5.2 Deterministic ordering
+
+Planning, execution, outcomes, and diagnostics use one platform-independent
+ordinal order:
+
+1. root binding;
+2. exact-identifier bindings by identifier;
+3. additional-type bindings by type;
+4. normalized anchor; and
+5. qualified rule ID as the final tie-breaker.
+
+Profile and rule declaration order affects expansion and qualification only. It
+does not change target precedence or execution order.
 
 ## 6. Path processing
 
@@ -254,6 +274,10 @@ Type rules may discover no resources without error.
 The processor never flattens deeper nesting and never uses a type-rule resource
 as a substitute for a missing exact target.
 
+A failed binding never attaches a partially parsed Dataset. Attachment failures
+that would violate Dataset identity or graph invariants are reported for that
+binding without preventing independent sibling bindings from being attempted.
+
 ## 8. Write planning and execution
 
 ### 8.1 Select targets
@@ -315,6 +339,9 @@ For matching entities:
 Processes remain distinct objects. Storage configuration is not inserted into
 model dynamic properties.
 
+Merge conflicts are warnings by default. A strict caller may promote them to
+errors without changing the deterministic first-value-preserving merge result.
+
 ## 10. Results and diagnostics
 
 Resource outcomes should be limited to:
@@ -367,10 +394,20 @@ ADDITIONAL_TYPE_MISMATCH
 MERGE_CONFLICT
 ```
 
+A load result contains the optional ARC graph, its workspace session, ordered
+anchor outcomes, and ordered diagnostics. Once the root is available, a
+result-oriented API may return that partial ARC after child errors. A write
+result contains the workspace session plus ordered outcomes and diagnostics.
+
+A workspace session retains the workspace root, immutable compiled plan, loaded
+profile identities, ARC graph, current anchor bindings, outcomes, and
+diagnostics. It does not retain per-field provenance or generic companion paths.
+
 ## 11. Public API integration
 
-Generic ARC loading and writing should check the exact supplied workspace for
-`.arc/project.yml`.
+Generic ARC loading and writing should accept either a workspace root or the
+exact `.arc/project.yml` path. Given a workspace root, discovery checks exactly
+`<workspace-root>/.arc/project.yml` and never searches ancestors.
 
 When present:
 
@@ -386,6 +423,15 @@ When absent, existing non-project I/O behavior remains.
 Explicit YAML and XLSX methods bypass project discovery and retain their existing
 behavior.
 
+Synchronous and asynchronous generic write/update operations use a valid project
+at the destination. An invalid destination project never triggers fallback to
+another representation. An update in the attached workspace should reuse its
+compiled session; an explicitly different destination is governed by that
+destination's project.
+
+Project handling never implicitly creates, rewrites, or deletes the project file
+or referenced profile documents.
+
 Recommended operations remain equivalent to:
 
 ```fsharp
@@ -399,7 +445,25 @@ Workspace.writeAsync
 WorkspaceSession.updateAsync
 ```
 
-## 12. Implementation sequence
+Strict convenience APIs throw only after independent bindings have completed and
+retain the structured result in the exception.
+
+## 12. Round-trip expectation
+
+For a compatible model `M`, valid project `P`, and deterministic codecs:
+
+```text
+read(P, write(P, M)) ≈ selected(P, M)
+```
+
+Equivalence covers selected Datasets, modeled fields, process connections,
+codec-supported nested state, and canonical shared entities after compatible
+union. It does not require preservation of source formatting, object reference
+identity, or independently unmanaged children. Failed reads never attach a
+partial Dataset, and failed writes do not imply rollback of earlier opaque codec
+operations.
+
+## 13. Implementation sequence
 
 ### Phase 1: syntax and paths
 
@@ -446,10 +510,12 @@ WorkspaceSession.updateAsync
 - usage examples; and
 - .NET, JavaScript, and Python parity checks.
 
-## 13. Test plan
+## 14. Test plan
 
 Test:
 
+- exact project discovery from a workspace root or project path without ancestor
+  searching;
 - strict project and profile schema acceptance/rejection;
 - local and URL references with exactly one source field;
 - profile load, parse, type, and duplicate-ID failures;
@@ -462,10 +528,17 @@ Test:
 - capture, identifier, and `additionalType` mismatches;
 - unsafe paths and anchor collisions;
 - direct-root attachment with deeper nesting preserved;
+- graph-invariant rejection without partial Dataset attachment;
 - shared entity compatible union;
+- default-warning and strict-error merge conflict behavior;
 - independent parse/write failure behavior;
+- unexpected codec exception conversion to structured anchor failure;
 - opaque ISA/Datamap companion integration;
 - confirmation that project writes delete no stale files;
+- workspace-session reuse and different-destination project authority;
+- partial load results and strict wrappers retaining structured results;
+- selected-model round-trip equivalence;
+- deterministic ordering across supported runtimes;
 - project-aware generic facade behavior;
 - explicit-format bypass; and
 - .NET/Fable runtime parity.

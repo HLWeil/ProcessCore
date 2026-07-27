@@ -22,9 +22,9 @@ The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**,
 [BCP 14](https://www.rfc-editor.org/info/bcp14) when, and only when, they appear
 in all capitals.
 
-The non-normative design plan is
-[`plans/project_file.md`](../../plans/project_file.md). Processor and codec
-behavior is specified in [Project File Handling](project_file_handling.md).
+The non-normative design and implementation plans are
+[`plans/project_file.md`](../../plans/project_file.md) and
+[`plans/project_file_handling.md`](../../plans/project_file_handling.md).
 
 ## 1. Model
 
@@ -102,11 +102,6 @@ Profile `version` identifies the profile release. This specification does not
 define a separate `specVersion`.
 
 A referenced YAML document MUST conform as a workspace-profile document.
-
-### 2.3 Processor and codec conformance
-
-Processor and codec conformance is defined in
-[Project File Handling](project_file_handling.md#1-conformance).
 
 ## 3. Workspace and path domain
 
@@ -456,8 +451,7 @@ Companion resources:
 - are not separate generic outcomes or diagnostics paths; and
 - are not automatically deleted by project handling.
 
-Their confinement, consistency, and failure behavior are codec responsibilities
-defined in [Project File Handling](project_file_handling.md#3-codec-contract).
+Their confinement, consistency, and failure behavior are codec responsibilities.
 
 ## 11. Cross-rule validation
 
