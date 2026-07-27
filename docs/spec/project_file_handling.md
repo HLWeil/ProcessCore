@@ -9,13 +9,12 @@ index: 6
 
 ## Status and scope
 
-This document specifies how processors and codecs compile and execute the
+This document specifies how processors and registered codecs execute the
 project-file language defined in [ARC Workspace Project File](project_file.md).
 
-It covers project resolution, path processing, codec contracts, compilation,
-reading, canonical merging, writing, stale-output cleanup, diagnostics, and
-round-trip behavior. Project and workspace-profile YAML syntax remains normative
-in the project-file specification.
+It covers project resolution, compilation, Dataset target selection, anchor
+processing, codec invocation, graph attachment, diagnostics, and public ARC
+facade integration.
 
 The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**,
 **SHOULD**, **SHOULD NOT**, **RECOMMENDED**, **NOT RECOMMENDED**, **MAY**, and
@@ -25,226 +24,158 @@ in all capitals.
 
 ## 1. Conformance
 
-### 1.1 Runtime terms
+### 1.1 Terms
+
+**Compiled rule**
+: A structurally and semantically validated rule with qualified identity,
+  resolved bidirectional codec, target, and compiled anchor template.
 
 **Binding**
-: The resolved association among a compiled rule, a resource path, path captures,
-  and a semantic model target.
+: The association among a compiled rule, selected or discovered Dataset,
+  captures, and normalized anchor.
 
-**Managed output**
-: A regular file matched by a currently enabled writable rule.
+**Reserved identifier**
+: An identifier declared by an exact identifier target and therefore excluded
+  from all additional-type bindings.
 
 **Workspace session**
-: In-memory state retaining a compiled plan, ARC graph, bindings, outcomes, and
-  diagnostics for a load/update operation.
+: In-memory state retaining the compiled plan, ARC graph, anchor bindings,
+  outcomes, and diagnostics for an operation.
 
 ### 1.2 Processor conformance
 
 A conforming processor MUST:
 
-- implement strict project and profile decoding;
-- implement deterministic compilation and planning;
-- enforce path confinement and direction-specific ownership;
-- select codecs only by registered capability ID;
-- implement the read, merge, write, failure, and stale-output behavior specified
-  here; and
-- return structured diagnostics.
-
-A read-only processor MAY omit write execution but MUST reject projects requiring
-unsupported write capabilities. A write-only processor has the corresponding
-obligation for read capabilities.
+- strictly decode project and profile documents;
+- resolve only explicitly referenced profile files and HTTP(S) URLs;
+- select codecs by exact registered capability ID;
+- require every selected codec to be bidirectional;
+- implement deterministic target precedence and inferred multiplicity;
+- validate and confine every project-visible anchor;
+- reject anchor collisions before codec execution;
+- attach project-selected children directly to the root;
+- preserve deeper nesting returned by codecs;
+- report structured outcomes and diagnostics; and
+- perform no automatic stale-output deletion.
 
 ### 1.3 Codec conformance
 
-A conforming codec MUST publish a descriptor and MUST obey the contribution,
-facet, direction, transactionality, and diagnostic contracts in section 3.
+A conforming codec MUST:
 
-## 2. Project resolution and path processing
+- be registered explicitly under one unique capability ID;
+- read one complete Dataset from an anchor;
+- write one complete Dataset to the same anchor convention;
+- return expected failures in a form the processor can diagnose;
+- keep all anchor and derived companion access inside the supplied workspace;
+- avoid dynamic executable configuration from project data; and
+- document any opaque companion-resource behavior.
+
+Codec behavior beyond the project-visible anchor is subject to the trust
+boundary in section 3.
+
+## 2. Project and profile resolution
 
 ### 2.1 Project discovery
 
-A caller MAY supply:
+A caller MAY supply a workspace root or the exact `.arc/project.yml` path.
 
-- the workspace root, in which case the processor resolves
-  `.arc/project.yml`; or
-- the exact project-file path, in which case the processor derives the root.
+When given a workspace root, a processor MUST inspect exactly:
 
-A processor MUST NOT search above an explicitly supplied workspace root.
-
-The project file and local profile documents are configuration. A writer:
-
-- MUST NOT rewrite them implicitly;
-- MUST NOT treat them as stale outputs; and
-- MUST NOT delete them.
-
-### 2.2 Profile resolution
-
-Built-in profiles are resolved by exact registry key. Local profile paths are
-resolved relative to `.arc` and confined to the workspace. The loaded profile's
-ID and version MUST exactly match the project reference.
-
-### 2.3 Parameter resolution
-
-The compiler:
-
-1. rejects supplied parameter names not declared by the profile;
-2. applies supplied values over defaults;
-3. validates type and `allowedValues`;
-4. rejects unresolved required values; and
-5. substitutes resolved values before path-template compilation and codec-option
-   validation.
-
-### 2.4 Filesystem safety
-
-Confinement MUST use normalized and resolved paths rather than raw string-prefix
-checks. Safety MUST be checked again immediately before replacement or stale
-deletion to reduce time-of-check/time-of-use risk.
-
-On a case-insensitive filesystem, collision detection MUST use the filesystem's
-effective comparison. On Windows, two outputs differing only by case conflict.
-
-The workspace root and directories MUST NOT be replacement or deletion targets.
-A replacement or deletion target MUST be a regular file and MUST NOT be a
-symbolic link or reparse point.
-
-### 2.5 Selector and parent validation
-
-For a readable shallow dataset, the resolved parent reference MUST identify
-exactly one successfully materialized dataset. A missing or failed parent skips
-the dependent resource; it is not attached to the root as a fallback.
-
-After parsing a dataset contribution:
-
-- its identifier MUST equal `{dataset.identifier}` when captured;
-- its parent MUST equal `{parent.identifier}` when captured;
-- its `additionalType` MUST satisfy the target filter; and
-- its hierarchy MUST satisfy `children` or `descendants`.
-
-A mismatch fails the binding. A processor MUST NOT silently rename or retarget a
-parsed dataset.
-
-### 2.6 Processing order
-
-A compiler processes a path in this order:
-
-1. substitute declared `path-segment` profile parameters;
-2. parse model captures;
-3. validate literals and captures;
-4. compile a read matcher and/or write renderer; and
-5. normalize at the host-filesystem boundary.
-
-### 2.7 Read matching
-
-A read planner treats literal segments as exact names and capture segments as one
-safe directory-entry segment. It walks only positions implied by the template;
-it MUST NOT reinterpret the template as an unrestricted recursive glob.
-
-Every match produces:
-
-- a normalized workspace-relative path;
-- captured values;
-- qualified rule ID;
-- codec capability ID; and
-- provisional semantic target.
-
-Matches are sorted by normalized relative path using ordinal comparison before
-codec execution.
-
-### 2.8 Write rendering
-
-A write planner substitutes captures from the selected dataset and parent.
-Missing, empty, or unsafe capture values are planning errors.
-
-Two bindings in the same write plan MUST NOT render to the same normalized path.
-The processor MUST detect all rendered collisions before invoking a writer.
-
-## 3. Codec registry and contracts
-
-### 3.1 Explicit capability selection
-
-Every rule names one codec capability:
-
-```yaml
-codec: arc.yaml.dataset.v1
+```text
+<workspace-root>/.arc/project.yml
 ```
 
-A processor MUST select the codec only by exact registry lookup of this ID. It
-MUST NOT infer or replace the codec based on:
+It MUST NOT search ancestor directories.
 
-- filename extension;
-- media type;
-- file signature;
-- workbook sheets;
-- discovery order; or
-- an unregistered value in `codecOptions`.
+The root project and local referenced profiles are configuration. Project
+handling MUST NOT create, rewrite, or delete them implicitly.
 
-Media type and format information MAY be reported for validation or diagnostics,
-but does not select a codec.
+### 2.2 Workspace-profile resolution
 
-### 3.2 Registry
+A reference contains exactly one `file` or `url`.
 
-The embedding library or application constructs the codec registry explicitly.
-Duplicate capability IDs MUST be rejected.
+A `file` is resolved relative to the root project's `.arc` directory and MUST
+remain inside it. A `url` MUST be an absolute HTTP(S) URL. The loaded YAML MUST
+conform as `ArcWorkspaceProfile`; a load, parse, or document-type failure is a
+compilation error.
 
-The project file MUST NOT cause dynamic assembly, package, module, or script
-loading. A missing capability ID is a compile error.
+Profiles contribute rules in reference order, followed by project-local rules.
+Profile IDs MUST be unique in the expanded profile set.
 
-### 3.3 Descriptor
+## 3. Codec contract
 
-Every codec descriptor declares:
+### 3.1 Registry
 
-- capability ID;
-- contribution kind;
-- overlay facet, when applicable;
-- additional owned facets;
-- `CanRead`;
-- `CanWrite`;
-- supported runtime targets;
-- codec-option validator;
-- human-readable format and media-type metadata; and
-- whether the codec can return `Omit`.
+The embedding application constructs the codec registry explicitly. Duplicate
+codec keys MUST be rejected. Profiles are loaded from declared `file` or `url`
+references.
 
-The compiler MUST verify that the descriptor agrees with every rule that names
-it.
+Project configuration MUST NOT load an assembly, package, module, plugin,
+callback, expression, script, or shell command.
 
-### 3.4 Read contract
+A missing codec capability is a fatal compilation error.
 
-A codec receives a safely resolved resource context and validated options. It
-MUST NOT discover additional project resources independently.
+### 3.2 Bidirectional Dataset contract
 
-A tree codec returns one detached dataset tree.
+Every rule maps one complete Dataset to one codec anchor. A codec interface MUST
+provide logical operations equivalent to:
 
-A dataset codec returns one detached shallow dataset.
+```text
+read Dataset from anchor
+write Dataset to anchor
+```
 
-An overlay codec returns one detached typed overlay value. It MUST parse the
-complete value before the processor applies it to a dataset.
+The compiler MUST reject a registered capability that cannot perform both
+operations.
 
-Expected format failures MUST be returned as diagnostics. A processor MUST catch
-an unexpected codec exception at the resource boundary and convert it to a
-structured failure.
+A read returns one detached Dataset or one structured failure. A write receives
+the selected canonical Dataset and returns success or one structured failure.
 
-### 3.5 Write contract
+A codec MAY preserve or serialize nested Datasets contained within its Dataset.
+The project processor MUST NOT impose shallow serialization.
 
-A tree or dataset codec receives the selected canonical dataset view. An overlay
-codec receives a typed facet extracted from that dataset.
+The processor MUST catch unexpected codec exceptions at the invocation boundary
+and convert them to structured anchor failures.
 
-A codec returns either:
+### 3.3 Opaque companion resources
 
-- complete rendered content; or
-- `Omit`, if its descriptor supports omission and the rule permits
-  `omitWhenEmpty`.
+The anchor is the only codec path visible to generic project planning.
 
-A codec MUST NOT open, truncate, replace, or delete the final destination. The
-workspace writer owns staging and replacement.
+A registered codec MAY derive additional paths from the anchor and MAY read,
+write, replace, or omit those representation-specific companion resources. For
+example, an ISA-XLSX codec may derive an adjacent `isa.datamap.xlsx`.
 
-### 3.6 Facet enforcement
+Generic handling:
 
-A codec MUST NOT apply or emit a detachable facet that the compiled rule does
-not own. A base-only codec encountering non-empty data for an unowned
-standardized facet MUST fail that resource rather than silently discard it.
+- validates and reports only the anchor;
+- does not bind or inspect companions;
+- does not provide companion collision or bundle-atomicity guarantees; and
+- does not delete stale anchors or companions.
 
-An overlay codec MUST parse a complete overlay value before applying it. A parse
-failure MUST leave the target dataset unchanged.
+The codec MUST confine every derived path to the workspace. It SHOULD avoid
+truncating an existing resource until replacement content is complete, but this
+specification does not guarantee a transaction across opaque resources.
+
+Companion files are not scientific payloads merely because they are opaque to
+the project plan. The codec remains responsible for distinguishing its metadata
+representation from `Data` payloads.
+
+### 3.4 Standard ISA-XLSX capabilities
+
+A standard registry SHOULD provide:
+
+```text
+isa.investigation.xlsx
+isa.study.xlsx
+isa.assay.xlsx
+isa.workflow.xlsx
+isa.run.xlsx
+```
+
+Each capability reads and writes the complete corresponding Dataset
+representation, including the ISA-XLSX Dataset/Datamap split where applicable.
+
+No recursive-YAML capability ID is standardized here.
 
 ## 4. Compilation
 
@@ -253,144 +184,153 @@ failure MUST leave the target dataset unchanged.
 A processor MUST compile in this order:
 
 1. parse and strictly validate the project;
-2. resolve listed built-in and confined local profiles;
-3. validate profile type, specification version, ID, version, parameters, and
-   rules;
-4. apply supplied parameter values over defaults;
-5. qualify profile rule IDs;
-6. apply restricted overrides;
-7. qualify project-local rule IDs;
-8. remove disabled rules;
-9. resolve codec descriptors and validate options/directions;
-10. compile path templates;
-11. validate selectors and attachment dependencies;
-12. calculate direction-specific base and facet ownership;
-13. reject static ownership and path conflicts;
-14. topologically order read dependencies; and
-15. produce an immutable compiled storage plan.
+2. load and strictly validate every referenced profile;
+3. expand profile rules in reference order, followed by project-local rules;
+4. qualify rule IDs and reject duplicate identities;
+5. resolve every codec and verify bidirectionality;
+6. parse and validate targets and anchor templates;
+7. require exactly one root rule;
+8. reserve exact identifiers and reject duplicate targets or static anchor
+   collisions; and
+9. produce an immutable compiled plan.
 
-Any error in these stages is fatal. No metadata codec may be invoked after a
-failed compilation.
+Any error is fatal. No codec may be invoked after failed compilation.
 
-### 4.2 Static and concrete planning
+Rules in the project are qualified as `project#<rule-id>`. Profile rules use
+`<profile-id>#<rule-id>`.
 
-Some conflicts are known from declarations, while others depend on discovered
-captures or the actual graph.
+### 4.2 Target maps
 
-Static compilation MUST reject at least:
+The compiled plan MUST contain:
 
-- duplicate root owners in one direction;
-- overlapping tree and descendant declarations in one direction when the overlap
-  is provable;
-- duplicate exact owners;
-- duplicate literal output paths;
-- missing or incompatible codecs;
-- invalid attachment dependencies; and
-- dependency cycles.
+- one root rule;
+- a unique map from declared identifier to exact rule;
+- a unique map from declared `additionalType` to type rule; and
+- the set of all exact identifiers.
 
-Concrete read planning MUST discover paths and create provisional bindings. It
-MUST reject, before model mutation:
+An identifier target and an additional-type target are not conflicting target
+domains. The reserved identifier set makes their concrete bindings disjoint.
 
-- two read base bindings for one dataset;
-- two read overlay bindings for one `(dataset, facet)`; and
-- ambiguous target or parent bindings.
+### 4.3 Anchor compilation
 
-Concrete write planning MUST select all model targets and render all paths. It
-MUST reject, before codec execution:
+The path compiler accepts only literal segments and at most one complete
+`{dataset.identifier}` segment.
 
-- duplicate write owners;
-- unresolved targets or captures; and
-- normalized output collisions.
+It MUST reject:
 
-Selector domains that cannot be proven disjoint statically are not resolved by
-rule order. They remain subject to concrete validation.
+- absolute, drive-qualified, UNC, and URI paths;
+- backslashes;
+- empty, `.`, and `..` segments;
+- NUL;
+- unsupported or partial captures;
+- repeated captures; and
+- normalization outside the workspace.
 
-If semantic target identity can be known only after parsing, the processor MUST
-parse into detached contributions, validate the complete ownership set, and only
-then attach or apply those contributions.
+An additional-type rule MUST contain the capture. Root and identifier rules MAY
+use a literal path or the capture.
 
-### 4.3 Determinism
+For read planning:
 
-Compilation, discovery, target selection, merge, execution reporting, and
-diagnostics MUST use deterministic ordering:
+- a literal root or identifier anchor is checked directly;
+- an identifier capture is rendered with the declared identifier and checked
+  directly;
+- a captured root template is discovered and MUST yield exactly one anchor; and
+- an additional-type template discovers zero or more anchors.
 
-1. dependency order;
-2. expanded profile/project rule order where dependencies are equal;
-3. normalized path using ordinal comparison; and
-4. dataset identifier using ordinal comparison.
+For write planning, every capture is rendered from the selected Dataset
+identifier.
+
+### 4.4 Determinism
+
+Compilation, discovery, selection, execution, outcomes, and diagnostics MUST use
+this ordering:
+
+1. root;
+2. exact identifier by ordinal identifier comparison;
+3. additional type by ordinal type comparison;
+4. normalized anchor by ordinal comparison; and
+5. qualified rule ID as a final tie-breaker.
+
+Profile or rule declaration order MUST NOT affect target precedence.
 
 ## 5. Read processing
 
-### 5.1 Root requirement
+### 5.1 Binding discovery
 
-A readable plan MUST define exactly one root-forming read owner:
+A read planner MUST:
 
-- a tree rule targeting `root`; or
-- a dataset rule targeting `root`.
+1. resolve exactly one mandatory root anchor;
+2. resolve exactly one mandatory anchor for every identifier rule;
+3. discover every additional-type anchor;
+4. decode every capture as a safe path segment;
+5. discard a type binding whose captured identifier is reserved;
+6. reject duplicate bindings and normalized anchor collisions; and
+7. produce the deterministic binding order from section 4.4.
 
-If the root resource is absent or fails, the result has no usable ARC. Dependent
-resources are skipped and diagnostics are returned.
+Discovery of a reserved identifier through a general type path MUST NOT satisfy
+the exact identifier rule. The exact rule's own anchor remains mandatory.
 
-### 5.2 Processing order
+A type rule with no discovered anchors is valid.
 
-A conforming reader:
+### 5.2 Root
 
-1. compiles the project;
-2. discovers and concretely validates read bindings;
-3. parses the root-forming contribution;
-4. parses shallow datasets in parent-before-child dependency order;
-5. validates captures, selectors, and shallow/tree constraints;
-6. attaches successful datasets using the ARC graph's established attachment
-   operations;
-7. parses and applies overlays only after their targets exist;
-8. canonicalizes and merges shared entities;
-9. records every success, absence, skip, warning, and failure; and
-10. returns the ARC, session, outcomes, and diagnostics.
+The processor invokes the root codec first.
 
-### 5.3 Graph attachment
+The codec MUST return one Dataset. When the root template captured an
+identifier, the returned Dataset identifier MUST equal it.
 
-The reader MUST use model attachment behavior that preserves:
+The returned Dataset is promoted or copied into an `ARC` without discarding
+model fields or nested Datasets.
 
-- reciprocal `hasPart`/`partOf`;
-- process ownership;
-- process input/output canonical references;
-- root-level sample, data, and recipe identity; and
-- all existing ARC graph invariants.
+If the root anchor is absent, ambiguous, or fails, the load result has no usable
+ARC. Other Dataset bindings are not attached.
 
-A storage processor MUST NOT maintain a conflicting parallel graph identity
-system.
+### 5.3 Exact identifier resources
 
-### 5.4 Best-effort resource handling
+For every identifier rule:
 
-After a valid plan exists, independent resource failures do not cancel the
-entire read.
+The anchor is mandatory and its codec MUST return one Dataset whose identifier
+equals the declared identifier and any path capture. A valid result is attached
+directly to the root. Absence, ambiguity, or mismatch fails the binding without
+allowing a type rule to claim the reserved identifier.
 
-Examples:
+### 5.4 Additional-type resources
 
-- one malformed assay does not prevent sibling assays from loading;
-- an optional missing Datamap is `Absent`;
-- a Datamap failure leaves the base dataset unchanged; and
-- a failed parent skips only resources depending on that parent.
+For every non-reserved discovered binding:
 
-Outcomes MUST distinguish at least:
+The codec MUST return one Dataset whose identifier equals the capture and whose
+present `additionalType` exactly equals the rule value. A valid result is
+attached directly to the root; a mismatch fails without renaming or retargeting
+the Dataset.
 
-```text
-Succeeded
-Absent
-Failed
-SkippedDependency
-SkippedNoTarget
-```
+### 5.5 Attachment and nested Datasets
 
-The processor MUST NOT attach a partially parsed dataset or apply a partially
-parsed overlay.
+Successful project-level children MUST be attached through the established graph
+APIs so that reciprocal relations, process ownership, and canonical references
+remain valid.
+
+The processor MUST preserve deeper Datasets already nested inside a codec result.
+It MUST NOT flatten them merely because project-level selectors address only
+direct root children.
+
+The processor MUST reject a graph attachment that would violate Dataset identity
+or graph invariants.
+
+### 5.6 Independent failures
+
+After the root exists, failure of one child binding MUST NOT prevent independent
+child bindings from being attempted.
+
+A failed binding MUST NOT attach a partially parsed Dataset.
+
+The load result MUST retain all successful and failed anchor outcomes. Exact
+identifier failures are errors even when a usable partial ARC can be returned by
+a result-oriented API.
 
 ## 6. Canonical identity and compatible union
 
-### 6.1 Identity keys
-
-When attaching independently parsed contributions, the processor reconciles
-shared model entities using the ProcessCore identity keys:
+Independently parsed Datasets may reference shared model entities. The processor
+MUST reconcile them using these keys:
 
 | Entity | Canonical key |
 |---|---|
@@ -398,396 +338,232 @@ shared model entities using the ProcessCore identity keys:
 | `Data` | path plus fragment selector |
 | `Recipe` | name plus version |
 
-Processes remain distinct model objects and are not merged merely because their
-values are equal.
+Processes remain distinct model objects.
 
-### 6.2 Scalars
+For matching canonical and incoming entities:
 
-For every scalar field on equal-key entities:
+- an absent canonical scalar receives a present incoming value;
+- a present canonical scalar is retained when the incoming value is absent;
+- equal values are retained without warning;
+- unequal present values retain the canonical value and produce
+  `MERGE_CONFLICT`;
+- collections are stable-unioned by their established identity or equality;
+- compatible map-like dynamic properties are recursively merged; and
+- incompatible dynamic values retain the canonical value and produce
+  `MERGE_CONFLICT`.
 
-| Canonical value | Incoming value | Result |
-|---|---|---|
-| absent | present | copy incoming |
-| present | absent | retain canonical |
-| equal present | equal present | retain without warning |
-| unequal present | unequal present | retain canonical and emit `MERGE_CONFLICT` |
-
-Absence follows the property's model semantics. An empty string is a value unless
-the model property already normalizes it to absence.
-
-### 6.3 Collections
-
-Collections are merged by stable union:
-
-1. retain canonical items in their existing order;
-2. identify entity items by their established key;
-3. recursively merge equal-key entity items;
-4. compare value items by structural equality where defined;
-5. append unseen incoming items in incoming order; and
-6. avoid exact duplicates.
-
-Conflicting equal-key values retain the canonical value and emit a diagnostic.
-
-### 6.4 Dynamic properties
-
-For model `DynamicObj` overflow properties:
-
-- copy an incoming value when the canonical key is absent;
-- recursively merge map-like values;
-- accept structurally equal opaque values;
-- stable-union list values when meaningful equality exists; and
-- otherwise retain the canonical value and emit `MERGE_CONFLICT`.
+Merge conflicts SHOULD be warnings by default. A strict caller MAY treat them as
+errors without changing the deterministic first-value-preserving result.
 
 Project/profile configuration and storage bindings MUST NOT be inserted into
 model dynamic properties.
 
-### 6.5 Conflict policy
-
-Merge conflicts are deterministic diagnostics. They SHOULD be warnings by
-default. A caller MAY request strict execution behavior that treats them as
-errors, but the merge result remains first-value-preserving.
-
-### 6.6 Writeback
-
-Version 1.0 tracks no per-field source provenance. On write, the fully merged
-canonical shared entity MUST be serialized through every owned dataset
-representation that references it.
-
 ## 7. Write processing
 
-### 7.1 Canonical rewrite
+### 7.1 Target selection
 
-Writing is a canonical model-to-resource rewrite, not an in-place syntax patch.
-A writer is not required to preserve:
+A write planner MUST:
 
-- YAML comments or formatting;
-- unknown workbook formatting;
-- worksheet layout not represented by the codec;
-- original field provenance; or
-- source collection ordering when the codec defines canonical order.
+1. bind the root rule to the root Dataset;
+2. resolve each exact identifier against direct children of the root;
+3. report a target error for every missing exact child;
+4. select direct children for each additional-type rule using exact,
+   case-sensitive equality;
+5. exclude every reserved identifier from additional-type bindings;
+6. render each anchor;
+7. reject unsafe anchors, duplicate Dataset bindings, and normalized anchor
+   collisions before codec execution; and
+8. order bindings as specified in section 4.4.
 
-For deterministic codecs, a second write of an unchanged model and plan SHOULD
-produce identical bytes.
+A direct child with no applicable exact or type rule is not independently
+written by project handling.
 
-### 7.2 Required pipeline
+### 7.2 Codec execution
 
-A conforming writer:
+For each valid binding, the processor passes the selected complete canonical
+Dataset and normalized anchor to the rule's codec.
 
-1. compiles or reuses a valid plan;
-2. selects every writable tree, dataset, and overlay target;
-3. validates direction-specific ownership;
-4. renders every output path;
-5. rejects all collisions before codec execution;
-6. extracts and renders contributions independently;
-7. stages each complete output in a sibling temporary file;
-8. replaces each destination only after successful staging;
-9. continues independent writes after resource-level failure;
-10. performs stale-output cleanup only after a completely successful write; and
-11. returns written, omitted, failed, retained, and deleted paths with
-    diagnostics.
+Independent binding failures MUST NOT prevent remaining valid bindings from
+being attempted.
 
-### 7.3 Per-resource replacement
+The result records one outcome per anchor. Opaque companion operations are part
+of that anchor invocation and are not reported as generic bindings.
 
-The writer MUST:
+Writing is a canonical model-to-representation operation. Generic handling does
+not require preservation of YAML comments, workbook styling, physical worksheet
+layout, or other syntax not modeled by the codec.
 
-- create parent directories only under the workspace root;
-- use a uniquely named temporary sibling;
-- avoid truncating the current destination before staging completes;
-- replace the destination using the strongest portable atomic operation
-  available;
-- retain the previous destination if rendering, staging, or replacement fails;
-- remove its own abandoned temporary resource when safely possible; and
-- report when the host cannot guarantee atomic replacement.
+### 7.3 No generic deletion or transaction
 
-Version 1.0 does not require a transaction spanning all outputs.
+Project handling MUST NOT scan for or delete stale anchors or companions, and
+MUST NOT claim transactional replacement across opaque codec resources.
+Changing a profile or rule does not authorize deletion. A codec MAY update its
+own representation-specific companions while writing the selected Dataset.
 
-### 7.4 Best-effort writes
+## 8. Outcomes and diagnostics
 
-A resource-level write failure does not prevent independent outputs from being
-attempted. It does, however, suppress all stale-output deletion for that write
-operation.
+### 8.1 Resource outcomes
 
-The write result MUST distinguish at least:
+Processors MUST distinguish at least:
 
 ```text
-Written
-Omitted
+Succeeded
+Absent
 Failed
-RetainedAfterFailure
-DeletedStale
-StaleDeleteFailed
+SkippedNoRoot
+SkippedTarget
 ```
 
-### 7.5 Empty contribution omission
+`Absent` without an error applies only to an additional-type rule with zero
+matches. Missing root and identifier resources are errors.
 
-When `omitWhenEmpty` is true and the codec returns `Omit`:
-
-- the binding counts as successfully processed;
-- no output is staged;
-- the path is excluded from expected outputs; and
-- an existing currently managed file at that path may become stale.
-
-A base tree or dataset codec SHOULD NOT return `Omit`.
-
-### 7.6 Unowned non-empty facets
-
-Concrete write planning SHOULD emit a warning when a dataset contains a non-empty
-standardized facet with no writable owner. Zero ownership is permitted for
-intentional partial exports. More than one owner in the same direction is an
-error.
-
-## 8. Stale managed outputs
-
-### 8.1 Eligibility
-
-Stale cleanup occurs only if every planned writable binding was either:
-
-- written successfully; or
-- intentionally omitted.
-
-If any render, stage, or replacement fails, the processor MUST NOT delete any
-stale candidate.
-
-### 8.2 Candidate calculation
-
-After complete write success, the writer:
-
-1. discovers existing regular files matched by each currently enabled writable
-   rule's compiled write template;
-2. calculates the normalized expected non-omitted output set;
-3. subtracts expected paths from matched paths;
-4. revalidates every candidate immediately before deletion; and
-5. deletes candidates independently, recording each outcome.
-
-### 8.3 Prohibited deletion
-
-The writer MUST NOT delete:
-
-- a file not matched by a currently enabled writable rule;
-- a scientific payload referenced by `Data`;
-- a directory;
-- a symbolic link or reparse point;
-- `.arc/project.yml`;
-- a local workspace-profile document;
-- a path owned only by a profile or rule no longer in the project;
-- a read-only/import path merely because the canonical write path differs; or
-- any stale candidate after a partial write failure.
-
-Removing or changing a workspace profile therefore does not authorize deletion
-of files managed only by the former plan.
-
-## 9. Diagnostics and results
-
-### 9.1 Diagnostic fields
+### 8.2 Diagnostic fields
 
 A diagnostic MUST contain:
 
-- stable `code`;
-- severity: `Info`, `Warning`, or `Error`;
-- human-readable message; and
-- available context.
+- stable code;
+- `Info`, `Warning`, or `Error` severity;
+- a human-readable message; and
+- available structured context.
 
-Context SHOULD include:
+Context SHOULD include the qualified rule ID, codec ID, anchor, declared target,
+Dataset identifier, and normalized cause.
 
-- qualified rule ID;
-- codec capability ID;
-- workspace-relative path;
-- dataset identifier;
-- facet ID; and
-- normalized cause text.
+Expected failures MUST NOT be represented solely by a platform-specific
+exception.
 
-Expected parse or validation failures MUST NOT be represented solely by a
-platform-specific exception.
+### 8.3 Standard codes
 
-### 9.2 Standard codes
-
-Processors SHOULD use these stable codes:
+Processors SHOULD use:
 
 ```text
 PROJECT_NOT_FOUND
 PROJECT_PARSE
-PROJECT_VERSION_UNSUPPORTED
-PROFILE_NOT_FOUND
-PROFILE_ID_MISMATCH
-PROFILE_VERSION_MISMATCH
-PARAMETER_INVALID
-OVERRIDE_TARGET_UNKNOWN
+PROFILE_LOAD
+PROFILE_INVALID
+PROFILE_DUPLICATE
 RULE_DUPLICATE
 RULE_INVALID
-CODEC_NOT_REGISTERED
-CODEC_DIRECTION_UNSUPPORTED
-CODEC_OPTIONS_INVALID
-PATH_UNSAFE
-PATH_TEMPLATE_NOT_INVERTIBLE
-PATH_COLLISION
-OWNERSHIP_CONFLICT
-DEPENDENCY_CYCLE
-RESOURCE_REQUIRED_MISSING
-RESOURCE_CARDINALITY
-RESOURCE_PARSE
-RESOURCE_RENDER
-RESOURCE_REPLACE
-RESOURCE_SKIPPED_DEPENDENCY
+ROOT_RULE_COUNT
+TARGET_DUPLICATE
 TARGET_NOT_FOUND
-TARGET_AMBIGUOUS
-CAPTURE_MISMATCH
-DATASET_INLINE_CHILDREN
-FACET_UNOWNED
+CODEC_NOT_REGISTERED
+CODEC_NOT_BIDIRECTIONAL
+PATH_UNSAFE
+PATH_TEMPLATE_INVALID
+PATH_COLLISION
+RESOURCE_REQUIRED_MISSING
+RESOURCE_PARSE
+RESOURCE_WRITE
+IDENTIFIER_MISMATCH
+ADDITIONAL_TYPE_MISMATCH
 MERGE_CONFLICT
-STALE_DELETE
 ```
 
-An implementation MAY add more specific codes but SHOULD retain these categories
-for portable callers.
+### 8.4 Results
 
-### 9.3 Load result
+A load result contains the optional ARC graph and workspace session, ordered
+anchor outcomes, and ordered diagnostics. A write result contains the session,
+ordered anchor outcomes, and ordered diagnostics.
 
-A load result contains:
+Result-oriented APIs MAY return a partial ARC after child errors when the root
+was successfully materialized.
 
-- optional ARC graph;
-- optional workspace session;
-- ordered resource outcomes; and
-- ordered diagnostics.
+## 9. Workspace sessions
 
-When no root is materialized, the ARC and session model value are absent.
+A workspace session retains:
 
-### 9.4 Write result
+- workspace root;
+- immutable compiled plan;
+- loaded profile identities;
+- ARC graph;
+- current anchor bindings;
+- outcomes; and
+- diagnostics.
 
-A write result contains:
+A session does not record per-field provenance or generic companion paths.
 
-- written paths;
-- omitted paths;
-- failed paths;
-- prior destinations retained after failure;
-- deleted stale paths;
-- stale deletion failures;
-- ordered resource outcomes; and
-- ordered diagnostics.
+An update in the same workspace SHOULD reuse the attached compiled session. An
+explicitly different destination is governed by that destination's project.
 
 ## 10. ProcessCore ARC facade integration
 
-This section applies to the generic ProcessCore `ARC` I/O facade. Lower-level
-processors MAY expose additional operations, registries, and options provided
-that their project handling conforms to the preceding sections.
-
 ### 10.1 Generic load
 
-`ARC.load` and `ARC.loadAsync` MUST test the exact supplied workspace root for
-`.arc/project.yml` before applying legacy representation detection. They MUST NOT
-search an ancestor workspace.
+`ARC.load` and `ARC.loadAsync` MUST check the exact workspace root for
+`.arc/project.yml` before other representation detection.
 
-If the project file exists, the generic load MUST use it with the standard codec
-and workspace-profile registries. The project file is authoritative: an invalid
-project, invalid compiled plan, missing root, or resource error MUST NOT cause
-fallback to `arc.yml` or a spreadsheet scaffold.
+When present:
 
-If the project file does not exist, generic loading MUST retain the legacy
-behavior of preferring `arc.yml` and otherwise attempting the spreadsheet
-scaffold. A processor MUST NOT create or infer project configuration during
-loading.
+- the project is authoritative;
+- the standard codec registry and declared file/URL references are used;
+- invalid compilation or root failure MUST NOT fall back to another
+  representation; and
+- a successful or partial result retains project diagnostics.
+
+When absent, generic loading retains its non-project behavior.
 
 ### 10.2 Generic write and update
 
-`Write` and `WriteAsync` MUST inspect the destination workspace. If
-`.arc/project.yml` exists, they MUST compile and execute that project. If it does
-not exist, they MUST retain the legacy `arc.yml` behavior. An invalid destination
-project MUST NOT cause fallback to YAML.
+`Write` and `WriteAsync` MUST use a valid project found at the destination. An
+invalid destination project MUST NOT cause another representation to be used.
 
-`Update` and `UpdateAsync` without a different destination MUST reuse an attached
-workspace session when present. They MUST NOT reread the project file merely
-because it changed or was removed after the session was created.
+An update in the attached project workspace SHOULD reuse its workspace session.
+When an explicit destination differs, that destination's project governs the
+write.
 
-When an explicit update destination differs from the attached session's
-workspace, the destination project MUST govern the update. If no destination
-project exists, the processor MUST return an `Error` diagnostic with code
-`PROJECT_NOT_FOUND` before writing any resource. An ARC without a project session
-MUST retain the legacy YAML/scaffold update behavior. Workspace equality MUST use
-normalized, resolved paths.
+Generic project-aware writes MUST NOT create, rewrite, or delete project/profile
+documents and MUST NOT perform stale resource deletion.
 
-Generic I/O MUST NOT implicitly create, rewrite, or delete `.arc/project.yml` or
-local workspace-profile documents.
+### 10.3 Explicit format APIs
 
-### 10.3 Session transitions
+Explicit YAML and spreadsheet load/write APIs MUST bypass project discovery and
+retain their format-specific behavior.
 
-A project-aware load or a write whose destination plan compiles MUST attach its
-workspace session to the ARC. A fatal destination-plan failure MUST leave the
-previous session unchanged. A compiled destination session MUST remain attached
-after partial resource execution so the caller can inspect diagnostics and retry.
+### 10.4 Rich and strict APIs
 
-A successful generic write using legacy YAML MUST clear an attached project
-session and make YAML the active legacy representation.
-
-The explicit `loadYML`, `loadYMLAsync`, `loadXLSX`, `loadXLSXAsync`, `WriteYML`,
-`WriteYMLAsync`, `WriteXLSX`, and `WriteXLSXAsync` operations MUST bypass project
-discovery. Explicit writes MUST clear an attached project session and select the
-requested legacy representation.
-
-### 10.4 Rich results and strict convenience methods
-
-ProcessCore MUST provide result-returning synchronous and asynchronous variants
-equivalent to:
-
-```fsharp
-ARC.loadWithResultAsync
-ARC.loadWithResult
-arc.WriteWithResultAsync
-arc.WriteWithResult
-arc.UpdateWithResultAsync
-arc.UpdateWithResult
-```
-
-For project operations, these methods MUST return the load or write result
-defined in section 9, including partial outcomes and diagnostics. Expected
-project, planning, codec, and resource failures MUST remain in the result.
-
-When no project file exists, a successful legacy operation MUST be adapted to a
-result with no project session or project diagnostics. Legacy failures retain
-their existing exception behavior.
-
-The existing generic methods MUST preserve their current return types and act as
-strict convenience wrappers. `Info` and `Warning` diagnostics MUST NOT make them
-fail. If a result contains an `Error`, the wrapper MUST throw a
-`StorageOperationException` only after independent work has completed. The
-exception MUST carry either `LoadFailure` with the `LoadResult` or `WriteFailure`
-with the `WriteResult`.
-
-The lower-level `Workspace` API MUST remain available for callers requiring
-custom registries or options.
+ProcessCore SHOULD provide result-returning synchronous and asynchronous
+load, write, and update operations. Convenience methods MAY keep their return
+types and act as strict wrappers. A strict wrapper SHOULD throw only after
+independent bindings complete and retain the structured result in the exception.
 
 ## 11. Round-trip properties
 
-### 11.1 Semantic read after write
-
-For a compatible model `M` and a valid readable/writable plan `P`:
+For a compatible model `M`, valid project `P`, and deterministic codecs:
 
 ```text
-read(P, write(P, M)) ≈ M
+read(P, write(P, M)) ≈ selected(P, M)
 ```
 
-`≈` means semantic ARC graph equivalence:
+`≈` means:
 
-- same dataset hierarchy and identifiers;
-- same owned model fields and facets;
-- same process connections;
-- same canonical shared entities after compatible union; and
-- no requirement for source formatting or runtime reference identity.
+- equivalent selected Datasets, modeled fields, and process connections;
+- equivalent codec-supported nested state; and
+- equivalent canonical shared entities after compatible union.
 
-### 11.2 Canonical write stability
+Source formatting, object reference identity, and unmanaged children need not
+be preserved.
 
-For deterministic codecs:
+A failed binding MUST NOT attach a partially parsed Dataset. This specification
+does not promise rollback of writes already performed by an opaque codec.
 
-```text
-write(P, read(P, write(P, M))) = write(P, M)
-```
+## 12. Required scenarios
 
-after the first canonical rewrite.
+Conformance testing SHOULD cover:
 
-### 11.3 Failure safety
-
-A failed resource operation MUST NOT:
-
-- partially apply an overlay;
-- attach a partially parsed dataset;
-- truncate its current output destination;
-- trigger stale cleanup; or
-- cancel independent operations except through an explicit target dependency.
+- local and HTTP(S) profile loading, including load, parse, and type failures;
+- duplicate profile IDs;
+- one mandatory root;
+- mandatory fixed and captured identifier targets;
+- zero and many additional-type resources;
+- exact identifier precedence over a general type rule independent of order;
+- exclusion of reserved identifiers from general discovery;
+- identifier, capture, and `additionalType` mismatches;
+- unsafe paths and anchor collisions;
+- direct-root attachment with deeper nesting preserved;
+- bidirectional use of the same anchor;
+- opaque ISA-XLSX Datamap companions;
+- compatible-union behavior;
+- independent child failures;
+- no stale deletion; and
+- generic project authority plus explicit-format bypass.

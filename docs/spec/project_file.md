@@ -9,14 +9,12 @@ index: 5
 
 ## Status and scope
 
-This document specifies version 1.0 of the ARC workspace project file and its
-workspace-profile language.
+This document specifies the ARC workspace project file and its workspace-profile
+language.
 
-The project file describes how ARC metadata resources on disk map to the unified
-ARC Data Model. It is not a serialization of an `ARC` or `Dataset`. Instead, it
-selects datasets and typed facets, assigns their storage ownership, locates their
-physical resources, and names the registered codecs that read or write those
-resources.
+The project file maps complete ARC `Dataset` values to registered bidirectional
+codecs at workspace-relative anchor paths. It is storage configuration, not an
+ARC model serialization.
 
 The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**,
 **SHOULD**, **SHOULD NOT**, **RECOMMENDED**, **NOT RECOMMENDED**, **MAY**, and
@@ -24,218 +22,139 @@ The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**,
 [BCP 14](https://www.rfc-editor.org/info/bcp14) when, and only when, they appear
 in all capitals.
 
-The non-normative specification plan is in
-[plans/project_file.md](../../plans/project_file.md). Processor and codec
-behavior is specified separately in [Project File
-Handling](project_file_handling.md).
+The non-normative design plan is
+[`plans/project_file.md`](../../plans/project_file.md). Processor and codec
+behavior is specified in [Project File Handling](project_file_handling.md).
 
 ## 1. Model
 
-An ARC workspace is modeled as:
-
 ```text
-physical metadata resources
-        <=>
-registered codecs
-        <=>
-dataset trees, shallow datasets, and typed overlays
-        <=>
-one unified in-memory ARC graph
+project/profile rule
+        =
+Dataset target + exact codec ID + anchor path
 ```
 
-The project file applies to metadata represented by the [ARC Data
-Model](index.md), including [Process Core](process_core/overview.md),
-[Datamap](datamap/overview.md), [Administrative](administrative/overview.md), and
-their [decorations](decorations/overview.md).
+A rule selects one of:
+
+- the root Dataset;
+- one direct child of the root with an exact identifier; or
+- direct children of the root with an exact `additionalType`.
+
+One codec invocation reads or writes each selected Dataset. A selected Dataset
+MAY contain nested Datasets. Project selectors do not select or constrain that
+deeper nesting.
 
 Scientific payloads referenced by [`Data`](process_core/Data.md), such as CSV,
-Parquet, image, mass-spectrometry, or sequencing files, are not metadata
-resources managed by this specification. Such payloads are outside the set of
-resources managed by a project file.
+Parquet, images, or instrument files, are not managed resources under this
+specification.
 
 ### 1.1 Terms
 
 **Workspace root**
-: The local directory containing the `.arc` directory.
+: The local directory containing `.arc`.
 
 **Project file**
-: The root storage configuration at `.arc/project.yml`.
+: The storage configuration at `.arc/project.yml`.
 
 **Workspace profile**
-: A reusable declarative set of storage rules. A workspace profile is distinct
-  from an ARC model profile such as Process Core or Datamap.
+: A reusable declarative collection of storage rules.
 
 **Rule**
-: A declarative mapping between model targets, contribution kind, direction,
-  path template, and codec capability.
+: A mapping among a rule ID, codec ID, Dataset target, and anchor path.
 
-**Codec**
-: A processor capability registered by the embedding application that converts
-  between one physical metadata resource and one typed contribution.
+**Anchor**
+: The project-visible resource path passed to a codec. A codec MAY derive
+  representation-specific companion resources from it.
 
-**Tree contribution**
-: One resource containing a dataset and a recursively embedded dataset subtree.
+**Exact target**
+: An `identifier` target selecting one named direct child of the root.
 
-**Dataset contribution**
-: One resource containing exactly one shallow dataset. Parent-child attachment is
-  defined by the rule and not by an embedded `hasPart` subtree.
+**Type target**
+: An `additionalType` target selecting otherwise-unclaimed matching direct
+  children.
 
-**Overlay contribution**
-: One resource containing a named detachable facet of an existing dataset.
+## 2. Conformance
 
-**Facet**
-: A named unit of storage ownership within a dataset.
-
-
-### 1.2 Standard facets
-
-Version 1.0 defines these facets:
-
-| Facet | Meaning |
-|---|---|
-| `arc.base` | Dataset identity, descriptive and administrative fields, processes, data references, and decoration fields not assigned to another detachable facet |
-| `arc.datamap` | The dataset's `DataContext` state |
-
-A tree or dataset rule always owns `arc.base` for its selected target in each
-declared direction. A codec MAY declare additional facets that its physical
-representation owns. An overlay rule owns exactly the facet named by its
-`facet` field.
-
-Shared `Sample`, `Data`, and `Recipe` objects form the reference closure required
-by a base representation. They are reconciled by canonical identity as specified
-in [Project File
-Handling](project_file_handling.md#6-canonical-identity-and-compatible-union)
-and are not independently assignable facets.
-
-## 2. Document conformance
-
-This specification defines two document conformance classes. Processor and
-codec conformance are defined in
-[Project File Handling](project_file_handling.md#1-conformance).
-
-### 2.1 Project-document conformance
+### 2.1 Project document
 
 A conforming project document:
 
 - is valid YAML;
 - has `type: ArcWorkspaceProject`;
-- has `specVersion: "1.0"`;
-- satisfies the structural requirements in this specification; and
-- is valid against the supplied profile and codec-capability registries,
-  including all rule, path, ownership, and cross-document constraints.
+- satisfies the structural requirements in this document;
+- expands its referenced workspace profiles to exactly one root rule;
+- satisfies all profile, target, codec, path, and collision requirements; and
+- contains no unknown fields.
 
-Structural validity alone does not imply that all referenced resources exist.
+An `ArcWorkspaceProject` has no document version field in this specification.
 
-### 2.2 Workspace-profile conformance
+### 2.2 Workspace-profile document
 
 A conforming workspace profile:
 
 - is valid YAML;
 - has `type: ArcWorkspaceProfile`;
-- has `specVersion: "1.0"`;
-- declares an exact ID and version;
-- satisfies its parameter and rule requirements; and
-- is valid when referenced by a project with a compatible codec-capability
-  registry.
+- declares an exact `id` and `version`;
+- contains at least one conforming rule; and
+- contains no unknown fields.
 
-## 3. Workspace and project location
+Profile `version` identifies the profile release. This specification does not
+define a separate `specVersion`.
 
-### 3.1 Canonical location
+A referenced YAML document MUST conform as a workspace-profile document.
 
-Version 1.0 defines exactly one project file:
+### 2.3 Processor and codec conformance
+
+Processor and codec conformance is defined in
+[Project File Handling](project_file_handling.md#1-conformance).
+
+## 3. Workspace and path domain
+
+The canonical project path is:
 
 ```text
 <workspace-root>/.arc/project.yml
 ```
 
-The workspace root is the parent of `.arc`.
+The parent of `.arc` is the workspace root. Referenced profile documents do not
+create nested workspace roots or additional project entry points.
 
-Nested project files and mounted subprojects are not defined by version 1.0.
+Metadata anchors MUST be inside the workspace root. Local referenced profiles
+MUST be inside `.arc`. Manifest filesystem paths use `/` regardless of the host
+operating system.
 
-### 3.2 Path domain
-
-All metadata resources and local profiles referenced by the project MUST be
-inside the workspace root. All manifest paths use `/` as their separator,
-regardless of the host operating system.
-
-Only local filesystem resources are supported. HTTP, HTTPS, Git, package
-registry, object-store, and other remote sources are not conforming version-1.0
-project sources.
-
-### 3.3 Configuration files
-
-The project file and its local profile documents are configuration rather than
-managed metadata outputs. They are never implicitly rewritten or treated as
-stale outputs. Operational protection requirements are defined in [Project File
-Handling](project_file_handling.md#2-project-resolution-and-path-processing).
+The root project is local. Referenced profiles MAY be local files or HTTP(S)
+resources. Project and profile documents are configuration and MUST NOT be
+implicitly rewritten or deleted by project handling.
 
 ## 4. YAML data model
 
-### 4.1 General rules
+Field names and identifier comparisons are case-sensitive. Duplicate YAML
+mapping keys and unknown fields MUST be rejected.
 
-Project and workspace-profile files MUST use YAML mappings, sequences, strings,
-booleans, integers, and null where allowed by the field definition.
+YAML aliases MAY be resolved by a parser, but validation applies to the expanded
+value. YAML tags MUST NOT cause executable behavior or dynamic type loading.
 
-Field names are case-sensitive.
+Unless a field says otherwise, strings MUST NOT be implicitly coerced from
+numbers, booleans, or null.
 
-Unknown fields MUST be rejected except within:
+Project, profile, rule, and codec IDs MUST:
 
-- `extensions`; and
-- `codecOptions`.
+- begin with an ASCII letter;
+- contain only ASCII letters, digits, `.`, `_`, or `-`; and
+- contain no more than 128 characters.
 
-An `extensions` mapping has no version-1.0 semantics. Extension content is data,
-not executable code.
+Profile versions MUST be quoted strings that begin with an ASCII letter or
+digit, contain only ASCII letters, digits, `.`, `_`, `+`, or `-`, and contain no
+more than 64 characters.
 
-Duplicate YAML mapping keys MUST be rejected.
+The JSON Schema draft 2020-12 representations are:
 
-### 4.2 Identifiers
+- [project schema](../../schemas/yml/arc-workspace-project.schema.yml); and
+- [workspace-profile schema](../../schemas/yml/arc-workspace-profile.schema.yml).
 
-Project-local rule IDs, profile IDs, profile rule IDs, and parameter names are
-ASCII strings.
-
-Profile and rule IDs:
-
-```text
-[A-Za-z][A-Za-z0-9._-]*
-```
-
-They:
-
-- MUST contain at most 128 characters;
-- MUST NOT contain `#`; and
-- MUST be unique in their declared scope.
-
-Parameter names:
-
-```text
-[A-Za-z][A-Za-z0-9_-]*
-```
-
-Dots are reserved in capture names and are not allowed in parameter names.
-
-### 4.3 Versions
-
-`specVersion` is a specification discriminator and MUST be exactly the quoted
-string `"1.0"`.
-
-A workspace-profile `version` is an opaque exact-match token:
-
-```text
-[A-Za-z0-9][A-Za-z0-9._+-]*
-```
-
-It MUST contain at most 64 ASCII characters. Version 1.0 does not define version
-ranges, ordering, compatibility resolution, or network lookup.
-
-### 4.4 Schema artifacts
-
-The repository publishes JSON Schema draft 2020-12 representations for the
-[project document](../../schemas/yml/arc-workspace-project.schema.yml) and
-[workspace profile](../../schemas/yml/arc-workspace-profile.schema.yml).
-
-Those schemas describe structural constraints. The semantic requirements in
-this specification remain authoritative for registry lookup, path inversion,
-ownership, selector, and cross-rule constraints.
+The schemas describe structural constraints. This document remains authoritative
+for cross-document, registry, target, resource, and concrete path constraints.
 
 ## 5. Project document
 
@@ -243,12 +162,11 @@ ownership, selector, and cross-rule constraints.
 
 ```yaml
 type: ArcWorkspaceProject
-specVersion: "1.0"
 
-workspaceProfiles: []
-overrides: []
+workspaceProfiles:
+  - url: "https://example.org/arc/isa-xlsx-scaffold.yml"
+
 rules: []
-extensions: {}
 ```
 
 Fields:
@@ -256,130 +174,43 @@ Fields:
 | Field | Type | Required | Default |
 |---|---|---:|---|
 | `type` | string | yes | none |
-| `specVersion` | string | yes | none |
 | `workspaceProfiles` | sequence of profile references | no | empty |
-| `overrides` | sequence of rule overrides | no | empty |
-| `rules` | sequence of storage rules | no | empty |
-| `extensions` | mapping | no | empty |
+| `rules` | sequence of rules | no | empty |
 
-After profile expansion, overrides, and disabled-rule removal, at least one rule
-MUST remain enabled.
+At least one profile reference or project-local rule MUST be declared.
 
-### 5.2 Profile references
+After profile expansion, the combined rules MUST contain exactly one root rule.
 
-A profile reference has this common form:
+### 5.2 Workspace-profile references
 
 ```yaml
-- id: org.arc.scaffold
-  version: "1.0"
-  builtin: org.arc.scaffold
-  parameters: {}
+workspaceProfiles:
+  - file: profiles/local-layout.yml
+  - url: "https://example.org/arc/remote-layout.yml"
 ```
 
-or:
+Each entry MUST contain exactly one `file` or `url`. `file` is relative to
+`.arc` and MUST remain inside it. `url` MUST be an absolute HTTP(S) URL.
 
-```yaml
-- id: org.example.layout
-  version: "2.1"
-  file: profiles/layout.yml
-  parameters: {}
-```
+The referenced YAML MUST be an `ArcWorkspaceProfile`. Its declared `id` MUST be
+unique in the project. Profiles contribute rules in listed order, followed by
+project-local rules. Order does not resolve target or path conflicts.
 
-Fields:
+### 5.3 Rule qualification
 
-| Field | Type | Required | Meaning |
-|---|---|---:|---|
-| `id` | profile ID | yes | Expected profile ID |
-| `version` | version token | yes | Expected exact profile version |
-| `builtin` | profile ID | conditional | Built-in registry key |
-| `file` | safe relative path | conditional | Local profile path relative to `.arc` |
-| `parameters` | mapping | no | Values supplied to declared profile parameters |
-| `extensions` | mapping | no | Inactive extension data |
-
-Exactly one of `builtin` or `file` MUST be present.
-
-`builtin` is an exact key in the supplied workspace-profile registry. `file` is
-relative to `.arc` and MUST satisfy the path rules in section 10.
-
-The loaded profile's `id` and `version` MUST exactly equal the reference's `id`
-and `version`. The same profile ID MUST NOT be referenced more than once.
-
-Profile references are expanded in sequence order.
-
-### 5.3 Rule overrides
-
-An override identifies an expanded profile rule by qualified ID:
-
-```yaml
-- rule: org.arc.scaffold#study
-  enabled: true
-  read:
-    path: "experiments/{dataset.identifier}/isa.study.xlsx"
-    required: false
-    cardinality: many
-  write:
-    path: "experiments/{dataset.identifier}/isa.study.xlsx"
-    omitWhenEmpty: false
-  codecOptions:
-    strict: true
-```
-
-Allowed fields:
-
-| Field | Type |
-|---|---|
-| `rule` | qualified rule ID |
-| `enabled` | boolean |
-| `read.path` | path template |
-| `read.required` | boolean |
-| `read.cardinality` | `one` or `many` |
-| `write.path` | path template |
-| `write.omitWhenEmpty` | boolean |
-| `codecOptions` | mapping |
-| `extensions` | mapping |
-
-An override MUST NOT change:
-
-- rule identity;
-- contribution kind;
-- facet;
-- codec capability ID;
-- directions;
-- target selector; or
-- attachment selector.
-
-To change those semantics, a project MUST disable the profile rule and add a
-project-local rule.
-
-An override referencing no rule or more than one rule is a compile error.
-Overrides are fieldwise patches: an omitted nested field retains the expanded
-profile value rather than resetting its containing block. Overrides are applied
-in listed order. A later override MAY replace a property set by an earlier
-override for the same rule.
-
-### 5.4 Project-local rules
-
-Project-local rules are defined by the `rules` sequence. Their IDs are unique
-within the project. Their qualified IDs have the form:
+Project-local rule IDs MUST be unique within `rules`. Their qualified IDs are:
 
 ```text
 project#<rule-id>
 ```
 
-Profile rule IDs are qualified as:
+Profile rules are qualified as:
 
 ```text
 <profile-id>#<rule-id>
 ```
 
-Qualified IDs are the stable identifiers reported in plans, bindings, outcomes,
-and diagnostics.
-
-### 5.5 No lockfile
-
-Version 1.0 does not define a persisted lockfile, compiled-plan file, binding
-file, or per-field provenance file. Such state is not a normative project
-artifact.
+Qualified IDs are used in compiled plans, outcomes, and diagnostics.
 
 ## 6. Workspace profiles
 
@@ -387,1005 +218,402 @@ artifact.
 
 ```yaml
 type: ArcWorkspaceProfile
-specVersion: "1.0"
 id: org.example.layout
 version: "1.0"
-description: Example reusable ARC metadata layout
+description: Example layout
 
-parameters: {}
 rules:
   - id: root
-    contribution: tree
-    codec: org.example.metadata.yml.v1
-    target:
-      selector: root
-    directions: [read]
-    read:
-      path: metadata.yml
-extensions: {}
+    codec: example.yml
+    target: root
+    path: metadata.yml
 ```
 
 Fields:
 
-| Field | Type | Required | Default |
-|---|---|---:|---|
-| `type` | string | yes | none |
-| `specVersion` | string | yes | none |
-| `id` | profile ID | yes | none |
-| `version` | version token | yes | none |
-| `description` | string | no | none |
-| `parameters` | mapping of parameter declarations | no | empty |
-| `rules` | sequence of storage rules | yes | none |
-| `extensions` | mapping | no | empty |
+| Field | Type | Required |
+|---|---|---:|
+| `type` | string | yes |
+| `id` | profile ID | yes |
+| `version` | profile version | yes |
+| `description` | string | no |
+| `rules` | non-empty sequence of rules | yes |
 
-A workspace profile MUST contain at least one rule before project overrides are
-applied.
+Rule IDs MUST be unique within the profile.
 
-### 6.2 Parameter declarations
+Profiles do not have parameters, overrides, codec options, enabled flags, or
+extension fields.
 
-Example:
-
-```yaml
-parameters:
-  studiesDirectory:
-    type: path-segment
-    default: studies
-
-  strictWorkbooks:
-    type: boolean
-    default: true
-
-  dialect:
-    type: string
-    required: true
-    allowedValues: [standard, legacy]
-```
-
-Parameter declaration fields:
-
-| Field | Type | Required | Meaning |
-|---|---|---:|---|
-| `type` | `string`, `path-segment`, `boolean`, or `integer` | yes | Value type |
-| `default` | matching scalar | no | Default value |
-| `required` | boolean | no | Defaults to `true` when no default exists |
-| `allowedValues` | sequence of matching scalars | no | Finite accepted values |
-| `description` | string | no | Informational text |
-| `extensions` | mapping | no | Inactive extension data |
-
-A declaration MUST NOT set `required: true` and `default: null`.
-
-Parameter resolution and validation order are defined in
-[Project File Handling](project_file_handling.md#23-parameter-resolution).
-
-Parameters MUST NOT refer to other parameters.
-
-A `path-segment` value MUST be one non-empty safe path segment. It MUST NOT
-contain `/`, `\`, NUL, a URI scheme, or a drive prefix, and MUST NOT equal `.`
-or `..`.
-
-A `string` parameter MAY appear in codec options but MUST NOT be substituted into
-a path template. Only `path-segment` parameters can form path segments.
-
-## 7. Storage rules
+## 7. Rules
 
 ### 7.1 Shape
 
 ```yaml
 - id: study
-  enabled: true
-  contribution: dataset
-  codec: arc.isa.study.xlsx.v1
+  codec: isa.study.xlsx
   target:
-    selector: children
-    parent: root
     additionalType: Study
-  attachTo: root
-  directions: [read, write]
-  read:
-    path: "studies/{dataset.identifier}/isa.study.xlsx"
-    required: false
-    cardinality: many
-  write:
-    path: "studies/{dataset.identifier}/isa.study.xlsx"
-    omitWhenEmpty: false
-  codecOptions: {}
-  extensions: {}
-```
-
-Common fields:
-
-| Field | Type | Required | Default |
-|---|---|---:|---|
-| `id` | rule ID | yes | none |
-| `enabled` | boolean | no | `true` |
-| `contribution` | `tree`, `dataset`, or `overlay` | yes | none |
-| `facet` | facet ID | overlay only | none |
-| `codec` | codec capability ID | yes | none |
-| `target` | target selector | yes | none |
-| `attachTo` | parent reference | conditional | none |
-| `directions` | non-empty unique sequence of `read` and/or `write` | yes | none |
-| `read` | read settings | when readable | none |
-| `write` | write settings | when writable | none |
-| `codecOptions` | mapping | no | empty |
-| `extensions` | mapping | no | empty |
-
-`facet` is REQUIRED for an overlay and MUST NOT be present for tree or dataset
-contributions.
-
-`read` MUST be present if and only if `directions` contains `read`. `write` MUST
-be present if and only if `directions` contains `write`.
-
-### 7.2 Directionality
-
-A rule is:
-
-- bidirectional with `directions: [read, write]`;
-- import-only with `directions: [read]`; or
-- export-only with `directions: [write]`.
-
-Sequence order does not change semantics.
-
-A rule MAY use distinct read and write paths. An import-only owner and an
-export-only owner MAY target the same dataset or facet through different codecs,
-because ownership is direction-specific.
-
-### 7.3 Tree rules
-
-A tree rule maps one resource to a selected dataset and its recursively embedded
-descendants.
-
-A tree rule owns `arc.base` and every additional descriptor-declared facet
-throughout the selected subtree in each declared direction.
-
-In a given direction, a tree owner MUST NOT overlap:
-
-- another tree owner;
-- a dataset owner for its root; or
-- a dataset owner for any descendant in its owned subtree.
-
-An overlay MAY coexist only for a facet not owned by the tree codec in that
-direction.
-
-### 7.4 Dataset rules
-
-A dataset rule maps one resource to exactly one shallow dataset.
-
-A dataset contribution with non-empty inline child datasets is non-conforming.
-Hierarchy is established by `attachTo` or the target's parent reference.
-
-A non-root readable dataset rule MUST identify exactly one parent for each
-matched resource.
-
-### 7.5 Overlay rules
-
-An overlay rule maps one resource to the named `facet` of an existing target
-dataset.
-
-An overlay requires an existing base dataset. Transactional overlay application
-is defined in [Project File
-Handling](project_file_handling.md#36-facet-enforcement).
-
-The version-1 standard overlay facet is:
-
-```yaml
-facet: arc.datamap
-```
-
-Other facets require an explicitly registered codec descriptor and stable facet
-ID.
-
-### 7.6 Read settings
-
-```yaml
-read:
   path: "studies/{dataset.identifier}/isa.study.xlsx"
-  required: false
-  cardinality: many
 ```
 
 Fields:
 
-| Field | Type | Required | Default |
-|---|---|---:|---|
-| `path` | path template | yes | none |
-| `required` | boolean | no | `false` |
-| `cardinality` | `one` or `many` | no | inferred as below |
-| `extensions` | mapping | no | empty |
+| Field | Type | Required |
+|---|---|---:|
+| `id` | rule ID | yes |
+| `codec` | codec ID | yes |
+| `target` | target | yes |
+| `path` | path template | yes |
 
-When omitted, `cardinality` defaults to:
+Every field is required. No other field is allowed.
 
-- `one` when the path has no model capture; and
-- `many` when the path has a model capture.
+Every rule is bidirectional. Its codec and path are used for both reading and
+writing.
 
-For `one`:
+## 8. Targets
 
-- zero matches is an error when `required` is true;
-- zero matches means the resource is absent otherwise; and
-- more than one match is always an error.
+A target is exactly one of the three forms in this section.
 
-For `many`, zero matches is an error only when `required` is true. Every match is
-an independent resource.
-
-### 7.7 Write settings
+### 8.1 Root
 
 ```yaml
-write:
-  path: "studies/{dataset.identifier}/isa.study.xlsx"
-  omitWhenEmpty: false
+target: root
 ```
 
-Fields:
+The root target selects the ARC root Dataset. The expanded project MUST contain
+exactly one root rule.
 
-| Field | Type | Required | Default |
-|---|---|---:|---|
-| `path` | path template | yes | none |
-| `omitWhenEmpty` | boolean | no | `false` |
-| `extensions` | mapping | no | empty |
+On read, the root rule MUST resolve to exactly one anchor and that anchor MUST
+successfully produce one Dataset for a usable ARC result.
 
-The path MUST render exactly one output for every selected target.
+On write, the rule selects the one root Dataset.
 
-`omitWhenEmpty` SHOULD be used only for optional overlays. The codec determines
-whether its typed contribution is empty. A codec returning `Omit` creates no output. Cleanup consequences are defined in
-[Project File Handling](project_file_handling.md#75-empty-contribution-omission).
-
-### 7.8 Codec options
-
-`codecOptions` contains declarative values interpreted by the registered codec
-capability. Unknown or invalid option names and values make the project
-non-conforming.
-
-Codec options:
-
-- MUST NOT define another resource-discovery mechanism;
-- MUST NOT contain executable scripts, expressions, callbacks, or shell
-  commands; and
-- MUST NOT change a rule's contribution kind, target, facet, or ownership.
-
-Semantically incompatible format versions SHOULD use distinct capability IDs
-rather than an unconstrained option value.
-
-## 8. Target and parent selectors
-
-### 8.1 Root selector
+### 8.2 Identifier
 
 ```yaml
 target:
-  selector: root
+  identifier: special-study
 ```
 
-`root` selects the workspace ARC's root dataset.
+An identifier target selects exactly one direct child of the root whose
+identifier is equal to the declared value.
 
-### 8.2 Exact selector
+On read:
+
+- the rule MUST resolve to exactly one anchor;
+- the anchor is required;
+- the parsed Dataset identifier MUST equal the declared value; and
+- the Dataset is attached directly to the root.
+
+On write, absence of the named direct child is a target error.
+
+Two expanded identifier rules MUST NOT declare the same identifier.
+
+### 8.3 Additional type
 
 ```yaml
 target:
-  selector: exact
-  identifier: experiment-1
-```
-
-`exact` selects the dataset with the exact `identifier`. The identifier MUST be
-globally unique in the resulting dataset tree.
-
-### 8.3 Children selector
-
-```yaml
-target:
-  selector: children
-  parent: root
   additionalType: Study
 ```
 
-`children` selects immediate children of the specified parent, optionally
-filtered by exact case-sensitive `additionalType`.
+An additional-type target selects zero or more direct children of the root whose
+`additionalType` is present and exactly equals the declared case-sensitive
+value.
 
-### 8.4 Descendants selector
+Every parsed Dataset MUST have the declared `additionalType`. A mismatch fails
+that resource.
 
-```yaml
+Two expanded additional-type rules MUST NOT declare the same value.
+
+### 8.4 Identifier precedence
+
+All expanded identifier targets are reserved before additional-type selection.
+
+If a direct child has an identifier target and also matches an additional-type
 target:
-  selector: descendants
-  parent:
-    identifier: investigation-1
-  additionalType: Assay
-```
 
-`descendants` selects every descendant of the specified parent, optionally
-filtered by exact case-sensitive `additionalType`.
+- the identifier rule selects it;
+- the additional-type rule MUST exclude it; and
+- no duplicate representation is created.
 
-Selection order is parent-before-child and then by identifier using ordinal
-comparison.
+This precedence is independent of rule and profile order.
 
-### 8.5 Parent references
+During read discovery, an additional-type binding whose captured identifier is
+reserved by an identifier rule MUST be excluded from that type rule. A resource
+at the exact rule's anchor remains required; discovery through the general path
+does not satisfy the exact rule.
 
-A parent reference is one of:
+### 8.5 Dataset depth
 
-```yaml
-parent: root
-```
+These targets select only the root and its direct project-level children. A
+selected Dataset MAY contain deeper nested Datasets. A processor MUST preserve
+such nesting returned by the selected Dataset's codec and MUST NOT flatten it
+because of project target semantics.
 
-```yaml
-parent:
-  identifier: investigation-1
-```
+## 9. Path templates
 
-```yaml
-parent:
-  capture: parent.identifier
-```
+### 9.1 Grammar
 
-The capture form is valid only when the rule's path contains
-`{parent.identifier}`.
+A path template is a `/`-separated sequence of whole segments. A segment is:
 
-`attachTo` uses the same parent-reference form:
+- a non-empty literal; or
+- exactly `{dataset.identifier}`.
 
-```yaml
-attachTo:
-  capture: parent.identifier
-```
+The capture MAY occur at most once.
 
-Runtime parent resolution is defined in
-[Project File Handling](project_file_handling.md#25-selector-and-parent-validation).
-
-### 8.6 Unsupported selectors
-
-Arbitrary predicates, graph-query expressions, JSONPath, regular expressions,
-and executable selector code are not defined by version 1.0.
-
-## 9. Parameters and path templates
-
-Compilation, matching, rendering, and capture validation are defined in [Project
-File Handling](project_file_handling.md#2-project-resolution-and-path-processing).
-
-### 9.1 Template grammar
-
-A path template is a `/`-separated sequence of whole segments. Each segment is
-one of:
-
-- a literal;
-- one profile parameter reference such as `{studiesDirectory}`; or
-- one model capture.
-
-Version 1.0 defines:
-
-```text
-{dataset.identifier}
-{parent.identifier}
-```
-
-After parameter substitution, a capture MUST occupy its entire segment:
+Valid:
 
 ```text
 studies/{dataset.identifier}/isa.study.xlsx
 ```
 
-This is not conforming:
+Invalid:
 
 ```text
 studies/study-{dataset.identifier}.xlsx
 ```
 
-Each capture MAY occur at most once in one template.
+Version 1 does not support `{parent.identifier}`, parameter references, globs,
+regular expressions, environment expansion, command substitution, URI
+templates, or general template languages.
 
-### 9.2 Unsupported syntax
+### 9.2 Target-specific requirements
 
-Version 1.0 does not support:
+- A root path MAY be literal or contain `{dataset.identifier}`.
+- An identifier-target path MAY be literal or contain
+  `{dataset.identifier}`.
+- An additional-type path MUST contain `{dataset.identifier}` exactly once.
 
-- `*`, `**`, `?`, or character-class globs;
-- regular expressions;
-- environment-variable expansion;
-- command or shell substitution;
-- URI-template expansion;
-- Jinja, Liquid, or other general template languages; or
-- partial-segment captures.
+Root and identifier paths resolve to exactly one anchor. Additional-type paths
+may match zero or more anchors.
 
-## 10. Path safety
+For a root or identifier rule with a capture, discovery of more than one anchor
+is an error even if one resource later fails parsing.
 
-Every project, profile, read, and write path MUST:
+### 9.3 Matching and rendering
 
-- be relative to its specified base;
-- reject absolute paths;
-- reject drive-qualified and UNC paths;
-- reject URI schemes;
-- reject NUL;
-- reject empty, `.`, and `..` segments;
-- remain within the resolved workspace root after normalization;
-- reject traversal through a symbolic link or reparse point that resolves
-  outside the workspace.
+On read, literal segments match exactly. The capture matches one safe, non-empty
+path segment and yields the candidate Dataset identifier.
 
-Manifest separators are `/`. Host-specific separator conversion occurs only at
-the filesystem boundary.
+When a capture is present, the parsed Dataset identifier MUST equal the captured
+value. An identifier target additionally requires equality with its declared
+identifier.
 
-Operational confinement, filesystem collision checks, replacement, and deletion
-requirements are defined in [Project File Handling](project_file_handling.md#24-filesystem-safety).
+On write, `{dataset.identifier}` renders the selected Dataset identifier. A
+rendered identifier MUST be a safe path segment.
 
-## 11. Codec capability IDs
+### 9.4 Safety
 
-### 11.1 Explicit capability selection
+Every anchor and local referenced-document path MUST:
 
-Every rule names one codec capability:
+- be relative to its defined base;
+- use `/` separators in the document;
+- reject absolute, drive-qualified, UNC, and URI forms;
+- reject backslashes, NUL, empty, `.`, and `..` segments;
+- remain within its base after normalization; and
+- reject traversal through a symlink or reparse point outside its base.
 
-```yaml
-codec: arc.yaml.dataset.v1
-```
+Collision identity uses normalized resolved paths and the host filesystem's
+effective case comparison.
 
-The capability is selected only by exact registry lookup of this ID. It MUST NOT
-be inferred or replaced based on:
+## 10. Codecs and anchors
 
-- filename extension;
-- media type;
-- file signature;
-- workbook sheets;
-- discovery order; or
-- an unregistered value in `codecOptions`.
+### 10.1 Exact codec lookup
 
-Media type and format information MAY be reported for validation or diagnostics,
-but does not select a codec.
+`codec` is an exact registered capability ID. A processor MUST NOT infer or
+replace it based on extension, media type, content, workbook sheets, discovery
+order, or another rule.
 
-### 11.2 Standard capability IDs
+A missing codec is a project compilation error.
 
-Implementations SHOULD use these IDs for the corresponding built-in
-capabilities:
+Every codec used by a rule MUST support both reading and writing a complete
+Dataset at the same anchor.
+
+### 10.2 Standard ISA-XLSX codec IDs
+
+The standard scaffold uses:
 
 ```text
-arc.yaml.tree.v1
-arc.yaml.dataset.v1
-arc.isa.investigation.xlsx.v1
-arc.isa.study.xlsx.v1
-arc.isa.assay.xlsx.v1
-arc.isa.workflow.xlsx.v1
-arc.isa.run.xlsx.v1
-arc.isa.datamap.xlsx.v1
+isa.investigation.xlsx
+isa.study.xlsx
+isa.assay.xlsx
+isa.workflow.xlsx
+isa.run.xlsx
 ```
 
-`arc.yaml.tree.v1` represents the complete recursively nested YAML form and owns
-all standardized facets it serializes. `arc.yaml.dataset.v1` is shallow and
-base-only.
+### 10.3 Opaque companion resources
 
-Registry construction, descriptor validation, and codec execution contracts are
-defined in [Project File
-Handling](project_file_handling.md#3-codec-registry-and-contracts).
+The anchor is the only path described by a rule. A registered codec MAY derive
+and manage format-specific companion resources.
 
-## 12. Built-in workspace profiles
+For example, an ISA-XLSX codec MAY read or write an adjacent
+`isa.datamap.xlsx` as part of the selected Dataset representation.
 
-Conforming implementations SHOULD provide these exact built-in profile IDs and
-versions:
+Companion resources:
 
-```text
-org.arc.monolithic-yaml  1.0
-org.arc.scaffold         1.0
-```
+- are not separate project targets;
+- are not subject to generic project collision planning;
+- are not separate generic outcomes or diagnostics paths; and
+- are not automatically deleted by project handling.
 
-### 12.1 Monolithic YAML
+Their confinement, consistency, and failure behavior are codec responsibilities
+defined in [Project File Handling](project_file_handling.md#3-codec-contract).
 
-The monolithic profile is equivalent to:
+## 11. Cross-rule validation
+
+After profile expansion, a conforming project MUST reject:
+
+- zero or more than one root rule;
+- duplicate identifier target values;
+- duplicate additional-type target values;
+- duplicate qualified rule IDs;
+- missing or incompatible codecs;
+- invalid target/path combinations;
+- unsafe templates or rendered anchors; and
+- statically identical or concretely colliding anchors.
+
+An identifier target and an additional-type target are not a target conflict.
+Identifier precedence makes their selection domains disjoint.
+
+All anchor collisions MUST be detected before invoking a codec for the affected
+operation. Rule order MUST NOT choose a winner.
+
+## 12. Standard scaffold profile
+
+The standard ISA-XLSX profile document is:
 
 ```yaml
 type: ArcWorkspaceProfile
-specVersion: "1.0"
-id: org.arc.monolithic-yaml
-version: "1.0"
-description: Complete recursive ARC YAML document
-rules:
-  - id: arc-yaml
-    contribution: tree
-    codec: arc.yaml.tree.v1
-    target:
-      selector: root
-    directions: [read, write]
-    read:
-      path: arc.yml
-      required: true
-      cardinality: one
-    write:
-      path: arc.yml
-```
-
-### 12.2 ARC scaffold
-
-The scaffold profile is exactly:
-
-```yaml
-type: ArcWorkspaceProfile
-specVersion: "1.0"
-id: org.arc.scaffold
+id: arc.isa.xlsx.scaffold
 version: "1.0"
 description: Established ISA-XLSX ARC scaffold
 
 rules:
   - id: investigation
-    contribution: dataset
-    codec: arc.isa.investigation.xlsx.v1
-    target:
-      selector: root
-    directions: [read, write]
-    read:
-      path: isa.investigation.xlsx
-      required: true
-      cardinality: one
-    write:
-      path: isa.investigation.xlsx
-
-  - id: investigation-datamap
-    contribution: overlay
-    facet: arc.datamap
-    codec: arc.isa.datamap.xlsx.v1
-    target:
-      selector: root
-    directions: [read, write]
-    read:
-      path: isa.datamap.xlsx
-      required: false
-      cardinality: one
-    write:
-      path: isa.datamap.xlsx
-      omitWhenEmpty: true
+    codec: isa.investigation.xlsx
+    target: root
+    path: isa.investigation.xlsx
 
   - id: study
-    contribution: dataset
-    codec: arc.isa.study.xlsx.v1
+    codec: isa.study.xlsx
     target:
-      selector: children
-      parent: root
       additionalType: Study
-    attachTo: root
-    directions: [read, write]
-    read:
-      path: "studies/{dataset.identifier}/isa.study.xlsx"
-      cardinality: many
-    write:
-      path: "studies/{dataset.identifier}/isa.study.xlsx"
-
-  - id: study-datamap
-    contribution: overlay
-    facet: arc.datamap
-    codec: arc.isa.datamap.xlsx.v1
-    target:
-      selector: children
-      parent: root
-      additionalType: Study
-    directions: [read, write]
-    read:
-      path: "studies/{dataset.identifier}/isa.datamap.xlsx"
-      cardinality: many
-    write:
-      path: "studies/{dataset.identifier}/isa.datamap.xlsx"
-      omitWhenEmpty: true
+    path: "studies/{dataset.identifier}/isa.study.xlsx"
 
   - id: assay
-    contribution: dataset
-    codec: arc.isa.assay.xlsx.v1
+    codec: isa.assay.xlsx
     target:
-      selector: children
-      parent: root
       additionalType: Assay
-    attachTo: root
-    directions: [read, write]
-    read:
-      path: "assays/{dataset.identifier}/isa.assay.xlsx"
-      cardinality: many
-    write:
-      path: "assays/{dataset.identifier}/isa.assay.xlsx"
-
-  - id: assay-datamap
-    contribution: overlay
-    facet: arc.datamap
-    codec: arc.isa.datamap.xlsx.v1
-    target:
-      selector: children
-      parent: root
-      additionalType: Assay
-    directions: [read, write]
-    read:
-      path: "assays/{dataset.identifier}/isa.datamap.xlsx"
-      cardinality: many
-    write:
-      path: "assays/{dataset.identifier}/isa.datamap.xlsx"
-      omitWhenEmpty: true
+    path: "assays/{dataset.identifier}/isa.assay.xlsx"
 
   - id: workflow
-    contribution: dataset
-    codec: arc.isa.workflow.xlsx.v1
+    codec: isa.workflow.xlsx
     target:
-      selector: children
-      parent: root
       additionalType: Workflow
-    attachTo: root
-    directions: [read, write]
-    read:
-      path: "workflows/{dataset.identifier}/isa.workflow.xlsx"
-      cardinality: many
-    write:
-      path: "workflows/{dataset.identifier}/isa.workflow.xlsx"
-
-  - id: workflow-datamap
-    contribution: overlay
-    facet: arc.datamap
-    codec: arc.isa.datamap.xlsx.v1
-    target:
-      selector: children
-      parent: root
-      additionalType: Workflow
-    directions: [read, write]
-    read:
-      path: "workflows/{dataset.identifier}/isa.datamap.xlsx"
-      cardinality: many
-    write:
-      path: "workflows/{dataset.identifier}/isa.datamap.xlsx"
-      omitWhenEmpty: true
+    path: "workflows/{dataset.identifier}/isa.workflow.xlsx"
 
   - id: run
-    contribution: dataset
-    codec: arc.isa.run.xlsx.v1
+    codec: isa.run.xlsx
     target:
-      selector: children
-      parent: root
       additionalType: Run
-    attachTo: root
-    directions: [read, write]
-    read:
-      path: "runs/{dataset.identifier}/isa.run.xlsx"
-      cardinality: many
-    write:
-      path: "runs/{dataset.identifier}/isa.run.xlsx"
-
-  - id: run-datamap
-    contribution: overlay
-    facet: arc.datamap
-    codec: arc.isa.datamap.xlsx.v1
-    target:
-      selector: children
-      parent: root
-      additionalType: Run
-    directions: [read, write]
-    read:
-      path: "runs/{dataset.identifier}/isa.datamap.xlsx"
-      cardinality: many
-    write:
-      path: "runs/{dataset.identifier}/isa.datamap.xlsx"
-      omitWhenEmpty: true
+    path: "runs/{dataset.identifier}/isa.run.xlsx"
 ```
 
-This profile reflects the established scaffold mapping: the investigation is the
-root dataset; Study, Assay, Workflow, and Run datasets are immediate children;
-and each base workbook may have an adjacent optional Datamap overlay.
+The standard profile intentionally contains no Datamap rules. Each ISA-XLSX
+codec is responsible for the Dataset/Datamap physical split.
+
+The profile MAY be referenced by `file` or `url`.
 
 ## 13. Examples
 
-Examples in this section are informative but are intended to be structurally
-conforming.
-
-### 13.1 Monolithic YAML project
+### 13.1 URL-hosted scaffold project
 
 ```yaml
 type: ArcWorkspaceProject
-specVersion: "1.0"
 workspaceProfiles:
-  - id: org.arc.monolithic-yaml
-    version: "1.0"
-    builtin: org.arc.monolithic-yaml
+  - url: "https://example.org/arc/isa-xlsx-scaffold.yml"
 ```
 
-### 13.2 Scaffold project
+The URL is illustrative; this specification does not assign the standard
+profile a canonical URL.
+
+### 13.2 Referenced profile plus local exact target
 
 ```yaml
 type: ArcWorkspaceProject
-specVersion: "1.0"
 workspaceProfiles:
-  - id: org.arc.scaffold
-    version: "1.0"
-    builtin: org.arc.scaffold
-```
-
-### 13.3 Profile with project overrides
-
-```yaml
-type: ArcWorkspaceProject
-specVersion: "1.0"
-workspaceProfiles:
-  - id: org.arc.scaffold
-    version: "1.0"
-    builtin: org.arc.scaffold
-
-overrides:
-  - rule: org.arc.scaffold#investigation
-    read:
-      path: metadata/investigation.xlsx
-    write:
-      path: metadata/investigation.xlsx
-
-  - rule: org.arc.scaffold#study
-    read:
-      path: "metadata/studies/{dataset.identifier}/study.xlsx"
-    write:
-      path: "metadata/studies/{dataset.identifier}/study.xlsx"
-```
-
-### 13.4 Mixed explicit layout
-
-```yaml
-type: ArcWorkspaceProject
-specVersion: "1.0"
+  - file: profiles/base.yml
 
 rules:
-  - id: root
-    contribution: dataset
-    codec: arc.yaml.dataset.v1
+  - id: fixed-study
+    codec: isa.study.xlsx
     target:
-      selector: root
-    directions: [read, write]
-    read:
-      path: metadata/project.yml
-      required: true
-    write:
-      path: metadata/project.yml
-
-  - id: studies
-    contribution: dataset
-    codec: arc.yaml.dataset.v1
-    target:
-      selector: children
-      parent: root
-      additionalType: Study
-    attachTo: root
-    directions: [read, write]
-    read:
-      path: "metadata/studies/{dataset.identifier}/study.yml"
-      cardinality: many
-    write:
-      path: "metadata/studies/{dataset.identifier}/study.yml"
-
-  - id: assays
-    contribution: dataset
-    codec: arc.isa.assay.xlsx.v1
-    target:
-      selector: children
-      parent: root
-      additionalType: Assay
-    attachTo: root
-    directions: [read, write]
-    read:
-      path: "workbooks/{dataset.identifier}/assay.xlsx"
-      cardinality: many
-    write:
-      path: "workbooks/{dataset.identifier}/assay.xlsx"
-
-  - id: assay-datamaps
-    contribution: overlay
-    facet: arc.datamap
-    codec: arc.isa.datamap.xlsx.v1
-    target:
-      selector: children
-      parent: root
-      additionalType: Assay
-    directions: [read, write]
-    read:
-      path: "contexts/{dataset.identifier}/datamap.xlsx"
-      cardinality: many
-    write:
-      path: "contexts/{dataset.identifier}/datamap.xlsx"
-      omitWhenEmpty: true
+      identifier: calibration-study
+    path: special/calibration/isa.study.xlsx
 ```
 
-### 13.5 Direction-specific migration
+If `profiles/base.yml` contributes a general Study rule, `calibration-study` is
+excluded from that rule and handled at the fixed path.
+
+### 13.3 Exact target with identifier capture
 
 ```yaml
-type: ArcWorkspaceProject
-specVersion: "1.0"
-
-rules:
-  - id: root
-    contribution: dataset
-    codec: arc.yaml.dataset.v1
-    target:
-      selector: root
-    directions: [read, write]
-    read:
-      path: metadata/root.yml
-      required: true
-    write:
-      path: metadata/root.yml
-
-  - id: import-legacy-studies
-    contribution: dataset
-    codec: arc.isa.study.xlsx.v1
-    target:
-      selector: children
-      parent: root
-      additionalType: Study
-    attachTo: root
-    directions: [read]
-    read:
-      path: "legacy/{dataset.identifier}/isa.study.xlsx"
-      cardinality: many
-
-  - id: export-canonical-studies
-    contribution: dataset
-    codec: arc.yaml.dataset.v1
-    target:
-      selector: children
-      parent: root
-      additionalType: Study
-    directions: [write]
-    write:
-      path: "metadata/studies/{dataset.identifier}/study.yml"
+- id: fixed-assay
+  codec: isa.assay.xlsx
+  target:
+    identifier: assay-42
+  path: "special/{dataset.identifier}/isa.assay.xlsx"
 ```
 
-The two study rules do not conflict because each direction has one base owner.
-Files under `legacy` are outside the writable rule set.
+The path must resolve exactly once, and its capture and parsed identifier must
+both equal `assay-42`.
 
-### 13.6 Local workspace profile
-
-`.arc/project.yml`:
-
-```yaml
-type: ArcWorkspaceProject
-specVersion: "1.0"
-workspaceProfiles:
-  - id: org.example.lab-layout
-    version: "1.0"
-    file: profiles/lab-layout.yml
-    parameters:
-      studiesDirectory: experiments
-```
-
-`.arc/profiles/lab-layout.yml`:
+### 13.4 Local recursive YAML profile
 
 ```yaml
 type: ArcWorkspaceProfile
-specVersion: "1.0"
-id: org.example.lab-layout
+id: org.example.recursive-yaml
 version: "1.0"
-description: One shallow YAML document per study
-
-parameters:
-  studiesDirectory:
-    type: path-segment
-    default: studies
-
 rules:
-  - id: root
-    contribution: dataset
-    codec: arc.yaml.dataset.v1
-    target:
-      selector: root
-    directions: [read, write]
-    read:
-      path: metadata/root.yml
-      required: true
-      cardinality: one
-    write:
-      path: metadata/root.yml
-
-  - id: studies
-    contribution: dataset
-    codec: arc.yaml.dataset.v1
-    target:
-      selector: children
-      parent: root
-      additionalType: Study
-    attachTo: root
-    directions: [read, write]
-    read:
-      path: "{studiesDirectory}/{dataset.identifier}/study.yml"
-      cardinality: many
-    write:
-      path: "{studiesDirectory}/{dataset.identifier}/study.yml"
+  - id: arc
+    codec: org.example.recursive-yaml
+    target: root
+    path: arc.yml
 ```
 
-## 14. Migration and compatibility
+Whether the codec serializes nested Datasets recursively is outside the
+project-file syntax.
 
-The explicit `ARC` YAML and scaffold APIs remain unchanged and bypass project
-discovery. The generic `ARC.load`, `Write`, and `Update` APIs automatically use
-the project-file language when `.arc/project.yml` is present, as defined by
-[Project File Handling](project_file_handling.md#10-processcore-arc-facade-integration).
+## 14. Invalid examples
 
-For existing workspaces:
-
-- use `org.arc.monolithic-yaml` to describe the current recursive `arc.yml`;
-- use `org.arc.scaffold` to describe the current ISA-XLSX scaffold;
-- use restricted overrides when only paths or safe rule settings change; and
-- use separate read-only and write-only rules for controlled format or layout
-  migration.
-
-Without `.arc/project.yml`, generic ARC I/O retains its legacy behavior and does
-not infer or create project configuration. A present project file is
-authoritative, so an invalid project does not fall back to another
-representation. Generic I/O never implicitly rewrites project or local-profile
-documents. Removing or changing a profile does not authorize deletion of files
-owned only by the former configuration.
-
-## 15. Non-conforming examples
-
-These examples are intentionally invalid.
-
-### 15.1 Unknown field
+### 14.1 Type target without capture
 
 ```yaml
-type: ArcWorkspaceProject
-specVersion: "1.0"
-rulse: []
+- id: study
+  codec: isa.study.xlsx
+  target:
+    additionalType: Study
+  path: studies/isa.study.xlsx
 ```
 
-`rulse` is not a defined field and is outside `extensions`.
+A type target may select multiple Datasets and therefore requires the identifier
+capture.
 
-### 15.2 Unsafe path
+### 14.2 Duplicate exact targets
+
+Two expanded rules with:
 
 ```yaml
-type: ArcWorkspaceProject
-specVersion: "1.0"
-rules:
-  - id: root
-    contribution: tree
-    codec: arc.yaml.tree.v1
-    target:
-      selector: root
-    directions: [read]
-    read:
-      path: ../arc.yml
+target:
+  identifier: study-1
 ```
 
-The path escapes the workspace root.
+are invalid even when their codec or path differs.
 
-### 15.3 Semantic override
+### 14.3 Partial capture
 
 ```yaml
-type: ArcWorkspaceProject
-specVersion: "1.0"
-workspaceProfiles:
-  - id: org.arc.scaffold
-    version: "1.0"
-    builtin: org.arc.scaffold
-overrides:
-  - rule: org.arc.scaffold#study
-    codec: arc.yaml.dataset.v1
+path: "studies/study-{dataset.identifier}.xlsx"
 ```
 
-An override cannot change codec identity. The project must disable the inherited
-rule and add a project-local rule.
-
-### 15.4 Duplicate write ownership
-
-```yaml
-type: ArcWorkspaceProject
-specVersion: "1.0"
-rules:
-  - id: first
-    contribution: tree
-    codec: arc.yaml.tree.v1
-    target:
-      selector: root
-    directions: [write]
-    write:
-      path: first.yml
-
-  - id: second
-    contribution: dataset
-    codec: arc.yaml.dataset.v1
-    target:
-      selector: root
-    directions: [write]
-    write:
-      path: second.yml
-```
-
-Both rules own `arc.base` for the root in the write direction.
-
-## 16. Version-1.0 exclusions
-
-The following are outside this version:
-
-- arbitrary field-by-field model partitioning;
-- arbitrary scientific-payload packaging;
-- remote workspace profiles;
-- dynamic codec loading;
-- general glob or expression languages;
-- nested project manifests;
-- multiple ARC roots;
-- persisted source provenance or lockfiles;
-- exact source-format preservation;
-- multi-file transactional commit;
-- profile-version ranges; and
-- automatic cleanup of files owned only by a former project configuration.
-
-Future versions MUST preserve safe path confinement, explicit codec selection,
-and direction-specific ownership. Deterministic planning and failure behavior are
-defined in [Project File Handling](project_file_handling.md).
+Captures must occupy a complete segment.

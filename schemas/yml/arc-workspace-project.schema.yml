@@ -7,26 +7,29 @@ type: object
 properties:
   type:
     const: ArcWorkspaceProject
-  specVersion:
-    const: "1.0"
   workspaceProfiles:
     type: array
     items:
       $ref: "#/$defs/profileReference"
-  overrides:
-    type: array
-    items:
-      $ref: "#/$defs/ruleOverride"
   rules:
     type: array
     items:
       $ref: "#/$defs/storageRule"
-  extensions:
-    $ref: "#/$defs/extensionMap"
 
 required:
   - type
-  - specVersion
+
+anyOf:
+  - properties:
+      workspaceProfiles:
+        minItems: 1
+    required:
+      - workspaceProfiles
+  - properties:
+      rules:
+        minItems: 1
+    required:
+      - rules
 
 additionalProperties: false
 
@@ -36,290 +39,81 @@ $defs:
     pattern: "^[A-Za-z][A-Za-z0-9._-]*$"
     maxLength: 128
 
-  parameterName:
-    type: string
-    pattern: "^[A-Za-z][A-Za-z0-9_-]*$"
-
   version:
     type: string
     pattern: "^[A-Za-z0-9][A-Za-z0-9._+-]*$"
     maxLength: 64
 
+  datasetIdentifier:
+    type: string
+    minLength: 1
+
   safeRelativePath:
     type: string
     minLength: 1
-    pattern: '^(?!/)(?![A-Za-z][A-Za-z0-9+.-]*:)(?!.*//)(?!.*\\\\)(?!.*(?:^|/)\.{1,2}(?:/|$))(?!.*\u0000).+$'
+    pattern: '^(?!/)(?![A-Za-z][A-Za-z0-9+.-]*:)(?!.*//)(?!.*\\)(?!.*(?:^|/)\.{1,2}(?:/|$))(?!.*\u0000).+$'
 
   pathTemplate:
-    $ref: "#/$defs/safeRelativePath"
-
-  extensionMap:
-    type: object
-    additionalProperties: true
-
-  codecOptions:
-    type: object
-    additionalProperties: true
+    allOf:
+      - $ref: "#/$defs/safeRelativePath"
+      - pattern: '^(?:[^/{}]+|\{dataset\.identifier\})(?:/(?:[^/{}]+|\{dataset\.identifier\}))*$'
 
   profileReference:
     type: object
     properties:
-      id:
-        $ref: "#/$defs/identifier"
-      version:
-        $ref: "#/$defs/version"
-      builtin:
-        $ref: "#/$defs/identifier"
       file:
         $ref: "#/$defs/safeRelativePath"
-      parameters:
-        type: object
-        propertyNames:
-          $ref: "#/$defs/parameterName"
-        additionalProperties:
-          type:
-            - string
-            - boolean
-            - integer
-            - "null"
-      extensions:
-        $ref: "#/$defs/extensionMap"
-    required:
-      - id
-      - version
+      url:
+        type: string
+        minLength: 1
+        format: uri
+        pattern: "^https?://[^#]+$"
     oneOf:
-      - required:
-          - builtin
-        not:
-          required:
-            - file
       - required:
           - file
         not:
           required:
-            - builtin
+            - url
+      - required:
+          - url
+        not:
+          required:
+            - file
     additionalProperties: false
 
-  readOverride:
-    type: object
-    properties:
-      path:
-        $ref: "#/$defs/pathTemplate"
-      required:
-        type: boolean
-      cardinality:
-        enum:
-          - one
-          - many
-      extensions:
-        $ref: "#/$defs/extensionMap"
-    additionalProperties: false
-
-  writeOverride:
-    type: object
-    properties:
-      path:
-        $ref: "#/$defs/pathTemplate"
-      omitWhenEmpty:
-        type: boolean
-      extensions:
-        $ref: "#/$defs/extensionMap"
-    additionalProperties: false
-
-  ruleOverride:
-    type: object
-    properties:
-      rule:
-        type: string
-        pattern: "^[A-Za-z][A-Za-z0-9._-]*#[A-Za-z][A-Za-z0-9._-]*$"
-      enabled:
-        type: boolean
-      read:
-        $ref: "#/$defs/readOverride"
-      write:
-        $ref: "#/$defs/writeOverride"
-      codecOptions:
-        $ref: "#/$defs/codecOptions"
-      extensions:
-        $ref: "#/$defs/extensionMap"
-    required:
-      - rule
-    additionalProperties: false
-
-  parentReference:
+  target:
     oneOf:
       - const: root
       - type: object
         properties:
           identifier:
-            type: string
-            minLength: 1
+            $ref: "#/$defs/datasetIdentifier"
         required:
           - identifier
         additionalProperties: false
       - type: object
         properties:
-          capture:
-            const: parent.identifier
-        required:
-          - capture
-        additionalProperties: false
-
-  target:
-    oneOf:
-      - type: object
-        properties:
-          selector:
-            const: root
-        required:
-          - selector
-        additionalProperties: false
-      - type: object
-        properties:
-          selector:
-            const: exact
-          identifier:
-            type: string
-            minLength: 1
-        required:
-          - selector
-          - identifier
-        additionalProperties: false
-      - type: object
-        properties:
-          selector:
-            enum:
-              - children
-              - descendants
-          parent:
-            $ref: "#/$defs/parentReference"
           additionalType:
             type: string
             minLength: 1
         required:
-          - selector
-          - parent
+          - additionalType
         additionalProperties: false
-
-  readSettings:
-    type: object
-    properties:
-      path:
-        $ref: "#/$defs/pathTemplate"
-      required:
-        type: boolean
-        default: false
-      cardinality:
-        enum:
-          - one
-          - many
-      extensions:
-        $ref: "#/$defs/extensionMap"
-    required:
-      - path
-    additionalProperties: false
-
-  writeSettings:
-    type: object
-    properties:
-      path:
-        $ref: "#/$defs/pathTemplate"
-      omitWhenEmpty:
-        type: boolean
-        default: false
-      extensions:
-        $ref: "#/$defs/extensionMap"
-    required:
-      - path
-    additionalProperties: false
 
   storageRule:
     type: object
     properties:
       id:
         $ref: "#/$defs/identifier"
-      enabled:
-        type: boolean
-        default: true
-      contribution:
-        enum:
-          - tree
-          - dataset
-          - overlay
-      facet:
-        $ref: "#/$defs/identifier"
       codec:
         $ref: "#/$defs/identifier"
       target:
         $ref: "#/$defs/target"
-      attachTo:
-        $ref: "#/$defs/parentReference"
-      directions:
-        type: array
-        minItems: 1
-        maxItems: 2
-        uniqueItems: true
-        items:
-          enum:
-            - read
-            - write
-      read:
-        $ref: "#/$defs/readSettings"
-      write:
-        $ref: "#/$defs/writeSettings"
-      codecOptions:
-        $ref: "#/$defs/codecOptions"
-      extensions:
-        $ref: "#/$defs/extensionMap"
+      path:
+        $ref: "#/$defs/pathTemplate"
     required:
       - id
-      - contribution
       - codec
       - target
-      - directions
-    allOf:
-      -
-        if:
-          properties:
-            contribution:
-              const: overlay
-          required:
-            - contribution
-        then:
-          required:
-            - facet
-        else:
-          not:
-            required:
-              - facet
-      -
-        if:
-          properties:
-            directions:
-              contains:
-                const: read
-          required:
-            - directions
-        then:
-          required:
-            - read
-        else:
-          not:
-            required:
-              - read
-      -
-        if:
-          properties:
-            directions:
-              contains:
-                const: write
-          required:
-            - directions
-        then:
-          required:
-            - write
-        else:
-          not:
-            required:
-              - write
+      - path
     additionalProperties: false
