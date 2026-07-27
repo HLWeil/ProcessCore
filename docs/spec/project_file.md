@@ -205,7 +205,8 @@ Profile rules are qualified as:
 <profile-id>#<rule-id>
 ```
 
-Qualified IDs are used in compiled plans, outcomes, and diagnostics.
+Qualified IDs provide stable rule identities during project resolution and
+execution.
 
 ## 6. Workspace profiles
 
@@ -419,7 +420,7 @@ effective case comparison.
 replace it based on extension, media type, content, workbook sheets, discovery
 order, or another rule.
 
-A missing codec is a project compilation error.
+A missing codec is a project resolution error.
 
 Every codec used by a rule MUST support both reading and writing a complete
 Dataset at the same anchor.

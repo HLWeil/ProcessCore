@@ -11,50 +11,47 @@ implementation. The normative project-file language remains in
 
 ## 1. Summary
 
-Project handling compiles the rules from `.arc/project.yml`, selects the root and
-direct-child Datasets, resolves safe anchor paths, and invokes one registered
-bidirectional codec per selected Dataset.
+Project handling adds one configuration-driven path through the existing ARC
+load and write APIs:
 
 ```text
-root project + file/URL profiles + codec registry
+.arc/project.yml + referenced profiles + codec registry
                          |
                          v
-                CompiledStoragePlan
+              load, validate, resolve
                          |
-                  +------+------+
-                  |             |
-               read plan      write plan
-                  |             |
-           anchor -> Dataset  Dataset -> anchor
-                  |             |
-                  +------v------+
-                     ARC graph
+              +----------+----------+
+              |                     |
+         resolve anchors       select Datasets
+              |                     |
+         codec -> Dataset      Dataset -> codec
+              |                     |
+              +----------+----------+
+                         |
+                      ARC graph
 ```
 
-The Dataset is the only project-visible storage unit. A codec decides whether
-its Dataset representation is recursive, shallow, one file, or an anchor plus
-opaque companion files.
+Each rule maps one complete Dataset to one safe workspace-relative anchor
+through one exact bidirectional codec ID. Project-level targets address only the
+root and its direct children; codecs may preserve deeper Dataset nesting.
 
-## 2. Current implementation context
+The first implementation is deliberately small:
 
-The relevant implementation is under `src/ProcessCore`:
+- resolved forms are internal implementation details;
+- operations return the existing `ARC` or `unit` shapes;
+- failures use one structured project error and fail the operation;
+- project updates re-read and resolve the project instead of retaining a
+  workspace session; and
+- graph attachment reuses existing canonicalization without adding a separate
+  merge policy.
 
-- `ARC.fs` provides current explicit YAML/scaffold I/O and generic load/write
-  behavior;
-- `ScaffoldReader.fs` already derives `isa.datamap.xlsx` from an ISA anchor and
-  enriches or writes the same Dataset;
-- `YML/Dataset.fs` can preserve recursively nested Datasets; and
-- `Graph.fs` attaches Datasets and canonicalizes shared graph entities.
+It does not introduce partial ARC results, per-resource outcome objects, a
+diagnostic framework, strict/rich API variants, or generic transaction and
+stale-file management.
 
-The new storage layer should reuse these behaviors through adapters. Existing
-explicit YAML and XLSX APIs remain independent of project discovery.
+## 2. Implementation surface
 
-The implementation must remain portable across .NET and supported Fable
-targets. It must not add production dependencies without approval.
-
-## 3. Compiled model
-
-The public model should provide equivalents of:
+The implementation should add equivalents of:
 
 ```fsharp
 type WorkspaceProject
@@ -67,90 +64,45 @@ type StorageTarget =
     | Identifier of string
     | AdditionalType of string
 type StorageRule
-type CompiledStorageRule
-type CompiledStoragePlan
-type CodecRegistry
-type WorkspaceSession
-type ResourceBinding
-type ResourceOutcome
-type StorageDiagnostic
-type LoadResult
-type WriteResult
+type DatasetCodec
+type ProjectError
+exception ProjectException of ProjectError
 ```
 
-A compiled rule contains:
+`WorkspaceProject`, `WorkspaceProfile`, and `StorageRule` are the strict decoded
+document model. A small internal resolved-project representation holds resolved
+rules containing the qualified rule ID, codec, target, and prepared path
+template. No public planner, binding, execution-plan, session, or result types
+are needed.
 
-- qualified rule ID;
-- exact codec ID and resolved codec;
-- one target;
-- compiled anchor matcher/renderer; and
-- deterministic source order for reporting.
+`ProjectError` should distinguish configuration, profile loading, codec lookup,
+path, target, and resource failures and carry a human-readable message plus
+available rule, codec, anchor, and cause context. The implementation does not
+need a stable catalog of individual diagnostic codes in its first version.
+Internal project operations return `Result`; existing exception-based ARC
+methods raise `ProjectException` containing the structured error.
 
-The compiled plan contains:
+### 2.1 Codec contract
 
-- exactly one root rule;
-- a map of exact identifier rules;
-- a map of additional-type rules;
-- the reserved identifier set;
-- compiled anchor-path collision data.
+The embedding application constructs an exact-ID registry of bidirectional
+Dataset codecs. Duplicate IDs are rejected. Project data cannot dynamically
+load packages, assemblies, modules, scripts, callbacks, or commands.
 
-There are no read/write variants of a compiled rule.
-
-## 4. Codec registry and contract
-
-### 4.1 Registry
-
-The embedding application constructs the registry explicitly. Capability IDs
-are unique exact keys. Project configuration cannot dynamically load assemblies,
-packages, scripts, or modules.
-
-Every codec used by a project must be bidirectional and operate on one complete
-Dataset per invocation.
-
-Logical operations should be equivalent to:
+The logical codec contract is:
 
 ```fsharp
 readDatasetAsync:
-    CodecContext -> anchorPath:string -> CrossAsync<Result<Dataset, CodecError>>
+    CodecContext -> anchorPath:string -> CrossAsync<Result<Dataset, ProjectError>>
 
 writeDatasetAsync:
-    CodecContext -> anchorPath:string -> Dataset -> CrossAsync<Result<unit, CodecError>>
+    CodecContext -> anchorPath:string -> Dataset -> CrossAsync<Result<unit, ProjectError>>
 ```
 
-The context supplies a confined workspace boundary and diagnostic facilities.
-The precise F# surface can follow existing repository conventions.
+`CodecContext` supplies the workspace root needed to confine anchor and
+companion access. Expected failures use `ProjectError`; unexpected exceptions
+are caught at the codec boundary and converted to resource failures.
 
-Expected codec failures must use the structured result channel. The workspace
-processor catches unexpected exceptions at the codec boundary and converts them
-to structured anchor failures rather than exposing platform-specific exceptions
-as the only diagnostic.
-
-### 4.2 Anchor and companions
-
-The rule path is the project-visible anchor. Generic planning and outcomes know
-only that anchor.
-
-A registered codec may privately derive companion paths. ISA-XLSX adapters can
-reuse the current behavior that maps an ISA anchor to adjacent
-`isa.datamap.xlsx`.
-
-Because companions are opaque:
-
-- the generic planner does not enumerate them;
-- generic collision detection covers anchors only;
-- result paths and standard resource diagnostics report anchors only;
-- the workspace layer does not stage or replace a multi-file codec bundle;
-- project handling does not delete stale anchors or companions; and
-- the codec is responsible for confining companion access to the workspace and
-  for avoiding destructive partial behavior where practical.
-
-This is an intentional trust boundary for registered codecs. It must be stated
-clearly rather than implying generic guarantees that the processor cannot
-enforce.
-
-### 4.3 Standard codecs
-
-The default registry should provide:
+The standard registry provides:
 
 ```text
 isa.investigation.xlsx
@@ -160,385 +112,182 @@ isa.workflow.xlsx
 isa.run.xlsx
 ```
 
-Each spreadsheet adapter reads and writes the Dataset, including its Datamap
-state according to the ISA-XLSX representation.
+These IDs can share one adapter mechanism over the existing `ScaffoldReader`
+functions. The ISA-XLSX adapter remains responsible for adjacent Datamap
+companions. Generic project handling plans, checks, and reports only the rule
+anchor and never deletes stale anchors or companions.
 
-Recursive YAML can be registered under an implementation-chosen stable ID and
-used by local rules. No recursive-YAML profile or codec ID is standardized by
-the project-file specification.
+No recursive-YAML codec ID is standardized. A local application may register a
+bidirectional Dataset YAML adapter under its own stable ID.
 
-## 5. Compilation
+## 3. Project resolution and operation preparation
 
-Compilation:
+Given a workspace root, project discovery checks exactly
+`.arc/project.yml` and does not search ancestors.
 
-1. strictly validates the project and every referenced profile;
-2. loads `file` profiles from `.arc` and `url` profiles over HTTP(S);
-3. expands profile rules in reference order, followed by project-local rules;
-4. qualifies rule IDs and rejects duplicate identities;
-5. resolves every codec and verifies that it is bidirectional;
-6. validates targets, paths, and the single-root requirement;
-7. reserves exact identifiers and rejects duplicate targets or static anchor
-   conflicts; and
-8. emits an immutable compiled plan.
+Resolution:
 
-Compilation errors are fatal and prevent codec execution.
+1. strictly decodes the project;
+2. loads `file` profiles relative to `.arc` and `url` profiles over HTTP(S);
+3. strictly decodes every profile;
+4. expands profile rules in reference order, followed by local rules;
+5. qualifies rule IDs;
+6. resolves every exact codec ID;
+7. resolves targets and prepares path templates;
+8. requires exactly one root rule;
+9. rejects duplicate profile IDs, qualified rule IDs, identifier targets, and
+   additional-type targets;
+10. rejects statically identical anchors; and
+11. records the exact-identifier reservation set.
 
-Identifier/additional-type overlap is not a conflict. The compiled reserved set
-makes their concrete selection domains disjoint.
+Any project resolution error prevents codec invocation.
 
-### 5.1 Profile loading
+### 3.1 Paths
 
-A `file` is relative to `.arc` and must remain inside it. A `url` is an absolute
-HTTP(S) URL. The loaded YAML must be an `ArcWorkspaceProfile`; resolution,
-fetch, parse, and document-type failures stop compilation.
+The path-template resolver supports literal `/`-separated segments and at most
+one whole `{dataset.identifier}` segment. It rejects unsupported captures,
+partial captures, backslashes, empty or traversal segments, absolute or
+URI-like forms, and paths escaping the configured base.
 
-### 5.2 Deterministic ordering
+Resolved paths must remain confined after normalization and symlink or reparse
+point resolution. Collision comparison uses the host filesystem's effective
+case behavior.
 
-Planning, execution, outcomes, and diagnostics use one platform-independent
-ordinal order:
-
-1. root binding;
-2. exact-identifier bindings by identifier;
-3. additional-type bindings by type;
-4. normalized anchor; and
-5. qualified rule ID as the final tie-breaker.
-
-Profile and rule declaration order affects expansion and qualification only. It
-does not change target precedence or execution order.
-
-## 6. Path processing
-
-The path compiler supports:
-
-- literal `/`-separated segments; and
-- `{dataset.identifier}` as one complete segment, at most once.
-
-It rejects other brace syntax, partial captures, globs, unsafe segments, absolute
-forms, backslashes, traversal, and resolution outside the workspace.
-
-Target rules compile as follows:
+Target-specific behavior is:
 
 - a literal root anchor is checked directly;
 - a captured root anchor is discovered and must match exactly once;
 - a literal identifier anchor is checked directly;
-- a captured identifier anchor is rendered using the declared identifier and
-  checked directly;
-- an additional-type template is a discovery matcher and must include the
-  capture.
+- a captured identifier anchor is rendered from its declared identifier; and
+- an additional-type path discovers zero or more anchors and therefore must
+  contain the identifier capture.
 
-Every discovered capture is decoded as a safe path segment. Parsed identifiers
-must equal their declared or captured values.
+### 3.2 Operation preparation
 
-Write planning renders anchors from selected Dataset identifiers and rejects all
-normalized anchor collisions before invoking a codec.
+Before the first codec invocation, a read operation resolves all root,
+identifier, and additional-type anchors, excludes type anchors reserved by exact
+identifier rules, and rejects every concrete collision.
 
-## 7. Read planning and execution
+Before the first codec invocation, a write operation selects all target
+Datasets, renders every anchor, verifies mandatory exact targets, and rejects
+unsafe paths, duplicate Dataset bindings, and concrete collisions.
 
-### 7.1 Plan
+Bindings use a stable platform-independent order: root, exact identifiers,
+additional types, normalized anchor, then qualified rule ID. Identifier
+reservation, not declaration order, determines precedence.
 
-Read planning:
+## 4. Read and write execution
 
-1. resolves the mandatory root anchor;
-2. resolves every mandatory exact-identifier anchor;
-3. discovers zero or more additional-type anchors;
-4. excludes type bindings whose captured identifier is reserved by an exact
-   rule;
-5. rejects duplicate captured identifiers and normalized anchor collisions; and
-6. orders root, exact identifiers, then type bindings deterministically.
+### 4.1 Read
 
-A general path containing a reserved identifier does not satisfy the mandatory
-exact rule.
+After successful preflight:
 
-### 7.2 Execute
+1. read the mandatory root Dataset;
+2. verify its captured identifier when applicable;
+3. construct the `ARC` root without discarding nested state;
+4. read each mandatory exact-identifier Dataset and verify its declared and
+   captured identifier;
+5. read each discovered additional-type Dataset and verify its captured
+   identifier and exact case-sensitive `additionalType`; and
+6. attach each direct child with the established `Dataset.AddPart` graph API.
 
-Execution:
+Additional-type rules may have no matching anchors. Root and exact-identifier
+resources are mandatory.
 
-1. invokes the root codec;
-2. verifies its capture, when present;
-3. promotes or copies the returned Dataset into an `ARC`;
-4. invokes exact-identifier codecs and verifies declared/captured identities;
-5. invokes type codecs and verifies captured identity and exact
-   `additionalType`;
-6. attaches each successful project-level child directly to the root through
-   established graph APIs;
-7. preserves any nested Datasets already contained in the returned child;
-8. canonicalizes and compatibly merges shared Samples, Data, and Recipes; and
-9. records ordered outcomes and diagnostics.
+Any codec, identity, type, or attachment failure fails the load and no partial
+ARC is returned. A failed Dataset is never attached. Deeper Datasets returned by
+a codec remain nested inside their selected Dataset.
 
-Root absence or failure yields no usable ARC. Exact-identifier absence or failure
-is an error but need not cancel independent sibling resource attempts after the
-root exists.
+`Dataset.AddPart` already establishes parentage and canonicalizes graph nodes and
+recipes against the root. Project handling must use that behavior as-is. It does
+not merge scalar fields, recursively merge dynamic properties, select a
+first-value winner, or introduce project-specific merge conflicts.
 
-Type rules may discover no resources without error.
+### 4.2 Write
 
-The processor never flattens deeper nesting and never uses a type-rule resource
-as a substitute for a missing exact target.
+Write selection binds:
 
-A failed binding never attaches a partially parsed Dataset. Attachment failures
-that would violate Dataset identity or graph invariants are reported for that
-binding without preventing independent sibling bindings from being attempted.
+- the root rule to the root Dataset;
+- each identifier rule to its mandatory direct child; and
+- each additional-type rule to matching direct children not reserved by an
+  identifier rule.
 
-## 8. Write planning and execution
-
-### 8.1 Select targets
-
-Write planning:
-
-1. binds the root rule to the root Dataset;
-2. resolves every exact identifier against direct root children;
-3. reports each missing exact identifier as a target error;
-4. selects direct children for additional-type rules by exact case-sensitive
-   value;
-5. excludes all reserved identifiers from type selection;
-6. renders every anchor;
-7. rejects unsafe anchors, duplicate bindings, and normalized collisions; and
-8. orders root, exact, then type bindings deterministically.
-
-Unmatched direct children have no independent project binding. They may still be
-part of another selected Dataset's codec representation.
-
-### 8.2 Execute
-
-For every valid binding, the writer passes the selected complete Dataset and
-anchor to its codec. Independent binding failures do not prevent remaining
-bindings from being attempted.
-
-Writing is a canonical model-to-representation operation. Format fidelity such
-as YAML comments or unknown workbook styling is outside the generic contract.
-
-Project handling:
-
-- does not provide a cross-file transaction;
-- does not promise atomic replacement for opaque codec resources;
-- does not infer or prune stale anchors;
-- does not ask codecs to remove representations for Datasets no longer selected;
-  and
-- reports success or failure at the anchor binding.
-
-## 9. Canonical identity and merge
-
-Independently parsed Dataset representations may reference the same model
-entities. Retain compatible-union behavior using established identity keys:
-
-| Entity | Key |
-|---|---|
-| `Sample` | name |
-| `Data` | path plus fragment selector |
-| `Recipe` | name plus version |
-
-For matching entities:
-
-- fill absent scalar values from present incoming values;
-- retain equal values;
-- retain the first unequal value and report a merge conflict;
-- stable-union collections;
-- recursively merge compatible dynamic maps; and
-- preserve graph back-edges and canonical references through existing attachment
-  APIs.
-
-Processes remain distinct objects. Storage configuration is not inserted into
-model dynamic properties.
-
-Merge conflicts are warnings by default. A strict caller may promote them to
-errors without changing the deterministic first-value-preserving merge result.
-
-## 10. Results and diagnostics
-
-Resource outcomes should be limited to:
-
-```text
-Succeeded
-Absent
-Failed
-SkippedNoRoot
-SkippedTarget
-```
-
-`Absent` is normal only for a type rule with no matches. Missing root and exact
-resources produce errors.
-
-A diagnostic should contain:
-
-- stable code;
-- severity;
-- message;
-- qualified rule ID when applicable;
-- codec ID when applicable;
-- anchor path when applicable;
-- target or Dataset identifier when applicable; and
-- normalized cause text.
-
-Core diagnostic categories:
-
-```text
-PROJECT_NOT_FOUND
-PROJECT_PARSE
-PROFILE_LOAD
-PROFILE_INVALID
-PROFILE_DUPLICATE
-RULE_DUPLICATE
-RULE_INVALID
-ROOT_RULE_COUNT
-TARGET_DUPLICATE
-TARGET_NOT_FOUND
-CODEC_NOT_REGISTERED
-CODEC_NOT_BIDIRECTIONAL
-PATH_UNSAFE
-PATH_TEMPLATE_INVALID
-PATH_COLLISION
-RESOURCE_REQUIRED_MISSING
-RESOURCE_PARSE
-RESOURCE_WRITE
-IDENTIFIER_MISMATCH
-ADDITIONAL_TYPE_MISMATCH
-MERGE_CONFLICT
-```
-
-A load result contains the optional ARC graph, its workspace session, ordered
-anchor outcomes, and ordered diagnostics. Once the root is available, a
-result-oriented API may return that partial ARC after child errors. A write
-result contains the workspace session plus ordered outcomes and diagnostics.
-
-A workspace session retains the workspace root, immutable compiled plan, loaded
-profile identities, ARC graph, current anchor bindings, outcomes, and
-diagnostics. It does not retain per-field provenance or generic companion paths.
-
-## 11. Public API integration
-
-Generic ARC loading and writing should accept either a workspace root or the
-exact `.arc/project.yml` path. Given a workspace root, discovery checks exactly
-`<workspace-root>/.arc/project.yml` and never searches ancestors.
-
-When present:
-
-- the project is authoritative;
-- compilation or root failure does not fall back to another representation;
-- result-returning APIs expose the compiled session, anchor outcomes, and
-  diagnostics; and
-- strict convenience APIs preserve their current return types and throw a
-  structured storage exception after independent work completes.
-
-When absent, existing non-project I/O behavior remains.
-
-Explicit YAML and XLSX methods bypass project discovery and retain their existing
-behavior.
-
-Synchronous and asynchronous generic write/update operations use a valid project
-at the destination. An invalid destination project never triggers fallback to
-another representation. An update in the attached workspace should reuse its
-compiled session; an explicitly different destination is governed by that
-destination's project.
-
-Project handling never implicitly creates, rewrites, or deletes the project file
-or referenced profile documents.
-
-Recommended operations remain equivalent to:
-
-```fsharp
-WorkspaceProject.parse
-WorkspaceProfile.parse
-StorageCompiler.compile
-StoragePlanner.planRead
-StoragePlanner.planWrite
-Workspace.loadAsync
-Workspace.writeAsync
-WorkspaceSession.updateAsync
-```
-
-Strict convenience APIs throw only after independent bindings have completed and
-retain the structured result in the exception.
-
-## 12. Round-trip expectation
-
-For a compatible model `M`, valid project `P`, and deterministic codecs:
-
-```text
-read(P, write(P, M)) ≈ selected(P, M)
-```
-
-Equivalence covers selected Datasets, modeled fields, process connections,
-codec-supported nested state, and canonical shared entities after compatible
-union. It does not require preservation of source formatting, object reference
-identity, or independently unmanaged children. Failed reads never attach a
-partial Dataset, and failed writes do not imply rollback of earlier opaque codec
-operations.
-
-## 13. Implementation sequence
-
-### Phase 1: syntax and paths
-
-- simplified F# document types;
-- strict YAML decoding;
-- matching JSON Schemas;
-- target and anchor-template parsing;
-- confined file and HTTP(S) profile loading; and
-- diagnostics.
-
-### Phase 2: registries and compilation
-
-- file/URL profile expansion;
-- duplicate-profile detection;
-- profile-qualified rule IDs;
-- bidirectional codec validation;
-- root and target uniqueness;
-- identifier reservation and precedence; and
-- static anchor validation.
-
-### Phase 3: planners
-
-- mandatory root/exact anchor resolution;
-- type discovery;
-- capture validation;
-- write selection and precedence; and
-- concrete anchor-collision checks.
-
-### Phase 4: codec adapters and execution
-
-- five ISA-XLSX Dataset adapters;
-- opaque Datamap companion behavior;
-- optional local recursive-YAML adapter;
-- root construction and child attachment;
-- compatible-union canonicalization; and
-- best-effort anchor outcomes.
-
-### Phase 5: facade and documentation
-
-- generic ARC facade integration;
-- sessions and rich results;
+Unmatched direct children have no independent project output, although they may
+remain nested inside another selected Dataset's codec representation.
+
+After successful preflight, each codec receives one complete selected Dataset
+and its normalized anchor. The first codec failure fails the operation. Outputs
+already written by earlier codecs are not rolled back, and generic handling does
+not delete stale anchors or codec-owned companions.
+
+## 5. ARC integration
+
+The relevant existing code is in `ARC.fs`, `ScaffoldReader.fs`,
+`YML/Dataset.fs`, and `Graph.fs`.
+
+Generic `ARC.loadAsync` checks the supplied workspace for `.arc/project.yml`
+before existing YAML or spreadsheet detection. When present, the project is
+authoritative: a project failure does not fall back to another representation.
+When absent, current detection remains unchanged.
+
+Generic `WriteAsync` checks the destination for a project and uses it when
+present. `UpdateAsync` resolves its destination from the explicit path or
+`ArcPath` and re-resolves that destination's project on every operation. Existing
+synchronous methods remain wrappers around the asynchronous implementation.
+
+Explicit YAML and XLSX load/write methods bypass project discovery. Project
+handling never creates, rewrites, or deletes `.arc/project.yml` or referenced
+profile documents.
+
+The implementation must remain compatible with .NET and supported Fable
+targets. Existing platform abstractions should be reused. No production
+dependency is added without prior approval.
+
+## 6. Implementation sequence
+
+### Phase 1: documents and resolution
+
+- document types and strict YAML decoding;
+- local and HTTP(S) profile resolution;
+- target and path-template resolution;
+- exact codec registry; and
+- cross-rule and path validation.
+
+### Phase 2: execution
+
+- read and write preflight;
+- Dataset codec interface;
+- shared ISA-XLSX adapter mechanism;
+- root construction and `Dataset.AddPart` attachment; and
+- fail-fast project errors.
+
+### Phase 3: facade and parity
+
+- generic ARC discovery and authority;
+- update-by-resolution;
 - explicit-format bypass;
-- standard scaffold file/URL examples;
-- usage examples; and
-- .NET, JavaScript, and Python parity checks.
+- examples and usage documentation; and
+- .NET, JavaScript, and Python verification.
 
-## 14. Test plan
+## 7. Test plan
 
 Test:
 
-- exact project discovery from a workspace root or project path without ancestor
-  searching;
-- strict project and profile schema acceptance/rejection;
-- local and URL references with exactly one source field;
-- profile load, parse, type, and duplicate-ID failures;
-- missing and duplicate root rules;
-- duplicate exact and type targets;
-- identifier precedence independent of rule order;
-- fixed and captured exact paths;
-- required root and exact resources;
-- zero/many type resources;
-- capture, identifier, and `additionalType` mismatches;
-- unsafe paths and anchor collisions;
-- direct-root attachment with deeper nesting preserved;
-- graph-invariant rejection without partial Dataset attachment;
-- shared entity compatible union;
-- default-warning and strict-error merge conflict behavior;
-- independent parse/write failure behavior;
-- unexpected codec exception conversion to structured anchor failure;
-- opaque ISA/Datamap companion integration;
-- confirmation that project writes delete no stale files;
-- workspace-session reuse and different-destination project authority;
-- partial load results and strict wrappers retaining structured results;
-- selected-model round-trip equivalence;
-- deterministic ordering across supported runtimes;
-- project-aware generic facade behavior;
-- explicit-format bypass; and
+- strict project/profile decoding, file and URL resolution, and duplicate
+  rejection;
+- missing or duplicate root, identifier, type, rule, and codec cases;
+- literal and captured root/exact paths plus zero/many type discoveries;
+- path traversal, symlink escape, host-case collisions, and unsafe captured
+  identifiers;
+- identifier reservation and precedence independent of declaration order;
+- required-resource, identifier, capture, and `additionalType` failures;
+- confirmation that every collision is detected before codec execution;
+- direct-root attachment through `Dataset.AddPart` with deeper nesting and
+  existing graph canonicalization preserved;
+- bidirectional ISA-XLSX Dataset/Datamap adapter behavior;
+- fail-fast codec and attachment errors without a returned partial ARC;
+- confirmation that failed writes do not trigger rollback or stale deletion;
+- generic project authority and explicit-format bypass;
+- update resolution at the selected destination;
+- selected-Dataset write/read equivalence for deterministic codecs; and
 - .NET/Fable runtime parity.
