@@ -60,6 +60,8 @@ The specification should:
 - declare optional named codec files and project-managed empty files;
 - select a bidirectional codec by exact registered ID;
 - allow reusable local or URL-hosted workspace profiles;
+- allow a project-local rule to wholly replace profile rules with the same
+  target;
 - reject ambiguous targets and anchor-path collisions deterministically; and
 - represent the optional ISA-XLSX decoration scaffold and its five-rule
   Dataset-YAML counterpart.
@@ -74,7 +76,8 @@ The project file does not configure:
 - optional exact targets or explicit cardinality;
 - nested project-level target selectors;
 - arbitrary predicates, graph queries, globs, or expression languages;
-- profile parameters, rule overrides, codec options, or extension fields;
+- profile parameters, profile-to-profile overrides, field-level rule merging,
+  codec options, or extension fields;
 - package-registry profiles or dynamic codec loading;
 - required auxiliary files, arbitrary inline file content, or standalone
   directory declarations;
@@ -147,12 +150,17 @@ workspaceProfiles:
 rules: []
 ```
 
-`workspaceProfiles` and `rules` are both optional, but their expanded rule set
+`workspaceProfiles` and `rules` are both optional, but their effective rule set
 must contain exactly one root rule.
 
 A workspace-profile reference contains exactly one confined local `file` or
 absolute HTTP(S) `url`. The loaded YAML must be an `ArcWorkspaceProfile`.
-Profiles are expanded in listed order, followed by project-local rules.
+Profiles are expanded in listed order. Before qualification and cross-rule
+validation, every profile rule whose target equals a project-local rule target
+is removed, and the local rules are appended. Root matches root; identifier and
+additional-type targets match exact, case-sensitive values of the same target
+kind. This is whole-rule replacement, not field inheritance or merging;
+unrelated profile rules remain.
 
 ### 4.2 Workspace profile
 
@@ -168,7 +176,9 @@ rules: []
 Profile `id` and `version` identify the profile document. They are not repeated
 on the reference. Profile IDs must be unique in one project.
 
-Profiles have no parameters or extension points. Projects have no overrides.
+Profiles have no parameters or extension points and cannot override one
+another. Projects have only the exact-target, whole-rule replacement mechanism
+described above.
 
 ### 4.3 Rule
 
@@ -186,9 +196,9 @@ Profiles have no parameters or extension points. Projects have no overrides.
 `id`, `codec`, `target`, and `path` are required. `files` is optional. Unknown
 fields are errors.
 
-Rule IDs are unique within their declaring project or profile. Expanded rule
-IDs are qualified as `<profile-id>#<rule-id>` and `project#<rule-id>` for
-planning and diagnostics.
+Rule IDs are unique within their declaring project or profile. After local
+replacement, effective rule IDs are qualified as
+`<profile-id>#<rule-id>` and `project#<rule-id>` for planning and diagnostics.
 
 ## 5. Target language
 
@@ -487,7 +497,8 @@ remain identical to the ISA-XLSX layout.
 
 The normative specification and schemas should reject:
 
-- missing or duplicate root rules after expansion;
+- missing or duplicate root rules after profile expansion and local
+  replacement;
 - duplicate identifier or additional-type targets;
 - missing or incompatible codecs;
 - unknown project, profile, reference, target, or rule fields;
@@ -508,6 +519,7 @@ Examples should cover:
 - an ISA decoration scaffold loaded from a file or URL;
 - the ISA Dataset-YAML scaffold with inline `dataContexts`;
 - local and URL profile references plus project-local rules;
+- whole-rule replacement by local target while unrelated profile rules remain;
 - repeated-source and duplicate-profile rejection;
 - an exact identifier at a literal path;
 - an exact identifier using the capture;

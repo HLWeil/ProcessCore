@@ -131,6 +131,27 @@ workspaceProfiles:
 The URL is illustrative and has no canonical status. A repository-local
 profile can instead use `file: profiles/isa-xlsx.yml`.
 
+A project-local rule with the same target can replace a profile rule. For
+example, this changes only the profile's root rule and retains its other rules:
+
+```yaml
+type: ArcWorkspaceProject
+
+workspaceProfiles:
+  - url: "https://raw.githubusercontent.com/HLWeil/ProcessCore/refs/heads/main/examples/isa_xlsx_workspace_profile.yml"
+
+rules:
+  - id: yaml-root
+    codec: dataset.yml
+    target: root
+    path: hello.yml
+```
+
+Root matches root; identifier and additional-type targets match exact,
+case-sensitive values of the same target kind. Replacement applies to the whole
+rule. IDs need not match, and codec, path, and files are not inherited or
+merged.
+
 The referenced document must be an `ArcWorkspaceProfile`:
 
 ```yaml
@@ -158,10 +179,12 @@ rules:
         create: empty
 ```
 
-Profiles contribute their rules in reference order, followed by project-local
-rules. After expansion there must be exactly one `root` rule. Profile IDs and
-qualified rule IDs must be unique; declaration order never chooses a winner for
-conflicting targets or paths.
+Profiles contribute their rules in reference order. Before validation, a local
+rule removes every profile-contributed rule with the same target, then local
+rules are appended. Unrelated profile rules remain. The effective rules must
+contain exactly one `root` rule. Profile IDs and qualified rule IDs must be
+unique; profile declaration order never chooses a winner for conflicting
+targets or paths.
 
 The complete optional ISA Study, Assay, Workflow, and Run layouts are shown in
 the [profile examples](../spec/project_file.md#12-profile-examples).
@@ -175,7 +198,7 @@ file:
 
 | Field | Meaning |
 |---|---|
-| `id` | Logical rule name, unique after profile qualification |
+| `id` | Logical rule name used for qualification and diagnostics |
 | `codec` | Exact ID from the active `CodecRegistry` |
 | `target: root` | The top-level ARC; exactly one rule must select it |
 | `target.identifier` | One direct child with that exact identifier |

@@ -31,38 +31,6 @@ let private writeText path text =
         do! Path.writeFileTextAsync path text
     }
 
-// to-do: remove when a profile file is available on the web
-#if !FABLE_COMPILER
-open System.Net
-open System.Net.Sockets
-open System.Text
-
-let private withHttpResponse (body: string) action =
-    async {
-        let listener = new TcpListener(IPAddress.Loopback, 0)
-        listener.Start()
-        try
-            let endpoint = listener.LocalEndpoint :?> IPEndPoint
-            let url = $"http://127.0.0.1:{endpoint.Port}/profile.yml"
-            let serve =
-                async {
-                    use! client = listener.AcceptTcpClientAsync() |> Async.AwaitTask
-                    use stream = client.GetStream()
-                    let payload = Encoding.UTF8.GetBytes body
-                    let header =
-                        $"HTTP/1.1 200 OK\r\nContent-Type: application/yaml\r\nContent-Length: {payload.Length}\r\nConnection: close\r\n\r\n"
-                    let response = Array.append (Encoding.ASCII.GetBytes header) payload
-                    do! stream.WriteAsync(response, 0, response.Length) |> Async.AwaitTask
-                }
-            let! server = Async.StartChild serve
-            let! result = action url
-            do! server
-            return result
-        finally
-            listener.Stop()
-    }
-#endif
-
 let private projectWith codecId rules =
     $"""type: ArcWorkspaceProject
 rules:
@@ -267,6 +235,24 @@ rules:
                 Expect.equal project.Rules.[2].Files.[0].Id "metadata" "file IDs are retained"
                 Expect.equal project.Rules.[2].Files.[1].Create (Some StorageFileCreation.Empty) "empty creation is parsed"
 
+            testCase "ignores trailing comments after workspace profile references" <| fun _ ->
+                let url =
+                    "https://raw.githubusercontent.com/HLWeil/ProcessCore/refs/heads/main/examples/isa_xlsx_workspace_profile.yml"
+                let project =
+                    $"""type: ArcWorkspaceProject
+
+workspaceProfiles:
+  - url: "{url}"
+
+#
+"""
+                    |> ProcessCore.WorkspaceProject.parse
+                    |> unwrap
+                Expect.equal
+                    project.WorkspaceProfiles
+                    [ WorkspaceProfileReference.Url url ]
+                    "the trailing comment is not parsed as another profile reference"
+
             testCase "rejects unknown and duplicate fields" <| fun _ ->
                 let unknown =
                     """type: ArcWorkspaceProject
@@ -393,36 +379,84 @@ workspaceProfiles:
                     }
             )
 
-// to-do: run in js and py when a profile file is available on the web
-#if !FABLE_COMPILER
-            testCaseCrossAsync "downloads and resolves a URL profile" (
-                withWorkspace "url-profile" <| fun root ->
-                    withHttpResponse
-                        """type: ArcWorkspaceProfile
-id: remote
+            testCaseCrossAsync "project-local rules override profile rules with the same target" (
+                withWorkspace "local-rule-override" <| fun root ->
+                    crossAsync {
+                        do!
+                            writeText
+                                (Path.combineMany [ root; ".arc"; "profile.yml" ])
+                                """type: ArcWorkspaceProfile
+id: isa
 version: "1.0"
 rules:
-  - id: root
-    codec: test.dataset
+  - id: investigation
+    codec: isa.investigation.xlsx
     target: root
-    path: root.data
+    path: isa.investigation.xlsx
+  - id: study
+    codec: isa.study.xlsx
+    target:
+      additionalType: Study
+    path: "studies/{dataset.identifier}/isa.study.xlsx"
 """
-                    <| fun url ->
-                        crossAsync {
-                            do! writeText (Path.combine root "root.data") "root|Investigation"
-                            do!
-                                writeText
-                                    (Path.combineMany [ root; ".arc"; "project.yml" ])
-                                    $"""type: ArcWorkspaceProject
+                        do!
+                            writeText
+                                (Path.combineMany [ root; ".arc"; "project.yml" ])
+                                """type: ArcWorkspaceProject
+workspaceProfiles:
+  - file: profile.yml
+rules:
+  - id: yaml-root
+    codec: dataset.yml
+    target: root
+    path: hello.yml
+"""
+                        let arc = ARC("investigation", additionalType = "Investigation")
+                        arc.AddPart(Dataset("study", additionalType = "Study"))
+
+                        do! arc.WriteAsync root
+
+                        let! localRootExists = Path.fileExistsAsync (Path.combine root "hello.yml")
+                        let! profileRootExists = Path.fileExistsAsync (Path.combine root "isa.investigation.xlsx")
+                        let! profileStudyExists =
+                            Path.fileExistsAsync
+                                (Path.combineMany [ root; "studies"; "study"; "isa.study.xlsx" ])
+                        Expect.isTrue localRootExists "the project-local root rule is written"
+                        Expect.isFalse profileRootExists "the overridden profile root rule is removed"
+                        Expect.isTrue profileStudyExists "unrelated profile rules remain active"
+                    }
+            )
+
+#if !FABLE_COMPILER
+            testCaseCrossAsync "local rules override downloaded profile rules" (
+                withWorkspace "url-profile" <| fun root ->
+                    crossAsync {
+                        let url =
+                            "https://raw.githubusercontent.com/HLWeil/ProcessCore/refs/heads/main/examples/isa_xlsx_workspace_profile.yml"
+                        do!
+                            writeText
+                                (Path.combineMany [ root; ".arc"; "project.yml" ])
+                                $"""type: ArcWorkspaceProject
 workspaceProfiles:
   - url: "{url}"
+
+rules:
+  - id: yaml-root
+    codec: dataset.yml
+    target: root
+    path: hello.yml
+
+#
 """
-                            let reads, writes = ref 0, ref 0
-                            let registry = fakeRegistry reads writes
-                            let! loaded = ARC.loadProjectAsync(registry, root)
-                            Expect.equal (loaded |> unwrap).Identifier "root" "the downloaded profile contributes its rule"
-                            Expect.equal reads.Value 1 "the resolved rule invokes the codec"
-                        }
+                        let arc = ARC("investigation", additionalType = "Investigation")
+                        do! arc.WriteAsync root
+                        let! localRootExists =
+                            Path.fileExistsAsync (Path.combine root "hello.yml")
+                        let! profileRootExists =
+                            Path.fileExistsAsync (Path.combine root "isa.investigation.xlsx")
+                        Expect.isTrue localRootExists "the project-local root rule is written"
+                        Expect.isFalse profileRootExists "the downloaded profile root rule is overridden"
+                    }
             )
 #endif
 

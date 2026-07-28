@@ -90,7 +90,8 @@ A conforming project document:
 - is valid YAML;
 - has `type: ArcWorkspaceProject`;
 - satisfies the structural requirements in this document;
-- expands its referenced workspace profiles to exactly one root rule;
+- resolves its referenced workspace profiles and project-local replacements to
+  exactly one root rule;
 - satisfies all profile, target, codec, path, and collision requirements; and
 - contains no unknown fields.
 
@@ -182,7 +183,8 @@ Fields:
 
 At least one profile reference or project-local rule MUST be declared.
 
-After profile expansion, the combined rules MUST contain exactly one root rule.
+After profile expansion and project-local replacement, the effective rules MUST
+contain exactly one root rule.
 
 ### 5.2 Workspace-profile references
 
@@ -196,10 +198,30 @@ Each entry MUST contain exactly one `file` or `url`. `file` is relative to
 `.arc` and MUST remain inside it. `url` MUST be an absolute HTTP(S) URL.
 
 The referenced YAML MUST be an `ArcWorkspaceProfile`. Its declared `id` MUST be
-unique in the project. Profiles contribute rules in listed order, followed by
-project-local rules. Order does not resolve target or path conflicts.
+unique in the project. Profiles contribute rules in listed order. Project-local
+rules are applied as described below and then follow the retained profile rules.
+Order does not resolve target or path conflicts.
 
-### 5.3 Rule qualification
+### 5.3 Project-local rule replacement
+
+Before rule qualification and cross-rule validation, an implementation MUST
+collect the targets of all project-local rules. It MUST omit every
+profile-contributed rule with an equal target. It MUST then append the
+project-local rules to form the effective rule set.
+
+Target equality means `root` matches `root`, `identifier` matches the same
+case-sensitive identifier, and `additionalType` matches the same case-sensitive
+type. Targets of different kinds do not match. A local rule is a whole-rule
+replacement: the processor MUST NOT inherit or merge the profile rule's codec,
+path, files, or other fields. A local target replaces every matching rule
+contributed by the referenced profiles. Rules with other targets remain
+effective.
+
+Profile rules do not replace one another. Profile-to-profile target and path
+conflicts remain errors unless matching project-local targets remove the
+conflicting profile rules before validation.
+
+### 5.4 Rule qualification
 
 Project-local rule IDs MUST be unique within `rules`. Their qualified IDs are:
 
@@ -245,8 +267,10 @@ Fields:
 
 Rule IDs MUST be unique within the profile.
 
-Profiles do not have parameters, overrides, codec options, enabled flags, or
-extension fields.
+Profiles do not have parameters, codec options, enabled flags, or extension
+fields. They cannot override one another. A project may only replace a
+profile-contributed rule through the exact-target, whole-rule mechanism in section
+5.3.
 
 ## 7. Rules
 
@@ -535,7 +559,8 @@ fields or collections from the two values.
 
 ## 11. Cross-rule validation
 
-After profile expansion, a conforming project MUST reject:
+After profile expansion and project-local replacement, a conforming project
+MUST reject the effective rule set when it contains:
 
 - zero or more than one root rule;
 - duplicate identifier target values;
@@ -746,7 +771,27 @@ workspaceProfiles:
 The URL is illustrative; this specification does not assign the ISA-XLSX
 decoration profile a canonical URL.
 
-### 13.2 Referenced profile plus local exact target
+### 13.2 Project-local replacement of a profile rule
+
+```yaml
+type: ArcWorkspaceProject
+
+workspaceProfiles:
+  - url: "https://example.org/arc/isa-xlsx-scaffold.yml"
+
+rules:
+  - id: yaml-root
+    codec: dataset.yml
+    target: root
+    path: hello.yml
+```
+
+The local `yaml-root` rule wholly replaces the profile's `investigation` rule
+because both target `root`; their IDs do not need to match. The effective root
+is written to `hello.yml`. The profile's unrelated Study, Assay, Workflow, and
+Run rules remain effective. No fields are inherited from the replaced rule.
+
+### 13.3 Referenced profile plus local exact target
 
 ```yaml
 type: ArcWorkspaceProject
@@ -764,7 +809,7 @@ rules:
 If `profiles/base.yml` contributes a general Study rule, `calibration-study` is
 excluded from that rule and handled at the fixed path.
 
-### 13.3 Exact target with identifier capture
+### 13.4 Exact target with identifier capture
 
 ```yaml
 - id: fixed-assay
@@ -777,7 +822,7 @@ excluded from that rule and handled at the fixed path.
 The path must resolve exactly once, and its capture and parsed identifier must
 both equal `assay-42`.
 
-### 13.4 Basic single-file rule declared directly by a project
+### 13.5 Basic single-file rule declared directly by a project
 
 ```yaml
 type: ArcWorkspaceProject

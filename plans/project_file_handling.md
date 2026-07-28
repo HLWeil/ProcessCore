@@ -154,16 +154,25 @@ Resolution:
 1. strictly decodes the project;
 2. loads `file` profiles relative to `.arc` and `url` profiles over HTTP(S);
 3. strictly decodes every profile;
-4. expands profile rules in reference order, followed by local rules;
-5. qualifies rule IDs;
-6. resolves every exact codec ID;
-7. resolves targets and prepares path templates;
-8. requires exactly one root rule;
-9. rejects duplicate profile IDs, qualified rule IDs, identifier targets, and
+4. collects the targets of project-local rules;
+5. expands profile rules in reference order while omitting every contributed
+   rule whose target equals a local target, then appends the local rules;
+6. qualifies the effective rule IDs;
+7. resolves every exact codec ID;
+8. resolves targets and prepares path templates;
+9. requires exactly one root rule;
+10. rejects duplicate profile IDs, qualified rule IDs, identifier targets, and
    additional-type targets;
-10. resolves auxiliary declarations relative to anchor directories;
-11. rejects statically identical anchor and auxiliary templates; and
-12. records the exact-identifier reservation set.
+11. resolves auxiliary declarations relative to anchor directories;
+12. rejects statically identical anchor and auxiliary templates; and
+13. records the exact-identifier reservation set.
+
+Target equality is discriminated-union equality: root matches root, while
+identifier and additional-type targets match exact, case-sensitive values of
+the same target kind. The omission in step 5 is whole-rule replacement. No
+codec, path, file, or other field is inherited from a replaced profile rule. A
+local target removes all matching contributed rules across the referenced
+profiles; unrelated profile rules remain. Profiles do not override one another.
 
 Any project resolution error prevents codec invocation.
 
@@ -323,6 +332,8 @@ Test:
 
 - strict project/profile decoding, file and URL resolution, and duplicate
   rejection;
+- project-local whole-rule replacement by exact target for file and URL profiles,
+  including retention of unrelated profile rules;
 - missing or duplicate root, identifier, type, rule, and codec cases;
 - literal and captured root/exact paths plus zero/many type discoveries;
 - path traversal, symlink escape, host-case collisions, unsafe captured

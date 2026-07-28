@@ -236,13 +236,15 @@ module private StrictProjectYaml =
         | YAMLElement.DocumentEnd
         | YAMLElement.Nil -> ()
 
+    let rec private containsStructuralData = function
+        | YAMLElement.Comment _
+        | YAMLElement.DocumentStart
+        | YAMLElement.DocumentEnd -> false
+        | YAMLElement.Object values -> values |> List.exists containsStructuralData
+        | _ -> true
+
     let structuralItems values =
-        values
-        |> List.filter (function
-            | YAMLElement.Comment _
-            | YAMLElement.DocumentStart
-            | YAMLElement.DocumentEnd -> false
-            | _ -> true)
+        values |> List.filter containsStructuralData
 
     let rec unwrap = function
         | YAMLElement.Object [ single ] ->
@@ -339,7 +341,7 @@ module private StrictProjectYaml =
 
     let sequence kind context element =
         match unwrap element with
-        | YAMLElement.Sequence values -> values
+        | YAMLElement.Sequence values -> structuralItems values
         | other -> error kind $"{context} must be a YAML sequence, but found {other}."
 
     let parseTarget kind element =
@@ -822,11 +824,16 @@ module private ProjectResolution =
             |> Option.iter (fun (id, _) ->
                 ProjectErrors.create ProjectErrorKind.Profile $"Profile id '{id}' is referenced more than once."
                 |> ProjectErrors.raiseError)
+            let localRuleTargets =
+                project.Rules
+                |> List.map (fun rule -> rule.Target)
+                |> Set.ofList
             let expanded =
                 [
                     for profile in profiles do
                         for rule in profile.Rules do
-                            yield $"{profile.Id}#{rule.Id}", rule
+                            if not (Set.contains rule.Target localRuleTargets) then
+                                yield $"{profile.Id}#{rule.Id}", rule
                     for rule in project.Rules do
                         yield $"project#{rule.Id}", rule
                 ]
