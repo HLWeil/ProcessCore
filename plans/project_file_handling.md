@@ -31,10 +31,11 @@ load and write APIs:
                       ARC graph
 ```
 
-Each rule maps one complete Dataset to one safe workspace-relative anchor and
+Each rule maps one Dataset invocation to one safe workspace-relative anchor and
 optional named auxiliary files through one exact bidirectional codec ID.
 Project-level targets address only the root and its direct children; codecs may
-preserve deeper Dataset nesting.
+preserve deeper Dataset nesting. Prepared non-root bindings are externalized
+from the root representation at write time.
 
 The first implementation is deliberately small:
 
@@ -69,6 +70,7 @@ type StorageFile
 type StorageFileCreation = Empty
 type CodecInput
 type CodecOutput
+type CodecContext
 type DatasetCodec
 type ProjectError
 exception ProjectException of ProjectError
@@ -109,7 +111,13 @@ auxiliary bytes. The runtime resolves, confines, reads, validates, and writes
 all paths; codecs never derive paths or access the filesystem. Expected failures
 use `ProjectError`; unexpected exceptions are caught at the codec boundary.
 
-The standard registry provides:
+`CodecContext` contains the relative anchor, Dataset factory, and
+`ExternalChildIdentifiers`. The last field is the set of prepared non-root
+Dataset identifiers for a root invocation and is empty for child invocations.
+It lets a root codec partition child storage without cloning or mutating the
+in-memory graph.
+
+The built-in `CodecRegistry.standard` provides:
 
 ```text
 isa.investigation.xlsx
@@ -117,15 +125,24 @@ isa.study.xlsx
 isa.assay.xlsx
 isa.workflow.xlsx
 isa.run.xlsx
+dataset.yml
 ```
+
+The registry name denotes built-in codec availability, not a preferred storage
+profile. A single root `dataset.yml` rule writing `arc.yml` is the basic ARC
+layout. The ISA workbook and split Dataset-YAML scaffolds are optional profiles
+for ISA-decorated ARCs.
 
 These IDs can share one adapter mechanism over the existing `ScaffoldReader`
 functions. ISA-XLSX adapters consume and produce the declared `datamap` bytes.
 Generic project handling creates `create: empty` resources and never deletes
 stale anchors or auxiliary files.
 
-No recursive-YAML codec ID is standardized. A local application may register a
-bidirectional Dataset YAML adapter under its own stable ID.
+`dataset.yml` uses the existing lenient Dataset YAML decoder and UTF-8 encoder.
+It filters the root document's top-level `hasPart` by
+`ExternalChildIdentifiers`; child invocations and root-only invocations remain
+recursive. Dataset `dataContexts` are encoded in the primary YAML, so this codec
+does not need a separate Datamap resource.
 
 ## 3. Project resolution and operation preparation
 
@@ -180,7 +197,9 @@ checks as an anchor.
 Before the first codec invocation, a read operation resolves all root,
 identifier, and additional-type anchors plus their auxiliary files, excludes
 type anchors reserved by exact identifier rules, and rejects every concrete
-collision.
+collision. It also rejects duplicate Dataset identifiers across prepared
+non-root bindings after decoding and validating the external children and
+before decoding the root.
 
 Before the first codec invocation, a write operation selects all target
 Datasets, renders every anchor and auxiliary path, verifies mandatory exact
@@ -199,14 +218,16 @@ After successful preflight:
 
 1. read each binding's required primary bytes and existing optional auxiliary
    bytes;
-2. decode the mandatory root Dataset;
-3. verify its captured identifier when applicable;
-4. construct the `ARC` root without discarding nested state;
-5. decode each mandatory exact-identifier Dataset and verify its declared and
+2. decode each mandatory exact-identifier Dataset and verify its declared and
    captured identifier;
-6. decode each discovered additional-type Dataset and verify its captured
-   identifier and exact case-sensitive `additionalType`; and
-7. attach each direct child with the established `Dataset.AddPart` graph API.
+3. decode each discovered additional-type Dataset and verify its captured
+   identifier and exact case-sensitive `additionalType`;
+4. reject duplicate identifiers among the decoded external children;
+5. decode the mandatory root Dataset and verify its captured identifier when
+   applicable;
+6. construct the `ARC` root without discarding nested state;
+7. replace any inline direct root child with the same identifier; and
+8. attach each external child with the established `Dataset.AddPart` graph API.
 
 Additional-type rules may have no matching anchors. Root and exact-identifier
 resources are mandatory.
@@ -215,10 +236,11 @@ Any codec, identity, type, or attachment failure fails the load and no partial
 ARC is returned. A failed Dataset is never attached. Deeper Datasets returned by
 a codec remain nested inside their selected Dataset.
 
-`Dataset.AddPart` already establishes parentage and canonicalizes graph nodes and
-recipes against the root. Project handling must use that behavior as-is. It does
-not merge scalar fields, recursively merge dynamic properties, select a
-first-value winner, or introduce project-specific merge conflicts.
+An external child is authoritative over an inline root child with the same
+identifier. Replacement uses `Dataset.RemovePart` followed by
+`Dataset.AddPart`, which establishes parentage and canonicalizes graph nodes and
+recipes against the root. Project handling does not merge scalar fields,
+collections, or dynamic properties.
 
 ### 4.2 Write
 
@@ -233,12 +255,17 @@ Unmatched direct children have no independent project output, although they may
 remain nested inside another selected Dataset's codec representation.
 
 After successful preflight, each codec receives one complete selected Dataset
-and returns primary plus named auxiliary bytes. Before writing an invocation,
-generic handling rejects undeclared IDs and codec output for project-managed
-files. It then writes the primary and returned files and emits every
-`create: empty` declaration as zero bytes. The first codec or resource failure
-fails the operation. Outputs already written by earlier codecs are not rolled
-back, and generic handling does not delete stale resources.
+and returns primary plus named auxiliary bytes. The root context lists the
+direct children that have their own prepared bindings. The `dataset.yml` codec
+omits only those children from the root document; unselected direct children
+remain inline, and each bound child is written completely with its deeper
+nesting and `dataContexts`.
+
+Before writing an invocation, generic handling rejects undeclared IDs and codec
+output for project-managed files. It then writes the primary and returned files
+and emits every `create: empty` declaration as zero bytes. The first codec or
+resource failure fails the operation. Outputs already written by earlier codecs
+are not rolled back, and generic handling does not delete stale resources.
 
 ## 5. ARC integration
 
@@ -278,7 +305,8 @@ dependency is added without prior approval.
 - read and write preflight;
 - Dataset codec interface;
 - shared ISA-XLSX adapter mechanism;
-- root construction and `Dataset.AddPart` attachment; and
+- Dataset-YAML adapter and root external-child filtering;
+- root construction and whole-Dataset child replacement/attachment; and
 - fail-fast project errors.
 
 ### Phase 3: facade and parity
@@ -307,6 +335,10 @@ Test:
   existing graph canonicalization preserved;
 - bidirectional ISA-XLSX Dataset/Datamap adapter behavior, missing optional
   Datamaps, and conditional Datamap output;
+- Dataset-YAML scaffold partitioning, inline `dataContexts`, unselected and
+  deeper nesting, and basic single-file `arc.yml` recursive behavior;
+- external-child precedence over duplicate inline root children and rejection
+  of duplicate external Dataset identifiers;
 - unconditional project-managed empty-file output and rejection of undeclared
   codec outputs;
 - fail-fast codec and attachment errors without a returned partial ARC;

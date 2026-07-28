@@ -111,7 +111,7 @@ let private simpleRules codecId =
     path: "studies/{{dataset.identifier}}/dataset.data"
 """
 
-let private standardRules _ =
+let private isaXlsxRules _ =
     """  - id: root
     codec: isa.investigation.xlsx
     target: root
@@ -163,6 +163,58 @@ let private standardRules _ =
     files:
       - id: datamap
         path: isa.datamap.xlsx
+      - id: dataset-placeholder
+        path: dataset/.gitkeep
+        create: empty
+      - id: protocols-placeholder
+        path: protocols/.gitkeep
+        create: empty
+"""
+
+let private isaYamlRules _ =
+    """  - id: root
+    codec: dataset.yml
+    target: root
+    path: isa.investigation.yml
+  - id: studies
+    codec: dataset.yml
+    target:
+      additionalType: Study
+    path: "studies/{dataset.identifier}/isa.study.yml"
+    files:
+      - id: resources-placeholder
+        path: resources/.gitkeep
+        create: empty
+      - id: protocols-placeholder
+        path: protocols/.gitkeep
+        create: empty
+  - id: assays
+    codec: dataset.yml
+    target:
+      additionalType: Assay
+    path: "assays/{dataset.identifier}/isa.assay.yml"
+    files:
+      - id: dataset-placeholder
+        path: dataset/.gitkeep
+        create: empty
+      - id: protocols-placeholder
+        path: protocols/.gitkeep
+        create: empty
+  - id: workflows
+    codec: dataset.yml
+    target:
+      additionalType: Workflow
+    path: "workflows/{dataset.identifier}/isa.workflow.yml"
+    files:
+      - id: protocols-placeholder
+        path: protocols/.gitkeep
+        create: empty
+  - id: runs
+    codec: dataset.yml
+    target:
+      additionalType: Run
+    path: "runs/{dataset.identifier}/isa.run.yml"
+    files:
       - id: dataset-placeholder
         path: dataset/.gitkeep
         create: empty
@@ -308,6 +360,9 @@ rules:
                 Expect.isSome (CodecRegistry.tryFind codec.Id first) "the new registry contains the codec"
                 Expect.isNone (CodecRegistry.tryFind codec.Id CodecRegistry.empty) "the original registry remains unchanged"
                 Expect.isError (CodecRegistry.add codec first) "duplicate IDs are rejected"
+                Expect.isSome
+                    (CodecRegistry.tryFind "dataset.yml" CodecRegistry.standard)
+                    "the standard registry contains the Dataset YAML codec"
 
             testCaseCrossAsync "loads a confined local profile" (
                 withWorkspace "local-profile" <| fun root ->
@@ -675,10 +730,10 @@ rules:
                     }
             )
 
-            testCaseCrossAsync "standard registry round-trips all five ISA workbooks and an adjacent Datamap" (
+            testCaseCrossAsync "built-in registry round-trips the ISA workbook decoration scaffold and an adjacent Datamap" (
                 withWorkspace "standard-round-trip" <| fun root ->
                     crossAsync {
-                        do! writeText (Path.combineMany [ root; ".arc"; "project.yml" ]) (projectWith "" standardRules)
+                        do! writeText (Path.combineMany [ root; ".arc"; "project.yml" ]) (projectWith "" isaXlsxRules)
                         let arc = ARC("investigation", additionalType = "Investigation")
                         let study = Dataset("study", additionalType = "Study")
                         study.AddDataContext(DataContext(Data("data/result.csv")))
@@ -730,6 +785,197 @@ rules:
                             Expect.isTrue exists $"standard placeholder '{displayPath}' is created"
                         let loadedStudy = loaded.HasPart |> Seq.find (fun dataset -> dataset.Identifier = "study")
                         Expect.equal loadedStudy.DataContexts.Count 1 "the adjacent Datamap is read back"
+                    }
+            )
+
+            testCaseCrossAsync "ISA Dataset-YAML decoration scaffold partitions direct children and keeps Datamap content inline" (
+                withWorkspace "standard-yaml-round-trip" <| fun root ->
+                    crossAsync {
+                        do! writeText (Path.combineMany [ root; ".arc"; "project.yml" ]) (projectWith "" isaYamlRules)
+                        let arc = ARC("investigation", additionalType = "Investigation")
+                        let study = Dataset("study", additionalType = "Study")
+                        study.AddDataContext(DataContext(Data("data/result.csv")))
+                        study.AddPart(Dataset("nested-study-part"))
+                        arc.AddPart study
+                        arc.AddPart(Dataset("assay", additionalType = "Assay"))
+                        arc.AddPart(Dataset("workflow", additionalType = "Workflow"))
+                        arc.AddPart(Dataset("run", additionalType = "Run"))
+                        arc.AddPart(Dataset("inline-other", additionalType = "Other"))
+
+                        let! written = arc.WriteProjectAsync(CodecRegistry.standard, root)
+                        written |> unwrap
+
+                        let! rootYaml = Path.readFileTextAsync (Path.combine root "isa.investigation.yml")
+                        let encodedRoot = ProcessCore.Yaml.Dataset.fromYamlString false rootYaml
+                        Expect.equal encodedRoot.HasPart.Count 1 "only an unbound direct child remains in root YAML"
+                        Expect.equal encodedRoot.HasPart.[0].Identifier "inline-other" "the unbound child remains inline"
+                        Expect.equal arc.HasPart.Count 5 "serialization does not mutate the in-memory root"
+
+                        let expectedDocuments =
+                            [
+                                [ "isa.investigation.yml" ]
+                                [ "studies"; "study"; "isa.study.yml" ]
+                                [ "assays"; "assay"; "isa.assay.yml" ]
+                                [ "workflows"; "workflow"; "isa.workflow.yml" ]
+                                [ "runs"; "run"; "isa.run.yml" ]
+                            ]
+                        for relative in expectedDocuments do
+                            let! exists = Path.fileExistsAsync (Path.combineMany (root :: relative))
+                            let displayPath = String.concat "/" relative
+                            Expect.isTrue exists $"Dataset YAML document '{displayPath}' is written"
+
+                        let expectedMarkers =
+                            [
+                                [ "studies"; "study"; "resources"; ".gitkeep" ]
+                                [ "studies"; "study"; "protocols"; ".gitkeep" ]
+                                [ "assays"; "assay"; "dataset"; ".gitkeep" ]
+                                [ "assays"; "assay"; "protocols"; ".gitkeep" ]
+                                [ "workflows"; "workflow"; "protocols"; ".gitkeep" ]
+                                [ "runs"; "run"; "dataset"; ".gitkeep" ]
+                                [ "runs"; "run"; "protocols"; ".gitkeep" ]
+                            ]
+                        for relative in expectedMarkers do
+                            let! exists = Path.fileExistsAsync (Path.combineMany (root :: relative))
+                            let displayPath = String.concat "/" relative
+                            Expect.isTrue exists $"standard placeholder '{displayPath}' is created"
+
+                        let! datamapExists =
+                            Path.fileExistsAsync (Path.combineMany [ root; "studies"; "study"; "isa.datamap.xlsx" ])
+                        Expect.isFalse datamapExists "Dataset YAML does not create a separate Datamap workbook"
+
+                        let! loaded = ARC.loadProjectAsync(CodecRegistry.standard, root)
+                        let loaded = loaded |> unwrap
+                        Expect.equal loaded.HasPart.Count 5 "external and inline direct children are assembled"
+                        let loadedStudy = loaded.HasPart |> Seq.find (fun dataset -> dataset.Identifier = "study")
+                        Expect.equal loadedStudy.DataContexts.Count 1 "DataContexts round-trip inside child YAML"
+                        Expect.equal loadedStudy.HasPart.Count 1 "deeper Dataset nesting remains inside the child YAML"
+                        Expect.equal loadedStudy.HasPart.[0].Identifier "nested-study-part" "the deeper child round-trips"
+                    }
+            )
+
+            testCaseCrossAsync "Dataset YAML child resources replace duplicate inline root children" (
+                withWorkspace "yaml-child-wins" <| fun root ->
+                    crossAsync {
+                        do!
+                            writeText
+                                (Path.combineMany [ root; ".arc"; "project.yml" ])
+                                (projectWith "" isaYamlRules)
+                        do!
+                            writeText
+                                (Path.combine root "isa.investigation.yml")
+                                """type: Dataset
+identifier: investigation
+additionalType: Investigation
+hasPart:
+  - type: Dataset
+    identifier: study
+    additionalType: Study
+    title: Inline title
+"""
+                        do!
+                            writeText
+                                (Path.combineMany [ root; "studies"; "study"; "isa.study.yml" ])
+                                """type: Dataset
+identifier: study
+additionalType: Study
+title: External title
+dataContexts:
+  - type: DataContext
+    data:
+      type: Data
+      path: data/external.csv
+"""
+
+                        let! loaded = ARC.loadProjectAsync(CodecRegistry.standard, root)
+                        let loaded = loaded |> unwrap
+                        Expect.equal loaded.HasPart.Count 1 "the duplicate inline child is replaced"
+                        let study = loaded.HasPart.[0]
+                        Expect.equal study.Title (Some "External title") "the external child is authoritative"
+                        Expect.equal study.DataContexts.Count 1 "the complete external child is retained"
+                        Expect.equal study.PartOf (Some (loaded :> Dataset)) "replacement uses normal graph attachment"
+                    }
+            )
+
+            testCaseCrossAsync "read rejects duplicate decoded external Dataset identifiers" (
+                withWorkspace "yaml-duplicate-external-id" <| fun root ->
+                    crossAsync {
+                        do!
+                            writeText
+                                (Path.combineMany [ root; ".arc"; "project.yml" ])
+                                """type: ArcWorkspaceProject
+rules:
+  - id: root
+    codec: dataset.yml
+    target: root
+    path: isa.investigation.yml
+  - id: studies
+    codec: dataset.yml
+    target:
+      additionalType: Study
+    path: "studies/{dataset.identifier}/isa.study.yml"
+  - id: assays
+    codec: dataset.yml
+    target:
+      additionalType: Assay
+    path: "assays/{dataset.identifier}/isa.assay.yml"
+"""
+                        do!
+                            writeText
+                                (Path.combine root "isa.investigation.yml")
+                                """type: Dataset
+identifier: investigation
+"""
+                        do!
+                            writeText
+                                (Path.combineMany [ root; "studies"; "shared"; "isa.study.yml" ])
+                                """type: Dataset
+identifier: shared
+additionalType: Study
+"""
+                        do!
+                            writeText
+                                (Path.combineMany [ root; "assays"; "shared"; "isa.assay.yml" ])
+                                """type: Dataset
+identifier: shared
+additionalType: Assay
+"""
+
+                        let! result = ARC.loadProjectAsync(CodecRegistry.standard, root)
+                        match result with
+                        | Error error ->
+                            Expect.equal error.Kind ProjectErrorKind.Target "duplicate external identities are target errors"
+                            Expect.isTrue
+                                (error.Message.Contains("shared"))
+                                "the duplicate identifier is included in the diagnostic"
+                        | Ok _ -> failwith "Duplicate decoded external Dataset identifiers must fail."
+                    }
+            )
+
+            testCaseCrossAsync "basic single-file arc.yml profile remains recursively encoded" (
+                withWorkspace "yaml-single-file" <| fun root ->
+                    crossAsync {
+                        do!
+                            writeText
+                                (Path.combineMany [ root; ".arc"; "project.yml" ])
+                                """type: ArcWorkspaceProject
+rules:
+  - id: root
+    codec: dataset.yml
+    target: root
+    path: arc.yml
+"""
+                        let arc = ARC("root")
+                        let child = Dataset("child", additionalType = "Other")
+                        child.AddPart(Dataset("grandchild"))
+                        arc.AddPart child
+
+                        let! written = arc.WriteProjectAsync(CodecRegistry.standard, root)
+                        written |> unwrap
+                        let! loaded = ARC.loadProjectAsync(CodecRegistry.standard, root)
+                        let loaded = loaded |> unwrap
+                        Expect.equal loaded.HasPart.Count 1 "the single-file profile retains its direct child"
+                        Expect.equal loaded.HasPart.[0].HasPart.Count 1 "recursive nesting is retained"
+                        Expect.equal loaded.HasPart.[0].HasPart.[0].Identifier "grandchild" "the nested identifier round-trips"
                     }
             )
         ]

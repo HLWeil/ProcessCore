@@ -12,10 +12,9 @@ index: 5
 This document specifies the ARC workspace project file and its workspace-profile
 language.
 
-The project file maps complete ARC `Dataset` values to registered bidirectional
-codecs at workspace-relative anchor paths and may declare named auxiliary files
-relative to those anchors. It is storage configuration, not an ARC model
-serialization.
+The project file maps ARC `Dataset` values to registered bidirectional codecs at
+workspace-relative anchor paths and may declare named auxiliary files relative
+to those anchors. It is storage configuration, not an ARC model serialization.
 
 The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**,
 **SHOULD**, **SHOULD NOT**, **RECOMMENDED**, **NOT RECOMMENDED**, **MAY**, and
@@ -44,6 +43,11 @@ A rule selects one of:
 One codec invocation reads or writes each selected Dataset. A selected Dataset
 MAY contain nested Datasets. Project selectors do not select or constrain that
 deeper nesting.
+
+When direct root children have their own prepared bindings, they are external
+children of the root codec invocation. The root codec receives their identifiers
+in its codec context and MUST NOT serialize complete inline copies of those
+children. Each child binding remains a complete Dataset invocation.
 
 Scientific payloads referenced by [`Data`](process_core/Data.md), such as CSV,
 Parquet, images, or instrument files, are not managed resources under this
@@ -383,6 +387,11 @@ selected Dataset MAY contain deeper nested Datasets. A processor MUST preserve
 such nesting returned by the selected Dataset's codec and MUST NOT flatten it
 because of project target semantics.
 
+On write, only direct root children selected by prepared non-root bindings are
+externalized from the root representation. Unselected direct children and
+Datasets nested below a selected child remain part of the containing codec
+invocation.
+
 ## 9. Path templates
 
 ### 9.1 Grammar
@@ -466,9 +475,9 @@ A missing codec is a project resolution error.
 Every codec used by a rule MUST support both reading and writing a complete
 Dataset at the same anchor.
 
-### 10.2 Standard ISA-XLSX codec IDs
+### 10.2 Built-in codec IDs
 
-The standard scaffold uses:
+The built-in `CodecRegistry.standard` provides:
 
 ```text
 isa.investigation.xlsx
@@ -476,7 +485,17 @@ isa.study.xlsx
 isa.assay.xlsx
 isa.workflow.xlsx
 isa.run.xlsx
+dataset.yml
 ```
+
+`dataset.yml` reads and writes UTF-8 YAML through the lenient Dataset YAML
+parser. It stores `dataContexts` directly in the primary document and does not
+produce a separate Datamap resource.
+
+The registry name describes the built-in codec set; it does not designate an
+ISA storage profile as the standard ARC representation. The most basic
+project-backed representation is one root `dataset.yml` rule writing
+`arc.yml`.
 
 ### 10.3 Declared resource contract
 
@@ -490,9 +509,29 @@ codec-managed auxiliary outputs. The filesystem layer validates all output IDs
 before writing that invocation, then writes the primary, returned auxiliary
 files, and project-managed empty files.
 
+The codec context includes `ExternalChildIdentifiers`. For a root invocation,
+this is the exact set of direct child identifiers represented by prepared
+non-root bindings in the current operation; it is empty for child invocations.
+A root codec MUST avoid emitting a competing complete inline representation for
+those identifiers. The built-in `dataset.yml` codec omits those children from
+the root document's top-level `hasPart` while leaving the in-memory Dataset
+unchanged.
+
 An absent optional auxiliary file is not an error. Generic project handling
 does not automatically delete a stale anchor or auxiliary file omitted from a
 later write.
+
+### 10.4 Child assembly
+
+On read, every non-root resource is decoded and validated before the root.
+Two decoded non-root resources MUST NOT resolve to the same Dataset identifier,
+because neither external resource has precedence.
+
+After a child resource has decoded and passed its identifier and
+`additionalType` checks, it is authoritative over an inline direct root child
+with the same identifier. The processor MUST remove the inline child and attach
+the external child through the normal Dataset graph APIs. It MUST NOT merge
+fields or collections from the two values.
 
 ## 11. Cross-rule validation
 
@@ -508,6 +547,7 @@ After profile expansion, a conforming project MUST reject:
 - duplicate auxiliary IDs, unsafe auxiliary paths, or unsupported creation
   policies;
 - undeclared or project-managed codec output IDs; and
+- duplicate Dataset identifiers across decoded non-root resources; and
 - statically identical or concretely colliding anchors and auxiliary files.
 
 An identifier target and an additional-type target are not a target conflict.
@@ -516,15 +556,40 @@ Identifier precedence makes their selection domains disjoint.
 All anchor and auxiliary-file collisions MUST be detected before invoking a
 codec for the affected operation. Rule order MUST NOT choose a winner.
 
-## 12. Standard scaffold profile
+## 12. Profile examples
 
-The standard ISA-XLSX profile document is:
+Profiles choose a storage layout and any decorations applied to the ARC data
+model. No profile in this section is the universal or preferred ARC layout.
+The basic profile stores the complete ARC as one Dataset YAML document. The ISA
+profiles are optional layouts for ARCs using ISA decorations.
+
+### 12.1 Basic single-file ARC YAML
+
+```yaml
+type: ArcWorkspaceProfile
+id: arc.yml
+version: "1.0"
+description: Basic single-file ARC Dataset YAML
+
+rules:
+  - id: arc
+    codec: dataset.yml
+    target: root
+    path: arc.yml
+```
+
+With no non-root bindings, `dataset.yml` writes the complete nested Dataset
+graph recursively to `arc.yml`, including `dataContexts`.
+
+### 12.2 ISA-XLSX decoration scaffold
+
+One possible profile for an ISA-decorated ARC is:
 
 ```yaml
 type: ArcWorkspaceProfile
 id: arc.isa.xlsx.scaffold
 version: "1.0"
-description: Established ISA-XLSX ARC scaffold
+description: ISA-XLSX decoration scaffold
 
 rules:
   - id: investigation
@@ -597,6 +662,77 @@ files are always emitted as empty files.
 
 The profile MAY be referenced by `file` or `url`.
 
+### 12.3 ISA Dataset-YAML decoration scaffold
+
+The same optional ISA decoration layout can use Dataset YAML instead of
+workbooks:
+
+```yaml
+type: ArcWorkspaceProfile
+id: arc.isa.yml.scaffold
+version: "1.0"
+description: ISA Dataset-YAML decoration scaffold
+
+rules:
+  - id: investigation
+    codec: dataset.yml
+    target: root
+    path: isa.investigation.yml
+
+  - id: study
+    codec: dataset.yml
+    target:
+      additionalType: Study
+    path: "studies/{dataset.identifier}/isa.study.yml"
+    files:
+      - id: resources-placeholder
+        path: resources/.gitkeep
+        create: empty
+      - id: protocols-placeholder
+        path: protocols/.gitkeep
+        create: empty
+
+  - id: assay
+    codec: dataset.yml
+    target:
+      additionalType: Assay
+    path: "assays/{dataset.identifier}/isa.assay.yml"
+    files:
+      - id: dataset-placeholder
+        path: dataset/.gitkeep
+        create: empty
+      - id: protocols-placeholder
+        path: protocols/.gitkeep
+        create: empty
+
+  - id: workflow
+    codec: dataset.yml
+    target:
+      additionalType: Workflow
+    path: "workflows/{dataset.identifier}/isa.workflow.yml"
+    files:
+      - id: protocols-placeholder
+        path: protocols/.gitkeep
+        create: empty
+
+  - id: run
+    codec: dataset.yml
+    target:
+      additionalType: Run
+    path: "runs/{dataset.identifier}/isa.run.yml"
+    files:
+      - id: dataset-placeholder
+        path: dataset/.gitkeep
+        create: empty
+      - id: protocols-placeholder
+        path: protocols/.gitkeep
+        create: empty
+```
+
+Every primary file is a Dataset YAML document. Datamap content is stored in its
+Dataset's `dataContexts`; this profile therefore has no codec-managed `datamap`
+auxiliary files. Its project-managed placeholders match the ISA-XLSX scaffold.
+
 ## 13. Examples
 
 ### 13.1 URL-hosted scaffold project
@@ -607,8 +743,8 @@ workspaceProfiles:
   - url: "https://example.org/arc/isa-xlsx-scaffold.yml"
 ```
 
-The URL is illustrative; this specification does not assign the standard
-profile a canonical URL.
+The URL is illustrative; this specification does not assign the ISA-XLSX
+decoration profile a canonical URL.
 
 ### 13.2 Referenced profile plus local exact target
 
@@ -641,21 +777,20 @@ excluded from that rule and handled at the fixed path.
 The path must resolve exactly once, and its capture and parsed identifier must
 both equal `assay-42`.
 
-### 13.4 Local recursive YAML profile
+### 13.4 Basic single-file rule declared directly by a project
 
 ```yaml
-type: ArcWorkspaceProfile
-id: org.example.recursive-yaml
-version: "1.0"
+type: ArcWorkspaceProject
 rules:
   - id: arc
-    codec: org.example.recursive-yaml
+    codec: dataset.yml
     target: root
     path: arc.yml
 ```
 
-Whether the codec serializes nested Datasets recursively is outside the
-project-file syntax.
+This is the inline-project form of the basic profile in section 12.1. With no
+prepared child bindings, `ExternalChildIdentifiers` is empty and `dataset.yml`
+serializes the nested Dataset graph recursively.
 
 ## 14. Invalid examples
 

@@ -55,7 +55,6 @@ ARC-Data-Model/
 ```powershell
 .\build.cmd BuildSolution
 .\build.cmd RunTests
-.\build.cmd RunTestsAll
 .\build.cmd TestJs
 .\build.cmd TestPy
 .\build.cmd BuildDocs
