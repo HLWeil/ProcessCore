@@ -1,3 +1,7 @@
+### 0.1.2+4845fd9 (Released 2026-7-28)
+* Additions:
+    * [[#4845fd9](https://github.com/HLWeil/ProcessCore/commit/4845fd9d5fe50d550d3625ea28c6fe414555417d)] allow project profile rule overwriting
+
 ### 0.1.1+c7dd74b (Released 2026-7-28)
 * Additions:
     * [[#1c8875d](https://github.com/HLWeil/ProcessCore/commit/1c8875d607681e54a61a239fb939abbe8fa9f0b1)] add yml codecs to project file
