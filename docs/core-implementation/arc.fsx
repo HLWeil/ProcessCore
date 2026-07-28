@@ -8,7 +8,10 @@ index: 2
 
 # ARC Layer
 
-`ARC` is the top-level wrapper for an ARC Scaffold. It inherits from `Dataset`, so all of the ordinary process-graph helpers still apply, but it also adds ARC-specific file handling for YAML packages and spreadsheet scaffolds.
+`ARC` is the top-level wrapper for an ARC workspace. It inherits from `Dataset`,
+so all of the ordinary process-graph helpers still apply, but it also adds
+ARC-specific file handling for YAML packages, spreadsheet scaffolds, and
+project-configured workspaces.
 
 Use `ARC` when you want the package itself to carry administrative metadata such as title, description, license, publication dates, agents, citations, and data contexts.
 *)
@@ -24,19 +27,24 @@ open ProcessCore
 
 ## Explicit Representation APIs
 
-`ARC` exposes file-system entry points for the two supported on-disk representations:
+`ARC` exposes explicit file-system entry points for the two built-in on-disk
+representations:
 
 - YAML packages, stored as `arc.yml` in the ARC root.
 - Spreadsheet scaffolds, stored as the collection of workbook files defined by the ARC scaffold layout.
 
-Prefer the representation-specific methods when the format is known:
+Prefer the representation-specific methods when the format is known or when
+project discovery must be bypassed:
 
 - `ARC.loadYML` and `ARC.loadYMLAsync` load `arc.yml`.
 - `ARC.loadXLSX` and `ARC.loadXLSXAsync` load a spreadsheet scaffold.
 - `arc.WriteYML` and `arc.WriteYMLAsync` write `arc.yml`.
 - `arc.WriteXLSX` and `arc.WriteXLSXAsync` write a spreadsheet scaffold.
 
-Each explicit method records the path and representation it used. A subsequent `Update` therefore writes the same representation.
+These methods do not inspect `.arc/project.yml`. Each explicit method records
+the path and representation it used. A subsequent `Update` writes the same
+representation unless the selected destination now contains an authoritative
+project file.
 *)
 
 let arcPath = __SOURCE_DIRECTORY__ + "/../../examples/arc/demo-arc"
@@ -65,55 +73,188 @@ crossAsync {
 }
 
 (**
-## Convenience Layer
+## Project-Configured Workspaces
 
-`ARC.load` and `ARC.loadAsync` automatically choose a representation. They prefer `arc.yml` when it exists and otherwise try the spreadsheet scaffold reader. `Write` and `WriteAsync` are convenience aliases for the YAML-specific write methods. `Update` and `UpdateAsync` use the representation recorded by the last load or write.
+The generic `ARC.load` and `ARC.loadAsync` methods recognize a project document
+at the exact path `<workspace-root>/.arc/project.yml`. When it exists, the
+project defines which files represent the root ARC and its direct child
+Datasets:
+
+```text
+workspace/
+|-- .arc/
+|   |-- project.yml
+|   `-- profiles/
+|       `-- isa-xlsx.yml
+|-- isa.investigation.xlsx
+|-- studies/
+`-- assays/
+```
+
+The project is authoritative. An invalid project, unavailable profile, unknown
+codec, missing primary file, or ambiguous rule is reported as a project error;
+generic loading does not silently fall back to `arc.yml` or scaffold discovery.
+Use `ARC.loadYML[Async]` or `ARC.loadXLSX[Async]` when that explicit bypass is
+intended.
+
+When no project file exists, the existing discovery remains in place:
+`ARC.load[Async]` loads `arc.yml` when present and otherwise tries the
+spreadsheet scaffold reader.
+
+### Project and profile documents
+
+A project can contain rules directly, reference reusable profiles, or do both.
+Local profile paths are relative to `.arc`; URL profiles are absolute HTTP(S)
+URLs and are downloaded when the project is resolved.
+
+```yaml
+# .arc/project.yml
+type: ArcWorkspaceProject
+
+workspaceProfiles:
+  - url: "https://example.org/arc/isa-xlsx-scaffold.yml"
+
+rules:
+  - id: relocated-assay
+    codec: isa.assay.xlsx
+    target:
+      identifier: calibration
+    path: special/calibration/isa.assay.xlsx
+    files:
+      - id: datamap
+        path: isa.datamap.xlsx
+      - id: dataset-placeholder
+        path: dataset/.gitkeep
+        create: empty
+```
+
+The URL above is illustrative; the specification does not assign a canonical
+URL to the standard scaffold profile. A repository-local profile can be used
+instead:
+
+```yaml
+workspaceProfiles:
+  - file: profiles/isa-xlsx.yml
+```
+
+The referenced document must be an `ArcWorkspaceProfile`:
+
+```yaml
+# .arc/profiles/isa-xlsx.yml
+type: ArcWorkspaceProfile
+id: arc.isa.xlsx.scaffold
+version: "1.0"
+
+rules:
+  - id: investigation
+    codec: isa.investigation.xlsx
+    target: root
+    path: isa.investigation.xlsx
+
+  - id: assay
+    codec: isa.assay.xlsx
+    target:
+      additionalType: Assay
+    path: "assays/{dataset.identifier}/isa.assay.xlsx"
+    files:
+      - id: datamap
+        path: isa.datamap.xlsx
+      - id: dataset-placeholder
+        path: dataset/.gitkeep
+        create: empty
+```
+
+Profiles contribute their rules in reference order, followed by project-local
+rules. After expansion there must be exactly one `root` rule. Profile IDs and
+qualified rule IDs must be unique; declaration order never chooses a winner for
+conflicting targets or paths.
+
+The complete standard Study, Assay, Workflow, and Run layout is shown in the
+[standard scaffold profile](../spec/project_file.md#12-standard-scaffold-profile).
+See the [project-file specification](../spec/project_file.md) for the complete
+document grammar and validation requirements.
+
+### Rules, targets, and files
+
+Each storage rule connects one complete Dataset to one exact codec and primary
+file:
+
+| Field | Meaning |
+|---|---|
+| `id` | Logical rule name, unique after profile qualification |
+| `codec` | Exact ID from the active `CodecRegistry` |
+| `target: root` | The top-level ARC; exactly one rule must select it |
+| `target.identifier` | One direct child with that exact identifier |
+| `target.additionalType` | Direct children with that `AdditionalType` |
+| `path` | Safe path relative to the workspace root |
+| `files` | Optional named files relative to the primary file's directory |
+
+`{dataset.identifier}` may occupy one complete path segment. On read it captures
+the Dataset identifier; on write it renders the selected Dataset identifier.
+An exact `identifier` rule reserves that child and takes precedence over an
+`additionalType` rule, which makes local relocation rules possible without
+editing a reusable profile.
+
+An auxiliary file without `create` is codec-managed. It is optional on read and
+is written only when the codec returns content under its declared logical ID.
+`create: empty` instead asks the project layer to create an unconditional
+zero-byte file. All primary and auxiliary paths are checked for confinement and
+collisions before codec execution.
+
+The built-in registry is `CodecRegistry.standard` and contains:
+
+```text
+isa.investigation.xlsx
+isa.study.xlsx
+isa.assay.xlsx
+isa.workflow.xlsx
+isa.run.xlsx
+```
+
+The Study, Assay, Workflow, and Run codecs understand a declared auxiliary file
+with ID `datamap`. A missing Datamap is valid; one is emitted only when the
+Dataset contains data contexts.
+
+### Loading, writing, and updating
+
+The ordinary ARC facade uses `CodecRegistry.standard`:
+
+```fsharp
+let workspaceRoot = "path/to/workspace"
+
+// Resolves .arc/project.yml when present.
+let projectArc = ARC.load workspaceRoot
+
+// Uses a project at the destination when present; otherwise writes arc.yml.
+projectArc.Write("path/to/destination")
+
+// Re-resolves the project at ArcPath on every update.
+projectArc.Update()
+```
+
+`Write[Async]` does not create a project document. It uses one already present
+at the destination; without one it writes `arc.yml`. `Update[Async]` selects the
+explicit destination when supplied, otherwise `ArcPath`, and re-resolves that
+destination's project and URL profiles on every call. Project handling never
+creates, rewrites, or deletes `.arc/project.yml` or referenced profile
+documents, and it does not remove stale codec outputs.
+
+The `ArcPath` property stores the package root that was loaded or last written:
 *)
 
 let autoDetectedArc = ARC.load arcPath
 autoDetectedArc.Write("new-arc-path")
 autoDetectedArc.Update()
 
-(**
-#### Write path determination
-
-The `ArcPath` property stores the package root that was loaded or last written. 
-
-*)
-
 arc.ArcPath <- Some "new-arc-path"
 arc.Update()
 
-//or
-
+// Or select the update destination directly.
 arc.Update("new-arc-path")
 
 (**
-#### Representation Rules
-
-`IsSpreadsheetScaffold` records which on-disk representation was loaded. `Update` uses this property to decide how to save.
-
-Use the representation flag as follows:
-
-- `IsSpreadsheetScaffold = true` means the package was loaded from spreadsheet files and should be updated with the scaffold writer.
-- `IsSpreadsheetScaffold = false` means the package should be written as YAML in `arc.yml`.
-
-`WriteYMLAsync` (and its `WriteAsync` alias) always writes YAML. It also clears `IsSpreadsheetScaffold`, so calling it converts a scaffold-loaded package into a YAML-backed package on disk. `WriteXLSXAsync` sets the flag.
-`UpdateAsync` preserves the current representation choice:
-*)
-
-arc.IsSpreadsheetScaffold <- true
-arc.Update() // uses the scaffold writer
-
-arc.IsSpreadsheetScaffold <- false
-arc.Update() // uses the YAML writer
-
-(**
-#### Working With Async Methods
-
-All three main io methods have async versions. Use `loadAsync` to load an ARC package from disk, `WriteAsync` to write the current ARC as YAML, and `UpdateAsync` to persist the current ARC back to its existing location.
-
-In Javascript, only these async methods are available and will be transpiled to promises, so use them in all cases for cross-platform code.
+For cross-platform code use the asynchronous methods. JavaScript exposes only
+these methods, where they transpile to promises:
 *)
 
 crossAsync {
@@ -121,6 +262,50 @@ crossAsync {
     do! arc.UpdateAsync()
     do! arc.WriteAsync("new-arc-path")
 }
+
+(**
+`IsSpreadsheetScaffold` records the fallback representation used when no
+project is present. `WriteYML[Async]` clears the flag and `WriteXLSX[Async]`
+sets it. `Update[Async]` checks for a destination project first; only without a
+project does the flag choose between the explicit YAML and scaffold writers.
+
+### Custom codecs and structured errors
+
+The generic `ARC.load[Async]`, `Write[Async]`, and `Update[Async]` methods
+deliberately use only the standard registry. Use the explicit
+`ARC.loadProject[Async]` and `arc.WriteProject[Async]` methods when a project
+names application-specific codecs. Registries are immutable, and
+`CodecRegistry.add` rejects invalid or duplicate codec IDs:
+
+```fsharp
+let registry =
+    match CodecRegistry.add customCodec CodecRegistry.standard with
+    | Ok registry -> registry
+    | Error error -> failwith error.Message
+
+crossAsync {
+    match! ARC.loadProjectAsync(registry, workspaceRoot) with
+    | Ok arc ->
+        // Work with the project-backed ARC.
+        return! arc.WriteProjectAsync(registry, workspaceRoot)
+    | Error error ->
+        printfn "Project %A error: %s" error.Kind error.Message
+        return Error error
+}
+```
+
+A `DatasetCodec` reads and writes a complete Dataset from a `CodecInput` or
+`CodecOutput`: `Primary` contains the rule's anchor bytes and `Files` is the
+declared auxiliary-resource map keyed by logical ID. The codec receives a
+`CodecContext` with the relative anchor and Dataset factory, so it never needs
+to derive companion filesystem paths.
+
+`ARC.loadProject[Async]` and `arc.WriteProject[Async]` require an exact project
+file and return `Result<_, ProjectError>` without representation fallback. The
+generic convenience methods raise `ProjectException` for the same structured
+error. `ProjectError` identifies the error kind and may include the rule ID,
+codec ID, anchor or URL, and underlying cause.
+*)
 
 (**
 
@@ -146,7 +331,7 @@ let leadOrganization = Organization("ARC Core Lab", id = "https://example.org/or
 let curator = Agent("Ada", familyName = "Lovelace", email = "ada@example.org", affiliation = leadOrganization)
 let article = ScholarlyArticle("ARC Core model walkthrough", authors = [ curator ])
 
-let arc =
+let metadataArc =
     ARC(
         "demo-arc",
         title = "Demo ARC package",
@@ -156,8 +341,8 @@ let arc =
         dateCreated = "2026-07-03",
         dateModified = "2026-07-03")
 
-arc.AddAgent(curator)
-arc.AddCitation(article)
+metadataArc.AddAgent(curator)
+metadataArc.AddCitation(article)
 
 (**
 The package keeps the same graph shape as `Dataset`, with some additional file-system capabilities.
@@ -216,7 +401,6 @@ YAML string and file round-trips preserve staged values as their concrete types.
 
 let stagedYaml = stagedArc.toYamlString(2)
 let decodedStagingArc = ARC.fromYamlString stagedYaml
-*)
 
 (**
 ## What To Use When
@@ -224,13 +408,16 @@ let decodedStagingArc = ARC.fromYamlString stagedYaml
 | Task | API |
 |------|-----|
 | Create an ARC | `ARC(identifier)` |
+| Load using `.arc/project.yml` when present | `ARC.load`, `ARC.loadAsync` |
+| Load a project with custom codecs | `ARC.loadProject`, `ARC.loadProjectAsync` |
+| Write using a destination project | `arc.Write`, `arc.WriteAsync`, `arc.WriteProject`, `arc.WriteProjectAsync` |
+| Use the built-in ISA workbook codecs | `CodecRegistry.standard` |
+| Extend project handling with a codec | `DatasetCodec`, `CodecRegistry.add` |
 | Load YAML | `ARC.loadYML`, `ARC.loadYMLAsync` |
 | Load a spreadsheet scaffold | `ARC.loadXLSX`, `ARC.loadXLSXAsync` |
 | Save as YAML | `arc.WriteYML`, `arc.WriteYMLAsync` |
 | Save as a spreadsheet scaffold | `arc.WriteXLSX`, `arc.WriteXLSXAsync` |
-| Auto-detect and load | `ARC.load`, `ARC.loadAsync` |
-| Save as YAML (convenience) | `arc.Write`, `arc.WriteAsync` |
-| Refresh in place on disk | `arc.Update`, `arc.UpdateAsync` |
+| Refresh using the destination project or recorded representation | `arc.Update`, `arc.UpdateAsync` |
 | Add package metadata | `arc.Title`, `arc.Description`, `arc.License`, `arc.DatePublished`, `arc.DateCreated`, `arc.DateModified` |
 | Record package contributors | `arc.AddAgent`, `arc.AddCitation` |
 | Serialize ARC YAML | `arc.toYamlString`, `ARC.fromYamlString` |

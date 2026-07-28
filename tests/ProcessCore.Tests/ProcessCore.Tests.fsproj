@@ -8,6 +8,7 @@
   <ItemGroup>
     <Compile Include="Helper.fs" />
     <Compile Include="Fixtures.fs" />
+    <Compile Include="WebRequest.fs" />
     <Compile Include="Types/Annotation.fs" />
     <Compile Include="Types/DefinedTerm.fs" />
     <Compile Include="Types/FormalParameter.fs" />
@@ -59,6 +60,7 @@
     <Compile Include="SQL/RepositoryCrudTests.fs" />
     <Compile Include="SQL/Tests.fs" />
     <Compile Include="ARC.fs" />
+    <Compile Include="WorkspaceProject.fs" Condition="'$(FABLE_COMPILER_PYTHON)' != 'true'" />
     <Compile Include="Main.fs" />
   </ItemGroup>
 

@@ -15,6 +15,8 @@
     <Compile Include="Helper\Regex.fs" />
     <Compile Include="Helper\Ontology.fs" />
     <Compile Include="Helper\Identifier.fs" />
+    <Compile Include="Helper\WebRequest\WebRequest.Py.fs" />
+    <Compile Include="Helper\WebRequest\WebRequest.fs" />
     <Compile Include="DefinedTerm.fs" />
     <Compile Include="FormalParameter.fs" />
     <Compile Include="Annotation.fs" />
@@ -71,6 +73,7 @@
     <Compile Include="Spreadsheet\ArcRun.fs" />
     <Compile Include="Spreadsheet\ArcInvestigation.fs" />
     <Compile Include="ScaffoldReader.fs" />
+    <Compile Include="WorkspaceProject.fs" />
     <Compile Include="ARC.fs" />
   </ItemGroup>
 

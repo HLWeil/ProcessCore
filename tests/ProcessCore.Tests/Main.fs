@@ -16,6 +16,7 @@ let all =
     testList
         "ProcessCore"
         [
+            ProcessCore.WebRequest.tests
             Integration.tests
             Types.Annotation.tests
             Types.DefinedTerm.tests
@@ -44,6 +45,7 @@ let all =
             ProcessCore.Yaml.Tests.All.all
             ProcessCore.SQL.Tests.All.all
             ARC.tests
+            WorkspaceProject.tests
         ]
 
 #if FABLE_COMPILER_JAVASCRIPT || FABLE_COMPILER_TYPESCRIPT

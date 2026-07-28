@@ -270,6 +270,15 @@ let readFileXlsxAsync (path : string) : CrossAsync<FsWorkbook> =
     }
     #endif
 
+let readXlsxBytesAsync (bytes : byte []) : CrossAsync<FsWorkbook> =
+    #if FABLE_COMPILER_JAVASCRIPT || FABLE_COMPILER_TYPESCRIPT
+    FsWorkbook.fromXlsxBytes bytes
+    #else
+    crossAsync {
+        return FsWorkbook.fromXlsxBytes bytes
+    }
+    #endif
+
 let moveFileAsync (oldPath : string) (newPath : string) : CrossAsync<unit> =
     #if FABLE_COMPILER_JAVASCRIPT || FABLE_COMPILER_TYPESCRIPT
         FS.rename oldPath newPath
@@ -378,6 +387,15 @@ let writeFileXlsxAsync (path : string) (wb : FsWorkbook) : CrossAsync<unit> =
     #else
     crossAsync {
         FsWorkbook.toXlsxFile path wb
+    }
+    #endif
+
+let writeXlsxBytesAsync (wb : FsWorkbook) : CrossAsync<byte []> =
+    #if FABLE_COMPILER_JAVASCRIPT || FABLE_COMPILER_TYPESCRIPT
+        FsWorkbook.toXlsxBytes wb
+    #else
+    crossAsync {
+        return FsWorkbook.toXlsxBytes wb
     }
     #endif
 

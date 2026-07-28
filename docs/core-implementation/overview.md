@@ -17,7 +17,7 @@ The ARC Core model is intentionally compact:
 - A `Recipe` describes what the process executes.
 - An `Annotation` annotates datasets, process parameters, input/output nodes, and protocol components.
 - A `DataContext` describes data files and selected data fragments with additional structural and contextual information.
-- `Agent`, `Organization`, and `ScholarlyArticle` carry administrative profile metadata, while `ARC` adds package-level persistence and metadata handling.
+- `Agent`, `Organization`, and `ScholarlyArticle` carry administrative profile metadata, while `ARC` adds package-level persistence, project-configured storage, and metadata handling.
 - `additionalType`, `additionalProperty`, and `DynamicObj` carry domain-specific extensions without changing the shared graph shape.
 
 The pages in this section are user-facing implementation guides.
@@ -63,7 +63,7 @@ let d = Dataset("MyDataset")
 
 ## Recommended Path
 
-1. [ARC Layer](arc.fsx) shows package-level metadata and ARC YAML persistence.
+1. [ARC Layer](arc.fsx) shows package-level metadata, explicit YAML/XLSX persistence, and `.arc/project.yml`-configured workspaces.
 2. [Creating A Dataset](creating-datasets.fsx) builds a graph from F# objects.
 3. [Decorations](decorations.fsx) shows how to add domain specificity through typed annotations and `DynamicObj` overflow fields.
 4. [Reading And Writing YAML](yaml-parsing.fsx) loads profile-shaped examples and writes inline or indexed YAML.
@@ -80,6 +80,8 @@ let d = Dataset("MyDataset")
 | Task | Start With |
 |------|------------|
 | Create or persist an ARC package | `ARC`, `ArcPath`, `Write`, `Update`, `ARC.fromYamlString` |
+| Use a project-configured workspace | `.arc/project.yml`, `ARC.load`, `arc.Write`, `arc.Update` |
+| Add application-specific project codecs | `DatasetCodec`, `CodecRegistry`, `ARC.loadProject`, `arc.WriteProject` |
 | Build a process graph in code | `Dataset`, `Process`, `Sample`, `Data` |
 | Add domain-specific meaning | `AdditionalType`, `AddAdditionalProperty`, `AddParameterValue`, `DynamicObj.SetProperty` |
 | Load ARC/profile-shaped YAML | `ProcessCore.Yaml.Dataset.fromYamlString false` |

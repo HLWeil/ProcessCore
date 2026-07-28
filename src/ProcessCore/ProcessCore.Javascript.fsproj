@@ -17,6 +17,8 @@
     <Compile Include="Helper\Regex.fs" />
     <Compile Include="Helper\Ontology.fs" />
     <Compile Include="Helper\Identifier.fs" />
+    <Compile Include="Helper\WebRequest\WebRequest.Node.fs" />
+    <Compile Include="Helper\WebRequest\WebRequest.fs" />
     <Compile Include="DefinedTerm.fs" />
     <Compile Include="FormalParameter.fs" />
     <Compile Include="Annotation.fs" />
@@ -73,11 +75,14 @@
     <Compile Include="Spreadsheet\ArcRun.fs" />
     <Compile Include="Spreadsheet\ArcInvestigation.fs" />
     <Compile Include="ScaffoldReader.fs" />
+    <Compile Include="WorkspaceProject.fs" />
     <Compile Include="ARC.fs" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Fable.Promise" />
+    <PackageReference Include="Fable.Fetch" />
+    <PackageReference Include="Fable.SimpleHttp" />
     <PackageReference Include="Fable.Core" />
     <PackageReference Include="Fable.Node" />
     <PackageReference Include="YAMLicious" />
@@ -92,6 +97,14 @@
         </PackageReference>
     </ItemGroup>
 
+  <PropertyGroup>
+    <NpmDependencies>
+      <NpmPackage Name="isomorphic-fetch" Version="gt 3.0.0 lt 3.0.0" ResolutionStrategy="Max" />
+    </NpmDependencies>
+    <NpmDependencies>
+      <NpmPackage Name="@nfdi4plants/exceljs" Version="0.3.0" ResolutionStrategy="Max" />
+    </NpmDependencies>
+  </PropertyGroup>    
 
 </Project>
 

@@ -1,0 +1,28 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$id: "arc-workspace-profile.schema.yml"
+title: ARC Workspace Profile
+description: Structural schema for reusable ARC storage rules, including optional auxiliary files
+type: object
+
+properties:
+  type:
+    const: ArcWorkspaceProfile
+  id:
+    $ref: "arc-workspace-project.schema.yml#/$defs/identifier"
+  version:
+    $ref: "arc-workspace-project.schema.yml#/$defs/version"
+  description:
+    type: string
+  rules:
+    type: array
+    minItems: 1
+    items:
+      $ref: "arc-workspace-project.schema.yml#/$defs/storageRule"
+
+required:
+  - type
+  - id
+  - version
+  - rules
+
+additionalProperties: false

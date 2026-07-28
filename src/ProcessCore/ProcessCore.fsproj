@@ -21,6 +21,9 @@
     <Compile Include="Helper\Regex.fs" />
     <Compile Include="Helper\Ontology.fs" />
     <Compile Include="Helper\Identifier.fs" />
+    <None Include="Helper\WebRequest\WebRequest.Node.fs" />
+    <None Include="Helper\WebRequest\WebRequest.Py.fs" />
+    <Compile Include="Helper\WebRequest\WebRequest.fs" />
     <Compile Include="DefinedTerm.fs" />
     <Compile Include="FormalParameter.fs" />
     <Compile Include="Annotation.fs" />
@@ -76,11 +79,13 @@
     <Compile Include="Spreadsheet\ArcRun.fs" />
     <Compile Include="Spreadsheet\ArcInvestigation.fs" />
     <Compile Include="ScaffoldReader.fs" />
+    <Compile Include="WorkspaceProject.fs" />
     <Compile Include="ARC.fs" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Fable.Core" />
+    <PackageReference Include="Fable.SimpleHttp" />
     <PackageReference Include="YAMLicious" />
     <PackageReference Include="DynamicObj" />
     <PackageReference Include="FsSpreadsheet.Net" />

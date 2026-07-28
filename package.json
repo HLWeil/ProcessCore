@@ -9,7 +9,8 @@
   },
   "dependencies": {
     "better-sqlite3": "^12.9.0",
-    "@nfdi4plants/exceljs": "^0.4.0"
+    "@nfdi4plants/exceljs": "^0.4.0",
+    "isomorphic-fetch": "^3.0.0"
   },
   "devDependencies": {
     "typescript": "~5.8.3",
