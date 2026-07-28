@@ -100,17 +100,30 @@ type ARC(identifier: string, ?title: string, ?description: string, ?additionalTy
             do! ScaffoldReader.ARC.writeAsync arcPath this
         }
 
+    /// Writes the ARC through the exact .arc/project.yml using the supplied codec registry.
+    member this.WriteProjectAsync
+        (registry: CodecRegistry, workspaceRoot: string)
+        : CrossAsync<Result<unit, ProjectError>>
+        =
+        crossAsync {
+            let! result = ProjectRuntime.writeAsync registry workspaceRoot this
+            match result with
+            | Ok () ->
+                _arcPath <- Some workspaceRoot
+                _isSpreadsheetScaffold <- false
+                return Ok ()
+            | Error error -> return Error error
+        }
+
     /// Writes the ARC using .arc/project.yml when present; otherwise writes arc.yml.
     member this.WriteAsync(arcPath : string) : CrossAsync<unit> =
         let projectPath = Path.combineMany [ arcPath; Path.ARCConfigFolderName; "project.yml" ]
         crossAsync {
             let! projectExists = Path.fileExistsAsync projectPath
             if projectExists then
-                let! result = ProjectRuntime.writeAsync CodecRegistry.standard arcPath this
+                let! result = this.WriteProjectAsync(CodecRegistry.standard, arcPath)
                 match result with
-                | Ok () ->
-                    _arcPath <- Some arcPath
-                    _isSpreadsheetScaffold <- false
+                | Ok () -> ()
                 | Error error -> return raise (ProjectException error)
             else
                 return! this.WriteYMLAsync arcPath
@@ -134,11 +147,9 @@ type ARC(identifier: string, ?title: string, ?description: string, ?additionalTy
             let projectPath = Path.combineMany [ arcPath; Path.ARCConfigFolderName; "project.yml" ]
             let! projectExists = Path.fileExistsAsync projectPath
             if projectExists then
-                let! result = ProjectRuntime.writeAsync CodecRegistry.standard arcPath this
+                let! result = this.WriteProjectAsync(CodecRegistry.standard, arcPath)
                 match result with
-                | Ok () ->
-                    _arcPath <- Some arcPath
-                    _isSpreadsheetScaffold <- false
+                | Ok () -> ()
                 | Error error -> return raise (ProjectException error)
             elif _isSpreadsheetScaffold then
                 return! this.WriteXLSXAsync arcPath
@@ -172,82 +183,17 @@ type ARC(identifier: string, ?title: string, ?description: string, ?additionalTy
             | ex -> return failwith $"Failed to load ARC from scaffold at {arcPath}: {ex.Message}"
         }
 
-    /// Loads an ARC from an exact .arc/project.yml when present. Otherwise it uses the existing arc.yml/XLSX discovery.
-    static member loadAsync(arcPath : string) : CrossAsync<ARC> = 
-        let projectPath = Path.combineMany [ arcPath; Path.ARCConfigFolderName; "project.yml" ]
-        let yamlPath = Path.combine arcPath "arc.yml"
+    /// Loads an ARC through the exact .arc/project.yml using the supplied codec registry.
+    static member loadProjectAsync
+        (registry: CodecRegistry, workspaceRoot: string)
+        : CrossAsync<Result<ARC, ProjectError>>
+        =
         crossAsync {
-            let! projectExists = Path.fileExistsAsync projectPath
-            if projectExists then
-                let! result = ProjectRuntime.loadAsync (fun id -> ARC(id) :> Dataset) CodecRegistry.standard arcPath
-                match result with
-                | Error error -> return raise (ProjectException error)
-                | Ok dataset ->
-                    match dataset with
-                    | :? ARC as arc ->
-                        arc.ArcPath <- Some arcPath
-                        arc.IsSpreadsheetScaffold <- false
-                        return arc
-                    | _ ->
-                        return raise (
-                            ProjectException {
-                                Kind = ProjectErrorKind.Target
-                                Message = "The root codec did not construct the ARC through CodecContext.CreateDataset."
-                                RuleId = None
-                                CodecId = None
-                                Anchor = None
-                                Cause = None
-                            }
-                        )
-            else
-                let! yamlExists = Path.fileExistsAsync yamlPath
-                if yamlExists then
-                    return! ARC.loadYMLAsync arcPath
-                else
-                    printfn $"No ARC yml file found at {yamlPath}, trying to read ARC Spreadsheet Scaffold"
-                    return! ARC.loadXLSXAsync arcPath
-        }
-
-    #if !FABLE_COMPILER_JAVASCRIPT && !FABLE_COMPILER_TYPESCRIPT
-
-    /// Writes the ARC to the specified path as arc.yml and makes YAML the active representation.
-    member this.WriteYML(arcPath : string) =
-        this.WriteYMLAsync arcPath |> Async.RunSynchronously
-
-    /// Writes the ARC to the specified path as a spreadsheet scaffold and makes XLSX the active representation.
-    member this.WriteXLSX(arcPath : string) =
-        this.WriteXLSXAsync arcPath |> Async.RunSynchronously
-
-    /// Writes the ARC using .arc/project.yml when present; otherwise writes arc.yml.
-    member this.Write(arcPath : string) = 
-        this.WriteAsync arcPath |> Async.RunSynchronously
-
-    /// Updates the ARC at the specified path, re-resolving an authoritative destination project when present.
-    ///
-    /// If no path is provided, it will use the ArcPath property. If neither is set, it will throw an exception.
-    member this.Update(?arcPath : string) = 
-        this.UpdateAsync(?arcPath = arcPath) |> Async.RunSynchronously
-
-    /// Loads an ARC from arc.yml in the specified path.
-    static member loadYML(arcPath : string) : ARC =
-        ARC.loadYMLAsync arcPath |> Async.RunSynchronously
-
-    /// Loads an ARC from the spreadsheet scaffold in the specified path.
-    static member loadXLSX(arcPath : string) : ARC =
-        ARC.loadXLSXAsync arcPath |> Async.RunSynchronously
-
-    /// Loads an ARC using an authoritative .arc/project.yml when present, otherwise using existing YAML/XLSX discovery.
-    /// If neither is found, it throws an exception.
-    static member load(arcPath : string) : ARC = 
-        ARC.loadAsync arcPath |> Async.RunSynchronously
-    #endif
-
-
-module ProjectIO =
-
-    let loadAsync (registry: CodecRegistry) (workspaceRoot: string) : CrossAsync<Result<ARC, ProjectError>> =
-        crossAsync {
-            let! result = ProjectRuntime.loadAsync (fun id -> ARC(id) :> Dataset) registry workspaceRoot
+            let! result =
+                ProjectRuntime.loadAsync
+                    (fun id -> ARC(id) :> Dataset)
+                    registry
+                    workspaceRoot
             return
                 result
                 |> Result.bind (fun dataset ->
@@ -267,18 +213,64 @@ module ProjectIO =
                         })
         }
 
-    let writeAsync
-        (registry: CodecRegistry)
-        (workspaceRoot: string)
-        (arc: ARC)
-        : CrossAsync<Result<unit, ProjectError>>
-        =
-        ProjectRuntime.writeAsync registry workspaceRoot arc
+    /// Loads an ARC from an exact .arc/project.yml when present. Otherwise it uses the existing arc.yml/XLSX discovery.
+    static member loadAsync(arcPath : string) : CrossAsync<ARC> = 
+        let projectPath = Path.combineMany [ arcPath; Path.ARCConfigFolderName; "project.yml" ]
+        let yamlPath = Path.combine arcPath "arc.yml"
+        crossAsync {
+            let! projectExists = Path.fileExistsAsync projectPath
+            if projectExists then
+                let! result = ARC.loadProjectAsync(CodecRegistry.standard, arcPath)
+                match result with
+                | Error error -> return raise (ProjectException error)
+                | Ok arc -> return arc
+            else
+                let! yamlExists = Path.fileExistsAsync yamlPath
+                if yamlExists then
+                    return! ARC.loadYMLAsync arcPath
+                else
+                    printfn $"No ARC yml file found at {yamlPath}, trying to read ARC Spreadsheet Scaffold"
+                    return! ARC.loadXLSXAsync arcPath
+        }
 
     #if !FABLE_COMPILER_JAVASCRIPT && !FABLE_COMPILER_TYPESCRIPT
-    let load (registry: CodecRegistry) (workspaceRoot: string) =
-        loadAsync registry workspaceRoot |> Async.RunSynchronously
 
-    let write (registry: CodecRegistry) (workspaceRoot: string) (arc: ARC) =
-        writeAsync registry workspaceRoot arc |> Async.RunSynchronously
+    /// Writes the ARC to the specified path as arc.yml and makes YAML the active representation.
+    member this.WriteYML(arcPath : string) =
+        this.WriteYMLAsync arcPath |> Async.RunSynchronously
+
+    /// Writes the ARC to the specified path as a spreadsheet scaffold and makes XLSX the active representation.
+    member this.WriteXLSX(arcPath : string) =
+        this.WriteXLSXAsync arcPath |> Async.RunSynchronously
+
+    /// Writes the ARC through the exact .arc/project.yml using the supplied codec registry.
+    member this.WriteProject(registry: CodecRegistry, workspaceRoot: string) =
+        this.WriteProjectAsync(registry, workspaceRoot) |> Async.RunSynchronously
+
+    /// Writes the ARC using .arc/project.yml when present; otherwise writes arc.yml.
+    member this.Write(arcPath : string) = 
+        this.WriteAsync arcPath |> Async.RunSynchronously
+
+    /// Updates the ARC at the specified path, re-resolving an authoritative destination project when present.
+    ///
+    /// If no path is provided, it will use the ArcPath property. If neither is set, it will throw an exception.
+    member this.Update(?arcPath : string) = 
+        this.UpdateAsync(?arcPath = arcPath) |> Async.RunSynchronously
+
+    /// Loads an ARC from arc.yml in the specified path.
+    static member loadYML(arcPath : string) : ARC =
+        ARC.loadYMLAsync arcPath |> Async.RunSynchronously
+
+    /// Loads an ARC from the spreadsheet scaffold in the specified path.
+    static member loadXLSX(arcPath : string) : ARC =
+        ARC.loadXLSXAsync arcPath |> Async.RunSynchronously
+
+    /// Loads an ARC through the exact .arc/project.yml using the supplied codec registry.
+    static member loadProject(registry: CodecRegistry, workspaceRoot: string) =
+        ARC.loadProjectAsync(registry, workspaceRoot) |> Async.RunSynchronously
+
+    /// Loads an ARC using an authoritative .arc/project.yml when present, otherwise using existing YAML/XLSX discovery.
+    /// If neither is found, it throws an exception.
+    static member load(arcPath : string) : ARC = 
+        ARC.loadAsync arcPath |> Async.RunSynchronously
     #endif

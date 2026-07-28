@@ -31,6 +31,38 @@ let private writeText path text =
         do! Path.writeFileTextAsync path text
     }
 
+// to-do: remove when a profile file is available on the web
+#if !FABLE_COMPILER
+open System.Net
+open System.Net.Sockets
+open System.Text
+
+let private withHttpResponse (body: string) action =
+    async {
+        let listener = new TcpListener(IPAddress.Loopback, 0)
+        listener.Start()
+        try
+            let endpoint = listener.LocalEndpoint :?> IPEndPoint
+            let url = $"http://127.0.0.1:{endpoint.Port}/profile.yml"
+            let serve =
+                async {
+                    use! client = listener.AcceptTcpClientAsync() |> Async.AwaitTask
+                    use stream = client.GetStream()
+                    let payload = Encoding.UTF8.GetBytes body
+                    let header =
+                        $"HTTP/1.1 200 OK\r\nContent-Type: application/yaml\r\nContent-Length: {payload.Length}\r\nConnection: close\r\n\r\n"
+                    let response = Array.append (Encoding.ASCII.GetBytes header) payload
+                    do! stream.WriteAsync(response, 0, response.Length) |> Async.AwaitTask
+                }
+            let! server = Async.StartChild serve
+            let! result = action url
+            do! server
+            return result
+        finally
+            listener.Stop()
+    }
+#endif
+
 let private projectWith codecId rules =
     $"""type: ArcWorkspaceProject
 rules:
@@ -277,7 +309,7 @@ rules:
                 Expect.isNone (CodecRegistry.tryFind codec.Id CodecRegistry.empty) "the original registry remains unchanged"
                 Expect.isError (CodecRegistry.add codec first) "duplicate IDs are rejected"
 
-            testCaseCrossAsync "loads a confined local profile and rejects URL profiles explicitly" (
+            testCaseCrossAsync "loads a confined local profile" (
                 withWorkspace "local-profile" <| fun root ->
                     crossAsync {
                         do!
@@ -301,20 +333,63 @@ workspaceProfiles:
   - file: profile.yml
 """
                         let registry = fakeRegistry (ref 0) (ref 0)
-                        let! loaded = ProjectIO.loadAsync registry root
+                        let! loaded = ARC.loadProjectAsync(registry, root)
                         Expect.equal (loaded |> unwrap).Identifier "root" "the file profile contributes its rule"
+                    }
+            )
 
+// to-do: run in js and py when a profile file is available on the web
+#if !FABLE_COMPILER
+            testCaseCrossAsync "downloads and resolves a URL profile" (
+                withWorkspace "url-profile" <| fun root ->
+                    withHttpResponse
+                        """type: ArcWorkspaceProfile
+id: remote
+version: "1.0"
+rules:
+  - id: root
+    codec: test.dataset
+    target: root
+    path: root.data
+"""
+                    <| fun url ->
+                        crossAsync {
+                            do! writeText (Path.combine root "root.data") "root|Investigation"
+                            do!
+                                writeText
+                                    (Path.combineMany [ root; ".arc"; "project.yml" ])
+                                    $"""type: ArcWorkspaceProject
+workspaceProfiles:
+  - url: "{url}"
+"""
+                            let reads, writes = ref 0, ref 0
+                            let registry = fakeRegistry reads writes
+                            let! loaded = ARC.loadProjectAsync(registry, root)
+                            Expect.equal (loaded |> unwrap).Identifier "root" "the downloaded profile contributes its rule"
+                            Expect.equal reads.Value 1 "the resolved rule invokes the codec"
+                        }
+            )
+#endif
+
+            testCaseCrossAsync "reports URL download failures as anchored profile errors" (
+                withWorkspace "url-profile-failure" <| fun root ->
+                    crossAsync {
+                        let url = "http://127.0.0.1:1/profile.yml"
                         do!
                             writeText
                                 (Path.combineMany [ root; ".arc"; "project.yml" ])
-                                """type: ArcWorkspaceProject
+                                $"""type: ArcWorkspaceProject
 workspaceProfiles:
-  - url: "https://example.org/profile.yml"
+  - url: "{url}"
 """
-                        let! result = ProjectIO.loadAsync registry root
+                        let! result =
+                            ARC.loadProjectAsync(fakeRegistry (ref 0) (ref 0), root)
                         match result with
-                        | Error error -> Expect.equal error.Kind ProjectErrorKind.Profile "URL profiles fail as profile errors"
-                        | Ok _ -> failwith "The v1 implementation must not silently ignore URL profiles."
+                        | Error error ->
+                            Expect.equal error.Kind ProjectErrorKind.Profile "download failures are profile errors"
+                            Expect.equal error.Anchor (Some url) "the failing URL is preserved as the error anchor"
+                            Expect.isSome error.Cause "the download exception is preserved as the cause"
+                        | Ok _ -> failwith "An unavailable URL profile must fail."
                     }
             )
 
@@ -339,7 +414,7 @@ rules:
       identifier: same
     path: "{dataset.identifier}"
 """
-                        let! result = ProjectIO.loadAsync registry root
+                        let! result = ARC.loadProjectAsync(registry, root)
                         match result with
                         | Error error -> Expect.equal error.Kind ProjectErrorKind.Path "collision is a path error"
                         | Ok _ -> failwith "Colliding bindings must fail."
@@ -372,7 +447,7 @@ rules:
       identifier: child
     path: child.data
 """
-                        let! result = ProjectIO.loadAsync registry root
+                        let! result = ARC.loadProjectAsync(registry, root)
                         match result with
                         | Error error -> Expect.equal error.Kind ProjectErrorKind.Path "auxiliary collisions are path errors"
                         | Ok _ -> failwith "An auxiliary file must not collide with an anchor."
@@ -400,7 +475,7 @@ rules:
     target: root
     path: root.data
 """
-                        let! result = ProjectIO.loadAsync registry root
+                        let! result = ARC.loadProjectAsync(registry, root)
                         match result with
                         | Error error ->
                             Expect.equal error.Kind ProjectErrorKind.Codec "the exception becomes a codec failure"
@@ -424,11 +499,11 @@ rules:
                         study.AddPart(Dataset("nested"))
                         arc.AddPart study
 
-                        let! written = ProjectIO.writeAsync registry root arc
+                        let! written = arc.WriteProjectAsync(registry, root)
                         written |> unwrap
                         let! staleExists = Path.fileExistsAsync (Path.combine root "stale.data")
                         Expect.isTrue staleExists "project writes do not delete stale resources"
-                        let! loaded = ProjectIO.loadAsync registry root
+                        let! loaded = ARC.loadProjectAsync(registry, root)
                         let loaded = loaded |> unwrap
                         Expect.equal loaded.Identifier "root" "root identifier round-trips"
                         Expect.equal loaded.HasPart.Count 1 "the selected child is attached directly"
@@ -482,7 +557,7 @@ rules:
         path: dataset/.gitkeep
         create: empty
 """
-                        let! written = ProjectIO.writeAsync registry root (ARC("root"))
+                        let! written = ARC("root").WriteProjectAsync(registry, root)
                         written |> unwrap
                         let metadataPath = Path.combineMany [ root; "relocated"; "metadata"; "info.txt" ]
                         let placeholderPath = Path.combineMany [ root; "relocated"; "dataset"; ".gitkeep" ]
@@ -491,7 +566,7 @@ rules:
                         Expect.equal metadata "declared" "codec output is written to its declared path"
                         Expect.isEmpty placeholder "project-managed files are zero-byte files"
 
-                        let! loaded = ProjectIO.loadAsync registry root
+                        let! loaded = ARC.loadProjectAsync(registry, root)
                         Expect.equal (loaded |> unwrap).Identifier "root" "the primary resource is decoded"
                         Expect.isTrue (Map.containsKey "metadata" seenFiles.Value) "existing codec files are supplied by ID"
                         Expect.isTrue (Map.containsKey "placeholder" seenFiles.Value) "existing managed files are supplied by ID"
@@ -528,7 +603,7 @@ rules:
     target: root
     path: root.data
 """
-                        let! result = ProjectIO.writeAsync registry root (ARC("root"))
+                        let! result = ARC("root").WriteProjectAsync(registry, root)
                         match result with
                         | Error error -> Expect.equal error.Kind ProjectErrorKind.Resource "undeclared output is a resource error"
                         | Ok () -> failwith "Undeclared codec output must fail."
@@ -562,7 +637,7 @@ rules:
 """
                         let arc = ARC("root")
                         arc.AddPart(Dataset("assay", additionalType = "Assay"))
-                        let! written = ProjectIO.writeAsync registry root arc
+                        let! written = arc.WriteProjectAsync(registry, root)
                         written |> unwrap
                         let marker = Path.combineMany [ root; "special"; "location"; "dataset"; ".gitkeep" ]
                         let! markerExists = Path.fileExistsAsync marker
@@ -612,9 +687,9 @@ rules:
                         arc.AddPart(Dataset("workflow", additionalType = "Workflow"))
                         arc.AddPart(Dataset("run", additionalType = "Run"))
 
-                        let! written = ProjectIO.writeAsync CodecRegistry.standard root arc
+                        let! written = arc.WriteProjectAsync(CodecRegistry.standard, root)
                         written |> unwrap
-                        let! loaded = ProjectIO.loadAsync CodecRegistry.standard root
+                        let! loaded = ARC.loadProjectAsync(CodecRegistry.standard, root)
                         let loaded = loaded |> unwrap
                         let children =
                             loaded.HasPart

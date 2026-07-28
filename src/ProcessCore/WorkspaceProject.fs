@@ -760,43 +760,13 @@ module private ProjectResolution =
             | Some duplicate -> Some(head, duplicate)
             | None -> duplicateBy comparer getValue tail
 
-    let resolve (registry: CodecRegistry) workspaceRoot =
+    let private finishResolution
+        (registry: CodecRegistry)
+        workspaceRoot
+        (project: WorkspaceProject)
+        (profiles: WorkspaceProfile list)
+        =
         try
-            let workspaceRoot = ProjectFileSystem.fullPath workspaceRoot ""
-            let projectRelative = ".arc/project.yml"
-            let projectPath =
-                match SafeProjectPath.resolve workspaceRoot projectRelative with
-                | Ok path -> path
-                | Error error -> ProjectErrors.raiseError error
-            if not (ProjectFileSystem.isFile projectPath) then
-                ProjectErrors.create ProjectErrorKind.Project $"No project file exists at '{projectRelative}'."
-                |> ProjectErrors.withAnchor projectRelative
-                |> ProjectErrors.raiseError
-            let project =
-                match WorkspaceProject.parse (ProjectFileSystem.readAllText projectPath) with
-                | Ok project -> project
-                | Error error -> ProjectErrors.raiseError error
-            let arcDirectory = ProjectFileSystem.dirname projectPath
-            let profiles =
-                project.WorkspaceProfiles
-                |> List.map (function
-                    | WorkspaceProfileReference.Url url ->
-                        ProjectErrors.create ProjectErrorKind.Profile $"URL profile '{url}' is not supported by the .NET v1 implementation."
-                        |> ProjectErrors.withAnchor url
-                        |> ProjectErrors.raiseError
-                    | WorkspaceProfileReference.File relative ->
-                        let path =
-                            match SafeProjectPath.resolve arcDirectory relative with
-                            | Ok path -> path
-                            | Error error -> ProjectErrors.raiseError { error with Kind = ProjectErrorKind.Profile; Anchor = Some relative }
-                        if not (ProjectFileSystem.isFile path) then
-                            ProjectErrors.create ProjectErrorKind.Profile $"Profile file '{relative}' does not exist."
-                            |> ProjectErrors.withAnchor relative
-                            |> ProjectErrors.raiseError
-                        match WorkspaceProfile.parse (ProjectFileSystem.readAllText path) with
-                        | Ok profile -> profile
-                        | Error error ->
-                            ProjectErrors.raiseError { error with Anchor = Some relative })
             profiles
             |> List.countBy (fun profile -> profile.Id)
             |> List.tryFind (fun (_, count) -> count > 1)
@@ -887,6 +857,79 @@ module private ProjectResolution =
         with
         | ProjectException error -> Error error
         | ex -> Error(ProjectErrors.create ProjectErrorKind.Project "Project resolution failed." |> ProjectErrors.withCause ex)
+
+    let private downloadProfile url : CrossAsync<Result<string, ProjectError>> =
+        let download : CrossAsync<string> =
+            #if FABLE_COMPILER_JAVASCRIPT || FABLE_COMPILER_TYPESCRIPT
+            ProcessCore.WebRequest.downloadFile url |> Async.StartAsPromise
+            #else
+            ProcessCore.WebRequest.downloadFile url
+            #endif
+        download
+        |> CrossAsync.map Ok
+        |> CrossAsync.catchWith (fun ex ->
+            Error(
+                ProjectErrors.create ProjectErrorKind.Profile $"Profile URL '{url}' could not be downloaded."
+                |> ProjectErrors.withAnchor url
+                |> ProjectErrors.withCause ex
+            ))
+
+    let private parseProfile source text =
+        match WorkspaceProfile.parse text with
+        | Ok profile -> profile
+        | Error error -> ProjectErrors.raiseError { error with Anchor = Some source }
+
+    let resolve (registry: CodecRegistry) workspaceRoot : CrossAsync<Result<ResolvedProject, ProjectError>> =
+        crossAsync {
+            try
+                let workspaceRoot = ProjectFileSystem.fullPath workspaceRoot ""
+                let projectRelative = ".arc/project.yml"
+                let projectPath =
+                    match SafeProjectPath.resolve workspaceRoot projectRelative with
+                    | Ok path -> path
+                    | Error error -> ProjectErrors.raiseError error
+                if not (ProjectFileSystem.isFile projectPath) then
+                    ProjectErrors.create ProjectErrorKind.Project $"No project file exists at '{projectRelative}'."
+                    |> ProjectErrors.withAnchor projectRelative
+                    |> ProjectErrors.raiseError
+                let project =
+                    match WorkspaceProject.parse (ProjectFileSystem.readAllText projectPath) with
+                    | Ok project -> project
+                    | Error error -> ProjectErrors.raiseError error
+                let arcDirectory = ProjectFileSystem.dirname projectPath
+                let profiles = ResizeArray<WorkspaceProfile>()
+                for profileReference in project.WorkspaceProfiles do
+                    match profileReference with
+                    | WorkspaceProfileReference.File relative ->
+                        let path =
+                            match SafeProjectPath.resolve arcDirectory relative with
+                            | Ok path -> path
+                            | Error error ->
+                                ProjectErrors.raiseError {
+                                    error with
+                                        Kind = ProjectErrorKind.Profile
+                                        Anchor = Some relative
+                                }
+                        if not (ProjectFileSystem.isFile path) then
+                            ProjectErrors.create ProjectErrorKind.Profile $"Profile file '{relative}' does not exist."
+                            |> ProjectErrors.withAnchor relative
+                            |> ProjectErrors.raiseError
+                        profiles.Add(parseProfile relative (ProjectFileSystem.readAllText path))
+                    | WorkspaceProfileReference.Url url ->
+                        let! downloaded = downloadProfile url
+                        match downloaded with
+                        | Ok text -> profiles.Add(parseProfile url text)
+                        | Error error -> ProjectErrors.raiseError error
+                return finishResolution registry workspaceRoot project (List.ofSeq profiles)
+            with
+            | ProjectException error -> return Error error
+            | ex ->
+                return
+                    Error(
+                        ProjectErrors.create ProjectErrorKind.Project "Project resolution failed."
+                        |> ProjectErrors.withCause ex
+                    )
+        }
 
 module private ProjectPreparation =
 
@@ -1221,7 +1264,8 @@ module internal ProjectRuntime =
 
     let loadAsync createRoot registry workspaceRoot : CrossAsync<Result<Dataset, ProjectError>> =
         crossAsync {
-            match ProjectResolution.resolve registry workspaceRoot with
+            let! resolved = ProjectResolution.resolve registry workspaceRoot
+            match resolved with
             | Error error -> return Error error
             | Ok project ->
                 match ProjectPreparation.prepareRead project with
@@ -1258,7 +1302,8 @@ module internal ProjectRuntime =
 
     let writeAsync registry workspaceRoot (root: Dataset) : CrossAsync<Result<unit, ProjectError>> =
         crossAsync {
-            match ProjectResolution.resolve registry workspaceRoot with
+            let! resolved = ProjectResolution.resolve registry workspaceRoot
+            match resolved with
             | Error error -> return Error error
             | Ok project ->
                 match ProjectPreparation.prepareWrite project root with
