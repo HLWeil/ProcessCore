@@ -8,6 +8,7 @@
   <ItemGroup>
     <Compile Include="Helper.fs" />
     <Compile Include="Fixtures.fs" />
+    <Compile Include="WebRequest.fs" />
     <Compile Include="Types/Annotation.fs" />
     <Compile Include="Types/DefinedTerm.fs" />
     <Compile Include="Types/FormalParameter.fs" />

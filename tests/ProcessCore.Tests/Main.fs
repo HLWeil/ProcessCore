@@ -16,6 +16,7 @@ let all =
     testList
         "ProcessCore"
         [
+            ProcessCore.WebRequest.tests
             Integration.tests
             Types.Annotation.tests
             Types.DefinedTerm.tests
