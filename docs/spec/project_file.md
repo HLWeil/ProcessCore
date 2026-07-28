@@ -13,8 +13,9 @@ This document specifies the ARC workspace project file and its workspace-profile
 language.
 
 The project file maps complete ARC `Dataset` values to registered bidirectional
-codecs at workspace-relative anchor paths. It is storage configuration, not an
-ARC model serialization.
+codecs at workspace-relative anchor paths and may declare named auxiliary files
+relative to those anchors. It is storage configuration, not an ARC model
+serialization.
 
 The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**,
 **SHOULD**, **SHOULD NOT**, **RECOMMENDED**, **NOT RECOMMENDED**, **MAY**, and
@@ -63,8 +64,11 @@ specification.
 : A mapping among a rule ID, codec ID, Dataset target, and anchor path.
 
 **Anchor**
-: The project-visible resource path passed to a codec. A codec MAY derive
-  representation-specific companion resources from it.
+: The project-visible primary resource path for one codec invocation.
+
+**Auxiliary file**
+: An optional named resource resolved relative to an anchor's directory. It is
+  either codec-managed or a project-managed empty file.
 
 **Exact target**
 : An `identifier` target selecting one named direct child of the root.
@@ -250,6 +254,9 @@ extension fields.
   target:
     additionalType: Study
   path: "studies/{dataset.identifier}/isa.study.xlsx"
+  files:
+    - id: datamap
+      path: isa.datamap.xlsx
 ```
 
 Fields:
@@ -260,11 +267,41 @@ Fields:
 | `codec` | codec ID | yes |
 | `target` | target | yes |
 | `path` | path template | yes |
+| `files` | sequence of auxiliary files | no |
 
-Every field is required. No other field is allowed.
+The first four fields are required. No other field is allowed.
 
 Every rule is bidirectional. Its codec and path are used for both reading and
 writing.
+
+### 7.2 Auxiliary files
+
+```yaml
+files:
+  - id: datamap
+    path: isa.datamap.xlsx
+  - id: dataset-placeholder
+    path: dataset/.gitkeep
+    create: empty
+```
+
+Each entry MUST contain an `id` and `path`, and MAY contain
+`create: empty`. No other fields are allowed. File IDs MUST satisfy the ID
+syntax in section 4 and MUST be unique within the rule.
+
+An auxiliary path is relative to the resolved anchor's directory, uses only
+literal safe segments, and MUST NOT contain `{dataset.identifier}` or another
+capture. It follows the safety requirements in section 9.4.
+
+Codec-managed auxiliary files, which omit `create`, are OPTIONAL on read. The
+filesystem layer supplies each existing file to the codec by logical ID. On
+write, the filesystem layer writes only declared IDs returned by the codec. A
+codec output with an undeclared ID, or with the ID of a project-managed file,
+is an error before any resource from that invocation is written.
+
+An entry with `create: empty` is project-managed. After a successful codec
+encoding, the filesystem layer MUST emit it as a zero-byte file. Arbitrary
+generated file content is not supported.
 
 ## 8. Targets
 
@@ -412,6 +449,10 @@ Every anchor and local referenced-document path MUST:
 Collision identity uses normalized resolved paths and the host filesystem's
 effective case comparison.
 
+Auxiliary paths apply these requirements relative to the resolved anchor
+directory. Anchors and all auxiliary files participate in static and concrete
+collision analysis, including collisions within one rule invocation.
+
 ## 10. Codecs and anchors
 
 ### 10.1 Exact codec lookup
@@ -437,22 +478,21 @@ isa.workflow.xlsx
 isa.run.xlsx
 ```
 
-### 10.3 Opaque companion resources
+### 10.3 Declared resource contract
 
-The anchor is the only path described by a rule. A registered codec MAY derive
-and manage format-specific companion resources.
+The filesystem layer MUST read the required primary anchor and every existing
+declared auxiliary file before codec invocation. The codec receives primary
+content plus a map of auxiliary content keyed by file ID; it does not derive
+filesystem paths.
 
-For example, an ISA-XLSX codec MAY read or write an adjacent
-`isa.datamap.xlsx` as part of the selected Dataset representation.
+On write, the codec returns required primary content and zero or more
+codec-managed auxiliary outputs. The filesystem layer validates all output IDs
+before writing that invocation, then writes the primary, returned auxiliary
+files, and project-managed empty files.
 
-Companion resources:
-
-- are not separate project targets;
-- are not subject to generic project collision planning;
-- are not separate generic outcomes or diagnostics paths; and
-- are not automatically deleted by project handling.
-
-Their confinement, consistency, and failure behavior are codec responsibilities.
+An absent optional auxiliary file is not an error. Generic project handling
+does not automatically delete a stale anchor or auxiliary file omitted from a
+later write.
 
 ## 11. Cross-rule validation
 
@@ -465,13 +505,16 @@ After profile expansion, a conforming project MUST reject:
 - missing or incompatible codecs;
 - invalid target/path combinations;
 - unsafe templates or rendered anchors; and
-- statically identical or concretely colliding anchors.
+- duplicate auxiliary IDs, unsafe auxiliary paths, or unsupported creation
+  policies;
+- undeclared or project-managed codec output IDs; and
+- statically identical or concretely colliding anchors and auxiliary files.
 
 An identifier target and an additional-type target are not a target conflict.
 Identifier precedence makes their selection domains disjoint.
 
-All anchor collisions MUST be detected before invoking a codec for the affected
-operation. Rule order MUST NOT choose a winner.
+All anchor and auxiliary-file collisions MUST be detected before invoking a
+codec for the affected operation. Rule order MUST NOT choose a winner.
 
 ## 12. Standard scaffold profile
 
@@ -494,28 +537,63 @@ rules:
     target:
       additionalType: Study
     path: "studies/{dataset.identifier}/isa.study.xlsx"
+    files:
+      - id: datamap
+        path: isa.datamap.xlsx
+      - id: resources-placeholder
+        path: resources/.gitkeep
+        create: empty
+      - id: protocols-placeholder
+        path: protocols/.gitkeep
+        create: empty
 
   - id: assay
     codec: isa.assay.xlsx
     target:
       additionalType: Assay
     path: "assays/{dataset.identifier}/isa.assay.xlsx"
+    files:
+      - id: datamap
+        path: isa.datamap.xlsx
+      - id: dataset-placeholder
+        path: dataset/.gitkeep
+        create: empty
+      - id: protocols-placeholder
+        path: protocols/.gitkeep
+        create: empty
 
   - id: workflow
     codec: isa.workflow.xlsx
     target:
       additionalType: Workflow
     path: "workflows/{dataset.identifier}/isa.workflow.xlsx"
+    files:
+      - id: datamap
+        path: isa.datamap.xlsx
+      - id: protocols-placeholder
+        path: protocols/.gitkeep
+        create: empty
 
   - id: run
     codec: isa.run.xlsx
     target:
       additionalType: Run
     path: "runs/{dataset.identifier}/isa.run.xlsx"
+    files:
+      - id: datamap
+        path: isa.datamap.xlsx
+      - id: dataset-placeholder
+        path: dataset/.gitkeep
+        create: empty
+      - id: protocols-placeholder
+        path: protocols/.gitkeep
+        create: empty
 ```
 
-The standard profile intentionally contains no Datamap rules. Each ISA-XLSX
-codec is responsible for the Dataset/Datamap physical split.
+The `datamap` files are optional codec-managed resources. The ISA-XLSX codec
+emits one only when the selected Dataset has Datamap content. The declared
+`dataset-placeholder`, `resources-placeholder`, and `protocols-placeholder`
+files are always emitted as empty files.
 
 The profile MAY be referenced by `file` or `url`.
 

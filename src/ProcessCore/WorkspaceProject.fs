@@ -16,11 +16,21 @@ type StorageTarget =
     | Identifier of string
     | AdditionalType of string
 
+type StorageFileCreation =
+    | Empty
+
+type StorageFile = {
+    Id: string
+    Path: string
+    Create: StorageFileCreation option
+}
+
 type StorageRule = {
     Id: string
     Codec: string
     Target: StorageTarget
     Path: string
+    Files: StorageFile list
 }
 
 type WorkspaceProject = {
@@ -56,18 +66,25 @@ type ProjectError = {
 
 exception ProjectException of ProjectError
 
+type CodecInput = {
+    Primary: byte array
+    Files: Map<string, byte array>
+}
+
+type CodecOutput = {
+    Primary: byte array
+    Files: Map<string, byte array>
+}
+
 type CodecContext = {
-    WorkspaceRoot: string
-    Anchor: string
     RelativeAnchor: string
-    ResolveAdjacentCompanion: string -> Result<string, ProjectError>
     CreateDataset: string -> Dataset
 }
 
 type DatasetCodec = {
     Id: string
-    ReadAsync: CodecContext -> CrossAsync<Result<Dataset, ProjectError>>
-    WriteAsync: CodecContext -> Dataset -> CrossAsync<Result<unit, ProjectError>>
+    ReadAsync: CodecContext -> CodecInput -> CrossAsync<Result<Dataset, ProjectError>>
+    WriteAsync: CodecContext -> Dataset -> CrossAsync<Result<CodecOutput, ProjectError>>
 }
 
 type CodecRegistry = private CodecRegistry of Map<string, DatasetCodec>
@@ -337,20 +354,53 @@ module private StrictProjectYaml =
             | None, Some value -> AdditionalType(scalar kind "target additionalType" value |> nonEmpty kind "target additionalType")
             | _ -> error kind "A rule target must contain exactly one of 'identifier' or 'additionalType'."
 
+    let parseStorageFile kind element =
+        let fields = mappings kind "storage file" element
+        let allowed = Set.ofList [ "id"; "path"; "create" ]
+        validateFields kind "storage file" allowed (Set.ofList [ "id"; "path" ]) fields
+        let get name = field name fields |> Option.get
+        let create =
+            field "create" fields
+            |> Option.map (fun value ->
+                match scalar kind "storage file create" value with
+                | "empty" -> StorageFileCreation.Empty
+                | other -> error kind $"Unknown storage file create policy '{other}'.")
+        {
+            Id = scalar kind "storage file id" (get "id") |> identifier kind "storage file id"
+            Path =
+                scalar kind "storage file path" (get "path")
+                |> safeRelativePath kind "storage file path" false
+            Create = create
+        }
+
+    let parseStorageFiles kind element =
+        let files = sequence kind "storage rule files" element |> List.map (parseStorageFile kind)
+        if List.isEmpty files then error kind "Storage rule files must not be empty when declared."
+        files
+        |> List.countBy (fun file -> file.Id)
+        |> List.tryFind (fun (_, count) -> count > 1)
+        |> Option.iter (fun (id, _) -> error kind $"Duplicate storage file id '{id}'.")
+        files
+
     let parseRule kind element =
         let fields = mappings kind "storage rule" element
-        let names = Set.ofList [ "id"; "codec"; "target"; "path" ]
-        validateFields kind "storage rule" names names fields
+        let allowed = Set.ofList [ "id"; "codec"; "target"; "path"; "files" ]
+        let required = Set.ofList [ "id"; "codec"; "target"; "path" ]
+        validateFields kind "storage rule" allowed required fields
         let get name = field name fields |> Option.get
         let id = scalar kind "rule id" (get "id") |> identifier kind "rule id"
         let codec = scalar kind "codec id" (get "codec") |> identifier kind "codec id"
         let target = parseTarget kind (get "target")
         let path = scalar kind "rule path" (get "path") |> safeRelativePath kind "rule path" true
+        let files =
+            field "files" fields
+            |> Option.map (parseStorageFiles kind)
+            |> Option.defaultValue []
         match target with
         | AdditionalType _ when not (path.Split('/') |> Array.contains "{dataset.identifier}") ->
             error kind "An additionalType rule path must contain the whole-segment '{dataset.identifier}' capture."
         | _ -> ()
-        { Id = id; Codec = codec; Target = target; Path = path }
+        { Id = id; Codec = codec; Target = target; Path = path; Files = files }
 
     let parseRules kind required element =
         let rules = sequence kind "rules" element |> List.map (parseRule kind)
@@ -508,6 +558,7 @@ type private ResolvedRule = {
     Codec: DatasetCodec
     Target: StorageTarget
     Template: PathTemplate
+    Files: StorageFile list
 }
 
 type private ResolvedProject = {
@@ -516,10 +567,17 @@ type private ResolvedProject = {
     ReservedIdentifiers: Set<string>
 }
 
+type private PreparedFile = {
+    Definition: StorageFile
+    Path: string
+    RelativePath: string
+}
+
 type private PreparedBinding = {
     Rule: ResolvedRule
     Anchor: string
     RelativeAnchor: string
+    Files: PreparedFile list
     CapturedIdentifier: string option
     Dataset: Dataset option
 }
@@ -566,23 +624,26 @@ module private StandardProjectCodecs =
         |> ProjectErrors.withCodec codecId
         |> ProjectErrors.withAnchor context.RelativeAnchor
 
-    let enrichFromDatamap (codecId: string) (context: CodecContext) (dataset: Dataset) =
+    let datamapId = "datamap"
+
+    let enrichFromDatamap
+        (codecId: string)
+        (context: CodecContext)
+        (files: Map<string, byte array>)
+        (dataset: Dataset)
+        =
         crossAsync {
-            match context.ResolveAdjacentCompanion ProcessCore.Helper.Path.DatamapFileName with
-            | Error failure -> return Error failure
-            | Ok path ->
-                let! exists = ProcessCore.Helper.Path.fileExistsAsync path
-                if not exists then
+            match Map.tryFind datamapId files with
+            | None -> return Ok dataset
+            | Some bytes ->
+                try
+                    let! workbook = ProcessCore.Helper.Path.readXlsxBytesAsync bytes
+                    for dataContext in ProcessCore.Spreadsheet.Datamap.dataContextsFromFsWorkbook workbook do
+                        dataset.AddDataContext(dataContext)
                     return Ok dataset
-                else
-                    try
-                        let! workbook = ProcessCore.Helper.Path.readFileXlsxAsync path
-                        for dataContext in ProcessCore.Spreadsheet.Datamap.dataContextsFromFsWorkbook workbook do
-                            dataset.AddDataContext(dataContext)
-                        return Ok dataset
-                    with
-                    | ex ->
-                        return Error(error codecId context "The adjacent Datamap workbook could not be read." |> ProjectErrors.withCause ex)
+                with
+                | ex ->
+                    return Error(error codecId context "The declared Datamap workbook could not be read." |> ProjectErrors.withCause ex)
         }
 
     let read
@@ -590,14 +651,15 @@ module private StandardProjectCodecs =
         (includeDatamap: bool)
         (parser: CodecContext -> FsSpreadsheet.FsWorkbook -> Dataset option)
         (context: CodecContext)
+        (input: CodecInput)
         =
         crossAsync {
             try
-                let! workbook = ProcessCore.Helper.Path.readFileXlsxAsync context.Anchor
+                let! workbook = ProcessCore.Helper.Path.readXlsxBytesAsync input.Primary
                 match parser context workbook with
                 | None -> return Error(error codecId context $"Workbook is not a valid '{codecId}' resource.")
                 | Some dataset when includeDatamap ->
-                    return! enrichFromDatamap codecId context dataset
+                    return! enrichFromDatamap codecId context input.Files dataset
                 | Some dataset -> return Ok dataset
             with
             | ex -> return Error(error codecId context "The workbook codec failed while reading." |> ProjectErrors.withCause ex)
@@ -612,19 +674,15 @@ module private StandardProjectCodecs =
         =
         crossAsync {
             try
-                do! ProcessCore.Helper.Path.ensureDirectoryOfFileAsync context.Anchor
-                do! ProcessCore.Helper.Path.writeFileXlsxAsync context.Anchor (serializer dataset)
+                let! primary = serializer dataset |> ProcessCore.Helper.Path.writeXlsxBytesAsync
                 if includeDatamap && dataset.DataContexts.Count > 0 then
-                    match context.ResolveAdjacentCompanion ProcessCore.Helper.Path.DatamapFileName with
-                    | Error failure -> return Error failure
-                    | Ok datamapPath ->
-                        do!
-                            ProcessCore.Helper.Path.writeFileXlsxAsync
-                                datamapPath
-                                (ProcessCore.Spreadsheet.Datamap.toFsWorkbook dataset)
-                        return Ok()
+                    let! datamap =
+                        dataset
+                        |> ProcessCore.Spreadsheet.Datamap.toFsWorkbook
+                        |> ProcessCore.Helper.Path.writeXlsxBytesAsync
+                    return Ok { Primary = primary; Files = Map.ofList [ datamapId, datamap ] }
                 else
-                    return Ok()
+                    return Ok { Primary = primary; Files = Map.empty }
             with
             | ex -> return Error(error codecId context "The workbook codec failed while writing." |> ProjectErrors.withCause ex)
         }
@@ -776,6 +834,7 @@ module private ProjectResolution =
                         Codec = codec
                         Target = rule.Target
                         Template = PathTemplates.create rule.Path
+                        Files = rule.Files
                     })
             let rootCount = rules |> List.filter (fun rule -> rule.Target = Root) |> List.length
             if rootCount <> 1 then
@@ -792,11 +851,29 @@ module private ProjectResolution =
                     |> ProjectErrors.raiseError)
             rejectDuplicateTarget "identifier" (function Identifier value -> Some value | _ -> None)
             rejectDuplicateTarget "additionalType" (function AdditionalType value -> Some value | _ -> None)
-            rules
-            |> duplicateBy SafeProjectPath.equals (fun rule -> rule.Template.Text)
-            |> Option.iter (fun (first, second) ->
-                ProjectErrors.create ProjectErrorKind.Path $"Rules {first.QualifiedId}, {second.QualifiedId} declare the same anchor template '{first.Template.Text}'."
-                |> ProjectErrors.withAnchor first.Template.Text
+            let declaredTemplates =
+                rules
+                |> List.collect (fun rule ->
+                    let directory =
+                        ProjectFileSystem.dirname rule.Template.Text
+                        |> SafeProjectPath.normalizeRelative
+                    let auxiliary =
+                        rule.Files
+                        |> List.map (fun file ->
+                            let path =
+                                if String.IsNullOrEmpty directory then file.Path
+                                else directory + "/" + file.Path
+                            rule, Some file.Id, path)
+                    (rule, None, rule.Template.Text) :: auxiliary)
+            declaredTemplates
+            |> duplicateBy SafeProjectPath.equals (fun (_, _, path) -> path)
+            |> Option.iter (fun ((firstRule, firstFile, path), (secondRule, secondFile, _)) ->
+                let resourceName rule file =
+                    match file with
+                    | None -> $"anchor of {rule.QualifiedId}"
+                    | Some id -> $"file '{id}' of {rule.QualifiedId}"
+                ProjectErrors.create ProjectErrorKind.Path $"{resourceName firstRule firstFile} and {resourceName secondRule secondFile} declare the same path template '{path}'."
+                |> ProjectErrors.withAnchor path
                 |> ProjectErrors.raiseError)
             let reserved =
                 rules
@@ -815,7 +892,7 @@ module private ProjectPreparation =
 
     let targetOrdinal = function Root -> 0 | Identifier _ -> 1 | AdditionalType _ -> 2
 
-    let sortBindings bindings =
+    let sortBindings (bindings: PreparedBinding list) =
         bindings
         |> List.sortBy (fun binding ->
             targetOrdinal binding.Rule.Target,
@@ -828,7 +905,49 @@ module private ProjectPreparation =
         with
         | ex -> Error(ProjectErrors.create ProjectErrorKind.Resource "Workspace resources could not be enumerated." |> ProjectErrors.withCause ex)
 
-    let discover project rule files =
+    let createBinding
+        (project: ResolvedProject)
+        (rule: ResolvedRule)
+        (anchor: string)
+        (relativeAnchor: string)
+        (capturedIdentifier: string option)
+        (dataset: Dataset option)
+        : PreparedBinding
+        =
+        let directory =
+            ProjectFileSystem.dirname relativeAnchor
+            |> SafeProjectPath.normalizeRelative
+        let files =
+            rule.Files
+            |> List.map (fun (definition: StorageFile) ->
+                let relative =
+                    if String.IsNullOrEmpty directory then definition.Path
+                    else directory + "/" + definition.Path
+                let path =
+                    match SafeProjectPath.resolve project.WorkspaceRoot relative with
+                    | Ok value -> value
+                    | Error error ->
+                        ProjectErrors.raiseError {
+                            error with
+                                RuleId = Some rule.QualifiedId
+                                CodecId = Some rule.Codec.Id
+                                Anchor = Some relative
+                        }
+                {
+                    Definition = definition
+                    Path = path
+                    RelativePath = relative
+                })
+        {
+            Rule = rule
+            Anchor = anchor
+            RelativeAnchor = relativeAnchor
+            Files = files
+            CapturedIdentifier = capturedIdentifier
+            Dataset = dataset
+        }
+
+    let discover (project: ResolvedProject) (rule: ResolvedRule) files =
         files
         |> List.choose (fun path ->
             let relative = SafeProjectPath.relativeTo project.WorkspaceRoot path
@@ -838,27 +957,34 @@ module private ProjectPreparation =
                 match SafeProjectPath.resolve project.WorkspaceRoot relative with
                 | Error error -> ProjectErrors.raiseError { error with RuleId = Some rule.QualifiedId; Anchor = Some relative }
                 | Ok anchor ->
-                    Some {
-                        Rule = rule
-                        Anchor = anchor
-                        RelativeAnchor = relative
-                        CapturedIdentifier = captured
-                        Dataset = None
-                    })
+                    Some(createBinding project rule anchor relative captured None))
 
-    let checkCollisions bindings =
+    let checkCollisions (bindings: PreparedBinding list) =
         let rec duplicate items =
             match items with
             | [] -> None
             | head :: tail ->
-                match tail |> List.tryFind (fun binding -> SafeProjectPath.equals head.Anchor binding.Anchor) with
+                let _, _, headPath = head
+                match tail |> List.tryFind (fun (_, _, path) -> SafeProjectPath.equals headPath path) with
                 | Some second -> Some(head, second)
                 | None -> duplicate tail
-        match duplicate bindings with
-            | Some (first, second) ->
+        let resources =
+            bindings
+            |> List.collect (fun binding ->
+                let anchor = binding.Rule.QualifiedId, None, binding.Anchor
+                let files =
+                    binding.Files
+                    |> List.map (fun file -> binding.Rule.QualifiedId, Some file.Definition.Id, file.Path)
+                anchor :: files)
+        match duplicate resources with
+            | Some ((firstRule, firstFile, path), (secondRule, secondFile, _)) ->
+                let resourceName rule file =
+                    match file with
+                    | None -> $"anchor of {rule}"
+                    | Some id -> $"file '{id}' of {rule}"
                 Error(
-                    ProjectErrors.create ProjectErrorKind.Path $"Rules {first.Rule.QualifiedId}, {second.Rule.QualifiedId} resolve to the same anchor."
-                    |> ProjectErrors.withAnchor first.Anchor
+                    ProjectErrors.create ProjectErrorKind.Path $"{resourceName firstRule firstFile} and {resourceName secondRule secondFile} resolve to the same path."
+                    |> ProjectErrors.withAnchor path
                 )
             | None -> Ok(sortBindings bindings)
 
@@ -883,13 +1009,7 @@ module private ProjectPreparation =
                                 |> ProjectErrors.withCodec rule.Codec.Id
                                 |> ProjectErrors.withAnchor rule.Template.Text
                                 |> ProjectErrors.raiseError
-                            [ {
-                                Rule = rule
-                                Anchor = anchor
-                                RelativeAnchor = rule.Template.Text
-                                CapturedIdentifier = None
-                                Dataset = None
-                              } ]
+                            [ createBinding project rule anchor rule.Template.Text None None ]
                         | (Root | Identifier _), Some _ ->
                             let matches = discover project rule files
                             if List.length matches <> 1 then
@@ -952,13 +1072,13 @@ module private ProjectPreparation =
                                         CodecId = Some rule.Codec.Id
                                         Anchor = Some relative
                                 }
-                        {
-                            Rule = rule
-                            Anchor = anchor
-                            RelativeAnchor = relative
-                            CapturedIdentifier = rule.Template.CaptureIndex |> Option.map (fun _ -> dataset.Identifier)
-                            Dataset = Some dataset
-                        }))
+                        createBinding
+                            project
+                            rule
+                            anchor
+                            relative
+                            (rule.Template.CaptureIndex |> Option.map (fun _ -> dataset.Identifier))
+                            (Some dataset)))
             checkCollisions bindings
         with
         | ProjectException error -> Error error
@@ -966,41 +1086,38 @@ module private ProjectPreparation =
 
 module internal ProjectRuntime =
 
-    let private companionResolver workspaceRoot (binding: PreparedBinding) fileName =
-        if String.IsNullOrEmpty fileName
-           || fileName.Contains("/")
-           || fileName.Contains("\\")
-           || fileName = "."
-           || fileName = ".."
-           || fileName.IndexOf('\u0000') >= 0 then
-            Error(
-                ProjectErrors.create ProjectErrorKind.Path $"Companion name '{fileName}' is not a safe adjacent file name."
-                |> ProjectErrors.withRule binding.Rule.QualifiedId
-                |> ProjectErrors.withCodec binding.Rule.Codec.Id
-                |> ProjectErrors.withAnchor binding.RelativeAnchor
-            )
-        else
-            let directory = ProjectFileSystem.dirname binding.RelativeAnchor |> SafeProjectPath.normalizeRelative
-            let relative = if String.IsNullOrEmpty directory then fileName else directory + "/" + fileName
-            SafeProjectPath.resolve workspaceRoot relative
-            |> Result.mapError (fun error -> {
-                error with
-                    RuleId = Some binding.Rule.QualifiedId
-                    CodecId = Some binding.Rule.Codec.Id
-                    Anchor = Some relative
-            })
-
-    let private context createDataset project binding =
+    let private context createDataset (binding: PreparedBinding) : CodecContext =
         {
-            WorkspaceRoot = project.WorkspaceRoot
-            Anchor = binding.Anchor
             RelativeAnchor = binding.RelativeAnchor
-            ResolveAdjacentCompanion = companionResolver project.WorkspaceRoot binding
             CreateDataset = createDataset
         }
 
-    let private invokeRead createDataset project binding =
-        let failure ex =
+    let private resourceFailure (binding: PreparedBinding) message ex =
+        Error(
+            ProjectErrors.create ProjectErrorKind.Resource message
+            |> ProjectErrors.withRule binding.Rule.QualifiedId
+            |> ProjectErrors.withCodec binding.Rule.Codec.Id
+            |> ProjectErrors.withAnchor binding.RelativeAnchor
+            |> ProjectErrors.withCause ex
+        )
+
+    let private readInput (binding: PreparedBinding) : CrossAsync<Result<CodecInput, ProjectError>> =
+        crossAsync {
+            try
+                let! primary = ProcessCore.Helper.Path.readFileBinaryAsync binding.Anchor
+                let mutable files = Map.empty
+                for file in binding.Files do
+                    let! exists = ProcessCore.Helper.Path.fileExistsAsync file.Path
+                    if exists then
+                        let! bytes = ProcessCore.Helper.Path.readFileBinaryAsync file.Path
+                        files <- Map.add file.Definition.Id bytes files
+                return Ok { Primary = primary; Files = files }
+            with
+            | ex -> return resourceFailure binding "Declared resources could not be read." ex
+        }
+
+    let private invokeRead createDataset (binding: PreparedBinding) =
+        let codecFailure ex =
             Error(
                 ProjectErrors.create ProjectErrorKind.Codec "A codec threw while reading a Dataset."
                 |> ProjectErrors.withRule binding.Rule.QualifiedId
@@ -1008,14 +1125,62 @@ module internal ProjectRuntime =
                 |> ProjectErrors.withAnchor binding.RelativeAnchor
                 |> ProjectErrors.withCause ex
             )
-        try
-            binding.Rule.Codec.ReadAsync (context createDataset project binding)
-            |> CrossAsync.catchWith failure
-        with
-        | ex -> crossAsync { return failure ex }
+        crossAsync {
+            let! input = readInput binding
+            match input with
+            | Error error -> return Error error
+            | Ok input ->
+                try
+                    return!
+                        binding.Rule.Codec.ReadAsync (context createDataset binding) input
+                        |> CrossAsync.catchWith codecFailure
+                with
+                | ex -> return codecFailure ex
+        }
 
-    let private invokeWrite project binding dataset =
-        let failure ex =
+    let private writeOutput (binding: PreparedBinding) (output: CodecOutput) =
+        crossAsync {
+            try
+                let codecFiles =
+                    binding.Files
+                    |> List.choose (fun file ->
+                        match file.Definition.Create with
+                        | None -> Some(file.Definition.Id, file)
+                        | Some StorageFileCreation.Empty -> None)
+                    |> Map.ofList
+                let undeclared =
+                    output.Files
+                    |> Map.toList
+                    |> List.tryFind (fun (id, _) -> not (Map.containsKey id codecFiles))
+                match undeclared with
+                | Some (id, _) ->
+                    return
+                        Error(
+                            ProjectErrors.create ProjectErrorKind.Resource $"Codec returned undeclared or project-managed file '{id}'."
+                            |> ProjectErrors.withRule binding.Rule.QualifiedId
+                            |> ProjectErrors.withCodec binding.Rule.Codec.Id
+                            |> ProjectErrors.withAnchor binding.RelativeAnchor
+                        )
+                | None ->
+                    do! ProcessCore.Helper.Path.ensureDirectoryOfFileAsync binding.Anchor
+                    do! ProcessCore.Helper.Path.writeFileBinaryAsync binding.Anchor output.Primary
+                    for KeyValue(id, bytes) in output.Files do
+                        let file = Map.find id codecFiles
+                        do! ProcessCore.Helper.Path.ensureDirectoryOfFileAsync file.Path
+                        do! ProcessCore.Helper.Path.writeFileBinaryAsync file.Path bytes
+                    for file in binding.Files do
+                        match file.Definition.Create with
+                        | Some StorageFileCreation.Empty ->
+                            do! ProcessCore.Helper.Path.ensureDirectoryOfFileAsync file.Path
+                            do! ProcessCore.Helper.Path.writeFileBinaryAsync file.Path [||]
+                        | None -> ()
+                    return Ok()
+            with
+            | ex -> return resourceFailure binding "Declared resources could not be written." ex
+        }
+
+    let private invokeWrite (binding: PreparedBinding) dataset =
+        let codecFailure ex =
             Error(
                 ProjectErrors.create ProjectErrorKind.Codec "A codec threw while writing a Dataset."
                 |> ProjectErrors.withRule binding.Rule.QualifiedId
@@ -1023,11 +1188,17 @@ module internal ProjectRuntime =
                 |> ProjectErrors.withAnchor binding.RelativeAnchor
                 |> ProjectErrors.withCause ex
             )
-        try
-            binding.Rule.Codec.WriteAsync (context (fun id -> Dataset(id)) project binding) dataset
-            |> CrossAsync.catchWith failure
-        with
-        | ex -> crossAsync { return failure ex }
+        crossAsync {
+            let! encoded =
+                try
+                    binding.Rule.Codec.WriteAsync (context (fun id -> Dataset(id)) binding) dataset
+                    |> CrossAsync.catchWith codecFailure
+                with
+                | ex -> crossAsync { return codecFailure ex }
+            match encoded with
+            | Error error -> return Error error
+            | Ok output -> return! writeOutput binding output
+        }
 
     let private validateRead binding (dataset: Dataset) =
         let fail message =
@@ -1057,7 +1228,7 @@ module internal ProjectRuntime =
                 | Error error -> return Error error
                 | Ok bindings ->
                     let rootBinding = bindings |> List.find (fun binding -> binding.Rule.Target = Root)
-                    let! rootResult = invokeRead createRoot project rootBinding
+                    let! rootResult = invokeRead createRoot rootBinding
                     match rootResult |> Result.bind (validateRead rootBinding) with
                     | Error error -> return Error error
                     | Ok root ->
@@ -1065,7 +1236,7 @@ module internal ProjectRuntime =
                         let mutable failure = None
                         for binding in childBindings do
                             if failure.IsNone then
-                                let! childResult = invokeRead (fun id -> Dataset(id)) project binding
+                                let! childResult = invokeRead (fun id -> Dataset(id)) binding
                                 match childResult |> Result.bind (validateRead binding) with
                                 | Error error -> failure <- Some error
                                 | Ok child ->
@@ -1097,7 +1268,7 @@ module internal ProjectRuntime =
                     for binding in bindings do
                         if failure.IsNone then
                             let dataset = binding.Dataset |> Option.get
-                            let! result = invokeWrite project binding dataset
+                            let! result = invokeWrite binding dataset
                             match result with
                             | Ok () -> ()
                             | Error error -> failure <- Some error

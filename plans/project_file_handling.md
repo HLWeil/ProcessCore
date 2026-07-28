@@ -22,7 +22,7 @@ load and write APIs:
                          |
               +----------+----------+
               |                     |
-         resolve anchors       select Datasets
+       resolve resources       select Datasets
               |                     |
          codec -> Dataset      Dataset -> codec
               |                     |
@@ -31,9 +31,10 @@ load and write APIs:
                       ARC graph
 ```
 
-Each rule maps one complete Dataset to one safe workspace-relative anchor
-through one exact bidirectional codec ID. Project-level targets address only the
-root and its direct children; codecs may preserve deeper Dataset nesting.
+Each rule maps one complete Dataset to one safe workspace-relative anchor and
+optional named auxiliary files through one exact bidirectional codec ID.
+Project-level targets address only the root and its direct children; codecs may
+preserve deeper Dataset nesting.
 
 The first implementation is deliberately small:
 
@@ -64,6 +65,10 @@ type StorageTarget =
     | Identifier of string
     | AdditionalType of string
 type StorageRule
+type StorageFile
+type StorageFileCreation = Empty
+type CodecInput
+type CodecOutput
 type DatasetCodec
 type ProjectError
 exception ProjectException of ProjectError
@@ -92,15 +97,17 @@ The logical codec contract is:
 
 ```fsharp
 readDatasetAsync:
-    CodecContext -> anchorPath:string -> CrossAsync<Result<Dataset, ProjectError>>
+    CodecContext -> CodecInput -> CrossAsync<Result<Dataset, ProjectError>>
 
 writeDatasetAsync:
-    CodecContext -> anchorPath:string -> Dataset -> CrossAsync<Result<unit, ProjectError>>
+    CodecContext -> Dataset -> CrossAsync<Result<CodecOutput, ProjectError>>
 ```
 
-`CodecContext` supplies the workspace root needed to confine anchor and
-companion access. Expected failures use `ProjectError`; unexpected exceptions
-are caught at the codec boundary and converted to resource failures.
+`CodecInput` contains required primary bytes and existing auxiliary bytes keyed
+by declared file ID. `CodecOutput` contains primary bytes and codec-managed
+auxiliary bytes. The runtime resolves, confines, reads, validates, and writes
+all paths; codecs never derive paths or access the filesystem. Expected failures
+use `ProjectError`; unexpected exceptions are caught at the codec boundary.
 
 The standard registry provides:
 
@@ -113,9 +120,9 @@ isa.run.xlsx
 ```
 
 These IDs can share one adapter mechanism over the existing `ScaffoldReader`
-functions. The ISA-XLSX adapter remains responsible for adjacent Datamap
-companions. Generic project handling plans, checks, and reports only the rule
-anchor and never deletes stale anchors or companions.
+functions. ISA-XLSX adapters consume and produce the declared `datamap` bytes.
+Generic project handling creates `create: empty` resources and never deletes
+stale anchors or auxiliary files.
 
 No recursive-YAML codec ID is standardized. A local application may register a
 bidirectional Dataset YAML adapter under its own stable ID.
@@ -137,8 +144,9 @@ Resolution:
 8. requires exactly one root rule;
 9. rejects duplicate profile IDs, qualified rule IDs, identifier targets, and
    additional-type targets;
-10. rejects statically identical anchors; and
-11. records the exact-identifier reservation set.
+10. resolves auxiliary declarations relative to anchor directories;
+11. rejects statically identical anchor and auxiliary templates; and
+12. records the exact-identifier reservation set.
 
 Any project resolution error prevents codec invocation.
 
@@ -162,15 +170,22 @@ Target-specific behavior is:
 - an additional-type path discovers zero or more anchors and therefore must
   contain the identifier capture.
 
+Auxiliary paths contain literal safe segments, are resolved from each concrete
+anchor directory, and do not repeat the Dataset capture. IDs are unique within
+their rule. Every auxiliary path follows the same confinement and reparse-point
+checks as an anchor.
+
 ### 3.2 Operation preparation
 
 Before the first codec invocation, a read operation resolves all root,
-identifier, and additional-type anchors, excludes type anchors reserved by exact
-identifier rules, and rejects every concrete collision.
+identifier, and additional-type anchors plus their auxiliary files, excludes
+type anchors reserved by exact identifier rules, and rejects every concrete
+collision.
 
 Before the first codec invocation, a write operation selects all target
-Datasets, renders every anchor, verifies mandatory exact targets, and rejects
-unsafe paths, duplicate Dataset bindings, and concrete collisions.
+Datasets, renders every anchor and auxiliary path, verifies mandatory exact
+targets, and rejects unsafe paths, duplicate Dataset bindings, and concrete
+collisions.
 
 Bindings use a stable platform-independent order: root, exact identifiers,
 additional types, normalized anchor, then qualified rule ID. Identifier
@@ -182,14 +197,16 @@ reservation, not declaration order, determines precedence.
 
 After successful preflight:
 
-1. read the mandatory root Dataset;
-2. verify its captured identifier when applicable;
-3. construct the `ARC` root without discarding nested state;
-4. read each mandatory exact-identifier Dataset and verify its declared and
+1. read each binding's required primary bytes and existing optional auxiliary
+   bytes;
+2. decode the mandatory root Dataset;
+3. verify its captured identifier when applicable;
+4. construct the `ARC` root without discarding nested state;
+5. decode each mandatory exact-identifier Dataset and verify its declared and
    captured identifier;
-5. read each discovered additional-type Dataset and verify its captured
+6. decode each discovered additional-type Dataset and verify its captured
    identifier and exact case-sensitive `additionalType`; and
-6. attach each direct child with the established `Dataset.AddPart` graph API.
+7. attach each direct child with the established `Dataset.AddPart` graph API.
 
 Additional-type rules may have no matching anchors. Root and exact-identifier
 resources are mandatory.
@@ -216,9 +233,12 @@ Unmatched direct children have no independent project output, although they may
 remain nested inside another selected Dataset's codec representation.
 
 After successful preflight, each codec receives one complete selected Dataset
-and its normalized anchor. The first codec failure fails the operation. Outputs
-already written by earlier codecs are not rolled back, and generic handling does
-not delete stale anchors or codec-owned companions.
+and returns primary plus named auxiliary bytes. Before writing an invocation,
+generic handling rejects undeclared IDs and codec output for project-managed
+files. It then writes the primary and returned files and emits every
+`create: empty` declaration as zero bytes. The first codec or resource failure
+fails the operation. Outputs already written by earlier codecs are not rolled
+back, and generic handling does not delete stale resources.
 
 ## 5. ARC integration
 
@@ -277,14 +297,18 @@ Test:
   rejection;
 - missing or duplicate root, identifier, type, rule, and codec cases;
 - literal and captured root/exact paths plus zero/many type discoveries;
-- path traversal, symlink escape, host-case collisions, and unsafe captured
-  identifiers;
+- path traversal, symlink escape, host-case collisions, unsafe captured
+  identifiers, auxiliary path safety, and duplicate auxiliary IDs;
 - identifier reservation and precedence independent of declaration order;
 - required-resource, identifier, capture, and `additionalType` failures;
-- confirmation that every collision is detected before codec execution;
+- confirmation that anchor/auxiliary collisions are detected before codec
+  execution;
 - direct-root attachment through `Dataset.AddPart` with deeper nesting and
   existing graph canonicalization preserved;
-- bidirectional ISA-XLSX Dataset/Datamap adapter behavior;
+- bidirectional ISA-XLSX Dataset/Datamap adapter behavior, missing optional
+  Datamaps, and conditional Datamap output;
+- unconditional project-managed empty-file output and rejection of undeclared
+  codec outputs;
 - fail-fast codec and attachment errors without a returned partial ARC;
 - confirmation that failed writes do not trigger rollback or stale deletion;
 - generic project authority and explicit-format bypass;

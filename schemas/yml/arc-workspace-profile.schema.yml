@@ -1,7 +1,7 @@
 $schema: "https://json-schema.org/draft/2020-12/schema"
 $id: "arc-workspace-profile.schema.yml"
 title: ARC Workspace Profile
-description: Structural schema for a reusable ARC workspace profile
+description: Structural schema for reusable ARC storage rules, including optional auxiliary files
 type: object
 
 properties:

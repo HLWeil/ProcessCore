@@ -58,6 +58,11 @@ $defs:
       - $ref: "#/$defs/safeRelativePath"
       - pattern: '^(?:[^/{}]+|\{dataset\.identifier\})(?:/(?:[^/{}]+|\{dataset\.identifier\}))*$'
 
+  auxiliaryPath:
+    allOf:
+      - $ref: "#/$defs/safeRelativePath"
+      - pattern: '^[^/{}]+(?:/[^/{}]+)*$'
+
   profileReference:
     type: object
     properties:
@@ -111,9 +116,28 @@ $defs:
         $ref: "#/$defs/target"
       path:
         $ref: "#/$defs/pathTemplate"
+      files:
+        type: array
+        minItems: 1
+        items:
+          $ref: "#/$defs/storageFile"
     required:
       - id
       - codec
       - target
+      - path
+    additionalProperties: false
+
+  storageFile:
+    type: object
+    properties:
+      id:
+        $ref: "#/$defs/identifier"
+      path:
+        $ref: "#/$defs/auxiliaryPath"
+      create:
+        const: empty
+    required:
+      - id
       - path
     additionalProperties: false

@@ -41,10 +41,10 @@ let private fakeCodec id (readCount: int ref) (writeCount: int ref) =
     {
         Id = id
         ReadAsync =
-            fun context ->
+            fun context input ->
                 crossAsync {
                     readCount.Value <- readCount.Value + 1
-                    let! text = Path.readFileTextAsync context.Anchor
+                    let text = System.Text.Encoding.UTF8.GetString input.Primary
                     let parts = text.Split('|')
                     let dataset = context.CreateDataset parts.[0]
                     if parts.Length > 1 && parts.[1] <> "" then
@@ -52,13 +52,13 @@ let private fakeCodec id (readCount: int ref) (writeCount: int ref) =
                     return Ok dataset
                 }
         WriteAsync =
-            fun context dataset ->
+            fun _ dataset ->
                 crossAsync {
                     writeCount.Value <- writeCount.Value + 1
-                    do! Path.ensureDirectoryOfFileAsync context.Anchor
                     let additionalType = dataset.AdditionalType |> Option.defaultValue ""
-                    do! Path.writeFileTextAsync context.Anchor $"{dataset.Identifier}|{additionalType}"
-                    return Ok()
+                    let primary =
+                        System.Text.Encoding.UTF8.GetBytes $"{dataset.Identifier}|{additionalType}"
+                    return Ok { Primary = primary; Files = Map.empty }
                 }
     }
 
@@ -89,21 +89,54 @@ let private standardRules _ =
     target:
       additionalType: Study
     path: "studies/{dataset.identifier}/isa.study.xlsx"
+    files:
+      - id: datamap
+        path: isa.datamap.xlsx
+      - id: resources-placeholder
+        path: resources/.gitkeep
+        create: empty
+      - id: protocols-placeholder
+        path: protocols/.gitkeep
+        create: empty
   - id: assays
     codec: isa.assay.xlsx
     target:
       additionalType: Assay
     path: "assays/{dataset.identifier}/isa.assay.xlsx"
+    files:
+      - id: datamap
+        path: isa.datamap.xlsx
+      - id: dataset-placeholder
+        path: dataset/.gitkeep
+        create: empty
+      - id: protocols-placeholder
+        path: protocols/.gitkeep
+        create: empty
   - id: workflows
     codec: isa.workflow.xlsx
     target:
       additionalType: Workflow
     path: "workflows/{dataset.identifier}/isa.workflow.xlsx"
+    files:
+      - id: datamap
+        path: isa.datamap.xlsx
+      - id: protocols-placeholder
+        path: protocols/.gitkeep
+        create: empty
   - id: runs
     codec: isa.run.xlsx
     target:
       additionalType: Run
     path: "runs/{dataset.identifier}/isa.run.xlsx"
+    files:
+      - id: datamap
+        path: isa.datamap.xlsx
+      - id: dataset-placeholder
+        path: dataset/.gitkeep
+        create: empty
+      - id: protocols-placeholder
+        path: protocols/.gitkeep
+        create: empty
 """
 
 let tests =
@@ -131,6 +164,12 @@ rules:
     target:
       additionalType: Study
     path: "studies/{dataset.identifier}/dataset.data"
+    files:
+      - id: metadata
+        path: metadata.json
+      - id: placeholder
+        path: dataset/.gitkeep
+        create: empty
 """
                     |> ProcessCore.WorkspaceProject.parse
                     |> unwrap
@@ -139,6 +178,10 @@ rules:
                 Expect.equal project.Rules.[0].Target Root "root target"
                 Expect.equal project.Rules.[1].Target (Identifier "special") "identifier target"
                 Expect.equal project.Rules.[2].Target (AdditionalType "Study") "type target"
+                Expect.isEmpty project.Rules.[0].Files "legacy four-field rules remain valid"
+                Expect.equal project.Rules.[2].Files.Length 2 "auxiliary files are parsed"
+                Expect.equal project.Rules.[2].Files.[0].Id "metadata" "file IDs are retained"
+                Expect.equal project.Rules.[2].Files.[1].Create (Some StorageFileCreation.Empty) "empty creation is parsed"
 
             testCase "rejects unknown and duplicate fields" <| fun _ ->
                 let unknown =
@@ -191,6 +234,37 @@ rules:
                 Expect.isError numeric "an unquoted numeric profile version is not a string"
                 Expect.isError alias "aliases are rejected"
                 Expect.isError capture "captures must occupy a whole segment"
+
+            testCase "rejects duplicate file IDs, unsafe paths, and unknown create policies" <| fun _ ->
+                let parse files =
+                    $"""type: ArcWorkspaceProject
+rules:
+  - id: root
+    codec: test.dataset
+    target: root
+    path: root.data
+    files:
+{files}
+"""
+                    |> ProcessCore.WorkspaceProject.parse
+                let duplicate =
+                    parse
+                        """      - id: duplicate
+        path: first.data
+      - id: duplicate
+        path: second.data"""
+                let unsafe =
+                    parse
+                        """      - id: unsafe
+        path: ../outside.data"""
+                let create =
+                    parse
+                        """      - id: generated
+        path: generated.data
+        create: arbitrary"""
+                Expect.isError duplicate "file IDs are unique within a rule"
+                Expect.isError unsafe "file paths are confined and anchor-relative"
+                Expect.isError create "only empty file creation is supported"
         ]
 
         testList "registry and resolution" [
@@ -273,12 +347,45 @@ rules:
                     }
             )
 
+            testCaseCrossAsync "includes auxiliary resources in collision preflight" (
+                withWorkspace "auxiliary-collisions" <| fun root ->
+                    crossAsync {
+                        let reads, writes = ref 0, ref 0
+                        let registry = fakeRegistry reads writes
+                        do! writeText (Path.combine root "root.data") "root|Investigation"
+                        do! writeText (Path.combine root "child.data") "child|Study"
+                        do!
+                            writeText
+                                (Path.combineMany [ root; ".arc"; "project.yml" ])
+                                """type: ArcWorkspaceProject
+rules:
+  - id: root
+    codec: test.dataset
+    target: root
+    path: root.data
+    files:
+      - id: child-copy
+        path: child.data
+  - id: exact
+    codec: test.dataset
+    target:
+      identifier: child
+    path: child.data
+"""
+                        let! result = ProjectIO.loadAsync registry root
+                        match result with
+                        | Error error -> Expect.equal error.Kind ProjectErrorKind.Path "auxiliary collisions are path errors"
+                        | Ok _ -> failwith "An auxiliary file must not collide with an anchor."
+                        Expect.equal reads.Value 0 "collision preflight runs before codec access"
+                    }
+            )
+
             testCaseCrossAsync "converts synchronous codec exceptions into structured failures" (
                 withWorkspace "codec-exception" <| fun root ->
                     crossAsync {
                         let throwingCodec = {
                             Id = "test.throwing"
-                            ReadAsync = fun _ -> failwith "synchronous codec failure"
+                            ReadAsync = fun _ _ -> failwith "synchronous codec failure"
                             WriteAsync = fun _ _ -> failwith "synchronous codec failure"
                         }
                         let registry = CodecRegistry.add throwingCodec CodecRegistry.empty |> unwrap
@@ -329,6 +436,137 @@ rules:
                         Expect.equal loaded.HasPart.[0].PartOf (Some (loaded :> Dataset)) "AddPart establishes parentage"
                         Expect.equal writes.Value 2 "root and child are written once"
                         Expect.equal reads.Value 2 "root and child are read once"
+                    }
+            )
+
+            testCaseCrossAsync "filesystem handling supplies named files and creates empty files" (
+                withWorkspace "declared-files" <| fun root ->
+                    crossAsync {
+                        let seenFiles = ref Map.empty
+                        let codec = {
+                            Id = "test.resources"
+                            ReadAsync =
+                                fun context input ->
+                                    crossAsync {
+                                        seenFiles.Value <- input.Files
+                                        let identifier = System.Text.Encoding.UTF8.GetString input.Primary
+                                        return Ok(context.CreateDataset identifier)
+                                    }
+                            WriteAsync =
+                                fun _ dataset ->
+                                    crossAsync {
+                                        return
+                                            Ok {
+                                                Primary = System.Text.Encoding.UTF8.GetBytes dataset.Identifier
+                                                Files =
+                                                    Map.ofList [
+                                                        "metadata", System.Text.Encoding.UTF8.GetBytes "declared"
+                                                    ]
+                                            }
+                                    }
+                        }
+                        let registry = CodecRegistry.add codec CodecRegistry.empty |> unwrap
+                        do!
+                            writeText
+                                (Path.combineMany [ root; ".arc"; "project.yml" ])
+                                """type: ArcWorkspaceProject
+rules:
+  - id: root
+    codec: test.resources
+    target: root
+    path: relocated/root.data
+    files:
+      - id: metadata
+        path: metadata/info.txt
+      - id: placeholder
+        path: dataset/.gitkeep
+        create: empty
+"""
+                        let! written = ProjectIO.writeAsync registry root (ARC("root"))
+                        written |> unwrap
+                        let metadataPath = Path.combineMany [ root; "relocated"; "metadata"; "info.txt" ]
+                        let placeholderPath = Path.combineMany [ root; "relocated"; "dataset"; ".gitkeep" ]
+                        let! metadata = Path.readFileTextAsync metadataPath
+                        let! placeholder = Path.readFileBinaryAsync placeholderPath
+                        Expect.equal metadata "declared" "codec output is written to its declared path"
+                        Expect.isEmpty placeholder "project-managed files are zero-byte files"
+
+                        let! loaded = ProjectIO.loadAsync registry root
+                        Expect.equal (loaded |> unwrap).Identifier "root" "the primary resource is decoded"
+                        Expect.isTrue (Map.containsKey "metadata" seenFiles.Value) "existing codec files are supplied by ID"
+                        Expect.isTrue (Map.containsKey "placeholder" seenFiles.Value) "existing managed files are supplied by ID"
+                    }
+            )
+
+            testCaseCrossAsync "rejects undeclared codec output before writing resources" (
+                withWorkspace "undeclared-output" <| fun root ->
+                    crossAsync {
+                        let codec = {
+                            Id = "test.undeclared"
+                            ReadAsync = fun context _ -> crossAsync { return Ok(context.CreateDataset "root") }
+                            WriteAsync =
+                                fun _ _ ->
+                                    crossAsync {
+                                        return
+                                            Ok {
+                                                Primary = System.Text.Encoding.UTF8.GetBytes "root"
+                                                Files =
+                                                    Map.ofList [
+                                                        "surprise", System.Text.Encoding.UTF8.GetBytes "not declared"
+                                                    ]
+                                            }
+                                    }
+                        }
+                        let registry = CodecRegistry.add codec CodecRegistry.empty |> unwrap
+                        do!
+                            writeText
+                                (Path.combineMany [ root; ".arc"; "project.yml" ])
+                                """type: ArcWorkspaceProject
+rules:
+  - id: root
+    codec: test.undeclared
+    target: root
+    path: root.data
+"""
+                        let! result = ProjectIO.writeAsync registry root (ARC("root"))
+                        match result with
+                        | Error error -> Expect.equal error.Kind ProjectErrorKind.Resource "undeclared output is a resource error"
+                        | Ok () -> failwith "Undeclared codec output must fail."
+                        let! primaryExists = Path.fileExistsAsync (Path.combine root "root.data")
+                        Expect.isFalse primaryExists "output validation happens before the primary write"
+                    }
+            )
+
+            testCaseCrossAsync "anchor-relative files follow exact-target relocation" (
+                withWorkspace "relocated-exact" <| fun root ->
+                    crossAsync {
+                        let registry = fakeRegistry (ref 0) (ref 0)
+                        do!
+                            writeText
+                                (Path.combineMany [ root; ".arc"; "project.yml" ])
+                                """type: ArcWorkspaceProject
+rules:
+  - id: root
+    codec: test.dataset
+    target: root
+    path: root.data
+  - id: relocated
+    codec: test.dataset
+    target:
+      identifier: assay
+    path: special/location/assay.data
+    files:
+      - id: dataset-placeholder
+        path: dataset/.gitkeep
+        create: empty
+"""
+                        let arc = ARC("root")
+                        arc.AddPart(Dataset("assay", additionalType = "Assay"))
+                        let! written = ProjectIO.writeAsync registry root arc
+                        written |> unwrap
+                        let marker = Path.combineMany [ root; "special"; "location"; "dataset"; ".gitkeep" ]
+                        let! markerExists = Path.fileExistsAsync marker
+                        Expect.isTrue markerExists "the auxiliary path is relative to the relocated anchor"
                     }
             )
 
@@ -393,6 +631,28 @@ rules:
                                 Path.combineMany [ root; "studies"; "study"; "isa.datamap.xlsx" ]
                             )
                         Expect.isTrue datamapExists "the study codec owns its adjacent Datamap"
+                        let! assayDatamapExists =
+                            Path.fileExistsAsync (
+                                Path.combineMany [ root; "assays"; "assay"; "isa.datamap.xlsx" ]
+                            )
+                        Expect.isFalse assayDatamapExists "a Datamap is omitted when the Dataset has no data contexts"
+                        let assayMarker =
+                            Path.combineMany [ root; "assays"; "assay"; "dataset"; ".gitkeep" ]
+                        let! assayMarkerExists = Path.fileExistsAsync assayMarker
+                        Expect.isTrue assayMarkerExists "the assay dataset marker is always created"
+                        let expectedMarkers =
+                            [
+                                [ "studies"; "study"; "resources"; ".gitkeep" ]
+                                [ "studies"; "study"; "protocols"; ".gitkeep" ]
+                                [ "assays"; "assay"; "protocols"; ".gitkeep" ]
+                                [ "workflows"; "workflow"; "protocols"; ".gitkeep" ]
+                                [ "runs"; "run"; "dataset"; ".gitkeep" ]
+                                [ "runs"; "run"; "protocols"; ".gitkeep" ]
+                            ]
+                        for relative in expectedMarkers do
+                            let! exists = Path.fileExistsAsync (Path.combineMany (root :: relative))
+                            let displayPath = String.concat "/" relative
+                            Expect.isTrue exists $"standard placeholder '{displayPath}' is created"
                         let loadedStudy = loaded.HasPart |> Seq.find (fun dataset -> dataset.Identifier = "study")
                         Expect.equal loadedStudy.DataContexts.Count 1 "the adjacent Datamap is read back"
                     }

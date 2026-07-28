@@ -7,13 +7,14 @@ Planned project-file location: `.arc/project.yml`
 Target specification:
 [`docs/spec/project_file.md`](../docs/spec/project_file.md)
 
-Companion handling plan:
+Project-file handling plan:
 [`plans/project_file_handling.md`](project_file_handling.md)
 
 ## 1. Summary
 
 The project file maps complete ARC `Dataset` values to registered bidirectional
-codecs at safe workspace-relative anchor paths.
+codecs at safe workspace-relative anchor paths. Rules may also declare named
+auxiliary files relative to their anchor directories.
 
 The language has one small rule shape:
 
@@ -23,6 +24,9 @@ The language has one small rule shape:
   target:
     additionalType: Study
   path: "studies/{dataset.identifier}/isa.study.xlsx"
+  files:
+    - id: datamap
+      path: isa.datamap.xlsx
 ```
 
 A rule selects:
@@ -33,8 +37,8 @@ A rule selects:
 
 Each selected Dataset is one codec invocation. The Dataset may itself contain
 deeper nested Datasets. Whether a codec serializes that nesting, splits Dataset
-state across related files, or uses one physical document is codec behavior and
-not project-file syntax.
+state across declared files, or uses only its primary document is codec
+behavior.
 
 ## 2. Goals and boundaries
 
@@ -49,6 +53,7 @@ The specification should:
 - allow an exact identifier rule to relocate one Dataset from a general layout;
 - infer requiredness and multiplicity from the target;
 - use one safe path for both reading and writing;
+- declare optional named codec files and project-managed empty files;
 - select a bidirectional codec by exact registered ID;
 - allow reusable local or URL-hosted workspace profiles;
 - reject ambiguous targets and anchor-path collisions deterministically; and
@@ -66,7 +71,8 @@ The project file does not configure:
 - arbitrary predicates, graph queries, globs, or expression languages;
 - profile parameters, rule overrides, codec options, or extension fields;
 - package-registry profiles or dynamic codec loading;
-- generic management, collision analysis, or reporting of codec companion files;
+- required auxiliary files, arbitrary inline file content, or standalone
+  directory declarations;
 - automatic stale-output deletion;
 - a standardized recursive-YAML profile; or
 - a persisted lockfile or source-provenance map.
@@ -83,7 +89,7 @@ project/profile rules
 root or direct-child Dataset selection
         |
         v
-safe anchor path + exact bidirectional codec
+safe anchor path + named auxiliary files + exact bidirectional codec
         |
         v
 codec-owned physical representation
@@ -98,7 +104,7 @@ Terms:
 : The root configuration at `.arc/project.yml`.
 
 **Workspace profile**
-: A reusable, versioned declarative collection of the same four-field rules.
+: A reusable, versioned declarative collection of storage rules.
 
 **Workspace profile reference**
 : A `file` or `url` reference to an `ArcWorkspaceProfile`.
@@ -109,7 +115,10 @@ Terms:
 
 **Anchor path**
 : The project-visible path used to discover and address one codec invocation.
-  A codec may privately derive companion resources from it.
+
+**Auxiliary file**
+: An optional named resource resolved relative to an anchor's directory. It is
+  either codec-managed or a project-managed empty file.
 
 **Exact target**
 : An `identifier` target selecting one named direct child of the root.
@@ -164,9 +173,13 @@ Profiles have no parameters or extension points. Projects have no overrides.
   target:
     additionalType: Study
   path: "studies/{dataset.identifier}/isa.study.xlsx"
+  files:
+    - id: datamap
+      path: isa.datamap.xlsx
 ```
 
-All four fields are required. Unknown fields are errors.
+`id`, `codec`, `target`, and `path` are required. `files` is optional. Unknown
+fields are errors.
 
 Rule IDs are unique within their declaring project or profile. Expanded rule
 IDs are qualified as `<profile-id>#<rule-id>` and `project#<rule-id>` for
@@ -257,23 +270,25 @@ On read, a captured identifier must equal the parsed Dataset identifier. On
 write, the selected Dataset identifier renders the capture. Normalized anchor
 collisions are errors before codec execution.
 
+Auxiliary paths contain only literal safe segments and are relative to the
+resolved anchor's directory. Auxiliary IDs are unique within a rule. Resolved
+auxiliary paths participate in confinement and collision checks alongside
+anchors.
+
 ## 7. Codec boundary
 
 Every rule names one exact registered capability ID. Filename extensions,
 content sniffing, media types, and rule order do not select another codec.
 
 Every registered codec used by this language must read and write a complete
-Dataset through the same anchor path.
+Dataset through one primary resource plus its declared auxiliary resource map.
+The filesystem layer supplies existing auxiliary resources by logical ID and
+writes only declared codec outputs. Auxiliary files are optional on read.
+Undeclared codec outputs are errors.
 
-The project-visible anchor is not necessarily the codec's only physical file.
-For example, an ISA-XLSX codec may derive an adjacent `isa.datamap.xlsx`, enrich
-the Dataset while reading, and emit or update it while writing. Such companions:
-
-- are not separate project targets or facets;
-- are not included in generic project collision analysis;
-- are not listed as separate generic resource outcomes;
-- are not automatically deleted by project handling; and
-- remain the registered codec's safety and consistency responsibility.
+An auxiliary declaration with `create: empty` is project-managed and is emitted
+as a zero-byte file after a successful codec write. Generic project handling
+does not delete stale anchors or auxiliary files.
 
 ## 8. Standard ISA-XLSX profile
 
@@ -296,29 +311,62 @@ rules:
     target:
       additionalType: Study
     path: "studies/{dataset.identifier}/isa.study.xlsx"
+    files:
+      - id: datamap
+        path: isa.datamap.xlsx
+      - id: resources-placeholder
+        path: resources/.gitkeep
+        create: empty
+      - id: protocols-placeholder
+        path: protocols/.gitkeep
+        create: empty
 
   - id: assay
     codec: isa.assay.xlsx
     target:
       additionalType: Assay
     path: "assays/{dataset.identifier}/isa.assay.xlsx"
+    files:
+      - id: datamap
+        path: isa.datamap.xlsx
+      - id: dataset-placeholder
+        path: dataset/.gitkeep
+        create: empty
+      - id: protocols-placeholder
+        path: protocols/.gitkeep
+        create: empty
 
   - id: workflow
     codec: isa.workflow.xlsx
     target:
       additionalType: Workflow
     path: "workflows/{dataset.identifier}/isa.workflow.xlsx"
+    files:
+      - id: datamap
+        path: isa.datamap.xlsx
+      - id: protocols-placeholder
+        path: protocols/.gitkeep
+        create: empty
 
   - id: run
     codec: isa.run.xlsx
     target:
       additionalType: Run
     path: "runs/{dataset.identifier}/isa.run.xlsx"
+    files:
+      - id: datamap
+        path: isa.datamap.xlsx
+      - id: dataset-placeholder
+        path: dataset/.gitkeep
+        create: empty
+      - id: protocols-placeholder
+        path: protocols/.gitkeep
+        create: empty
 ```
 
-Datamap resources are part of these codec representations and are intentionally
-absent from the profile rules. The profile may be stored locally or published
-at an HTTP(S) URL.
+Datamap resources are optional codec-managed files. Dataset, resources, and
+protocols placeholders are project-managed empty files. The profile may be
+stored locally or published at an HTTP(S) URL.
 
 ## 9. Validation and examples
 
@@ -331,6 +379,9 @@ The normative specification and schemas should reject:
 - type paths without `{dataset.identifier}`;
 - repeated or partial-segment captures;
 - unsafe paths and anchor collisions;
+- duplicate auxiliary IDs, unsafe auxiliary paths, and anchor/auxiliary
+  collisions;
+- undeclared codec outputs;
 - missing root or identifier resources;
 - parsed identifier/capture mismatches; and
 - parsed `additionalType` mismatches.
@@ -351,7 +402,7 @@ The rewrite must keep these artifacts synchronized:
 
 1. this non-normative project-file plan;
 2. the normative project-file specification;
-3. the companion handling plan;
+3. the project-file handling plan;
 4. the project JSON Schema expressed as YAML; and
 5. the workspace-profile JSON Schema expressed as YAML.
 
