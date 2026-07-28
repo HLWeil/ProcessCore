@@ -79,6 +79,7 @@ type CodecOutput = {
 type CodecContext = {
     RelativeAnchor: string
     CreateDataset: string -> Dataset
+    ExternalChildIdentifiers: Set<string>
 }
 
 type DatasetCodec = {
@@ -725,7 +726,55 @@ module private StandardProjectCodecs =
         WriteAsync = write runId true ProcessCore.ScaffoldReader.Run.toFsWorkbook
     }
 
-    let all = [ investigation; study; assay; workflow; run ]
+    let datasetYamlId = "dataset.yml"
+
+    let datasetYaml: DatasetCodec = {
+        Id = datasetYamlId
+        ReadAsync =
+            fun context input ->
+                crossAsync {
+                    try
+                        let yaml = System.Text.Encoding.UTF8.GetString input.Primary
+                        let dataset =
+                            YAMLicious.Reader.read yaml
+                            |> ProcessCore.Yaml.Dataset.decoderGeneric
+                                context.CreateDataset
+                                None
+                                None
+                                false
+                        return Ok dataset
+                    with
+                    | ex ->
+                        return
+                            Error(
+                                error datasetYamlId context "The Dataset YAML codec failed while reading."
+                                |> ProjectErrors.withCause ex
+                            )
+                }
+        WriteAsync =
+            fun context dataset ->
+                crossAsync {
+                    try
+                        let includeDirectPart (child: Dataset) =
+                            not (Set.contains child.Identifier context.ExternalChildIdentifiers)
+                        let primary =
+                            ProcessCore.Yaml.Dataset.toYamlStringWithPartFilter
+                                (Some 2)
+                                includeDirectPart
+                                dataset
+                            |> System.Text.Encoding.UTF8.GetBytes
+                        return Ok { Primary = primary; Files = Map.empty }
+                    with
+                    | ex ->
+                        return
+                            Error(
+                                error datasetYamlId context "The Dataset YAML codec failed while writing."
+                                |> ProjectErrors.withCause ex
+                            )
+                }
+    }
+
+    let all = [ investigation; study; assay; workflow; run; datasetYaml ]
 
 module CodecRegistry =
 
@@ -1129,10 +1178,11 @@ module private ProjectPreparation =
 
 module internal ProjectRuntime =
 
-    let private context createDataset (binding: PreparedBinding) : CodecContext =
+    let private context createDataset externalChildIdentifiers (binding: PreparedBinding) : CodecContext =
         {
             RelativeAnchor = binding.RelativeAnchor
             CreateDataset = createDataset
+            ExternalChildIdentifiers = externalChildIdentifiers
         }
 
     let private resourceFailure (binding: PreparedBinding) message ex =
@@ -1159,7 +1209,7 @@ module internal ProjectRuntime =
             | ex -> return resourceFailure binding "Declared resources could not be read." ex
         }
 
-    let private invokeRead createDataset (binding: PreparedBinding) =
+    let private invokeRead createDataset externalChildIdentifiers (binding: PreparedBinding) =
         let codecFailure ex =
             Error(
                 ProjectErrors.create ProjectErrorKind.Codec "A codec threw while reading a Dataset."
@@ -1175,7 +1225,7 @@ module internal ProjectRuntime =
             | Ok input ->
                 try
                     return!
-                        binding.Rule.Codec.ReadAsync (context createDataset binding) input
+                        binding.Rule.Codec.ReadAsync (context createDataset externalChildIdentifiers binding) input
                         |> CrossAsync.catchWith codecFailure
                 with
                 | ex -> return codecFailure ex
@@ -1222,7 +1272,7 @@ module internal ProjectRuntime =
             | ex -> return resourceFailure binding "Declared resources could not be written." ex
         }
 
-    let private invokeWrite (binding: PreparedBinding) dataset =
+    let private invokeWrite externalChildIdentifiers (binding: PreparedBinding) dataset =
         let codecFailure ex =
             Error(
                 ProjectErrors.create ProjectErrorKind.Codec "A codec threw while writing a Dataset."
@@ -1234,7 +1284,9 @@ module internal ProjectRuntime =
         crossAsync {
             let! encoded =
                 try
-                    binding.Rule.Codec.WriteAsync (context (fun id -> Dataset(id)) binding) dataset
+                    binding.Rule.Codec.WriteAsync
+                        (context (fun id -> Dataset(id)) externalChildIdentifiers binding)
+                        dataset
                     |> CrossAsync.catchWith codecFailure
                 with
                 | ex -> crossAsync { return codecFailure ex }
@@ -1272,32 +1324,64 @@ module internal ProjectRuntime =
                 | Error error -> return Error error
                 | Ok bindings ->
                     let rootBinding = bindings |> List.find (fun binding -> binding.Rule.Target = Root)
-                    let! rootResult = invokeRead createRoot rootBinding
-                    match rootResult |> Result.bind (validateRead rootBinding) with
-                    | Error error -> return Error error
-                    | Ok root ->
-                        let childBindings = bindings |> List.filter (fun binding -> binding.Rule.Target <> Root)
-                        let mutable failure = None
-                        for binding in childBindings do
-                            if failure.IsNone then
-                                let! childResult = invokeRead (fun id -> Dataset(id)) binding
-                                match childResult |> Result.bind (validateRead binding) with
-                                | Error error -> failure <- Some error
-                                | Ok child ->
-                                    try root.AddPart(child)
-                                    with
-                                    | ex ->
-                                        failure <-
-                                            Some(
-                                                ProjectErrors.create ProjectErrorKind.Resource $"Dataset '{child.Identifier}' could not be attached to the ARC root."
-                                                |> ProjectErrors.withRule binding.Rule.QualifiedId
-                                                |> ProjectErrors.withCodec binding.Rule.Codec.Id
-                                                |> ProjectErrors.withAnchor binding.RelativeAnchor
-                                                |> ProjectErrors.withCause ex
-                                            )
-                        match failure with
-                        | Some error -> return Error error
-                        | None -> return Ok root
+                    let childBindings = bindings |> List.filter (fun binding -> binding.Rule.Target <> Root)
+                    let mutable childFailure = None
+                    let mutable decodedChildren = []
+                    for binding in childBindings do
+                        if childFailure.IsNone then
+                            let! childResult = invokeRead (fun id -> Dataset(id)) Set.empty binding
+                            match childResult |> Result.bind (validateRead binding) with
+                            | Error error -> childFailure <- Some error
+                            | Ok child -> decodedChildren <- (binding, child) :: decodedChildren
+                    match childFailure with
+                    | Some error -> return Error error
+                    | None ->
+                        let decodedChildren = List.rev decodedChildren
+                        let duplicateIdentifier =
+                            decodedChildren
+                            |> List.groupBy (fun (_, child) -> child.Identifier)
+                            |> List.tryFind (fun (_, matches) -> List.length matches > 1)
+                        match duplicateIdentifier with
+                        | Some (identifier, matches) ->
+                            let rules =
+                                matches
+                                |> List.map (fun (binding, _) -> binding.Rule.QualifiedId)
+                                |> String.concat ", "
+                            return
+                                Error(
+                                    ProjectErrors.create
+                                        ProjectErrorKind.Target
+                                        $"Dataset identifier '{identifier}' is produced by multiple child resources: {rules}."
+                                )
+                        | None ->
+                            let externalChildIdentifiers =
+                                decodedChildren
+                                |> List.map (fun (_, child) -> child.Identifier)
+                                |> Set.ofList
+                            let! rootResult = invokeRead createRoot externalChildIdentifiers rootBinding
+                            match rootResult |> Result.bind (validateRead rootBinding) with
+                            | Error error -> return Error error
+                            | Ok root ->
+                                let mutable attachFailure = None
+                                for binding, child in decodedChildren do
+                                    if attachFailure.IsNone then
+                                        try
+                                            root.TryGetPart(child.Identifier)
+                                            |> Option.iter root.RemovePart
+                                            root.AddPart(child)
+                                        with
+                                        | ex ->
+                                            attachFailure <-
+                                                Some(
+                                                    ProjectErrors.create ProjectErrorKind.Resource $"Dataset '{child.Identifier}' could not be attached to the ARC root."
+                                                    |> ProjectErrors.withRule binding.Rule.QualifiedId
+                                                    |> ProjectErrors.withCodec binding.Rule.Codec.Id
+                                                    |> ProjectErrors.withAnchor binding.RelativeAnchor
+                                                    |> ProjectErrors.withCause ex
+                                                )
+                                match attachFailure with
+                                | Some error -> return Error error
+                                | None -> return Ok root
         }
 
     let writeAsync registry workspaceRoot (root: Dataset) : CrossAsync<Result<unit, ProjectError>> =
@@ -1309,11 +1393,22 @@ module internal ProjectRuntime =
                 match ProjectPreparation.prepareWrite project root with
                 | Error error -> return Error error
                 | Ok bindings ->
+                    let externalChildIdentifiers =
+                        bindings
+                        |> List.choose (fun binding ->
+                            match binding.Rule.Target, binding.Dataset with
+                            | Root, _ -> None
+                            | _, Some dataset -> Some dataset.Identifier
+                            | _, None -> None)
+                        |> Set.ofList
                     let mutable failure = None
                     for binding in bindings do
                         if failure.IsNone then
                             let dataset = binding.Dataset |> Option.get
-                            let! result = invokeWrite binding dataset
+                            let bindingExternalChildIdentifiers =
+                                if binding.Rule.Target = Root then externalChildIdentifiers
+                                else Set.empty
+                            let! result = invokeWrite bindingExternalChildIdentifiers binding dataset
                             match result with
                             | Ok () -> ()
                             | Error error -> failure <- Some error

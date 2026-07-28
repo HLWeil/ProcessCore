@@ -111,31 +111,25 @@ URLs and are downloaded when the project is resolved.
 # .arc/project.yml
 type: ArcWorkspaceProject
 
-workspaceProfiles:
-  - url: "https://example.org/arc/isa-xlsx-scaffold.yml"
-
 rules:
-  - id: relocated-assay
-    codec: isa.assay.xlsx
-    target:
-      identifier: calibration
-    path: special/calibration/isa.assay.xlsx
-    files:
-      - id: datamap
-        path: isa.datamap.xlsx
-      - id: dataset-placeholder
-        path: dataset/.gitkeep
-        create: empty
+  - id: arc
+    codec: dataset.yml
+    target: root
+    path: arc.yml
 ```
 
-The URL above is illustrative; the specification does not assign a canonical
-URL to the standard scaffold profile. A repository-local profile can be used
-instead:
+This is the basic project-backed layout: the whole ARC is one recursive
+Dataset YAML document. ISA is an optional decoration, not the default ARC
+shape. An ISA-XLSX decoration profile can be referenced when that layout is
+wanted:
 
 ```yaml
 workspaceProfiles:
-  - file: profiles/isa-xlsx.yml
+  - url: "https://example.org/arc/isa-xlsx-scaffold.yml"
 ```
+
+The URL is illustrative and has no canonical status. A repository-local
+profile can instead use `file: profiles/isa-xlsx.yml`.
 
 The referenced document must be an `ArcWorkspaceProfile`:
 
@@ -169,8 +163,8 @@ rules. After expansion there must be exactly one `root` rule. Profile IDs and
 qualified rule IDs must be unique; declaration order never chooses a winner for
 conflicting targets or paths.
 
-The complete standard Study, Assay, Workflow, and Run layout is shown in the
-[standard scaffold profile](../spec/project_file.md#12-standard-scaffold-profile).
+The complete optional ISA Study, Assay, Workflow, and Run layouts are shown in
+the [profile examples](../spec/project_file.md#12-profile-examples).
 See the [project-file specification](../spec/project_file.md) for the complete
 document grammar and validation requirements.
 
@@ -209,11 +203,28 @@ isa.study.xlsx
 isa.assay.xlsx
 isa.workflow.xlsx
 isa.run.xlsx
+dataset.yml
 ```
+
+The registry name means that these codecs ship with the library. It does not
+make either ISA scaffold an ARC default. A root `dataset.yml` rule writing
+`arc.yml` is the simplest profile.
 
 The Study, Assay, Workflow, and Run codecs understand a declared auxiliary file
 with ID `datamap`. A missing Datamap is valid; one is emitted only when the
 Dataset contains data contexts.
+
+`dataset.yml` uses the lenient Dataset YAML parser. An optional ISA-decorated
+YAML scaffold can use it for all five rules with paths such as
+`isa.investigation.yml` and
+`assays/{dataset.identifier}/isa.assay.yml`. Data contexts live directly in
+each Dataset document, so these rules do not declare a Datamap auxiliary file.
+
+When writing a split scaffold, direct children with prepared child bindings are
+omitted from the root YAML and written completely in their child YAML files.
+Unselected direct children and deeper nested Datasets remain inline. On read,
+an external child replaces an inline root child with the same identifier; no
+fields are merged.
 
 ### Loading, writing, and updating
 
@@ -297,8 +308,9 @@ crossAsync {
 A `DatasetCodec` reads and writes a complete Dataset from a `CodecInput` or
 `CodecOutput`: `Primary` contains the rule's anchor bytes and `Files` is the
 declared auxiliary-resource map keyed by logical ID. The codec receives a
-`CodecContext` with the relative anchor and Dataset factory, so it never needs
-to derive companion filesystem paths.
+`CodecContext` with the relative anchor, Dataset factory, and
+`ExternalChildIdentifiers`, so it never needs to derive companion filesystem
+paths and can omit direct children stored by other prepared bindings.
 
 `ARC.loadProject[Async]` and `arc.WriteProject[Async]` require an exact project
 file and return `Result<_, ProjectError>` without representation fallback. The
@@ -411,7 +423,7 @@ let decodedStagingArc = ARC.fromYamlString stagedYaml
 | Load using `.arc/project.yml` when present | `ARC.load`, `ARC.loadAsync` |
 | Load a project with custom codecs | `ARC.loadProject`, `ARC.loadProjectAsync` |
 | Write using a destination project | `arc.Write`, `arc.WriteAsync`, `arc.WriteProject`, `arc.WriteProjectAsync` |
-| Use the built-in ISA workbook codecs | `CodecRegistry.standard` |
+| Use the built-in ISA workbook or Dataset-YAML codecs | `CodecRegistry.standard` |
 | Extend project handling with a codec | `DatasetCodec`, `CodecRegistry.add` |
 | Load YAML | `ARC.loadYML`, `ARC.loadYMLAsync` |
 | Load a spreadsheet scaffold | `ARC.loadXLSX`, `ARC.loadXLSXAsync` |

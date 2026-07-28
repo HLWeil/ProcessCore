@@ -221,6 +221,7 @@ module Dataset =
         (recipeEncoder : (Recipe -> YAMLElement) option)
         (storedSamples : seq<Sample> option)
         (storedRecipes : seq<Recipe> option)
+        (includeDirectPart : Dataset -> bool)
         (ds: Dataset) : YAMLElement =
 
         // Build PV index from ALL processes (including hasPart children)
@@ -272,14 +273,13 @@ module Dataset =
                 None
 
         let hasParts =
-            if ds.HasPart.Count > 0 then
-                ds.HasPart
-                |> Seq.map (encoderCore false (Some encodePV) (Some encodeRecipe) None None)
-                |> Seq.toList
-                |> yamlSeq
-                |> Some
-            else
-                None
+            ds.HasPart
+            |> Seq.filter includeDirectPart
+            |> Seq.map (encoderCore false (Some encodePV) (Some encodeRecipe) None None (fun _ -> true))
+            |> Seq.toList
+            |> function
+                | [] -> None
+                | parts -> Some(yamlSeq parts)
 
         let dataFiles =
             if ds.DataFiles.Count > 0 then
@@ -407,16 +407,29 @@ module Dataset =
         (pvEncoder : (Annotation -> YAMLElement) option)
         (recipeEncoder : (Recipe -> YAMLElement) option)
         (ds: Dataset) : YAMLElement =
-        encoderCore useIndexedMode pvEncoder recipeEncoder None None ds
+        encoderCore useIndexedMode pvEncoder recipeEncoder None None (fun _ -> true) ds
 
     let encoderWithStores (samples: seq<Sample>) (recipes: seq<Recipe>) (ds: Dataset) : YAMLElement =
-        encoderCore true None None (Some samples) (Some recipes) ds
+        encoderCore true None None (Some samples) (Some recipes) (fun _ -> true) ds
+
+    let internal encoderWithPartFilter
+        (includeDirectPart : Dataset -> bool)
+        (ds: Dataset)
+        : YAMLElement =
+        encoderCore false None None None None includeDirectPart ds
 
     let fromYamlString (processCoreOnly : bool) (s: string) : Dataset =
         YAMLicious.Reader.read s |> decoder processCoreOnly
 
     let toYamlString (whitespace: int option) (ds: Dataset) : string =
         writeYaml whitespace (encoder false None None ds)
+
+    let internal toYamlStringWithPartFilter
+        (whitespace: int option)
+        (includeDirectPart : Dataset -> bool)
+        (ds: Dataset)
+        : string =
+        writeYaml whitespace (encoderWithPartFilter includeDirectPart ds)
 
     let toYamlStringIndexed (whitespace: int option) (ds: Dataset) : string =
         writeYaml whitespace (encoder true None None ds)
