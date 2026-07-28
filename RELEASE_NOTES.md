@@ -1,3 +1,19 @@
+### 0.1.0+572c1f5 (Released 2026-7-28)
+* Additions:
+    * [[#71b7fcf](https://github.com/HLWeil/ProcessCore/commit/71b7fcfa7e4c1c3753f9bc6c31c3cc7ebd2c0ac2)] create plan for project file
+    * [[#b9debd6](https://github.com/HLWeil/ProcessCore/commit/b9debd648391d3995204d7720d3d7f2ce8a523d0)] add first draft of workspace project file
+    * [[#64b5a9b](https://github.com/HLWeil/ProcessCore/commit/64b5a9b6f4cedefaa8fa8c2fae91843d77878c0e)] separate project file and handling plan
+    * [[#458e6af](https://github.com/HLWeil/ProcessCore/commit/458e6af1ff5fc4bcf78e1a239ef0134d7cd2d7b4)] split project file specs
+    * [[#b57fe11](https://github.com/HLWeil/ProcessCore/commit/b57fe115e147e61a1d3ae078fea506d838c04101)] small changes to project file plan
+    * [[#781ee2b](https://github.com/HLWeil/ProcessCore/commit/781ee2b1a2ded5c3e422722678806fa5db939b16)] simplify project file specification
+    * [[#b08dcc1](https://github.com/HLWeil/ProcessCore/commit/b08dcc1bbbe3d0844a4669a3d94a97a86e87066f)] Slimmed down project file handling plan
+    * [[#331a2c7](https://github.com/HLWeil/ProcessCore/commit/331a2c762a7452a3c665b165916b26a89deb90dc)] first version of project file handling
+    * [[#081c4b2](https://github.com/HLWeil/ProcessCore/commit/081c4b2df10cb2da6db23a158b42e8cc743231a4)] add additional files to project file
+    * [[#51689f3](https://github.com/HLWeil/ProcessCore/commit/51689f3dc762ae34d46126fa0a84a6aab44dcd86)] add webrequest capabilities
+    * [[#dd4e8b6](https://github.com/HLWeil/ProcessCore/commit/dd4e8b657b37432c777ea7be74af9c000b778c8d)] allow resolving workspaces profiles via url and ARC level API consolidation
+* Deletions:
+    * [[#a1e00d8](https://github.com/HLWeil/ProcessCore/commit/a1e00d87601892bac25e32f4a9156b2fbf529dc5)] remove unnecessary project file handling specs
+
 ### 0.0.10+7ea42e5 (Released 2026-7-24)
 * Additions:
     * [[#7ea42e5](https://github.com/HLWeil/ProcessCore/commit/7ea42e582b25a2b83636d6b447c78bd06f25d3c6)] update yamlicious dependency

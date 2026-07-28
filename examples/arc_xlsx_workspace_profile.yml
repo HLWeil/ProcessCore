@@ -1,0 +1,67 @@
+type: ArcWorkspaceProfile
+id: arc.isa.xlsx.scaffold
+version: "1.0"
+description: Established ISA-XLSX ARC scaffold
+
+rules:
+  - id: investigation
+    codec: isa.investigation.xlsx
+    target: root
+    path: isa.investigation.xlsx
+
+  - id: study
+    codec: isa.study.xlsx
+    target:
+      additionalType: Study
+    path: "studies/{dataset.identifier}/isa.study.xlsx"
+    files:
+      - id: datamap
+        path: isa.datamap.xlsx
+      - id: resources-placeholder
+        path: resources/.gitkeep
+        create: empty
+      - id: protocols-placeholder
+        path: protocols/.gitkeep
+        create: empty
+
+  - id: assay
+    codec: isa.assay.xlsx
+    target:
+      additionalType: Assay
+    path: "assays/{dataset.identifier}/isa.assay.xlsx"
+    files:
+      - id: datamap
+        path: isa.datamap.xlsx
+      - id: dataset-placeholder
+        path: dataset/.gitkeep
+        create: empty
+      - id: protocols-placeholder
+        path: protocols/.gitkeep
+        create: empty
+
+  - id: workflow
+    codec: isa.workflow.xlsx
+    target:
+      additionalType: Workflow
+    path: "workflows/{dataset.identifier}/isa.workflow.xlsx"
+    files:
+      - id: datamap
+        path: isa.datamap.xlsx
+      - id: protocols-placeholder
+        path: protocols/.gitkeep
+        create: empty
+
+  - id: run
+    codec: isa.run.xlsx
+    target:
+      additionalType: Run
+    path: "runs/{dataset.identifier}/isa.run.xlsx"
+    files:
+      - id: datamap
+        path: isa.datamap.xlsx
+      - id: dataset-placeholder
+        path: dataset/.gitkeep
+        create: empty
+      - id: protocols-placeholder
+        path: protocols/.gitkeep
+        create: empty
