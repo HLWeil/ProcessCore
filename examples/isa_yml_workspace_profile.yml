@@ -1,0 +1,59 @@
+type: ArcWorkspaceProfile
+id: arc.isa.yml.scaffold
+version: "1.0"
+description: ISA Dataset-YAML decoration scaffold
+
+rules:
+  - id: investigation
+    codec: dataset.yml
+    target: root
+    path: isa.investigation.yml
+
+  - id: study
+    codec: dataset.yml
+    target:
+      additionalType: Study
+    path: "studies/{dataset.identifier}/isa.study.yml"
+    files:
+      - id: resources-placeholder
+        path: resources/.gitkeep
+        create: empty
+      - id: protocols-placeholder
+        path: protocols/.gitkeep
+        create: empty
+
+  - id: assay
+    codec: dataset.yml
+    target:
+      additionalType: Assay
+    path: "assays/{dataset.identifier}/isa.assay.yml"
+    files:
+      - id: dataset-placeholder
+        path: dataset/.gitkeep
+        create: empty
+      - id: protocols-placeholder
+        path: protocols/.gitkeep
+        create: empty
+
+  - id: workflow
+    codec: dataset.yml
+    target:
+      additionalType: Workflow
+    path: "workflows/{dataset.identifier}/isa.workflow.yml"
+    files:
+      - id: protocols-placeholder
+        path: protocols/.gitkeep
+        create: empty
+
+  - id: run
+    codec: dataset.yml
+    target:
+      additionalType: Run
+    path: "runs/{dataset.identifier}/isa.run.yml"
+    files:
+      - id: dataset-placeholder
+        path: dataset/.gitkeep
+        create: empty
+      - id: protocols-placeholder
+        path: protocols/.gitkeep
+        create: empty

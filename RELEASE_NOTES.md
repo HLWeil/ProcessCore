@@ -1,3 +1,7 @@
+### 0.1.1+c7dd74b (Released 2026-7-28)
+* Additions:
+    * [[#1c8875d](https://github.com/HLWeil/ProcessCore/commit/1c8875d607681e54a61a239fb939abbe8fa9f0b1)] add yml codecs to project file
+
 ### 0.1.0+572c1f5 (Released 2026-7-28)
 * Additions:
     * [[#71b7fcf](https://github.com/HLWeil/ProcessCore/commit/71b7fcfa7e4c1c3753f9bc6c31c3cc7ebd2c0ac2)] create plan for project file
