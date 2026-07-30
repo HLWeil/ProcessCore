@@ -331,12 +331,14 @@ module private StrictProjectYaml =
         if segments |> Array.exists (fun part -> part = "" || part = "." || part = "..") then
             error kind $"{context} contains an empty or traversal segment."
         let capture = "{dataset.identifier}"
-        let captureCount = segments |> Array.filter ((=) capture) |> Array.length
-        if captureCount > 1 then error kind $"{context} may contain at most one '{capture}' segment."
+        let captureCount =
+            (value.Length - value.Replace(capture, "").Length) / capture.Length
+        if captureCount > 1 then error kind $"{context} may contain at most one '{capture}' capture."
         for segment in segments do
             if segment.Contains("{") || segment.Contains("}") then
-                if not (allowCapture && segment = capture) then
-                    error kind $"{context} contains an unsupported or partial capture."
+                let literal = segment.Replace(capture, "")
+                if not allowCapture || literal.Contains("{") || literal.Contains("}") then
+                    error kind $"{context} contains an unsupported capture."
         value
 
     let sequence kind context element =
@@ -400,8 +402,8 @@ module private StrictProjectYaml =
             |> Option.map (parseStorageFiles kind)
             |> Option.defaultValue []
         match target with
-        | AdditionalType _ when not (path.Split('/') |> Array.contains "{dataset.identifier}") ->
-            error kind "An additionalType rule path must contain the whole-segment '{dataset.identifier}' capture."
+        | AdditionalType _ when not (path.Contains("{dataset.identifier}")) ->
+            error kind "An additionalType rule path must contain the '{dataset.identifier}' capture."
         | _ -> ()
         { Id = id; Codec = codec; Target = target; Path = path; Files = files }
 
@@ -553,7 +555,13 @@ module private SafeProjectPath =
 type private PathTemplate = {
     Text: string
     Segments: string array
-    CaptureIndex: int option
+    Capture: PathCapture option
+}
+
+and private PathCapture = {
+    SegmentIndex: int
+    Prefix: string
+    Suffix: string
 }
 
 type private ResolvedRule = {
@@ -588,19 +596,31 @@ type private PreparedBinding = {
 module private PathTemplates =
 
     let create (value: string) =
+        let capture = "{dataset.identifier}"
         let segments = value.Split('/')
         {
             Text = value
             Segments = segments
-            CaptureIndex = segments |> Array.tryFindIndex ((=) "{dataset.identifier}")
+            Capture =
+                segments
+                |> Array.mapi (fun index segment ->
+                    let offset = segment.IndexOf(capture)
+                    if offset < 0 then None
+                    else
+                        Some {
+                            SegmentIndex = index
+                            Prefix = segment.Substring(0, offset)
+                            Suffix = segment.Substring(offset + capture.Length)
+                        })
+                |> Array.tryPick id
         }
 
     let render (identifier: string) (template: PathTemplate) =
-        match template.CaptureIndex with
+        match template.Capture with
         | None -> Ok template.Text
-        | Some index when SafeProjectPath.safeIdentifier identifier ->
+        | Some capture when SafeProjectPath.safeIdentifier identifier ->
             let segments = Array.copy template.Segments
-            segments.[index] <- identifier
+            segments.[capture.SegmentIndex] <- capture.Prefix + identifier + capture.Suffix
             Ok(String.Join("/", segments))
         | Some _ -> Error(ProjectErrors.create ProjectErrorKind.Path $"Dataset identifier '{identifier}' is not a safe path segment.")
 
@@ -612,10 +632,26 @@ module private PathTemplates =
             let mutable matches = true
             let mutable captured = None
             for index in 0 .. parts.Length - 1 do
-                match template.CaptureIndex with
-                | Some captureIndex when captureIndex = index ->
-                    if SafeProjectPath.safeIdentifier parts.[index] then captured <- Some parts.[index]
-                    else matches <- false
+                match template.Capture with
+                | Some capture when capture.SegmentIndex = index ->
+                    let part = parts.[index]
+                    let capturedLength = part.Length - capture.Prefix.Length - capture.Suffix.Length
+                    let prefixMatches =
+                        part.Length >= capture.Prefix.Length
+                        && SafeProjectPath.equals
+                            (part.Substring(0, capture.Prefix.Length))
+                            capture.Prefix
+                    let suffixMatches =
+                        part.Length >= capture.Suffix.Length
+                        && SafeProjectPath.equals
+                            (part.Substring(part.Length - capture.Suffix.Length))
+                            capture.Suffix
+                    if capturedLength > 0 && prefixMatches && suffixMatches then
+                        let identifier = part.Substring(capture.Prefix.Length, capturedLength)
+                        if SafeProjectPath.safeIdentifier identifier then captured <- Some identifier
+                        else matches <- false
+                    else
+                        matches <- false
                 | _ ->
                     if not (SafeProjectPath.equals parts.[index] template.Segments.[index]) then matches <- false
             if matches then Some captured else None
@@ -801,7 +837,7 @@ module CodecRegistry =
 
 module private ProjectResolution =
 
-    let templateHasCapture template = template.CaptureIndex.IsSome
+    let templateHasCapture template = template.Capture.IsSome
 
     let rec private duplicateBy comparer getValue items =
         match items with
@@ -1095,7 +1131,7 @@ module private ProjectPreparation =
                 let bindings =
                     project.Rules
                     |> List.collect (fun rule ->
-                        match rule.Target, rule.Template.CaptureIndex with
+                        match rule.Target, rule.Template.Capture with
                         | (Root | Identifier _), None ->
                             let anchor =
                                 match SafeProjectPath.resolve project.WorkspaceRoot rule.Template.Text with
@@ -1176,7 +1212,7 @@ module private ProjectPreparation =
                             rule
                             anchor
                             relative
-                            (rule.Template.CaptureIndex |> Option.map (fun _ -> dataset.Identifier))
+                            (rule.Template.Capture |> Option.map (fun _ -> dataset.Identifier))
                             (Some dataset)))
             checkCollisions bindings
         with

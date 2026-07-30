@@ -179,9 +179,10 @@ Any project resolution error prevents codec invocation.
 ### 3.1 Paths
 
 The path-template resolver supports literal `/`-separated segments and at most
-one whole `{dataset.identifier}` segment. It rejects unsupported captures,
-partial captures, backslashes, empty or traversal segments, absolute or
-URI-like forms, and paths escaping the configured base.
+one `{dataset.identifier}` capture, optionally surrounded by literal text
+within its segment. It rejects unsupported or repeated captures, backslashes,
+empty or traversal segments, absolute or URI-like forms, and paths escaping the
+configured base.
 
 Resolved paths must remain confined after normalization and symlink or reparse
 point resolution. Collision comparison uses the host filesystem's effective

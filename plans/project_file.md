@@ -255,7 +255,7 @@ inside a selected Dataset remain part of that codec input or result.
 
 ## 6. Paths
 
-Paths are workspace-relative `/`-separated templates made from literal whole
+Paths are workspace-relative `/`-separated templates made from literal
 segments and the single capture:
 
 ```text
@@ -266,16 +266,12 @@ Root and identifier targets may use a literal path or the capture. An
 additional-type target must contain the capture exactly once so every selected
 Dataset has a distinct anchor.
 
-The capture must occupy its whole segment. This is valid:
+The capture may occur once in a segment, with optional literal text before or
+after it. Both of these are valid:
 
 ```text
 studies/{dataset.identifier}/isa.study.xlsx
-```
-
-This is invalid:
-
-```text
-studies/study-{dataset.identifier}.xlsx
+assays/assay_{dataset.identifier}.yml
 ```
 
 Paths reject absolute, drive-qualified, UNC, URI, empty, `.`, `..`, NUL, and

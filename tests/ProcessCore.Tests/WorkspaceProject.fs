@@ -269,7 +269,7 @@ rules: []
                 Expect.isError unknown "unknown fields are rejected"
                 Expect.isError duplicate "duplicate fields are rejected"
 
-            testCase "rejects implicit non-string scalars, aliases, and partial captures" <| fun _ ->
+            testCase "rejects implicit non-string scalars, aliases, and unsupported captures" <| fun _ ->
                 let numeric =
                     """type: ArcWorkspaceProfile
 id: example
@@ -298,12 +298,12 @@ rules:
   - id: root
     codec: test.dataset
     target: root
-    path: "root-{dataset.identifier}.data"
+    path: "root-{dataset.unknown}.data"
 """
                     |> ProcessCore.WorkspaceProject.parse
                 Expect.isError numeric "an unquoted numeric profile version is not a string"
                 Expect.isError alias "aliases are rejected"
-                Expect.isError capture "captures must occupy a whole segment"
+                Expect.isError capture "only the dataset identifier capture is supported"
 
             testCase "rejects duplicate file IDs, unsafe paths, and unknown create policies" <| fun _ ->
                 let parse files =
@@ -600,6 +600,45 @@ rules:
                         Expect.equal loaded.HasPart.[0].PartOf (Some (loaded :> Dataset)) "AddPart establishes parentage"
                         Expect.equal writes.Value 2 "root and child are written once"
                         Expect.equal reads.Value 2 "root and child are read once"
+                    }
+            )
+
+            testCaseCrossAsync "embedded identifier captures round-trip child resources" (
+                withWorkspace "embedded-identifier-capture" <| fun root ->
+                    crossAsync {
+                        let registry = fakeRegistry (ref 0) (ref 0)
+                        do!
+                            writeText
+                                (Path.combineMany [ root; ".arc"; "project.yml" ])
+                                """type: ArcWorkspaceProject
+rules:
+  - id: root
+    codec: test.dataset
+    target: root
+    path: root.data
+  - id: assays
+    codec: test.dataset
+    target:
+      additionalType: Assay
+    path: "metadata/assay_{dataset.identifier}.yml"
+"""
+                        let arc = ARC("root", additionalType = "Investigation")
+                        arc.AddPart(Dataset("proteomics-1", additionalType = "Assay"))
+
+                        let! written = arc.WriteProjectAsync(registry, root)
+                        written |> unwrap
+                        let anchor =
+                            Path.combineMany [ root; "metadata"; "assay_proteomics-1.yml" ]
+                        let! anchorExists = Path.fileExistsAsync anchor
+                        Expect.isTrue anchorExists "the identifier is rendered within the filename"
+
+                        let! loaded = ARC.loadProjectAsync(registry, root)
+                        let loaded = loaded |> unwrap
+                        Expect.equal loaded.HasPart.Count 1 "the embedded capture discovers one child"
+                        Expect.equal
+                            loaded.HasPart.[0].Identifier
+                            "proteomics-1"
+                            "the identifier is captured from between the filename literals"
                     }
             )
 

@@ -206,11 +206,12 @@ file:
 | `path` | Safe path relative to the workspace root |
 | `files` | Optional named files relative to the primary file's directory |
 
-`{dataset.identifier}` may occupy one complete path segment. On read it captures
-the Dataset identifier; on write it renders the selected Dataset identifier.
-An exact `identifier` rule reserves that child and takes precedence over an
-`additionalType` rule, which makes local relocation rules possible without
-editing a reusable profile.
+`{dataset.identifier}` may occur once in a path segment, with optional literal
+text before or after it (for example, `assay_{dataset.identifier}.yml`). On read
+it captures the Dataset identifier; on write it renders the selected Dataset
+identifier. An exact `identifier` rule reserves that child and takes precedence
+over an `additionalType` rule, which makes local relocation rules possible
+without editing a reusable profile.
 
 An auxiliary file without `create` is codec-managed. It is optional on read and
 is written only when the codec returns content under its declared logical ID.

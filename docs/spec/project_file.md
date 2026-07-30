@@ -420,23 +420,26 @@ invocation.
 
 ### 9.1 Grammar
 
-A path template is a `/`-separated sequence of whole segments. A segment is:
+A path template is a `/`-separated sequence of non-empty segments. A segment is:
 
 - a non-empty literal; or
-- exactly `{dataset.identifier}`.
+- a template segment containing `{dataset.identifier}` exactly once, optionally
+  preceded or followed by literal text.
 
-The capture MAY occur at most once.
+The capture MAY occur at most once in the entire path.
 
 Valid:
 
 ```text
 studies/{dataset.identifier}/isa.study.xlsx
+assays/isa.assay_{dataset.identifier}.yml
 ```
 
 Invalid:
 
 ```text
-studies/study-{dataset.identifier}.xlsx
+studies/{dataset.identifier}/{dataset.identifier}.xlsx
+studies/{parent.identifier}.xlsx
 ```
 
 Version 1 does not support `{parent.identifier}`, parameter references, globs,
@@ -458,8 +461,11 @@ is an error even if one resource later fails parsing.
 
 ### 9.3 Matching and rendering
 
-On read, literal segments match exactly. The capture matches one safe, non-empty
-path segment and yields the candidate Dataset identifier.
+On read, literal segments and the literal prefix and suffix around a capture
+match exactly. The text matched by the capture MUST be non-empty, MUST be a safe
+path segment when considered independently, and yields the candidate Dataset
+identifier. For example, `assay_alpha.yml` matched by
+`assay_{dataset.identifier}.yml` captures `alpha`.
 
 When a capture is present, the parsed Dataset identifier MUST equal the captured
 value. An identifier target additionally requires equality with its declared
@@ -863,10 +869,11 @@ target:
 
 are invalid even when their codec or path differs.
 
-### 14.3 Partial capture
+### 14.3 Unsupported or repeated capture
 
 ```yaml
-path: "studies/study-{dataset.identifier}.xlsx"
+path: "studies/{dataset.identifier}/{dataset.identifier}.xlsx"
 ```
 
-Captures must occupy a complete segment.
+Only `{dataset.identifier}` is supported, and it may occur at most once in the
+path. Literal text may surround that capture within its segment.
