@@ -1,5 +1,5 @@
 ---
-title: Datamap
+title: Dataset
 category: Datamap Profile
 categoryindex: 5
 index: 2
