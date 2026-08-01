@@ -284,9 +284,7 @@ module ARC =
                 )
             for ds in subSets do
                 printfn $"Adding dataset {ds.Identifier} to top-level dataset"
-                try topLevelDataset.AddPart(ds) |> ignore
-                with
-                | ex -> printfn $"Failed to add dataset {ds.Identifier} to top-level dataset: {ex.Message}"
+                topLevelDataset.AddPart(ds)
             
             return topLevelDataset
         }
@@ -427,9 +425,7 @@ module ARC =
         )
         |> Seq.iter (fun ds -> 
             printfn $"Adding dataset {ds.Identifier} to top-level dataset"
-            try topLevelDataset.AddPart(ds) |> ignore
-            with
-            | ex -> printfn $"Failed to add dataset {ds.Identifier} to top-level dataset: {ex.Message}"
+            topLevelDataset.AddPart(ds)
         )
         topLevelDataset
 

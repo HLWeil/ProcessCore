@@ -159,6 +159,120 @@ let tests = testList "Deduplication" [
             Expect.isTrue (obj.ReferenceEquals(childInst, parentInst))
                 "Node from child dataset should be canonical in the parent registry after AddPart"
 
+        testCase "canonicalizing Samples merges compatible metadata and preserves back-edges" <| fun _ ->
+            let parent = Dataset("parent")
+            let canonicalAnnotation = Annotation("organism", value = "plant")
+            let canonical = Sample("shared", additionalProperty = [ canonicalAnnotation ])
+            let consumer = Process("consumer")
+            parent.AddProcess(consumer)
+            consumer.SetInputSample(canonical)
+
+            let child = Dataset("child")
+            let enrichedAnnotation =
+                Annotation(
+                    "organism",
+                    value = "plant",
+                    valueTAN = "https://example.org/plant",
+                    additionalType = "CharacteristicValue")
+            enrichedAnnotation.SetProperty("source", "study")
+            let incoming =
+                Sample(
+                    "shared",
+                    additionalType = "Sample",
+                    additionalProperty = [
+                        enrichedAnnotation
+                        Annotation("temperature", value = "25", unit = "degree Celsius", additionalType = "FactorValue")
+                    ])
+            incoming.SetProperty("label", "enriched sample")
+            let producer = Process("producer")
+            producer.SetOutputSample(incoming)
+            child.AddProcess(producer)
+
+            parent.AddPart(child)
+
+            let resolved = producer.OutputSample().Value
+            Expect.isTrue (obj.ReferenceEquals(canonical, resolved)) "the first Sample remains canonical"
+            Expect.equal canonical.AdditionalType (Some "Sample") "missing Sample type is filled"
+            Expect.equal canonical.AdditionalProperty.Count 2 "matching and distinct annotations are merged"
+            Expect.equal canonicalAnnotation.ValueTAN (Some "https://example.org/plant") "matching annotation metadata is enriched"
+            Expect.equal canonicalAnnotation.AdditionalType (Some "CharacteristicValue") "matching annotation type is enriched"
+            Expect.equal (canonicalAnnotation.TryGetPropertyValue("source") |> Option.map string) (Some "study")
+                "matching annotation dynamic metadata is enriched"
+            Expect.equal (canonical.TryGetPropertyValue("label") |> Option.map string) (Some "enriched sample")
+                "Sample dynamic metadata is enriched"
+            Expect.isTrue (canonical.InputOf.Contains(consumer)) "the canonical Sample keeps its input back-edge"
+            Expect.isTrue (canonical.OutputOf.Contains(producer)) "the canonical Sample receives the output back-edge"
+
+        testCase "canonicalizing Data merges compatible metadata and nested parts" <| fun _ ->
+            let parent = Dataset("parent")
+            let canonicalPart = Data("data/part.csv")
+            let canonical = Data("data/result.csv", hasPart = [ canonicalPart ])
+            parent.AddDataFile(canonical)
+
+            let incomingPart = Data("data/part.csv", encodingFormat = "text/csv")
+            incomingPart.SetProperty("label", "table part")
+            let incoming =
+                Data(
+                    "data/result.csv",
+                    selectorFormat = "https://example.org/selector",
+                    encodingFormat = "text/csv",
+                    additionalType = "Processed Data",
+                    hasPart = [ incomingPart ],
+                    additionalProperty = [ Annotation("quality", value = "checked") ])
+            incoming.SetProperty("checksum", "abc123")
+            let child = Dataset("child", dataFiles = [ incoming ])
+
+            parent.AddPart(child)
+
+            Expect.isTrue (obj.ReferenceEquals(canonical, child.DataFiles.[0])) "the first Data remains canonical"
+            Expect.equal canonical.SelectorFormat (Some "https://example.org/selector") "missing selector format is filled"
+            Expect.equal canonical.EncodingFormat (Some "text/csv") "missing encoding format is filled"
+            Expect.equal canonical.AdditionalType (Some "Processed Data") "missing Data type is filled"
+            Expect.equal canonical.AdditionalProperty.Count 1 "Data annotations are merged"
+            Expect.equal (canonical.TryGetPropertyValue("checksum") |> Option.map string) (Some "abc123")
+                "Data dynamic metadata is enriched"
+            Expect.equal canonical.HasPart.Count 1 "equivalent nested Data parts remain deduplicated"
+            Expect.isTrue (obj.ReferenceEquals(canonicalPart, canonical.HasPart.[0])) "the first nested Data remains canonical"
+            Expect.equal canonicalPart.EncodingFormat (Some "text/csv") "nested Data metadata is enriched recursively"
+            Expect.equal (canonicalPart.TryGetPropertyValue("label") |> Option.map string) (Some "table part")
+                "nested Data dynamic metadata is enriched"
+
+        testCase "canonicalizing equal nodes rejects conflicting scalar metadata" <| fun _ ->
+            let dataset = Dataset("dataset")
+            dataset.CanonicalizeNode(SampleNode(Sample("shared", additionalType = "Sample"))) |> ignore
+            Expect.throws
+                (fun () -> dataset.CanonicalizeNode(SampleNode(Sample("shared", additionalType = "UnexpectedType"))) |> ignore)
+                "conflicting Sample types must be reported"
+
+        testCase "canonicalizing Source and Sample roles normalizes to Sample" <| fun _ ->
+            let dataset = Dataset("dataset")
+            let canonical = Sample("shared", additionalType = "Source")
+            dataset.CanonicalizeNode(SampleNode canonical) |> ignore
+            dataset.CanonicalizeNode(SampleNode(Sample("shared", additionalType = "Sample"))) |> ignore
+            Expect.equal canonical.AdditionalType (Some "Sample") "Sample subsumes its Source endpoint role"
+
+        testCase "canonicalizing equal nodes rejects conflicting dynamic metadata" <| fun _ ->
+            let dataset = Dataset("dataset")
+            let canonical = Sample("shared")
+            canonical.SetProperty("label", "first")
+            dataset.CanonicalizeNode(SampleNode canonical) |> ignore
+            let incoming = Sample("shared")
+            incoming.SetProperty("label", "second")
+            Expect.throws
+                (fun () -> dataset.CanonicalizeNode(SampleNode incoming) |> ignore)
+                "conflicting dynamic properties must be reported"
+
+        testCase "canonicalizing equal nodes rejects conflicting matching-annotation metadata" <| fun _ ->
+            let dataset = Dataset("dataset")
+            let first = Annotation("organism", value = "plant", valueTAN = "https://example.org/plant-a")
+            dataset.CanonicalizeNode(SampleNode(Sample("shared", additionalProperty = [ first ]))) |> ignore
+            let second = Annotation("organism", value = "plant", valueTAN = "https://example.org/plant-b")
+            Expect.throws
+                (fun () ->
+                    dataset.CanonicalizeNode(SampleNode(Sample("shared", additionalProperty = [ second ])))
+                    |> ignore)
+                "conflicting metadata on matching annotations must be reported"
+
         testCase "RemovePart evicts child-only nodes from parent registry" <| fun _ ->
             let child  = Dataset("child")
             let parent = Dataset("parent")

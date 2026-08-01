@@ -1586,15 +1586,125 @@ and [<AttachMembers>] Dataset(identifier: string, ?title: string, ?description: 
     member this.GetFragmentSelectorProviders() : seq<IFragmentSelectorProvider> =
         this.RootDataset().FragmentSelectorProvidersDirect.Values :> seq<IFragmentSelectorProvider>
 
+    member private this.MergeNodeMetadata(canonical: IONode, incoming: IONode) =
+        let nodeKey = canonical.Key()
+
+        let conflict fieldName existing incoming =
+            invalidOp
+                $"Cannot canonicalize I/O node '{nodeKey}': metadata field '{fieldName}' has conflicting values '{existing}' and '{incoming}'."
+
+        let mergeOption fieldName canonicalValue incomingValue setCanonical =
+            match canonicalValue, incomingValue with
+            | None, Some value -> setCanonical value
+            | Some existing, Some value when not (Unchecked.equals existing value) ->
+                conflict fieldName (string existing) (string value)
+            | _ -> ()
+
+        let mergeDynamicProperties fieldPrefix (canonicalObj: DynamicObj) (incomingObj: DynamicObj) =
+            for property in incomingObj.GetProperties(false) do
+                match canonicalObj.TryGetPropertyValue(property.Key) with
+                | None -> canonicalObj.SetProperty(property.Key, property.Value)
+                | Some existing when Unchecked.equals existing property.Value -> ()
+                | Some existing ->
+                    conflict
+                        $"{fieldPrefix}.{property.Key}"
+                        (string existing)
+                        (string property.Value)
+
+        let mergeAnnotation (canonicalAnnotation: Annotation) (incomingAnnotation: Annotation) =
+            let fieldPrefix = $"additionalProperty[{canonicalAnnotation.Name}]"
+            mergeOption
+                $"{fieldPrefix}.valueTAN"
+                canonicalAnnotation.ValueTAN
+                incomingAnnotation.ValueTAN
+                (fun value -> canonicalAnnotation.ValueTAN <- Some value)
+            mergeOption
+                $"{fieldPrefix}.unitTAN"
+                canonicalAnnotation.UnitTAN
+                incomingAnnotation.UnitTAN
+                (fun value -> canonicalAnnotation.UnitTAN <- Some value)
+            mergeOption
+                $"{fieldPrefix}.additionalType"
+                canonicalAnnotation.AdditionalType
+                incomingAnnotation.AdditionalType
+                (fun value -> canonicalAnnotation.AdditionalType <- Some value)
+            mergeOption
+                $"{fieldPrefix}.instanceOf"
+                canonicalAnnotation.InstanceOf
+                incomingAnnotation.InstanceOf
+                (fun value -> canonicalAnnotation.InstanceOf <- Some value)
+            mergeDynamicProperties fieldPrefix canonicalAnnotation incomingAnnotation
+
+        let mergeAnnotations
+            (canonicalAnnotations: ResizeArray<Annotation>)
+            (incomingAnnotations: ResizeArray<Annotation>)
+            =
+            for incomingAnnotation in incomingAnnotations do
+                match canonicalAnnotations |> Seq.tryFind (fun current -> current = incomingAnnotation) with
+                | Some canonicalAnnotation -> mergeAnnotation canonicalAnnotation incomingAnnotation
+                | None -> canonicalAnnotations.Add(incomingAnnotation)
+
+        match canonical, incoming with
+        | SampleNode canonicalSample, SampleNode incomingSample ->
+            if not (obj.ReferenceEquals(canonicalSample, incomingSample)) then
+                match canonicalSample.AdditionalType, incomingSample.AdditionalType with
+                | None, Some value -> canonicalSample.AdditionalType <- Some value
+                | Some "Source", Some "Sample" -> canonicalSample.AdditionalType <- Some "Sample"
+                | Some "Sample", Some "Source" -> ()
+                | Some existing, Some value when existing <> value ->
+                    conflict "additionalType" existing value
+                | _ -> ()
+                mergeDynamicProperties "dynamic" canonicalSample incomingSample
+                mergeAnnotations canonicalSample.AdditionalProperty incomingSample.AdditionalProperty
+        | DataNode canonicalData, DataNode incomingData ->
+            if not (obj.ReferenceEquals(canonicalData, incomingData)) then
+                mergeOption
+                    "selectorFormat"
+                    canonicalData.SelectorFormat
+                    incomingData.SelectorFormat
+                    (fun value -> canonicalData.SelectorFormat <- Some value)
+                mergeOption
+                    "encodingFormat"
+                    canonicalData.EncodingFormat
+                    incomingData.EncodingFormat
+                    (fun value -> canonicalData.EncodingFormat <- Some value)
+                mergeOption
+                    "additionalType"
+                    canonicalData.AdditionalType
+                    incomingData.AdditionalType
+                    (fun value -> canonicalData.AdditionalType <- Some value)
+                mergeDynamicProperties "dynamic" canonicalData incomingData
+                mergeAnnotations canonicalData.AdditionalProperty incomingData.AdditionalProperty
+                for incomingPart in incomingData.HasPart do
+                    let canonicalPart =
+                        match this.CanonicalizeNode(DataNode incomingPart) with
+                        | DataNode value -> value
+                        | SampleNode _ -> failwith "A Data identity key resolved to a Sample."
+                    canonicalData.AddPart(canonicalPart)
+        | _ ->
+            invalidOp $"Cannot canonicalize incompatible I/O nodes with key '{nodeKey}'."
+
     /// Returns the canonical IONode for `node` from the root registry.
-    /// Registers and returns `node` itself if its key is not yet present.
+    /// Registers and returns `node` itself if its key is not yet present. When
+    /// the key is already registered, compatible metadata is merged into the
+    /// canonical instance and conflicting metadata raises an exception.
     member this.CanonicalizeNode(node: IONode) : IONode =
         let registry = this.RootDataset().NodeRegistryDirect
         let key = node.Key()
         match registry.TryGetValue(key) with
-        | true, existing -> existing
+        | true, existing ->
+            this.MergeNodeMetadata(existing, node)
+            existing
         | false, _       ->
             registry.[key] <- node
+            match node with
+            | DataNode data ->
+                for i in 0 .. data.HasPart.Count - 1 do
+                    data.HasPart.[i] <-
+                        match this.CanonicalizeNode(DataNode data.HasPart.[i]) with
+                        | DataNode value -> value
+                        | SampleNode _ -> failwith "A Data identity key resolved to a Sample."
+            | SampleNode _ -> ()
             node
 
     /// Pins a canonical node in the root registry independently of process use.

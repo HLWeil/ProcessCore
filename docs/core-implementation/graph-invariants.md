@@ -15,7 +15,9 @@ Every `Process` is exactly one directed edge. `Input` and `Output` are optional 
 
 Samples are equal by `Name`. Data nodes are equal by `Path` and `Selector`.
 
-When a process is added to a dataset, its input and output nodes are canonicalized against the root dataset registry. If another process already uses the same logical node, both processes point to the same object instance after canonicalization.
+When a process is added to a dataset, its input and output nodes are canonicalized against the root dataset registry. If another process already uses the same logical node, both processes point to the same object instance after canonicalization. Compatible metadata from the later node is merged into that instance: annotations and nested data parts are accumulated, while missing typed and dynamic fields are filled.
+
+Conflicting non-empty metadata raises a canonicalization error rather than selecting a value by load order. The one role-specific exception is `Source` plus `Sample` on the same logical sample; these are compatible endpoint roles and normalize to `Sample`.
 
 This is why a sample produced by one process can be consumed by another process without manually wiring both processes to the same object instance.
 

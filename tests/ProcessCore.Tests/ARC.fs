@@ -203,6 +203,76 @@ processes:
             Expect.isTrue (obj.ReferenceEquals(data, child.DataFiles.[0])) "child DataFile is canonical"
             Expect.isTrue (obj.ReferenceEquals(recipe, proc.ExecutesRecipe.Value)) "child Recipe is canonical"
 
+        testCase "stored Sample merges metadata from a later process input" <| fun _ ->
+            let arc = ARC("arc-store")
+            let canonical = Sample("sample-1")
+            arc.AddSample(canonical)
+            let proc = Process("consume")
+            arc.AddProcess(proc)
+            proc.SetInputSample(
+                Sample(
+                    "sample-1",
+                    additionalType = "Sample",
+                    additionalProperty = [ Annotation("organism", value = "plant", additionalType = "CharacteristicValue") ]))
+
+            let resolved = proc.InputSample().Value
+            Expect.isTrue (obj.ReferenceEquals(canonical, resolved)) "the stored Sample remains canonical"
+            Expect.equal resolved.AdditionalType (Some "Sample") "input metadata enriches the stored Sample"
+            Expect.equal resolved.AdditionalProperty.Count 1 "input annotations enrich the stored Sample"
+
+        testCase "process output Sample merges metadata from a later ARC store entry" <| fun _ ->
+            let arc = ARC("arc-store")
+            let proc = Process("produce")
+            arc.AddProcess(proc)
+            let canonical = Sample("sample-1")
+            proc.SetOutputSample(canonical)
+            arc.AddSample(
+                Sample(
+                    "sample-1",
+                    additionalType = "Sample",
+                    additionalProperty = [ Annotation("temperature", value = "25", additionalType = "FactorValue") ]))
+
+            Expect.isTrue (obj.ReferenceEquals(canonical, arc.Samples.[0])) "the process output Sample remains canonical"
+            Expect.equal canonical.AdditionalType (Some "Sample") "stored metadata enriches the output Sample"
+            Expect.equal canonical.AdditionalProperty.Count 1 "stored annotations enrich the output Sample"
+
+        testCase "stored Data merges metadata from a later process output" <| fun _ ->
+            let arc = ARC("arc-store")
+            let canonical = Data("data/result.csv")
+            arc.AddDataFile(canonical)
+            let proc = Process("produce")
+            arc.AddProcess(proc)
+            proc.SetOutputData(
+                Data(
+                    "data/result.csv",
+                    encodingFormat = "text/csv",
+                    additionalType = "Processed Data",
+                    additionalProperty = [ Annotation("quality", value = "checked") ]))
+
+            let resolved = proc.OutputData().Value
+            Expect.isTrue (obj.ReferenceEquals(canonical, resolved)) "the stored Data remains canonical"
+            Expect.equal resolved.EncodingFormat (Some "text/csv") "output metadata enriches the stored Data"
+            Expect.equal resolved.AdditionalType (Some "Processed Data") "output type enriches the stored Data"
+            Expect.equal resolved.AdditionalProperty.Count 1 "output annotations enrich the stored Data"
+
+        testCase "process input Data merges metadata from a later ARC store entry" <| fun _ ->
+            let arc = ARC("arc-store")
+            let proc = Process("consume")
+            arc.AddProcess(proc)
+            let canonical = Data("data/input.csv")
+            proc.SetInputData(canonical)
+            arc.AddDataFile(
+                Data(
+                    "data/input.csv",
+                    selectorFormat = "https://example.org/selector",
+                    encodingFormat = "text/csv",
+                    additionalProperty = [ Annotation("origin", value = "instrument") ]))
+
+            Expect.isTrue (obj.ReferenceEquals(canonical, arc.DataFiles.[0])) "the process input Data remains canonical"
+            Expect.equal canonical.SelectorFormat (Some "https://example.org/selector") "stored selector metadata enriches input Data"
+            Expect.equal canonical.EncodingFormat (Some "text/csv") "stored encoding metadata enriches input Data"
+            Expect.equal canonical.AdditionalProperty.Count 1 "stored annotations enrich input Data"
+
         testCase "replacing a recipe respects store pinning and final-reference eviction" <| fun _ ->
             let arc = ARC("arc-store")
             let first = Recipe("measurement", version = "1")
@@ -326,6 +396,38 @@ processes:
         Expect.equal arc.Identifier "Facultative-CAM-in-Talinum" "ARC should have correct identifier"
         Expect.equal arc.ArcPath (Some testARCPath) "ARC should retain its load path"
         Expect.isTrue arc.IsSpreadsheetScaffold "ARC should retain its spreadsheet representation"
+    })
+
+    testCaseCrossAsync "loadXLSXAsync_scaffold_preserves_study_factors_on_shared_samples" (crossAsync {
+        let testARCPath = Path.combine testObjectsFolder "testARC"
+        let! arc = ARC.loadXLSXAsync testARCPath
+        let study = Expect.wantSome (arc.TryGetPart "TalinumSamples-STRI") "Study should be present"
+        let cam01 =
+            study.Processes
+            |> Seq.choose (fun proc -> proc.OutputSample())
+            |> Seq.find (fun sample -> sample.Name = "CAM_01")
+        let factorValues =
+            cam01.AdditionalProperty
+            |> Seq.filter (fun annotation -> annotation.AdditionalType = Some "FactorValue")
+            |> Seq.map (fun annotation -> annotation.Name, annotation.Value)
+            |> Set.ofSeq
+        let expectedFactorValues =
+            Set.ofList [
+                "watering exposure", Some "12 days drought"
+                "Timepoint", Some "MD"
+                "timepoint-ZT", Some "6"
+                "Photosynthesis mode", Some "CAM"
+            ]
+        Expect.equal factorValues expectedFactorValues "all Study FactorValues survive full ARC canonicalization"
+
+        let factorHeaders =
+            study.Tables.GetTable("plant_material").Headers
+            |> Seq.choose (function | CompositeHeader.Factor term -> Some term.Name | _ -> None)
+            |> Set.ofSeq
+        Expect.equal
+            factorHeaders
+            (Set.ofList [ "watering exposure"; "Timepoint"; "timepoint-ZT"; "Photosynthesis mode" ])
+            "the reconstructed Study table retains every Factor column"
     })
 
     testCaseCrossAsync "WriteYMLAsync_loadYMLAsync" (crossAsync {

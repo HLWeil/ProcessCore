@@ -405,7 +405,7 @@ stagedArc.AddDataFile(Data("data/second-measurement.csv"))
 stagedArc.AddRecipe(Recipe("normalize", version = "1"))
 
 (**
-Equal objects are canonical across the ARC and all nested datasets. Linking a later equal value therefore reuses the first stored instance without merging fields from the later value.
+Equal objects are canonical across the ARC and all nested datasets. Linking a later equal value reuses the first stored instance and merges compatible metadata into it. Distinct annotations and nested data parts are accumulated, missing scalar and dynamic fields are filled, and incompatible values raise a canonicalization error instead of depending on load order.
 *)
 
 let measurement = Process("measurement")
