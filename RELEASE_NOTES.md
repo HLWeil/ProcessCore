@@ -1,3 +1,9 @@
+### 0.1.3+e44a678 (Released 2026-8-1)
+* Additions:
+    * [[#e44a678](https://github.com/HLWeil/ProcessCore/commit/e44a67880df5c57c29fe1ea486b6044b6b9f4350)] merge nodes with same identity on read
+    * [[#fd4a2a2](https://github.com/HLWeil/ProcessCore/commit/fd4a2a28f852fc670507efb31d1690b3f1ead77e)] small adjustment to datamap profile pages
+    * [[#346505b](https://github.com/HLWeil/ProcessCore/commit/346505b5450e0d31cceb354e777f065c3925978a)] allow integration of dataset in arbitrary location of path in project file rule
+
 ### 0.1.2+4845fd9 (Released 2026-7-28)
 * Additions:
     * [[#4845fd9](https://github.com/HLWeil/ProcessCore/commit/4845fd9d5fe50d550d3625ea28c6fe414555417d)] allow project profile rule overwriting
