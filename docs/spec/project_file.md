@@ -614,7 +614,8 @@ graph recursively to `arc.yml`, including `dataContexts`.
 
 ### 12.2 ISA-XLSX decoration scaffold
 
-One possible profile for an ISA-decorated ARC is:
+One possible profile for an ISA-decorated ARC is provided as the
+[ISA-XLSX workspace profile](isa_xlsx_workspace_profile.yml):
 
 ```yaml
 type: ArcWorkspaceProfile
@@ -696,7 +697,8 @@ The profile MAY be referenced by `file` or `url`.
 ### 12.3 ISA Dataset-YAML decoration scaffold
 
 The same optional ISA decoration layout can use Dataset YAML instead of
-workbooks:
+workbooks. The complete profile is provided as the
+[ISA Dataset-YAML workspace profile](isa_yml_workspace_profile.yml):
 
 ```yaml
 type: ArcWorkspaceProfile
